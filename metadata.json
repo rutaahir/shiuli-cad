@@ -1,0 +1,6 @@
+{
+  "name": "Shiuli CAD Studio",
+  "description": "Premium Jewellery CAD Files, custom 3D design, and precision manufacturing STL assets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
