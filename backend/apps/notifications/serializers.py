@@ -11,6 +11,7 @@ class NotificationSerializer(serializers.ModelSerializer):
 class ContactMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ContactMessage
-        fields = ['id', 'name', 'email', 'phone', 'subject', 'message', 'is_read', 'created_at']
-        read_only_fields = ['id', 'is_read', 'created_at']
+        fields = ['id', 'name', 'email', 'phone', 'subject', 'message', 'is_read', 'created_at', 'ip_address']
+        read_only_fields = ['id', 'created_at', 'ip_address']
+
 

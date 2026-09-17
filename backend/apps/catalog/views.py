@@ -46,15 +46,26 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        direct_count = instance.products.count()
+        reassign = request.query_params.get('reassign') == 'true' or request.data.get('reassign') is True
+        force_delete = request.query_params.get('force') == 'true' or request.query_params.get('cascade') == 'true' or request.data.get('force') is True
+        
+        direct_products = instance.products.all()
+        direct_count = direct_products.count()
         sub_count = Product.objects.filter(category__parent=instance).count()
         total_products = direct_count + sub_count
 
         if total_products > 0:
-            return Response(
-                {"error": f"Cannot delete category '{instance.name}' because it has {total_products} assigned products. Reassign or remove these products first."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            if force_delete:
+                # Automatically delete assigned products before deleting category
+                Product.objects.filter(Q(category=instance) | Q(category__parent=instance)).delete()
+            elif reassign and instance.parent:
+                # Reassign subcategory's products to its parent category before deletion
+                direct_products.update(category=instance.parent)
+            else:
+                return Response(
+                    {"error": f"Cannot delete category '{instance.name}' because it has {total_products} assigned products. Reassign or remove these products first.", "has_products": True, "product_count": total_products},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         return super().destroy(request, *args, **kwargs)
 
 

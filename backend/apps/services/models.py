@@ -20,6 +20,8 @@ class ServicePage(models.Model):
     subtitle = models.CharField(max_length=250, blank=True)
     hero_image = models.ImageField(upload_to="service_pages/hero/", null=True, blank=True)
     intro_text = models.TextField()
+    starting_price_usd = models.CharField(max_length=50, blank=True, default="$25 - $45")
+    starting_price_inr = models.CharField(max_length=50, blank=True, default="₹2,000 - ₹3,500")
     display_order = models.PositiveIntegerField(default=0)
     linked_category = models.ForeignKey(Category, null=True, blank=True, on_delete=models.SET_NULL)
     cta_label = models.CharField(max_length=50, default="Start Your Design")

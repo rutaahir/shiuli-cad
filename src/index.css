@@ -1,5 +1,43 @@
 @import "tailwindcss";
 
+/* ═══════════════════════════════════════════
+   UNIVERSAL HIGH-CONTRAST SELECTION SYSTEM
+═══════════════════════════════════════════ */
+::selection {
+  background-color: #0B1330 !important;
+  color: #F5E7A3 !important;
+  -webkit-text-fill-color: #F5E7A3 !important;
+  text-shadow: none !important;
+}
+
+::-moz-selection {
+  background-color: #0B1330 !important;
+  color: #F5E7A3 !important;
+  -webkit-text-fill-color: #F5E7A3 !important;
+  text-shadow: none !important;
+}
+
+/* Form Inputs, Textareas, Selects & Modals Selection */
+input::selection,
+textarea::selection,
+select::selection,
+[contenteditable="true"]::selection {
+  background-color: #0B1330 !important;
+  color: #F5E7A3 !important;
+  -webkit-text-fill-color: #F5E7A3 !important;
+  text-shadow: none !important;
+}
+
+input::-moz-selection,
+textarea::-moz-selection,
+select::-moz-selection,
+[contenteditable="true"]::-moz-selection {
+  background-color: #0B1330 !important;
+  color: #F5E7A3 !important;
+  -webkit-text-fill-color: #F5E7A3 !important;
+  text-shadow: none !important;
+}
+
 @layer base {
   :root {
     --color-navy: #0B1330;

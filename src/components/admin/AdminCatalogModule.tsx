@@ -202,22 +202,50 @@ export const AdminCatalogModule: React.FC = () => {
 
   // Handle Category Deletion with Product Count Check
   const handleDeleteCategory = async (cat: CategoryItem) => {
+    let force = false;
     if (cat.product_count > 0) {
-      setCatDeleteWarning(
-        `Cannot delete category "${cat.name}" because it has ${cat.product_count} assigned products. Reassign or remove these products first.`
+      const confirmForce = window.confirm(
+        `Category "${cat.name}" has ${cat.product_count} assigned product(s).\n\nDo you want to automatically remove all assigned products and delete category "${cat.name}"?`
       );
-      return;
+      if (!confirmForce) return;
+      force = true;
+    } else {
+      if (!window.confirm(`Are you sure you want to delete category "${cat.name}"?`)) return;
     }
 
-    if (!window.confirm(`Are you sure you want to delete category "${cat.name}"?`)) return;
-
     try {
-      await api.deleteCategory(cat.id);
+      await api.deleteCategory(cat.id, force);
       showToast(`Category "${cat.name}" deleted.`);
       setCatDeleteWarning(null);
       loadData();
     } catch (err: any) {
       setCatDeleteWarning(err.message || 'Failed to delete category.');
+    }
+  };
+
+  // Handle Sub-category Deletion with Product Reassign Option
+  const handleDeleteSubCategory = async (sub: CategoryItem, parentCat: CategoryItem) => {
+    let force = false;
+    let reassign = false;
+    if (sub.product_count > 0) {
+      const confirmForce = window.confirm(
+        `Sub-category "${sub.name}" has ${sub.product_count} assigned product(s).\n\nDo you want to automatically remove all assigned products and delete sub-category "${sub.name}"?`
+      );
+      if (!confirmForce) return;
+      force = true;
+    } else {
+      if (!window.confirm(`Are you sure you want to delete sub-category "${sub.name}"?`)) {
+        return;
+      }
+    }
+
+    try {
+      await api.deleteCategory(sub.id, force, reassign);
+      showToast(`Sub-category "${sub.name}" deleted successfully.`);
+      setCatDeleteWarning(null);
+      loadData();
+    } catch (err: any) {
+      setCatDeleteWarning(err.message || `Failed to delete sub-category "${sub.name}".`);
     }
   };
 
@@ -662,25 +690,25 @@ export const AdminCatalogModule: React.FC = () => {
 
                 {/* Subcategory Chips */}
                 <div className="pl-6 pt-1 flex flex-wrap gap-2">
-                  {cat.subcategories.map((sub) => (
-                    <span
-                      key={sub.id}
-                      className="px-3.5 py-1.5 rounded-xl bg-white border border-[#E5E7EF] text-[#1E2230] text-xs shadow-sm flex items-center gap-2 group hover:border-[#C9A227] transition-all"
-                    >
-                      <span className="font-medium">{sub.name}</span>
-                      <span className="text-[10px] font-mono text-[#6B7280]">({sub.product_count})</span>
-                      <button
-                        onClick={() => handleDeleteCategory(sub)}
-                        className="text-[#9CA3AF] hover:text-rose-600 font-bold transition-colors"
-                        title="Remove Sub-category"
+                  {cat.subcategories.length === 0 ? (
+                    <span className="text-[11px] text-[#9CA3AF] italic">No subcategories created yet.</span>
+                  ) : (
+                    cat.subcategories.map((sub) => (
+                      <span
+                        key={sub.id}
+                        className="px-3.5 py-1.5 rounded-xl bg-white border border-[#E5E7EF] text-[#1E2230] text-xs shadow-sm flex items-center gap-2 group hover:border-[#C9A227] transition-all"
                       >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-
-                  {cat.subcategories.length === 0 && (
-                    <span className="text-xs text-[#6B7280] italic">No subcategories created yet.</span>
+                        <span className="font-medium">{sub.name}</span>
+                        <span className="text-[10px] font-mono text-[#6B7280]">({sub.product_count})</span>
+                        <button
+                          onClick={() => handleDeleteSubCategory(sub, cat)}
+                          className="p-1 rounded text-[#9CA3AF] hover:text-rose-600 hover:bg-rose-50 font-bold transition-all cursor-pointer"
+                          title={`Delete Sub-category "${sub.name}"`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    ))
                   )}
                 </div>
               </div>

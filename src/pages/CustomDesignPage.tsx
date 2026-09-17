@@ -154,10 +154,11 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
   const [neededByDate, setNeededByDate] = useState('');
   const [selectedDeliverySpeedId, setSelectedDeliverySpeedId] = useState<number | null>(null);
 
-  // Contact Info
+  // Contact Info & Portfolio Consent
   const [clientName, setClientName] = useState('');
   const [clientEmail, setClientEmail] = useState('');
   const [clientPhone, setClientPhone] = useState('');
+  const [clientConsent, setClientConsent] = useState(false);
 
   // Prefill Auth User Info
   useEffect(() => {
@@ -210,15 +211,102 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
     });
   }, [availableCatalogProducts, catalogSearchQuery, catalogCategoryFilter]);
 
-  // Auto-select initialProductId if passed
+  // Auto-select initialProductId if passed (either catalog product or category pre-selection)
   useEffect(() => {
-    if (initialProductId && availableCatalogProducts.length > 0) {
-      const match = availableCatalogProducts.find(p => String(p.id) === String(initialProductId));
-      if (match && !selectedCatalogProducts.some(p => String(p.id) === String(match.id))) {
-        setSelectedCatalogProducts(prev => [...prev, match]);
+    if (initialProductId) {
+      // 1. Pre-select category if initialProductId matches a category slug
+      const cleanId = initialProductId.toLowerCase().replace('-cad-design', '').replace('-cad', '');
+      if (categories.length > 0) {
+        const matchedCat = categories.find((c: any) => 
+          (c.slug && c.slug.toLowerCase().includes(cleanId)) || 
+          (c.name && c.name.toLowerCase().includes(cleanId)) ||
+          cleanId.includes(c.slug?.toLowerCase() || '')
+        );
+        if (matchedCat) {
+          setSelectedCategory(matchedCat.slug || matchedCat.name.toLowerCase());
+          setSelectedCategoryId(matchedCat.id);
+        } else {
+          // Fallback category matching for common keywords
+          if (cleanId.includes('ring')) setSelectedCategory('rings');
+          else if (cleanId.includes('earring')) setSelectedCategory('earrings');
+          else if (cleanId.includes('pendant')) setSelectedCategory('pendants');
+          else if (cleanId.includes('necklace')) setSelectedCategory('necklaces');
+          else if (cleanId.includes('bracelet')) setSelectedCategory('bracelets');
+          else if (cleanId.includes('bangle')) setSelectedCategory('bangles');
+          else if (cleanId.includes('bridal')) setSelectedCategory('bridal');
+          else if (cleanId.includes('men')) setSelectedCategory('mens');
+        }
+      }
+
+      // 2. Select catalog product reference if available
+      if (availableCatalogProducts.length > 0) {
+        const match = availableCatalogProducts.find(p => String(p.id) === String(initialProductId));
+        if (match && !selectedCatalogProducts.some(p => String(p.id) === String(match.id))) {
+          setSelectedCatalogProducts(prev => [...prev, match]);
+        }
       }
     }
-  }, [initialProductId, availableCatalogProducts]);
+  }, [initialProductId, availableCatalogProducts, categories]);
+
+const DEFAULT_OPTION_GROUPS: OptionGroupData[] = [
+  {
+    id: 1,
+    key: 'metal',
+    label: 'Metal Alloy',
+    description: 'Target metal alloy and color',
+    is_required: true,
+    display_order: 1,
+    options: [
+      { id: 101, group: 1, group_key: 'metal', key: 'yellow_gold', label: 'Yellow Gold', description: '', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '#E5C158', is_active: true, display_order: 1 },
+      { id: 102, group: 1, group_key: 'metal', key: 'rose_gold', label: 'Rose Gold', description: '', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '#E8A398', is_active: true, display_order: 2 },
+      { id: 103, group: 1, group_key: 'metal', key: 'white_gold', label: 'White Gold', description: '', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '#E0E5EC', is_active: true, display_order: 3 },
+      { id: 104, group: 1, group_key: 'metal', key: 'platinum', label: 'Platinum 950', description: '', price_modifier: '20', modifier_type: 'PERCENT', swatch_color: '#D4D8E2', is_active: true, display_order: 4 },
+      { id: 105, group: 1, group_key: 'metal', key: 'sterling_silver', label: '925 Sterling Silver', description: '', price_modifier: '-15', modifier_type: 'PERCENT', swatch_color: '#C0C0C0', is_active: true, display_order: 5 },
+    ]
+  },
+  {
+    id: 2,
+    key: 'gold_purity',
+    label: 'Gold Purity',
+    description: 'Gold Karat / Purity Standard',
+    is_required: true,
+    display_order: 2,
+    options: [
+      { id: 201, group: 2, group_key: 'gold_purity', key: '18k', label: '18K (750)', description: '', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 1 },
+      { id: 202, group: 2, group_key: 'gold_purity', key: '14k', label: '14K (585)', description: '', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 2 },
+      { id: 203, group: 2, group_key: 'gold_purity', key: '22k', label: '22K (916)', description: '', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 3 },
+      { id: 204, group: 2, group_key: 'gold_purity', key: '10k', label: '10K (417)', description: '', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 4 },
+      { id: 205, group: 2, group_key: 'gold_purity', key: '9k', label: '9K (375)', description: '', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 5 },
+    ]
+  },
+  {
+    id: 3,
+    key: 'design_style',
+    label: 'Design Style',
+    description: 'Aesthetic setting architecture',
+    is_required: true,
+    display_order: 3,
+    options: [
+      { id: 301, group: 3, group_key: 'design_style', key: 'solitaire', label: 'Solitaire Classic', description: 'Single centerpiece focus with clean minimal wirework', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 1 },
+      { id: 302, group: 3, group_key: 'design_style', key: 'halo', label: 'Micro-Pavé Halo', description: 'Surrounding accent diamond frame for extra sparkle', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 2 },
+      { id: 303, group: 3, group_key: 'design_style', key: 'vintage', label: 'Vintage Filigree', description: 'Intricate 3D relief wirework and milgrain edge details', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 3 },
+      { id: 304, group: 3, group_key: 'design_style', key: 'modern', label: 'Modern Geometric', description: 'Sleek architectural chamfers and clean knife-edge lines', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 4 },
+    ]
+  },
+  {
+    id: 4,
+    key: 'cad_file_format',
+    label: 'Required CAD Output Format',
+    description: 'File delivery format',
+    is_required: true,
+    display_order: 4,
+    options: [
+      { id: 401, group: 4, group_key: 'cad_file_format', key: '3dm', label: '.3DM Rhino 8 Native + .STL', description: 'Layered NURBS source file & wax print mesh', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 1 },
+      { id: 402, group: 4, group_key: 'cad_file_format', key: 'stl', label: '.STL High-Density Mesh Only', description: 'Watertight ready for direct 3D printing', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 2 },
+      { id: 403, group: 4, group_key: 'cad_file_format', key: 'obj', label: '.OBJ / .STEP Universal CAD', description: 'Universal CAD assembly format', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 3 },
+    ]
+  }
+];
 
   // Load Option Groups & Categories from Backend
   useEffect(() => {
@@ -233,7 +321,8 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 
         if (!isMounted) return;
 
-        setOptionGroups(Array.isArray(groupsData) ? groupsData : []);
+        const effectiveGroups = Array.isArray(groupsData) && groupsData.length > 0 ? groupsData : DEFAULT_OPTION_GROUPS;
+        setOptionGroups(effectiveGroups);
         setCategories(Array.isArray(catsData) ? catsData : []);
 
         if (Array.isArray(catsData) && catsData.length > 0) {
@@ -241,25 +330,24 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
         }
 
         // Set default selections for each group
-        if (Array.isArray(groupsData)) {
-          const defaults: Record<string, number> = {};
-          groupsData.forEach(group => {
-            const activeOptions = (group.options || []).filter(o => o.is_active);
-            if (activeOptions.length > 0) {
-              defaults[group.key] = activeOptions[0].id;
-            }
-          });
-          setSelections(defaults);
-
-          // Find default delivery speed id
-          const deliveryGroup = groupsData.find(g => g.key === 'delivery_speed');
-          if (deliveryGroup && deliveryGroup.options && deliveryGroup.options.length > 0) {
-            const std = deliveryGroup.options.find(o => o.key === 'standard' || o.label.toLowerCase().includes('standard')) || deliveryGroup.options[0];
-            setSelectedDeliverySpeedId(std.id);
+        const defaults: Record<string, number> = {};
+        effectiveGroups.forEach(group => {
+          const activeOptions = (group.options || []).filter(o => o.is_active);
+          if (activeOptions.length > 0) {
+            defaults[group.key] = activeOptions[0].id;
           }
+        });
+        setSelections(defaults);
+
+        // Find default delivery speed id
+        const deliveryGroup = effectiveGroups.find(g => g.key === 'delivery_speed');
+        if (deliveryGroup && deliveryGroup.options && deliveryGroup.options.length > 0) {
+          const std = deliveryGroup.options.find(o => o.key === 'standard' || o.label.toLowerCase().includes('standard')) || deliveryGroup.options[0];
+          setSelectedDeliverySpeedId(std.id);
         }
       } catch (err) {
         console.error('Failed to load custom design option groups:', err);
+        setOptionGroups(DEFAULT_OPTION_GROUPS);
       } finally {
         if (isMounted) setOptionsLoading(false);
       }
@@ -268,11 +356,18 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
     return () => { isMounted = false; };
   }, []);
 
-  // Helper maps for option groups
+  // Helper maps for option groups with fallbacks
   const groupMap = useMemo(() => {
     const map: Record<string, OptionGroupData> = {};
-    optionGroups.forEach(g => {
+    // Seed default option groups first so no group is ever missing
+    DEFAULT_OPTION_GROUPS.forEach(g => {
       map[g.key] = g;
+    });
+    // Merge actual loaded option groups over defaults
+    optionGroups.forEach(g => {
+      if (g && g.key && (g.options || []).length > 0) {
+        map[g.key] = g;
+      }
     });
     return map;
   }, [optionGroups]);
@@ -422,6 +517,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
         budget_range: projectTier,
         needed_by_date: neededByDate || null,
         special_instructions: fullNotes,
+        client_consent_to_feature: clientConsent,
         submission_intent: submissionIntent,
         client_name: clientName,
         client_email: clientEmail,
@@ -442,14 +538,34 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
     }
   };
 
-  // Category Selector Config
-  const categoryGroups = [
-    { id: 'rings', name: 'Rings', icon: Sparkles, desc: 'Engagement, Solitaire, Eternity, Wedding & Fashion Rings' },
-    { id: 'pendants', name: 'Pendants & Necklaces', icon: Layers, desc: 'Pendants, Solitaire Drops, Statement Chokers & Chains' },
-    { id: 'earrings', name: 'Earrings', icon: Gem, desc: 'Studs, Drop Earrings, Dangles, Hoops & Huggies' },
-    { id: 'bracelets', name: 'Bracelets & Bangles', icon: Ruler, desc: 'Kadas, Tennis Bracelets, Stackable Bangles & Cuffs' },
-    { id: 'other', name: 'Custom / Other', icon: Feather, desc: 'Brooches, Cufflinks, Sculptures & Specialty Concepts' },
-  ];
+  const [apiCategories, setApiCategories] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.getCategories(true).then((cats) => {
+      if (cats && Array.isArray(cats) && cats.length > 0) {
+        setApiCategories(cats);
+      }
+    }).catch(() => {});
+  }, []);
+
+  // Dynamic Category Selector Config from API
+  const categoryGroups = useMemo(() => {
+    if (apiCategories.length > 0) {
+      return apiCategories.map((c) => ({
+        id: c.slug,
+        name: c.name,
+        icon: c.slug.includes('ring') ? Sparkles : c.slug.includes('ear') ? Gem : c.slug.includes('pendant') ? Layers : Ruler,
+        desc: `Bespoke ${c.name} 3D CAD modeling & precision engineering.`
+      }));
+    }
+    return [
+      { id: 'rings', name: 'Rings', icon: Sparkles, desc: 'Engagement, Solitaire, Eternity, Wedding & Fashion Rings' },
+      { id: 'pendants', name: 'Pendants & Necklaces', icon: Layers, desc: 'Pendants, Solitaire Drops, Statement Chokers & Chains' },
+      { id: 'earrings', name: 'Earrings', icon: Gem, desc: 'Studs, Drop Earrings, Dangles, Hoops & Huggies' },
+      { id: 'bracelets', name: 'Bracelets & Bangles', icon: Ruler, desc: 'Kadas, Tennis Bracelets, Stackable Bangles & Cuffs' },
+      { id: 'other', name: 'Custom / Other', icon: Feather, desc: 'Brooches, Cufflinks, Sculptures & Specialty Concepts' },
+    ];
+  }, [apiCategories]);
 
   if (isSubmitted) {
     return (
@@ -517,12 +633,12 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-[#060B1E] text-[#F5F1E8] pt-24 sm:pt-28 pb-24 px-4 sm:px-8 lg:px-12 relative overflow-hidden">
+    <div className="min-h-screen bg-[#060B1E] text-[#F5F1E8] pt-24 sm:pt-28 pb-24 px-4 sm:px-6 lg:px-8 xl:px-12 relative overflow-hidden">
       {/* Container aligned with site width */}
-      <div className="max-w-[1536px] mx-auto space-y-6 relative z-10">
+      <div className="max-w-[1600px] mx-auto space-y-6 relative z-10">
 
         {/* STREAMLINED COMPACT HEADER */}
-        <div className="text-center max-w-2xl mx-auto space-y-2">
+        <div className="text-center max-w-3xl mx-auto space-y-2">
           <h1 className="text-3xl sm:text-4xl font-serif gold-gradient-text font-bold tracking-tight">
             Custom Design & 3D CAD Studio
           </h1>
@@ -532,7 +648,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
         </div>
 
         {/* Stepper Header (Compact Bar) */}
-        <div className="max-w-4xl mx-auto bg-[#09112B]/80 backdrop-blur-md p-3.5 rounded-2xl border border-[#D4AF37]/30 shadow-xl">
+        <div className="w-full bg-[#09112B]/80 backdrop-blur-md p-3.5 rounded-2xl border border-[#D4AF37]/30 shadow-xl">
           <div className="flex justify-between items-center relative">
             {[
               { step: 1, title: 'Category & Specs' },
@@ -1554,6 +1670,21 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                         </div>
                       </div>
                     )}
+
+                    {/* Portfolio Feature Consent Checkbox */}
+                    <div className="p-4 bg-[#121F4D]/40 border border-[#D4AF37]/30 rounded-2xl flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        id="clientConsent"
+                        checked={clientConsent}
+                        onChange={(e) => setClientConsent(e.target.checked)}
+                        className="mt-1 rounded border-[#D4AF37]/50 text-[#D4AF37] focus:ring-0 cursor-pointer"
+                      />
+                      <label htmlFor="clientConsent" className="text-xs text-[#FAF8F3]/90 leading-relaxed cursor-pointer">
+                        <span className="font-bold text-[#F5E7A3] block mb-0.5">Allow Public Portfolio Showcase (Optional)</span>
+                        I grant Shiuli CAD Studio permission to feature this finished 3D CAD design in the public portfolio showcase upon completion. (Your name, contact details, and private notes will <strong className="text-white">never</strong> be shown).
+                      </label>
+                    </div>
 
                     {submissionError && (
                       <div className="p-4 bg-rose-900/40 border border-rose-500/50 rounded-2xl text-rose-200 text-xs font-medium flex items-center gap-2">

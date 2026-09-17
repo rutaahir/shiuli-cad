@@ -16,6 +16,7 @@ class ServicePageViewSet(viewsets.ModelViewSet):
     serializer_class = ServicePageSerializer
     permission_classes = [IsAdminOrReadOnly]
     lookup_field = 'slug'
+    pagination_class = None
 
     def get_queryset(self):
         qs = ServicePage.objects.all().order_by('display_order', 'id')

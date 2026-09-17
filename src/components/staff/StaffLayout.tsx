@@ -113,7 +113,7 @@ export const StaffLayout: React.FC<StaffLayoutProps> = ({
   ];
 
   return (
-    <div className="h-screen w-screen bg-[#F6F7FB] text-[#1E2230] flex flex-col font-sans selection:bg-[#D4AF37] selection:text-[#0B1330] overflow-hidden select-none">
+    <div className="h-screen w-screen bg-[#F6F7FB] text-[#1E2230] flex flex-col font-sans overflow-hidden select-none">
       {/* Prototype Banner Header */}
       <div className="bg-[#09112B] border-b border-[#D4AF37]/30 px-4 py-1.5 text-center text-xs text-[#F5F1E8] flex items-center justify-between flex-shrink-0 z-40">
         <div className="flex items-center gap-2">

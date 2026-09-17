@@ -24,11 +24,6 @@ class FileEditRequestViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     pagination_class = None
 
-    def get_permissions(self):
-        if self.action in ['create']:
-            return [permissions.AllowAny()]
-        return [permissions.IsAuthenticated()]
-
     def get_queryset(self):
         user = self.request.user
         if not user or not user.is_authenticated:
@@ -39,9 +34,30 @@ class FileEditRequestViewSet(viewsets.ModelViewSet):
             return FileEditRequest.objects.none()
         return FileEditRequest.objects.filter(client=user).order_by('-created_at')
 
+    def create(self, request, *args, **kwargs):
+        import json
+        data = request.data.copy()
+        
+        # Handle stringified modification_types list from FormData
+        mod_types = data.get('modification_types')
+        if isinstance(mod_types, str):
+            try:
+                data.setlist('modification_types', json.loads(mod_types))
+            except Exception:
+                pass
+
+        # Handle original_file_format if missing
+        if not data.get('original_file_format') and 'original_file' in request.FILES:
+            filename = request.FILES['original_file'].name
+            ext = filename.split('.')[-1].lower() if '.' in filename else ''
+            data['original_file_format'] = ext
+
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
     def perform_create(self, serializer):
-        user = self.request.user if (self.request.user and self.request.user.is_authenticated) else None
-        if not user:
-            from apps.accounts.models import User
-            user = User.objects.filter(role='client').first()
-        serializer.save(client=user, status=FileEditRequest.Status.NEW)
+        serializer.save(client=self.request.user, status=FileEditRequest.Status.NEW)
+

@@ -229,196 +229,53 @@ export const Navbar: React.FC<NavbarProps> = ({
                 Home
               </button>
 
-              {/* CAD Services Dropdown */}
-              <div
-                className="relative"
-                onMouseEnter={() => handleMouseEnterDropdown('cad-services')}
-                onMouseLeave={handleMouseLeaveDropdown}
+              {/* CAD Services */}
+              <button
+                onClick={() => onNavigate('cad-service')}
+                className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-medium transition-colors ${
+                  activePage === 'cad-service'
+                    ? 'text-[#F5E7A3] font-bold'
+                    : 'text-[#F5F1E8]/80 hover:text-[#FAF8F3]'
+                }`}
               >
-                <button
-                  onClick={() => onNavigate('cad-service', 'ring-cad-design')}
-                  className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-medium flex items-center gap-1 transition-colors ${
-                    activePage === 'cad-service' || activeDropdown === 'cad-services'
-                      ? 'text-[#F5E7A3] font-bold'
-                      : 'text-[#F5F1E8]/80 hover:text-[#FAF8F3]'
-                  }`}
-                >
-                  CAD Services <ChevronDown className="w-3.5 h-3.5 text-[#D4AF37]" />
-                </button>
+                CAD Services
+              </button>
 
-                {activeDropdown === 'cad-services' && (
-                  <div className="absolute left-0 top-full pt-2 w-72 z-50">
-                    <div className="bg-[#09112B] border border-[#D4AF37]/30 rounded-2xl shadow-2xl p-3 space-y-1 backdrop-blur-xl">
-                      <div className="px-3 py-1.5 border-b border-[#D4AF37]/20 mb-1">
-                        <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest">
-                          10 CAD Design Specializations
-                        </span>
-                      </div>
-                      <div className="max-h-80 overflow-y-auto space-y-0.5 pr-1">
-                        {cadServicesItems.map(item => (
-                          <button
-                            key={item.slug}
-                            onClick={() => {
-                              onNavigate('cad-service', item.slug);
-                              setActiveDropdown(null);
-                            }}
-                            className="w-full text-left p-2 rounded-xl hover:bg-[#121F4D] transition-all group"
-                          >
-                            <p className="text-xs font-bold text-[#FAF8F3] group-hover:text-[#F5E7A3]">
-                              {item.title}
-                            </p>
-                            <p className="text-[10px] text-[#FAF8F3]/50 line-clamp-1">{item.desc}</p>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Custom Design Dropdown */}
-              <div
-                className="relative"
-                onMouseEnter={() => handleMouseEnterDropdown('custom-design')}
-                onMouseLeave={handleMouseLeaveDropdown}
+              {/* Custom Design */}
+              <button
+                onClick={() => onNavigate('custom-design')}
+                className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-medium transition-colors ${
+                  activePage === 'custom-design'
+                    ? 'text-[#F5E7A3] font-bold'
+                    : 'text-[#F5F1E8]/80 hover:text-[#FAF8F3]'
+                }`}
               >
-                <button
-                  onClick={() => onNavigate('custom-design')}
-                  className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-medium flex items-center gap-1 transition-colors ${
-                    activePage === 'custom-design' || activeDropdown === 'custom-design'
-                      ? 'text-[#F5E7A3] font-bold'
-                      : 'text-[#F5F1E8]/80 hover:text-[#FAF8F3]'
-                  }`}
-                >
-                  Custom Design <ChevronDown className="w-3.5 h-3.5 text-[#D4AF37]" />
-                </button>
+                Custom Design
+              </button>
 
-                {activeDropdown === 'custom-design' && (
-                  <div className="absolute left-0 top-full pt-2 w-72 z-50">
-                    <div className="bg-[#09112B] border border-[#D4AF37]/30 rounded-2xl shadow-2xl p-3 space-y-1 backdrop-blur-xl">
-                      <div className="px-3 py-1.5 border-b border-[#D4AF37]/20 mb-1">
-                        <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest">
-                          Bespoke CAD Modes
-                        </span>
-                      </div>
-                      <div className="max-h-80 overflow-y-auto space-y-0.5 pr-1">
-                        {customDesignItems.map(item => (
-                          <button
-                            key={item.mode}
-                            onClick={() => {
-                              onNavigate('custom-design', item.mode);
-                              setActiveDropdown(null);
-                            }}
-                            className="w-full text-left p-2 rounded-xl hover:bg-[#121F4D] transition-all group"
-                          >
-                            <p className="text-xs font-bold text-[#FAF8F3] group-hover:text-[#F5E7A3]">
-                              {item.title}
-                            </p>
-                            <p className="text-[10px] text-[#FAF8F3]/50 line-clamp-1">{item.desc}</p>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* File Editing Dropdown */}
-              <div
-                className="relative"
-                onMouseEnter={() => handleMouseEnterDropdown('file-editing')}
-                onMouseLeave={handleMouseLeaveDropdown}
+              {/* File Editing */}
+              <button
+                onClick={() => onNavigate('file-editing')}
+                className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-medium transition-colors ${
+                  activePage === 'file-editing'
+                    ? 'text-[#F5E7A3] font-bold'
+                    : 'text-[#F5F1E8]/80 hover:text-[#FAF8F3]'
+                }`}
               >
-                <button
-                  onClick={() => onNavigate('file-editing')}
-                  className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-medium flex items-center gap-1 transition-colors ${
-                    activePage === 'file-editing' || activeDropdown === 'file-editing'
-                      ? 'text-[#F5E7A3] font-bold'
-                      : 'text-[#F5F1E8]/80 hover:text-[#FAF8F3]'
-                  }`}
-                >
-                  File Editing <ChevronDown className="w-3.5 h-3.5 text-[#D4AF37]" />
-                </button>
+                File Editing
+              </button>
 
-                {activeDropdown === 'file-editing' && (
-                  <div className="absolute left-0 top-full pt-2 w-80 z-50">
-                    <div className="bg-[#09112B] border border-[#D4AF37]/30 rounded-2xl shadow-2xl p-3 space-y-1 backdrop-blur-xl">
-                      <div className="px-3 py-1.5 border-b border-[#D4AF37]/20 mb-1 flex justify-between items-center">
-                        <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest">
-                          CAD File Modifications
-                        </span>
-                        <span className="text-[9px] bg-[#D4AF37]/20 text-[#F5E7A3] px-2 py-0.5 rounded font-mono">
-                          .3DM / .STL / .OBJ / .STEP
-                        </span>
-                      </div>
-                      <div className="max-h-80 overflow-y-auto space-y-0.5 pr-1">
-                        {fileEditingItems.map(item => (
-                          <button
-                            key={item.key}
-                            onClick={() => {
-                              onNavigate('file-editing', item.key);
-                              setActiveDropdown(null);
-                            }}
-                            className="w-full text-left p-2 rounded-xl hover:bg-[#121F4D] transition-all group"
-                          >
-                            <p className="text-xs font-bold text-[#FAF8F3] group-hover:text-[#F5E7A3]">
-                              {item.title}
-                            </p>
-                            <p className="text-[10px] text-[#FAF8F3]/50 line-clamp-1">{item.desc}</p>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* AI + Jewellery Dropdown */}
-              <div
-                className="relative"
-                onMouseEnter={() => handleMouseEnterDropdown('ai-jewellery')}
-                onMouseLeave={handleMouseLeaveDropdown}
+              {/* AI + Jewellery */}
+              <button
+                onClick={() => onNavigate('ai-jewellery')}
+                className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-medium flex items-center gap-1 transition-colors ${
+                  activePage === 'ai-jewellery'
+                    ? 'text-[#F5E7A3] font-bold'
+                    : 'text-[#F5F1E8]/80 hover:text-[#FAF8F3]'
+                }`}
               >
-                <button
-                  onClick={() => onNavigate('ai-jewellery')}
-                  className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-medium flex items-center gap-1 transition-colors ${
-                    activePage === 'ai-jewellery' || activeDropdown === 'ai-jewellery'
-                      ? 'text-[#F5E7A3] font-bold'
-                      : 'text-[#F5F1E8]/80 hover:text-[#FAF8F3]'
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-[#D4AF37] animate-pulse" /> AI + Jewellery <ChevronDown className="w-3.5 h-3.5 text-[#D4AF37]" />
-                </button>
-
-                {activeDropdown === 'ai-jewellery' && (
-                  <div className="absolute left-0 top-full pt-2 w-72 z-50">
-                    <div className="bg-[#09112B] border border-[#D4AF37]/30 rounded-2xl shadow-2xl p-3 space-y-1 backdrop-blur-xl">
-                      <div className="px-3 py-1.5 border-b border-[#D4AF37]/20 mb-1">
-                        <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest">
-                          AI Design Features
-                        </span>
-                      </div>
-                      <div className="max-h-80 overflow-y-auto space-y-0.5 pr-1">
-                        {aiJewelleryItems.map(item => (
-                          <button
-                            key={item.type}
-                            onClick={() => {
-                              onNavigate('ai-jewellery', item.type);
-                              setActiveDropdown(null);
-                            }}
-                            className="w-full text-left p-2 rounded-xl hover:bg-[#121F4D] transition-all group"
-                          >
-                            <p className="text-xs font-bold text-[#FAF8F3] group-hover:text-[#F5E7A3]">
-                              {item.title}
-                            </p>
-                            <p className="text-[10px] text-[#FAF8F3]/50 line-clamp-1">{item.desc}</p>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+                <Sparkles className="w-3.5 h-3.5 text-[#D4AF37] animate-pulse" /> AI + Jewellery
+              </button>
 
               {/* CAD Files Mega Menu (Renamed Collections) */}
               <div
@@ -509,50 +366,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                 )}
               </div>
 
-              {/* Portfolio Dropdown */}
-              <div
-                className="relative"
-                onMouseEnter={() => handleMouseEnterDropdown('portfolio')}
-                onMouseLeave={handleMouseLeaveDropdown}
+              {/* Portfolio */}
+              <button
+                onClick={() => onNavigate('portfolio')}
+                className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-medium transition-colors ${
+                  activePage === 'portfolio'
+                    ? 'text-[#F5E7A3] font-bold'
+                    : 'text-[#F5F1E8]/80 hover:text-[#FAF8F3]'
+                }`}
               >
-                <button
-                  onClick={() => onNavigate('portfolio')}
-                  className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-medium flex items-center gap-1 transition-colors ${
-                    activePage === 'portfolio' || activeDropdown === 'portfolio'
-                      ? 'text-[#F5E7A3] font-bold'
-                      : 'text-[#F5F1E8]/80 hover:text-[#FAF8F3]'
-                  }`}
-                >
-                  Portfolio <ChevronDown className="w-3.5 h-3.5 text-[#D4AF37]" />
-                </button>
-
-                {activeDropdown === 'portfolio' && (
-                  <div className="absolute left-0 top-full pt-2 w-64 z-50">
-                    <div className="bg-[#09112B] border border-[#D4AF37]/30 rounded-2xl shadow-2xl p-3 space-y-1 backdrop-blur-xl">
-                      <div className="px-3 py-1.5 border-b border-[#D4AF37]/20 mb-1">
-                        <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest">
-                          Curated Studio Showcase
-                        </span>
-                      </div>
-                      {portfolioItems.map(item => (
-                        <button
-                          key={item.type}
-                          onClick={() => {
-                            onNavigate('portfolio', item.type);
-                            setActiveDropdown(null);
-                          }}
-                          className="w-full text-left p-2 rounded-xl hover:bg-[#121F4D] transition-all group"
-                        >
-                          <p className="text-xs font-bold text-[#FAF8F3] group-hover:text-[#F5E7A3]">
-                            {item.title}
-                          </p>
-                          <p className="text-[10px] text-[#FAF8F3]/50">{item.desc}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+                Portfolio
+              </button>
 
               {/* Pricing */}
               <button
@@ -705,57 +529,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               Home
             </button>
 
-            {/* Mobile Accordion: CAD Services */}
-            <div>
-              <button
-                onClick={() => setMobileAccordion(mobileAccordion === 'cad-services' ? null : 'cad-services')}
-                className="w-full text-left font-serif text-lg font-bold text-[#F5E7A3] flex justify-between items-center"
-              >
-                <span>CAD Services</span>
-                <ChevronDown className={`w-5 h-5 transition-transform ${mobileAccordion === 'cad-services' ? 'rotate-180' : ''}`} />
-              </button>
-              {mobileAccordion === 'cad-services' && (
-                <div className="pl-4 pt-2 space-y-2 border-l border-[#D4AF37]/30 mt-2">
-                  {cadServicesItems.map(item => (
-                    <button
-                      key={item.slug}
-                      onClick={() => { onNavigate('cad-service', item.slug); setMobileMenuOpen(false); }}
-                      className="block text-xs font-bold text-[#FAF8F3]/80 hover:text-[#F5E7A3]"
-                    >
-                      {item.title}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <button onClick={() => { onNavigate('cad-service'); setMobileMenuOpen(false); }} className="w-full text-left font-serif text-lg font-bold text-[#FAF8F3]">
+              CAD Services
+            </button>
 
             <button onClick={() => { onNavigate('custom-design'); setMobileMenuOpen(false); }} className="w-full text-left font-serif text-lg font-bold text-[#FAF8F3]">
               Custom Design
             </button>
 
-            {/* Mobile Accordion: File Editing */}
-            <div>
-              <button
-                onClick={() => setMobileAccordion(mobileAccordion === 'file-editing' ? null : 'file-editing')}
-                className="w-full text-left font-serif text-lg font-bold text-[#F5E7A3] flex justify-between items-center"
-              >
-                <span>File Editing</span>
-                <ChevronDown className={`w-5 h-5 transition-transform ${mobileAccordion === 'file-editing' ? 'rotate-180' : ''}`} />
-              </button>
-              {mobileAccordion === 'file-editing' && (
-                <div className="pl-4 pt-2 space-y-2 border-l border-[#D4AF37]/30 mt-2">
-                  {fileEditingItems.map(item => (
-                    <button
-                      key={item.key}
-                      onClick={() => { onNavigate('file-editing', item.key); setMobileMenuOpen(false); }}
-                      className="block text-xs font-bold text-[#FAF8F3]/80 hover:text-[#F5E7A3]"
-                    >
-                      {item.title}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <button onClick={() => { onNavigate('file-editing'); setMobileMenuOpen(false); }} className="w-full text-left font-serif text-lg font-bold text-[#FAF8F3]">
+              File Editing
+            </button>
 
             <button onClick={() => { onNavigate('ai-jewellery'); setMobileMenuOpen(false); }} className="w-full text-left font-serif text-lg font-bold text-[#FAF8F3] flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-[#D4AF37]" /> AI + Jewellery

@@ -56,19 +56,19 @@ class Command(BaseCommand):
         bracelets_cat = Category.objects.filter(slug='bracelets').first() or rings_cat
 
         services_data = [
-            ("ring-cad-design", "Ring CAD Design", "Bespoke Solitaire, Halo, Eternity & Cocktail Ring CAD Files", "Precision ring CAD engineering calibrated for exact finger sizes, stone seats, and foundry shrinkage factors.", rings_cat, "Start Your Design", "custom_design"),
-            ("earring-cad-design", "Earring CAD Design", "Studs, Jhumkas, Drop Earrings & Ear Cuffs CAD Files", "3D earring CAD modelling with pre-notched post mechanisms, French wire loops, and balanced earlobe weight.", earrings_cat, "Start Your Design", "custom_design"),
-            ("pendant-cad-design", "Pendant CAD Design", "Solitaire Drops, Medallions & Filigree Pendant CAD Files", "High-detail pendant CAD models with integrated bail clearance, backplates, and casting sprues.", pendants_cat, "Start Your Design", "custom_design"),
-            ("necklace-cad-design", "Necklace CAD Design", "Bridal Chokers, Rivieras & Diamond Collar CAD Files", "Articulated necklace link assemblies with 0.15mm mechanical tolerances for fluid drape and movement.", necklaces_cat, "Start Your Design", "custom_design"),
-            ("bracelet-cad-design", "Bracelet CAD Design", "Tennis Bracelets, Hinged Cuffs & Charm Link CAD Files", "Continuous stone channel alignment and secure double-latch box clasp engineering.", bracelets_cat, "Start Your Design", "custom_design"),
-            ("bangle-cad-design", "Bangle CAD Design", "Traditional Kadas, Stackable Bangles & Polki CAD Files", "Rigid and hinged bangle CAD files pre-scaled for Indian and international wrist sizing standards.", bracelets_cat, "Start Your Design", "custom_design"),
-            ("bridal-jewellery-cad", "Bridal Jewellery CAD", "Haute Joaillerie Engagement & Wedding Suite CAD", "Complete bridal jewelry suites matching ring, pendant, and earring design motifs seamlessly.", rings_cat, "Start Your Design", "custom_design"),
-            ("mens-jewellery-cad", "Men's Jewellery CAD", "Signet Rings, Cufflinks & Cuban Chain Link CAD", "Heavy solid-metal design architecture with crisp geometric facets and deep relief engraving.", rings_cat, "Start Your Design", "custom_design"),
-            ("jewellery-sets-cad", "Jewellery Sets", "Matching Necklace, Earring, Ring & Bracelet CAD Suites", "Harmonious jewelry sets designed with unified motif proportions and setting aesthetics.", rings_cat, "Start Your Design", "custom_design"),
-            ("other-jewellery-cad", "Other Jewellery", "Brooches, Tiara Crowns, Keychains & Specialty Accessories", "Custom 3D CAD modeling for unique accessories, lapel pins, and bespoke jewelry artifacts.", rings_cat, "Start Your Design", "custom_design"),
+            ("ring-cad-design", "Ring CAD Design", "Bespoke Solitaire, Halo, Eternity & Cocktail Ring CAD Files", "Precision ring CAD engineering calibrated for exact finger sizes, stone seats, and foundry shrinkage factors (+1.25%). Features 42° collet notches and zero non-manifold edges.", "$25 - $45", "₹2,000 - ₹3,500", rings_cat, "Start Your Design", "custom_design"),
+            ("earring-cad-design", "Earring CAD Design", "Studs, Jhumkas, Drop Earrings & Ear Cuffs CAD Files", "3D earring CAD modelling engineered with pre-notched post mechanisms, French wire loops, and balanced earlobe weight distribution.", "$25 - $45", "₹2,000 - ₹3,500", earrings_cat, "Start Your Design", "custom_design"),
+            ("pendant-cad-design", "Pendant CAD Design", "Solitaire Drops, Medallions & Filigree Pendant CAD Files", "High-detail pendant CAD models with integrated bail clearance, backplates, and casting sprues designed for effortless setting.", "$25 - $45", "₹2,000 - ₹3,500", pendants_cat, "Start Your Design", "custom_design"),
+            ("necklace-cad-design", "Necklace CAD Design", "Bridal Chokers, Rivieras & Diamond Collar CAD Files", "Articulated necklace link assemblies with 0.15mm mechanical tolerances for fluid drape and ergonomic neck contouring.", "$45 - $85", "₹3,500 - ₹6,500", necklaces_cat, "Start Your Design", "custom_design"),
+            ("bracelet-cad-design", "Bracelet CAD Design", "Tennis Bracelets, Hinged Cuffs & Charm Link CAD Files", "Continuous stone channel alignment and secure double-latch box clasp engineering designed for smooth daily wrist movement.", "$35 - $60", "₹2,800 - ₹4,800", bracelets_cat, "Start Your Design", "custom_design"),
+            ("bangle-cad-design", "Bangle CAD Design", "Traditional Kadas, Stackable Bangles & Polki CAD Files", "Rigid and hinged bangle CAD files pre-scaled for Indian and international wrist sizing standards with intricate undercut detail.", "$35 - $60", "₹2,800 - ₹4,800", bracelets_cat, "Start Your Design", "custom_design"),
+            ("bridal-jewellery-cad", "Bridal Jewellery CAD", "Haute Joaillerie Engagement & Wedding Suite CAD", "Complete bridal jewelry suites matching ring, pendant, earring, and bangle design motifs seamlessly for luxury wedding collections.", "$45 - $85", "₹3,500 - ₹6,500", rings_cat, "Start Your Design", "custom_design"),
+            ("mens-jewellery-cad", "Men's Jewellery CAD", "Signet Rings, Cufflinks & Cuban Chain Link CAD", "Heavy solid-metal design architecture with crisp geometric facets, deep relief engraving, and bold masculine stone mounts.", "$35 - $60", "₹2,800 - ₹4,800", rings_cat, "Start Your Design", "custom_design"),
+            ("jewellery-sets-cad", "Jewellery Sets", "Matching Necklace, Earring, Ring & Bracelet CAD Suites", "Harmonious jewelry sets designed with unified motif proportions, setting aesthetics, and stone sizes for commercial production.", "$45 - $85", "₹3,500 - ₹6,500", rings_cat, "Start Your Design", "custom_design"),
+            ("other-jewellery-cad", "Other Jewellery", "Brooches, Tiara Crowns, Keychains & Specialty Accessories", "Custom 3D CAD modeling for unique accessories, lapel pins, tiara crowns, and bespoke jewelry artifacts requiring high-detail sculpting.", "$25 - $45", "₹2,000 - ₹3,500", rings_cat, "Start Your Design", "custom_design"),
         ]
 
-        for idx, (slug, title, subtitle, intro, cat, cta_lbl, cta_tgt) in enumerate(services_data, 1):
+        for idx, (slug, title, subtitle, intro, usd_pr, inr_pr, cat, cta_lbl, cta_tgt) in enumerate(services_data, 1):
             sp, _ = ServicePage.objects.get_or_create(
                 slug=slug,
                 defaults={
@@ -76,6 +76,8 @@ class Command(BaseCommand):
                     "title": title,
                     "subtitle": subtitle,
                     "intro_text": intro,
+                    "starting_price_usd": usd_pr,
+                    "starting_price_inr": inr_pr,
                     "display_order": idx,
                     "linked_category": cat,
                     "cta_label": cta_lbl,
@@ -87,6 +89,8 @@ class Command(BaseCommand):
             sp.title = title
             sp.subtitle = subtitle
             sp.intro_text = intro
+            sp.starting_price_usd = usd_pr
+            sp.starting_price_inr = inr_pr
             sp.display_order = idx
             sp.save()
 
@@ -153,5 +157,4 @@ class Command(BaseCommand):
             )
 
         self.stdout.write(f"  [+] Seeded {len(portfolio_data)} Portfolio showcase items.")
-
-        self.stdout.write(self.style.SUCCESS("FULL SITE RESTRUCTURE DATA SEEDED SUCCESSFULLY!"))
+        self.stdout.write(self.style.SUCCESS("Successfully completed Full Site Restructure Seeding!"))

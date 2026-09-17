@@ -76,12 +76,72 @@ def verify_payment(request):
     })
 
 
+@api_view(['GET'])
+@permission_classes([IsAdmin])
+def incoming_gateway_logs(request):
+    """Returns combined incoming client payment transactions (Payments & Product Purchases) for Financial Gateway Audit."""
+    from .models import Purchase
+    logs = []
+
+    # 1. Custom Order Payments
+    payments = Payment.objects.all().select_related('order', 'order__client', 'payment_stage').order_by('-created_at')
+    for p in payments:
+        client_name = f"{p.order.client.first_name} {p.order.client.last_name}".strip() or p.order.client.username if (p.order and p.order.client) else "Client"
+        stage_label = p.payment_stage.label if p.payment_stage else p.get_payment_type_display()
+        logs.append({
+            'id': f"PAY-{p.id}",
+            'client': client_name,
+            'amount': f"₹{p.amount:,.2f}",
+            'amount_raw': float(p.amount),
+            'type': stage_label,
+            'ref': p.gateway_transaction_id or f"pay_tx_{p.id}",
+            'status': p.get_status_display(),
+            'date': p.created_at.strftime('%b %d, %Y, %I:%M %p'),
+            'created_at_iso': p.created_at.isoformat()
+        })
+
+    # 2. Ready CAD Product Purchases
+    purchases = Purchase.objects.all().select_related('buyer', 'product').order_by('-purchased_at')
+    for pur in purchases:
+        client_name = f"{pur.buyer.first_name} {pur.buyer.last_name}".strip() or pur.buyer.username if pur.buyer else "Client"
+        item_title = pur.product.title if pur.product else "Ready CAD Design"
+        logs.append({
+            'id': f"PUR-{pur.id}",
+            'client': client_name,
+            'amount': f"₹{pur.price_paid:,.2f}",
+            'amount_raw': float(pur.price_paid),
+            'type': f"Store Purchase ({pur.get_license_type_display()})",
+            'ref': pur.payment_transaction_id or f"pur_tx_{pur.id}",
+            'status': pur.get_status_display(),
+            'date': pur.purchased_at.strftime('%b %d, %Y, %I:%M %p'),
+            'created_at_iso': pur.purchased_at.isoformat()
+        })
+
+    # Sort descending by creation date
+    logs.sort(key=lambda x: x['created_at_iso'], reverse=True)
+    return Response(logs, status=status.HTTP_200_OK)
+
+
 class SettlementViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = SettlementSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
+        
+        # Auto-create missing settlements for completed orders
+        completed_orders = Order.objects.filter(status=Order.Status.COMPLETED, assigned_staff__isnull=False)
+        for ord_obj in completed_orders:
+            from decimal import Decimal
+            Settlement.objects.get_or_create(
+                order=ord_obj,
+                staff=ord_obj.assigned_staff,
+                defaults={
+                    'amount': ord_obj.total_price * Decimal('0.70'),
+                    'status': Settlement.Status.PENDING
+                }
+            )
+
         if user.role == 'admin':
             return Settlement.objects.all().select_related('staff', 'order').order_by('-id')
         elif user.role == 'staff':
@@ -90,6 +150,13 @@ class SettlementViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=['post'], permission_classes=[IsAdmin], url_path='process')
     def process_bulk(self, request):
+        return self._do_process(request)
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAdmin], url_path='process-payout')
+    def process_payout(self, request):
+        return self._do_process(request)
+
+    def _do_process(self, request):
         settlement_ids = request.data.get('settlement_ids', [])
         if not isinstance(settlement_ids, list) or not settlement_ids:
             return Response({"error": "List of 'settlement_ids' is required."}, status=status.HTTP_400_BAD_REQUEST)
@@ -106,4 +173,5 @@ class SettlementViewSet(viewsets.ReadOnlyModelViewSet):
             "message": f"Successfully processed {updated_count} settlements.",
             "processed_count": updated_count
         })
+
 

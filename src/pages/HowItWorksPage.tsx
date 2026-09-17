@@ -163,7 +163,7 @@ export const HowItWorksPage: React.FC<HowItWorksPageProps> = ({ onNavigate }) =>
   ];
 
   return (
-    <div className="min-h-screen bg-[#060B1E] text-[#F5F1E8] pt-28 pb-24 px-4 sm:px-8 lg:px-12 relative overflow-hidden">
+    <div className="min-h-screen bg-[#060B1E] text-[#F5F1E8] pt-28 pb-24 px-4 sm:px-6 lg:px-8 xl:px-12 relative overflow-hidden">
       {/* Background Animated Floating Ambient Spheres */}
       <motion.div
         animate={{
@@ -182,7 +182,7 @@ export const HowItWorksPage: React.FC<HowItWorksPageProps> = ({ onNavigate }) =>
         className="absolute top-1/3 right-10 w-[30rem] h-[30rem] bg-[#1E4FA3] rounded-full blur-[160px] pointer-events-none"
       />
 
-      <div className="max-w-[1536px] mx-auto space-y-24 relative z-10">
+      <div className="max-w-[1600px] mx-auto space-y-24 relative z-10">
 
         {/* HERO SECTION WITH ANIMATED BADGE */}
         <div className="text-center max-w-3xl mx-auto space-y-4">

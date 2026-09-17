@@ -42,7 +42,7 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class ContactMessageViewSet(viewsets.ModelViewSet):
-    queryset = ContactMessage.objects.all()
+    queryset = ContactMessage.objects.all().order_by('-created_at')
     serializer_class = ContactMessageSerializer
     permission_classes = [permissions.AllowAny]
 
@@ -53,7 +53,6 @@ class ContactMessageViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         # 1. Honeypot check (Spam Protection)
-        # If 'website' or 'honeypot' field is filled by a bot, silently accept to fool spam bots without saving
         honeypot_val = request.data.get('website') or request.data.get('company_url')
         if honeypot_val:
             return Response(
@@ -66,6 +65,13 @@ class ContactMessageViewSet(viewsets.ModelViewSet):
         phone = (request.data.get('phone') or '').strip()
         subject = (request.data.get('subject') or 'General Inquiry').strip()
         message = (request.data.get('message') or '').strip()
+
+        # Extract client IP
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip_address = x_forwarded_for.split(',')[0].strip()
+        else:
+            ip_address = request.META.get('REMOTE_ADDR')
 
         # 2. Server-Side Field Validation
         errors = {}
@@ -92,7 +98,8 @@ class ContactMessageViewSet(viewsets.ModelViewSet):
             email=email,
             phone=phone,
             subject=subject,
-            message=message
+            message=message,
+            ip_address=ip_address
         )
 
         # 4. Alert Admin Dashboard via real-time Notification records
@@ -111,10 +118,12 @@ class ContactMessageViewSet(viewsets.ModelViewSet):
             "data": serializer.data
         }, status=status.HTTP_201_CREATED)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAdmin], url_path='read')
+    @action(detail=True, methods=['post', 'patch'], permission_classes=[IsAdmin], url_path='read')
     def mark_read(self, request, pk=None):
         contact_msg = self.get_object()
-        contact_msg.is_read = True
+        is_read_val = request.data.get('is_read', True)
+        contact_msg.is_read = bool(is_read_val)
         contact_msg.save()
         return Response(ContactMessageSerializer(contact_msg).data)
+
 

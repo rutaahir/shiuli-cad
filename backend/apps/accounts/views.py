@@ -318,3 +318,101 @@ class LogoutView(APIView):
             return Response({"detail": "Successfully logged out."}, status=status.HTTP_200_OK)
         except Exception:
             return Response({"detail": "Invalid refresh token."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AdminClientsListView(APIView):
+    """Retrieve list of registered clients with lifetime spend & order histories for SuperAdmin CRM."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from django.db.models import Sum
+        from apps.custom_orders.models import Order
+        from apps.payments.models import Purchase
+        from apps.file_edits.models import FileEditRequest
+
+        clients = User.objects.filter(role=User.Role.CLIENT).order_by('-created_at')
+        client_data = []
+
+        for client in clients:
+            orders_qs = Order.objects.filter(client=client)
+            orders_count = orders_qs.count()
+            orders_spend = orders_qs.filter(
+                status__in=[Order.Status.COMPLETED, Order.Status.PREVIEW_READY, Order.Status.PENDING_FINAL_PAYMENT]
+            ).aggregate(total=Sum('total_price'))['total'] or 0.0
+
+            purchases_qs = Purchase.objects.filter(buyer=client)
+            purchases_count = purchases_qs.count()
+            purchases_spend = purchases_qs.filter(
+                status=Purchase.Status.PAID
+            ).aggregate(total=Sum('price_paid'))['total'] or 0.0
+
+            edits_qs = FileEditRequest.objects.filter(client=client)
+            edits_count = edits_qs.count()
+            edits_spend = edits_qs.filter(
+                agreed_price__isnull=False
+            ).aggregate(total=Sum('agreed_price'))['total'] or 0.0
+
+            total_orders = orders_count + purchases_count + edits_count
+            total_spend = float(orders_spend) + float(purchases_spend) + float(edits_spend)
+
+            dates = [client.created_at]
+            last_order = orders_qs.order_by('-created_at').first()
+            if last_order:
+                dates.append(last_order.created_at)
+            last_purchase = purchases_qs.order_by('-purchased_at').first()
+            if last_purchase:
+                dates.append(last_purchase.purchased_at)
+            last_edit = edits_qs.order_by('-created_at').first()
+            if last_edit:
+                dates.append(last_edit.created_at)
+
+            latest_date = max(dates)
+            full_name = f"{client.first_name} {client.last_name}".strip() or client.username
+
+            order_items = []
+            for o in orders_qs.order_by('-created_at')[:5]:
+                order_title = (o.product.title if o.product else None) or (o.custom_request.category.name if (o.custom_request and o.custom_request.category) else None) or f"Custom CAD Order #{o.id}"
+                order_items.append({
+                    'id': f"ORD-{o.id}",
+                    'type': 'Custom Commission',
+                    'title': order_title,
+                    'status': o.get_status_display(),
+                    'amount': float(o.total_price),
+                    'date': o.created_at.strftime('%b %d, %Y')
+                })
+            for p in purchases_qs.order_by('-purchased_at')[:5]:
+                order_items.append({
+                    'id': f"PUR-{p.id}",
+                    'type': 'Ready CAD Purchase',
+                    'title': p.product.title if p.product else f"Purchase #{p.id}",
+                    'status': p.get_status_display(),
+                    'amount': float(p.price_paid),
+                    'date': p.purchased_at.strftime('%b %d, %Y')
+                })
+            for e in edits_qs.order_by('-created_at')[:5]:
+                order_items.append({
+                    'id': f"EDT-{e.id}",
+                    'type': 'CAD File Modification',
+                    'title': f"Modification: {e.title}",
+                    'status': e.get_status_display(),
+                    'amount': float(e.agreed_price or 0.0),
+                    'date': e.created_at.strftime('%b %d, %Y')
+                })
+
+            client_data.append({
+                'id': client.id,
+                'name': full_name,
+                'username': client.username,
+                'email': client.email,
+                'phone': client.phone_number or 'Not provided',
+                'country': 'India',
+                'orders_count': total_orders,
+                'total_spend': f"${round(total_spend, 2):,.2f}",
+                'total_spend_raw': round(total_spend, 2),
+                'last_activity': latest_date.strftime('%b %d, %Y'),
+                'created_at': client.created_at.strftime('%b %d, %Y'),
+                'history': order_items
+            })
+
+        return Response(client_data, status=status.HTTP_200_OK)
+

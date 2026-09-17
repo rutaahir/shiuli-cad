@@ -11,6 +11,7 @@ from .views import (
     VerifyEmailChangeOTPView,
     RequestPasswordResetOTPView,
     VerifyPasswordResetOTPView,
+    AdminClientsListView,
 )
 
 urlpatterns = [
@@ -19,6 +20,7 @@ urlpatterns = [
     path('refresh/', TokenRefreshView.as_view(), name='auth-refresh'),
     path('logout/', LogoutView.as_view(), name='auth-logout'),
     path('me/', UserMeView.as_view(), name='auth-me'),
+    path('admin/clients/', AdminClientsListView.as_view(), name='auth-admin-clients'),
     path('reset-password-email/', RequestPasswordResetEmailView.as_view(), name='auth-reset-password-email'),
     path('change-password/', ChangePasswordView.as_view(), name='auth-change-password'),
     

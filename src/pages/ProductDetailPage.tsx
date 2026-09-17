@@ -138,8 +138,9 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   const product = liveProduct || mockFallback;
 
   // Related: same category, different product
+  const getCatStr = (cat: any) => typeof cat === 'string' ? cat : (cat?.name || cat?.slug || '');
   const relatedProducts = product
-    ? PRODUCTS.filter((p) => p.category.toLowerCase() === product.category.toLowerCase() && p.id !== product.id).slice(0, 4)
+    ? PRODUCTS.filter((p) => getCatStr(p.category).toLowerCase() === getCatStr(product.category).toLowerCase() && p.id !== product.id).slice(0, 4)
     : PRODUCTS.slice(0, 4);
 
   const currentPrice = product
@@ -226,7 +227,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
     ));
 
   return (
-    <div className="min-h-screen bg-[#0B1330] text-[#F5F1E8] pt-28 pb-32 px-4 sm:px-8 lg:px-12">
+    <div className="min-h-screen bg-[#0B1330] text-[#F5F1E8] pt-28 pb-32 px-4 sm:px-6 lg:px-8 xl:px-12">
       <div className="max-w-[1600px] mx-auto space-y-14">
 
         {/* Breadcrumb */}

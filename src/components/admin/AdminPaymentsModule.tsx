@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { SettlementRecord } from '../../types';
-import { INITIAL_SETTLEMENTS } from '../../data/adminMockData';
 import { api } from '../../services/api';
 import {
   CreditCard,
@@ -9,15 +8,36 @@ import {
   CheckCircle2,
   Clock,
   ShieldCheck,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Loader2,
+  RefreshCw,
+  ArrowDownLeft
 } from 'lucide-react';
+
+interface GatewayLogRecord {
+  id: string;
+  client: string;
+  amount: string;
+  amount_raw: number;
+  type: string;
+  ref: string;
+  status: string;
+  date: string;
+  created_at_iso?: string;
+}
 
 export const AdminPaymentsModule: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'settlements' | 'client-payments'>('settlements');
-  const [settlements, setSettlements] = useState<SettlementRecord[]>(INITIAL_SETTLEMENTS);
+  const [settlements, setSettlements] = useState<SettlementRecord[]>([]);
+  const [loadingSettlements, setLoadingSettlements] = useState<boolean>(true);
+  const [clientPayments, setClientPayments] = useState<GatewayLogRecord[]>([]);
+  const [loadingGatewayLogs, setLoadingGatewayLogs] = useState<boolean>(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchSettlements = async () => {
+    setLoadingSettlements(true);
+    setError(null);
     try {
       await api.ensureAdminToken();
       const res = await api.request<any>('/settlements/');
@@ -27,28 +47,43 @@ export const AdminPaymentsModule: React.FC = () => {
         return [];
       };
       const list = ensureArray(res);
-      if (list.length > 0) {
-        const mapped: SettlementRecord[] = list.map((st: any) => ({
-          id: `SET-${st.id}`,
-          staffName: st.staff_name || st.staff?.first_name || 'CAD Designer',
-          staffRole: 'Senior CAD Specialist',
-          orderNumber: st.order ? `ORD-${st.order}` : `ORD-${st.id}`,
-          designTitle: st.order_title || 'Bespoke Custom CAD Design',
-          payoutAmount: parseFloat(st.amount || '0'),
-          completedAt: st.created_at ? new Date(st.created_at).toLocaleDateString() : 'Recent',
-          status: st.status === 'processed' ? 'settled' : 'unpaid',
-          settledAt: st.processed_at ? new Date(st.processed_at).toLocaleDateString() : undefined,
-          transactionRef: st.transaction_ref || undefined,
-        }));
-        setSettlements(mapped);
-      }
-    } catch (e) {
+      const mapped: SettlementRecord[] = list.map((st: any) => ({
+        id: `SET-${st.id}`,
+        staffName: st.staff_name || (st.staff ? `${st.staff.first_name} ${st.staff.last_name}`.trim() || st.staff.username : 'CAD Designer'),
+        staffRole: 'Senior CAD Specialist',
+        orderNumber: st.order_number || (st.order ? `ORD-${st.order}` : `ORD-${st.id}`),
+        designTitle: st.design_title || 'Bespoke Custom CAD Design',
+        payoutAmount: parseFloat(st.amount || '0'),
+        completedDate: st.created_at || 'Recent',
+        completedAt: st.created_at || 'Recent',
+        status: st.status === 'processed' ? 'settled' : 'unpaid',
+        settledAt: st.processed_at ? new Date(st.processed_at).toLocaleDateString() : undefined,
+        transactionRef: st.transaction_ref || undefined,
+      }));
+      setSettlements(mapped);
+    } catch (e: any) {
       console.warn('Failed to fetch settlements from API:', e);
+      setError(e?.message || 'Failed to fetch settlements.');
+    } finally {
+      setLoadingSettlements(false);
+    }
+  };
+
+  const fetchGatewayLogs = async () => {
+    setLoadingGatewayLogs(true);
+    try {
+      const logs = await api.getGatewayLogs();
+      setClientPayments(logs);
+    } catch (err: any) {
+      console.warn('Failed to fetch incoming gateway logs:', err);
+    } finally {
+      setLoadingGatewayLogs(false);
     }
   };
 
   useEffect(() => {
     fetchSettlements();
+    fetchGatewayLogs();
   }, []);
 
   const unpaidItems = settlements.filter((s) => s.status === 'unpaid');
@@ -129,14 +164,26 @@ export const AdminPaymentsModule: React.FC = () => {
               Staff Settlements (₹{totalUnpaidAmount.toLocaleString('en-IN')} Due)
             </button>
             <button
-              onClick={() => setActiveTab('client-payments')}
+              onClick={() => {
+                setActiveTab('client-payments');
+                fetchGatewayLogs();
+              }}
               className={`px-3 py-1.5 rounded-lg transition-all ${
                 activeTab === 'client-payments' ? 'bg-[#0D1B4C] text-white' : 'text-[#6B7280]'
               }`}
             >
-              Client Incoming Gateway
+              Client Incoming Gateway ({clientPayments.length})
             </button>
           </div>
+
+          <button
+            onClick={fetchSettlements}
+            disabled={loadingSettlements}
+            className="p-2 rounded-xl border border-[#E5E7EF] text-[#6B7280] hover:text-[#1E2230] hover:bg-[#F6F7FB] transition-colors"
+            title="Refresh Data"
+          >
+            <RefreshCw className={`w-4 h-4 ${loadingSettlements || loadingGatewayLogs ? 'animate-spin' : ''}`} />
+          </button>
 
           <button
             onClick={handleExportCSV}
@@ -151,8 +198,11 @@ export const AdminPaymentsModule: React.FC = () => {
       {activeTab === 'settlements' ? (
         <div className="bg-white rounded-2xl border border-[#E5E7EF] shadow-sm overflow-hidden space-y-4">
           <div className="p-4 border-b border-[#E5E7EF] flex items-center justify-between">
-            <div className="text-xs font-semibold text-[#1E2230]">
+            <div className="text-xs font-semibold text-[#1E2230] flex items-center gap-2">
               Completed CAD Jobs Awaiting Modeller Payout
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-[#E8EEFF] text-[#2856C7] font-semibold">
+                {unpaidItems.length} Pending
+              </span>
             </div>
 
             {selectedIds.length > 0 && (
@@ -166,104 +216,146 @@ export const AdminPaymentsModule: React.FC = () => {
             )}
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-[#F6F7FB] border-b border-[#E5E7EF] text-[11px] font-mono uppercase text-[#6B7280]">
-                  <th className="p-3.5 w-10">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.length === unpaidItems.length && unpaidItems.length > 0}
-                      onChange={toggleSelectAll}
-                      className="rounded border-[#E5E7EF] text-[#C9A227] focus:ring-0"
-                    />
-                  </th>
-                  <th className="p-3.5 font-medium">Modeller Name</th>
-                  <th className="p-3.5 font-medium">Order Number</th>
-                  <th className="p-3.5 font-medium">Design Title</th>
-                  <th className="p-3.5 font-medium">Completion Date</th>
-                  <th className="p-3.5 font-medium">Payout Due</th>
-                  <th className="p-3.5 font-medium text-right">Settlement Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E5E7EF] text-xs">
-                {settlements.map((set) => {
-                  const isUnpaid = set.status === 'unpaid';
-                  const isSelected = selectedIds.includes(set.id);
+          {loadingSettlements ? (
+            <div className="py-20 text-center flex flex-col items-center justify-center space-y-3">
+              <Loader2 className="w-8 h-8 text-[#2856C7] animate-spin" />
+              <p className="text-xs font-mono text-[#6B7280]">Loading live staff settlements...</p>
+            </div>
+          ) : settlements.length === 0 ? (
+            <div className="py-16 text-center space-y-2">
+              <ShieldCheck className="w-10 h-10 text-[#9CA3AF] mx-auto" />
+              <p className="text-sm font-semibold text-[#1E2230]">No Settlements Logged</p>
+              <p className="text-xs text-[#6B7280]">
+                Completed CAD jobs will automatically generate staff payout records here.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[#F6F7FB] border-b border-[#E5E7EF] text-[11px] font-mono uppercase text-[#6B7280]">
+                    <th className="p-3.5 w-10">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.length === unpaidItems.length && unpaidItems.length > 0}
+                        onChange={toggleSelectAll}
+                        className="rounded border-[#E5E7EF] text-[#C9A227] focus:ring-0"
+                      />
+                    </th>
+                    <th className="p-3.5 font-medium">Modeller Name</th>
+                    <th className="p-3.5 font-medium">Order Number</th>
+                    <th className="p-3.5 font-medium">Design Title</th>
+                    <th className="p-3.5 font-medium">Completion Date</th>
+                    <th className="p-3.5 font-medium">Payout Due</th>
+                    <th className="p-3.5 font-medium text-right">Settlement Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#E5E7EF] text-xs">
+                  {settlements.map((set) => {
+                    const isUnpaid = set.status === 'unpaid';
+                    const isSelected = selectedIds.includes(set.id);
 
-                  return (
-                    <tr key={set.id} className="hover:bg-[#F6F7FB] transition-colors">
-                      <td className="p-3.5">
-                        {isUnpaid ? (
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleSelectOne(set.id)}
-                            className="rounded border-[#E5E7EF] text-[#C9A227] focus:ring-0"
-                          />
-                        ) : (
-                          <span className="text-[#1F9D66] font-bold">✓</span>
-                        )}
-                      </td>
+                    return (
+                      <tr key={set.id} className="hover:bg-[#F6F7FB] transition-colors">
+                        <td className="p-3.5">
+                          {isUnpaid ? (
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleSelectOne(set.id)}
+                              className="rounded border-[#E5E7EF] text-[#C9A227] focus:ring-0"
+                            />
+                          ) : (
+                            <span className="text-[#1F9D66] font-bold">✓</span>
+                          )}
+                        </td>
 
-                      <td className="p-3.5 font-bold text-[#1E2230]">{set.staffName}</td>
+                        <td className="p-3.5 font-bold text-[#1E2230]">{set.staffName}</td>
 
-                      <td className="p-3.5 font-mono text-[#2856C7] font-semibold">
-                        {set.orderNumber}
-                      </td>
+                        <td className="p-3.5 font-mono text-[#2856C7] font-semibold">
+                          {set.orderNumber}
+                        </td>
 
-                      <td className="p-3.5 text-[#1E2230] font-medium">{set.designTitle}</td>
+                        <td className="p-3.5 text-[#1E2230] font-medium">{set.designTitle}</td>
 
-                      <td className="p-3.5 text-[#6B7280] font-mono">{set.completedDate}</td>
+                        <td className="p-3.5 text-[#6B7280] font-mono">{set.completedDate || set.completedAt || 'Recent'}</td>
 
-                      <td className="p-3.5 font-mono font-bold text-[#1E2230]">₹{set.payoutAmount.toLocaleString('en-IN')}</td>
+                        <td className="p-3.5 font-mono font-bold text-[#1E2230]">₹{set.payoutAmount.toLocaleString('en-IN')}</td>
 
-                      <td className="p-3.5 text-right">
-                        {isUnpaid ? (
-                          <span className="px-2.5 py-1 rounded-full bg-[#E8A93B]/10 text-[#E8A93B] font-bold text-[11px]">
-                            Pending Payout
-                          </span>
-                        ) : (
-                          <span className="px-2.5 py-1 rounded-full bg-[#1F9D66]/10 text-[#1F9D66] font-bold text-[11px]">
-                            Settled ({set.settledAt})
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        <td className="p-3.5 text-right">
+                          {isUnpaid ? (
+                            <span className="px-2.5 py-1 rounded-full bg-[#E8A93B]/10 text-[#E8A93B] font-bold text-[11px]">
+                              Pending Payout
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-full bg-[#1F9D66]/10 text-[#1F9D66] font-bold text-[11px]">
+                              Settled {set.settledAt ? `(${set.settledAt})` : ''}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       ) : (
         /* Client Payments Gateway Table */
         <div className="bg-white rounded-2xl border border-[#E5E7EF] p-5 shadow-sm space-y-4">
-          <div className="text-xs font-semibold text-[#1E2230] border-b border-[#E5E7EF] pb-3">
-            Incoming Client Payments & Gateway Log (Razorpay / UPI)
+          <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-3">
+            <div className="text-xs font-semibold text-[#1E2230] flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-[#2856C7]" />
+              Incoming Client Payments & Gateway Log (Razorpay / Stripe / UPI)
+            </div>
+            <span className="text-xs font-mono text-[#6B7280]">
+              {clientPayments.length} Transactions Logged
+            </span>
           </div>
 
-          <div className="space-y-2 text-xs font-mono">
-            {[
-              { id: 'PAY-8821', client: 'Priya Singhania', amount: '₹15,000', type: '50% Advance', ref: 'pay_3M00192', date: 'Today, 02:15 PM' },
-              { id: 'PAY-8819', client: 'David Rothschild', amount: '₹20,000', type: 'Full Payment', ref: 'pay_3M00190', date: 'Yesterday' },
-              { id: 'PAY-8815', client: 'Meera Kapoor', amount: '₹17,000', type: 'Full Payment', ref: 'pay_3M00184', date: 'Sep 06, 2026' },
-            ].map((p) => (
-              <div
-                key={p.id}
-                className="p-3.5 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] flex justify-between items-center"
-              >
-                <div>
-                  <div className="font-bold text-[#2856C7]">{p.id} — {p.client}</div>
-                  <div className="text-[10px] text-[#6B7280]">{p.type} • Txn: {p.ref}</div>
+          {loadingGatewayLogs ? (
+            <div className="py-16 text-center flex flex-col items-center justify-center space-y-3">
+              <Loader2 className="w-8 h-8 text-[#2856C7] animate-spin" />
+              <p className="text-xs font-mono text-[#6B7280]">Auditing live incoming transactions...</p>
+            </div>
+          ) : clientPayments.length === 0 ? (
+            <div className="py-16 text-center space-y-2">
+              <ArrowDownLeft className="w-10 h-10 text-[#9CA3AF] mx-auto" />
+              <p className="text-sm font-semibold text-[#1E2230]">No Incoming Payments Found</p>
+              <p className="text-xs text-[#6B7280]">
+                Client deposit payments and store purchases will record live gateway transaction logs here.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2.5 text-xs font-mono">
+              {clientPayments.map((p) => (
+                <div
+                  key={p.id}
+                  className="p-3.5 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] hover:border-[#2856C7]/30 transition-colors flex justify-between items-center"
+                >
+                  <div className="space-y-0.5">
+                    <div className="font-bold text-[#1E2230] flex items-center gap-2">
+                      <span className="text-[#2856C7]">{p.id}</span>
+                      <span>—</span>
+                      <span>{p.client}</span>
+                    </div>
+                    <div className="text-[10px] text-[#6B7280] flex items-center gap-2">
+                      <span className="bg-[#E8EEFF] text-[#2856C7] px-1.5 py-0.5 rounded font-semibold">
+                        {p.type}
+                      </span>
+                      <span>Txn Ref: {p.ref}</span>
+                    </div>
+                  </div>
+
+                  <div className="text-right space-y-0.5">
+                    <div className="font-bold text-[#1F9D66] text-sm">{p.amount}</div>
+                    <div className="text-[10px] text-[#6B7280]">{p.date}</div>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <div className="font-bold text-[#1F9D66]">{p.amount}</div>
-                  <div className="text-[10px] text-[#6B7280]">{p.date}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

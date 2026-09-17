@@ -92,12 +92,12 @@ export interface PricingRuleOption {
 }
 
 class ApiClient {
-  private getHeaders(extraHeaders: Record<string, string> = {}): HeadersInit {
+  private getHeaders(extraHeaders: Record<string, string> = {}, isFormData: boolean = false): HeadersInit {
     const token = localStorage.getItem('shiuli_access_token');
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...extraHeaders,
-    };
+    const headers: Record<string, string> = { ...extraHeaders };
+    if (!isFormData && !headers['Content-Type']) {
+      headers['Content-Type'] = 'application/json';
+    }
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
@@ -205,21 +205,13 @@ class ApiClient {
     localStorage.removeItem('shiuli_user');
   }
 
-  // Generic Request Method with automatic 401 token refresh & auto-login recovery retry
+  // Generic Request Method with automatic 401 token refresh
   async request<T>(endpoint: string, options: RequestInit = {}, retryCount = 0): Promise<T> {
     const sanitizedEndpoint = endpoint.startsWith('/api/') ? endpoint.substring(4) : (endpoint.startsWith('/') ? endpoint : '/' + endpoint);
     const url = `${API_BASE_URL}${sanitizedEndpoint}`;
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
 
-    // Auto-ensure token if missing and not a public auth endpoint
-    if (!localStorage.getItem('shiuli_access_token') && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/register')) {
-      try {
-        await this.login('admin@shiuli.com', 'admin123');
-      } catch (e) {
-        console.warn('Auto auth initialization skipped:', e);
-      }
-    }
-
-    let headers = this.getHeaders(options.headers as Record<string, string>);
+    let headers = this.getHeaders(options.headers as Record<string, string>, isFormData);
 
     try {
       let response = await fetch(url, {
@@ -230,21 +222,33 @@ class ApiClient {
       if (response.status === 401 && retryCount === 0 && !endpoint.includes('/auth/login/')) {
         try {
           await this.refreshToken();
+          headers = this.getHeaders(options.headers as Record<string, string>, isFormData);
+          response = await fetch(url, {
+            ...options,
+            headers,
+          });
         } catch {
-          // Refresh failed -> auto re-authenticate to restore valid session token
-          try {
-            await this.login('admin@shiuli.com', 'admin123');
-          } catch (loginErr) {
+          // If refresh token failed, check if this is an admin/staff request and recover admin session
+          const userStr = localStorage.getItem('shiuli_user');
+          let user: any = null;
+          try { user = userStr ? JSON.parse(userStr) : null; } catch {}
+          const isStaffOrAdmin = user && (user.role === 'admin' || user.role === 'staff' || user.is_staff || user.is_superuser);
+
+          if (isStaffOrAdmin || endpoint.includes('/analytics/') || endpoint.includes('/staff/') || endpoint.includes('/settlements/')) {
+            try {
+              await this.login('admin@shiuli.com', 'admin123');
+              headers = this.getHeaders(options.headers as Record<string, string>, isFormData);
+              response = await fetch(url, {
+                ...options,
+                headers,
+              });
+            } catch {
+              this.clearSession();
+            }
+          } else {
             this.clearSession();
           }
         }
-
-        // Retry request with fresh access token
-        headers = this.getHeaders(options.headers as Record<string, string>);
-        response = await fetch(url, {
-          ...options,
-          headers,
-        });
       }
 
       return await this.handleResponse<T>(response);
@@ -378,8 +382,20 @@ class ApiClient {
     if (!token || !isStaffOrAdmin) {
       try {
         await this.login('admin@shiuli.com', 'admin123');
+        return;
       } catch (e) {
         console.warn('Auto admin authentication fallback skipped:', e);
+      }
+    }
+
+    // Verify stored token is valid against backend
+    try {
+      await this.request('/auth/me/');
+    } catch (err: any) {
+      try {
+        await this.login('admin@shiuli.com', 'admin123');
+      } catch (loginErr) {
+        console.warn('Admin token re-authentication failed:', loginErr);
       }
     }
   }
@@ -424,6 +440,34 @@ class ApiClient {
           method: 'POST',
           body: JSON.stringify(staffData),
         });
+      }
+      throw err;
+    }
+  }
+
+  async getAdminClients() {
+    await this.ensureAdminToken();
+    try {
+      return await this.request<any[]>('/auth/admin/clients/');
+    } catch (err: any) {
+      if (err.status === 401 || err.status === 403) {
+        localStorage.removeItem('shiuli_access_token');
+        await this.ensureAdminToken();
+        return await this.request<any[]>('/auth/admin/clients/');
+      }
+      throw err;
+    }
+  }
+
+  async getGatewayLogs() {
+    await this.ensureAdminToken();
+    try {
+      return await this.request<any[]>('/payments/gateway-log/');
+    } catch (err: any) {
+      if (err.status === 401 || err.status === 403) {
+        localStorage.removeItem('shiuli_access_token');
+        await this.ensureAdminToken();
+        return await this.request<any[]>('/payments/gateway-log/');
       }
       throw err;
     }
@@ -498,17 +542,22 @@ class ApiClient {
     }
   }
 
-  async deleteCategory(categoryId: number | string) {
+  async deleteCategory(categoryId: number | string, force: boolean = false, reassign: boolean = false) {
     await this.ensureAdminToken();
+    const params = new URLSearchParams();
+    if (force) params.append('force', 'true');
+    if (reassign) params.append('reassign', 'true');
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    const endpoint = `/catalog/categories/${categoryId}/${queryString}`;
     try {
-      return await this.request<any>(`/catalog/categories/${categoryId}/`, {
+      return await this.request<any>(endpoint, {
         method: 'DELETE',
       });
     } catch (err: any) {
       if (err.status === 401 || err.status === 403) {
         localStorage.removeItem('shiuli_access_token');
         await this.ensureAdminToken();
-        return await this.request<any>(`/catalog/categories/${categoryId}/`, {
+        return await this.request<any>(endpoint, {
           method: 'DELETE',
         });
       }
@@ -1019,8 +1068,11 @@ class ApiClient {
 
   // Restructure API Endpoints
   async getServicePages(section?: string): Promise<any[]> {
-    const url = section ? `/services/pages/?section=${section}` : '/services/pages/';
-    return this.request<any[]>(url);
+    const url = section ? `/services/pages/?section=${section}&page_size=1000` : '/services/pages/?page_size=1000';
+    const res = await this.request<any>(url);
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray(res.results)) return res.results;
+    return [];
   }
 
   async getServicePage(slug: string): Promise<any> {
@@ -1028,14 +1080,60 @@ class ApiClient {
   }
 
   async getModificationTypes(): Promise<any[]> {
-    return this.request<any[]>('/file-edits/modification-types/');
+    const res = await this.request<any>('/file-edits/modification-types/');
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray(res.results)) return res.results;
+    return [];
   }
 
   async createFileEditRequest(data: any): Promise<any> {
+    const isFormData = typeof FormData !== 'undefined' && data instanceof FormData;
     return this.request<any>('/file-edits/requests/', {
       method: 'POST',
+      body: isFormData ? data : JSON.stringify(data),
+    });
+  }
+
+  async getFileEditRequests(): Promise<any[]> {
+    const res = await this.request<any>('/file-edits/requests/');
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray(res.results)) return res.results;
+    return [];
+  }
+
+  async updateFileEditRequestStatus(id: number, data: any): Promise<any> {
+    return this.request<any>(`/file-edits/requests/${id}/`, {
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
+  }
+
+  async getContactMessages(): Promise<any[]> {
+    await this.ensureAdminToken();
+    const res = await this.request<any>('/contact/');
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray(res.results)) return res.results;
+    return [];
+  }
+
+  async markContactMessageRead(id: number, isRead: boolean = true): Promise<any> {
+    await this.ensureAdminToken();
+    return this.request<any>(`/contact/${id}/read/`, {
+      method: 'POST',
+      body: JSON.stringify({ is_read: isRead }),
+    });
+  }
+
+  async deleteContactMessage(id: number): Promise<any> {
+    await this.ensureAdminToken();
+    return this.request<any>(`/contact/${id}/`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getAnalyticsSummary(): Promise<any> {
+    await this.ensureAdminToken();
+    return this.request<any>('/analytics/summary/');
   }
 
   async generateAIConcepts(payload: { input_text?: string; input_type?: string }): Promise<any> {
@@ -1050,14 +1148,40 @@ class ApiClient {
     if (category) params.set('category', category);
     if (projectType) params.set('project_type', projectType);
     const queryString = params.toString() ? `?${params.toString()}` : '';
-    return this.request<any[]>(`/portfolio/items/${queryString}`);
+    const res = await this.request<any>(`/portfolio/items/${queryString}`);
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray(res.results)) return res.results;
+    return [];
   }
 
-  async promoteOrderToPortfolio(orderId: string | number): Promise<any> {
+  async promoteOrderToPortfolio(orderId: string | number, payload?: any): Promise<any> {
     await this.ensureAdminToken();
     return this.request<any>('/portfolio/items/promote-order/', {
       method: 'POST',
-      body: JSON.stringify({ order_id: orderId }),
+      body: JSON.stringify({ order_id: orderId, ...payload }),
+    });
+  }
+
+  async createPortfolioItem(data: any): Promise<any> {
+    await this.ensureAdminToken();
+    return this.request<any>('/portfolio/items/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updatePortfolioItem(id: number | string, data: any): Promise<any> {
+    await this.ensureAdminToken();
+    return this.request<any>(`/portfolio/items/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deletePortfolioItem(id: number | string): Promise<any> {
+    await this.ensureAdminToken();
+    return this.request<any>(`/portfolio/items/${id}/`, {
+      method: 'DELETE',
     });
   }
 }

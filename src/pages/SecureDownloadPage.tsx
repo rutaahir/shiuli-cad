@@ -5,8 +5,10 @@ import { useAuth } from '../context/AuthContext';
 
 export const SecureDownloadPage: React.FC = () => {
   const { isLoggedIn, user } = useAuth();
-  const [status, setStatus] = useState<'initiating' | 'downloading' | 'complete' | 'error'>('initiating');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [status, setStatus] = useState<'verifying' | 'downloading' | 'complete' | 'error'>('verifying');
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [downloadFileName, setDownloadFileName] = useState<string>('CAD_Design_File.zip');
+  const [portfolioConsent, setPortfolioConsent] = useState<boolean>(false);
 
   // Extract token from path e.g. /download/{token}
   const pathParts = window.location.pathname.split('/download/');
@@ -129,13 +131,27 @@ export const SecureDownloadPage: React.FC = () => {
             <p className="text-sm text-zinc-300">
               Your CAD design file has been delivered to your browser downloads.
             </p>
-            <div className="p-4 bg-zinc-950/80 border border-zinc-800 rounded-xl text-xs text-zinc-400 text-left space-y-1">
+            <div className="p-4 bg-zinc-950/80 border border-zinc-800 rounded-xl text-xs text-zinc-400 text-left space-y-2">
               <div className="flex items-center space-x-2 text-amber-400 font-semibold mb-1">
                 <Lock className="w-4 h-4" />
                 <span>Single-Use Token Spent</span>
               </div>
               <p>• This token link has now been marked as used and deactivated.</p>
               <p>• If you need to re-download this design in the future, request a new link from your <span className="text-amber-300 font-semibold">My Downloads</span> dashboard.</p>
+              
+              <div className="pt-2 border-t border-zinc-800">
+                <label className="flex items-start space-x-2.5 cursor-pointer text-zinc-300">
+                  <input
+                    type="checkbox"
+                    checked={portfolioConsent}
+                    onChange={(e) => setPortfolioConsent(e.target.checked)}
+                    className="mt-0.5 rounded border-zinc-700 bg-zinc-900 text-amber-500 focus:ring-amber-500"
+                  />
+                  <span className="text-[11px] leading-snug">
+                    Allow Shiuli CAD Studio to feature this design in our public portfolio (your name & contact will never be shown).
+                  </span>
+                </label>
+              </div>
             </div>
             <button
               onClick={handleGoToDashboard}

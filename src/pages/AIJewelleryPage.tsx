@@ -83,40 +83,41 @@ export const AIJewelleryPage: React.FC<AIJewelleryPageProps> = ({ onNavigate }) 
 
   return (
     <div className="min-h-screen bg-[#060B1E] text-slate-100 pt-28 sm:pt-32 pb-16 px-4 sm:px-6 lg:px-8 xl:px-12">
-      {/* Hero Header */}
-      <div className="max-w-4xl mx-auto text-center space-y-4 mb-8">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#F5E7A3] text-xs font-semibold uppercase tracking-wider">
-          <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
-          Next-Gen Generative Jewelry Studio
+      <div className="max-w-[1600px] mx-auto space-y-10">
+        {/* Hero Header */}
+        <div className="text-center space-y-4 max-w-3xl mx-auto">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#F5E7A3] text-xs font-semibold uppercase tracking-wider">
+            <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+            Next-Gen Generative Jewelry Studio
+          </div>
+          <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
+            AI + Jewellery Studio
+          </h1>
+          <p className="text-slate-300 text-base sm:text-lg max-w-2xl mx-auto">
+            Transform text concepts and sketches into high-definition 3D CAD baselines. Our AI bridge merges artificial intelligence with master bench jeweler precision.
+          </p>
         </div>
-        <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
-          AI + Jewellery Studio
-        </h1>
-        <p className="text-slate-300 text-base sm:text-lg max-w-2xl mx-auto">
-          Transform text concepts and sketches into high-definition 3D CAD baselines. Our AI bridge merges artificial intelligence with master bench jeweler precision.
-        </p>
-      </div>
 
-      {/* 5 AI Sub-Feature Selector Bar */}
-      <div className="max-w-4xl mx-auto mb-10">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 bg-slate-900/80 p-2 rounded-2xl border border-slate-800">
-          {AI_FEATURE_MODES.map((mode) => (
-            <button
-              key={mode.id}
-              onClick={() => setActiveMode(mode.id)}
-              className={`p-3 rounded-xl text-xs font-semibold transition-all text-center flex flex-col items-center justify-center ${
-                activeMode === mode.id
-                  ? 'bg-[#D4AF37] text-slate-950 shadow-md shadow-[#D4AF37]/20 font-bold'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-              }`}
-            >
-              <span>{mode.label}</span>
-            </button>
-          ))}
+        {/* 5 AI Sub-Feature Selector Bar */}
+        <div className="max-w-4xl mx-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 bg-slate-900/80 p-2 rounded-2xl border border-slate-800">
+            {AI_FEATURE_MODES.map((mode) => (
+              <button
+                key={mode.id}
+                onClick={() => setActiveMode(mode.id)}
+                className={`p-3 rounded-xl text-xs font-semibold transition-all text-center flex flex-col items-center justify-center ${
+                  activeMode === mode.id
+                    ? 'bg-[#D4AF37] text-slate-950 shadow-md shadow-[#D4AF37]/20 font-bold'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                }`}
+              >
+                <span>{mode.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
 
-      <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Column: Input Controls */}
         <div className="lg:col-span-5 space-y-6">
           <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 space-y-6 shadow-xl">
@@ -264,7 +265,8 @@ export const AIJewelleryPage: React.FC<AIJewelleryPageProps> = ({ onNavigate }) 
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 };
 
 export default AIJewelleryPage;

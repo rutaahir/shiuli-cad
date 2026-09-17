@@ -12,16 +12,21 @@ import {
   AlertCircle,
   Upload,
   RefreshCw,
-  Wrench
+  Wrench,
+  Lock,
+  LogIn,
+  UserPlus
 } from 'lucide-react';
 import { api } from '../services/api';
 import { ModificationTypeData, PageId } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 interface FileEditingPageProps {
   onNavigate: (page: PageId, slug?: string) => void;
 }
 
 export const FileEditingPage: React.FC<FileEditingPageProps> = ({ onNavigate }) => {
+  const { user, isLoggedIn, openAuthModal } = useAuth();
   const [modificationTypes, setModificationTypes] = useState<ModificationTypeData[]>([]);
   const [loadingTypes, setLoadingTypes] = useState<boolean>(true);
   
@@ -41,6 +46,15 @@ export const FileEditingPage: React.FC<FileEditingPageProps> = ({ onNavigate }) 
   const [submitSuccess, setSubmitSuccess] = useState<boolean>(false);
   const [submitMessage, setSubmitMessage] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Pre-fill user data if logged in
+  useEffect(() => {
+    if (user) {
+      setClientName(user.first_name ? `${user.first_name} ${user.last_name}`.trim() : user.username || '');
+      setClientEmail(user.email || '');
+      setClientPhone(user.phone_number || '');
+    }
+  }, [user]);
 
   useEffect(() => {
     let mounted = true;
@@ -89,6 +103,12 @@ export const FileEditingPage: React.FC<FileEditingPageProps> = ({ onNavigate }) 
   };
 
   const handleSubmit = async (directOrder: boolean = false) => {
+    if (!isLoggedIn) {
+      setErrorMsg('Only logged in users can submit CAD file edit requests. Please log in or create an account.');
+      openAuthModal('Please log in to submit your CAD file modification request.');
+      return;
+    }
+
     if (!cadFile) {
       setErrorMsg('Please upload your source CAD file (.3dm, .stl, .obj, or .step).');
       return;
@@ -107,17 +127,20 @@ export const FileEditingPage: React.FC<FileEditingPageProps> = ({ onNavigate }) 
 
     try {
       const formData = new FormData();
-      formData.append('cad_file', cadFile);
-      formData.append('client_name', clientName || 'Guest User');
-      formData.append('client_email', clientEmail || 'guest@shiulicad.com');
-      formData.append('client_phone', clientPhone);
+      formData.append('original_file', cadFile);
+      formData.append('original_file_format', cadFile.name.split('.').pop()?.toLowerCase() || '3dm');
+      formData.append('contact_name', clientName || user?.username || 'Client User');
+      formData.append('contact_email', clientEmail || user?.email || '');
+      formData.append('contact_phone', clientPhone || user?.phone_number || '');
       formData.append('modification_types', JSON.stringify(selectedModTypeIds));
-      formData.append('description', description);
-      if (targetWeightGrams) formData.append('target_weight_grams', targetWeightGrams);
-      if (targetStoneSizeMm) formData.append('target_stone_size_mm', targetStoneSizeMm);
+
+      let fullDescription = description;
+      if (targetWeightGrams || targetStoneSizeMm) {
+        fullDescription += `\n\n[Specs]\nTarget Weight: ${targetWeightGrams || 'N/A'}g\nTarget Stone Size: ${targetStoneSizeMm || 'N/A'}`;
+      }
+      formData.append('description', fullDescription);
       if (referenceFile) formData.append('reference_image', referenceFile);
-      formData.append('order_source', 'file_edit');
-      formData.append('status', directOrder ? 'submitted' : 'quote_requested');
+      formData.append('submission_intent', directOrder ? 'place_order' : 'quote_only');
 
       await api.createFileEditRequest(formData);
 
@@ -137,21 +160,21 @@ export const FileEditingPage: React.FC<FileEditingPageProps> = ({ onNavigate }) 
 
   return (
     <div className="min-h-screen bg-[#060B1E] text-slate-100 pt-28 sm:pt-32 pb-16 px-4 sm:px-6 lg:px-8 xl:px-12">
-      {/* Header Banner */}
-      <div className="max-w-4xl mx-auto text-center space-y-4 mb-12">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#F5E7A3] text-xs font-semibold uppercase tracking-wider">
-          <Wrench className="w-3.5 h-3.5 text-[#D4AF37]" />
-          Master CAD Services
+      <div className="max-w-[1600px] mx-auto space-y-10">
+        {/* Header Banner */}
+        <div className="text-center space-y-4 max-w-3xl mx-auto">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#F5E7A3] text-xs font-semibold uppercase tracking-wider">
+            <Wrench className="w-3.5 h-3.5 text-[#D4AF37]" />
+            Master CAD Services
+          </div>
+          <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
+            CAD File Editing & Modification Studio
+          </h1>
+          <p className="text-slate-300 text-base sm:text-lg max-w-2xl mx-auto">
+            Upload your existing 3D jewelry CAD file (<span className="text-[#F5E7A3]">.3dm, .stl, .obj, .step</span>) for professional resize, stone setting adjustment, weight reduction, mesh repair, or format conversion.
+          </p>
         </div>
-        <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
-          CAD File Editing & Modification Studio
-        </h1>
-        <p className="text-slate-300 text-base sm:text-lg max-w-2xl mx-auto">
-          Upload your existing 3D jewelry CAD file (<span className="text-[#F5E7A3]">.3dm, .stl, .obj, .step</span>) for professional resize, stone setting adjustment, weight reduction, mesh repair, or format conversion.
-        </p>
-      </div>
 
-      <div className="max-w-4xl mx-auto">
         {submitSuccess ? (
           <div className="bg-slate-900/90 border border-[#D4AF37]/50 rounded-3xl p-8 sm:p-12 text-center space-y-6 shadow-2xl">
             <div className="w-16 h-16 bg-[#D4AF37]/20 rounded-full flex items-center justify-center mx-auto text-[#D4AF37]">
@@ -181,6 +204,36 @@ export const FileEditingPage: React.FC<FileEditingPageProps> = ({ onNavigate }) 
           </div>
         ) : (
           <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-10 space-y-8 shadow-2xl">
+            {!isLoggedIn && (
+              <div className="p-6 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+                    <Lock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-white text-base">Account Authentication Required</h4>
+                    <p className="text-xs text-amber-200/80 mt-0.5">
+                      Only logged-in users can submit CAD file editing requests so your original CAD files, price quotes, and updates stay secured to your account.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => openAuthModal('Please log in to submit your CAD file modification request.')}
+                    className="px-4 py-2 bg-[#D4AF37] hover:bg-[#F5E7A3] text-slate-950 font-bold text-xs rounded-xl flex items-center gap-1.5 transition-colors"
+                  >
+                    <LogIn className="w-4 h-4" /> Log In
+                  </button>
+                  <button
+                    onClick={() => onNavigate('register')}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs rounded-xl border border-slate-700 flex items-center gap-1.5 transition-colors"
+                  >
+                    <UserPlus className="w-4 h-4 text-[#D4AF37]" /> Register
+                  </button>
+                </div>
+              </div>
+            )}
+
             {errorMsg && (
               <div className="p-4 rounded-xl bg-red-900/30 border border-red-700/50 text-red-200 text-sm flex items-center gap-3">
                 <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />

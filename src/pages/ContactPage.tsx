@@ -175,12 +175,12 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B1330] text-[#F5F1E8] pt-28 pb-20 px-4 sm:px-8 lg:px-12 relative overflow-hidden">
+    <div className="min-h-screen bg-[#0B1330] text-[#F5F1E8] pt-28 pb-20 px-4 sm:px-6 lg:px-8 xl:px-12 relative overflow-hidden">
       {/* Background Decorative Gold Radial Blurs */}
       <div className="absolute top-1/4 left-0 w-96 h-96 bg-[#D4AF37]/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-10 right-0 w-[500px] h-[500px] bg-[#D4AF37]/5 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="max-w-[1400px] mx-auto space-y-10 relative z-10">
+      <div className="max-w-[1600px] mx-auto space-y-10 relative z-10">
         {/* Mobile Header / Quick Band (< 768px) */}
         <div className="block md:hidden text-center space-y-3 mb-6">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#121F4D]/80 border border-[#D4AF37]/40 shadow-sm">

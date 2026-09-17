@@ -126,6 +126,7 @@ class CustomRequest(models.Model):
     has_logo = models.BooleanField(default=False)
     logo_file = models.FileField(upload_to="custom_requests/logos/", null=True, blank=True)
     special_instructions = models.TextField(blank=True)
+    client_consent_to_feature = models.BooleanField(default=False)
     delivery_speed = models.ForeignKey(
         OptionValue, null=True, blank=True, related_name="delivery_requests", on_delete=models.SET_NULL
     )
@@ -255,6 +256,7 @@ class Order(models.Model):
     preview_image = models.ImageField(upload_to="custom_orders/previews/", null=True, blank=True)
     admin_review_notes = models.TextField(blank=True)
     quality_approved = models.BooleanField(default=False)
+    client_consent_to_feature = models.BooleanField(default=False)
 
     # Settlement Tracking (Stage 13)
     settlement_status = models.CharField(max_length=20, default='pending')

@@ -19,6 +19,7 @@ import { AdminSettingsModule } from '../components/admin/AdminSettingsModule';
 import { AdminServicesModule } from '../components/admin/AdminServicesModule';
 import { AdminFileEditsModule } from '../components/admin/AdminFileEditsModule';
 import { AdminPortfolioModule } from '../components/admin/AdminPortfolioModule';
+import { AdminContactModule } from '../components/admin/AdminContactModule';
 
 interface SuperAdminPageProps {
   onNavigate: (page: PageId, extraId?: string) => void;
@@ -137,6 +138,8 @@ export const SuperAdminPage: React.FC<SuperAdminPageProps> = ({ onNavigate, init
       {activeModule === 'custom-requests' && <AdminCustomRequestsModule />}
 
       {activeModule === 'custom-options' && <AdminCustomOptionsModule />}
+
+      {activeModule === 'contact-inquiries' && <AdminContactModule />}
 
       {activeModule === 'orders' && <AdminOrdersModule staffList={staffList} />}
 

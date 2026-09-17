@@ -44,12 +44,26 @@ class PortfolioItemViewSet(viewsets.ModelViewSet):
         except Order.DoesNotExist:
             return Response({"error": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
 
+        if not order.client_consent_to_feature:
+            return Response(
+                {"error": "Cannot feature order: client consent to feature was not granted."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        title = request.data.get('title') or f"Custom {order.custom_request.category.name if (order.custom_request and order.custom_request.category) else 'Design'} - #{order.id}"
+        description = request.data.get('description') or (order.custom_request.description if order.custom_request else '')
+        is_featured = request.data.get('is_featured', False)
+        is_ai = request.data.get('is_ai_project', False)
+        is_custom = request.data.get('is_custom_project', True)
+
         portfolio_item = PortfolioItem.objects.create(
-            title=f"Custom {order.request.category.name if order.request.category else 'Design'} - #{order.order_number}",
-            category=order.request.category if order.request else None,
-            category_slug=order.request.category.slug if (order.request and order.request.category) else '',
-            is_custom_project=True,
-            description=order.request.description if order.request else '',
+            title=title,
+            category=order.custom_request.category if order.custom_request else None,
+            category_slug=order.custom_request.category.slug if (order.custom_request and order.custom_request.category) else '',
+            is_custom_project=is_custom,
+            is_ai_project=is_ai,
+            description=description,
+            is_featured=is_featured,
             source_order=order,
             is_published=True
         )

@@ -120,8 +120,13 @@ function getInitialRouteState() {
     return { page: 'pricing' as PageId, tab: undefined, category: 'all', productId: PRODUCTS[0]?.id || 'ring-01', customProductId: undefined, serviceSlug: undefined };
   }
 
-  if (path.startsWith('/service/')) {
-    const slug = path.replace('/service/', '');
+  if (path === '/cad-services' || path === '/cad-service' || path.startsWith('/cad-services/') || path.startsWith('/service/')) {
+    let slug: string | undefined = undefined;
+    if (path.startsWith('/cad-services/')) {
+      slug = path.replace('/cad-services/', '');
+    } else if (path.startsWith('/service/')) {
+      slug = path.replace('/service/', '');
+    }
     return {
       page: 'cad-service' as PageId,
       tab: undefined,
@@ -261,8 +266,8 @@ function MainApp() {
     } else if (page === 'pricing') {
       url = '/pricing';
     } else if (page === 'cad-service') {
-      const slug = extraId || selectedServiceSlug || 'master-jewellery-cad';
-      url = `/service/${slug}`;
+      const slug = extraId || selectedServiceSlug;
+      url = slug ? `/cad-services/${slug}` : '/cad-services';
       setSelectedServiceSlug(slug);
     } else if (page === 'login') {
       url = '/login';
@@ -382,7 +387,7 @@ function MainApp() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B1330] text-[#F5F1E8] font-sans selection:bg-[#D4AF37] selection:text-[#0B1330] relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#0B1330] text-[#F5F1E8] font-sans relative overflow-x-hidden">
       {/* First Visit / Hard Refresh Line-Draw Loader */}
       <FirstLoadScreen />
 

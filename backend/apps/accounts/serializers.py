@@ -15,7 +15,7 @@ class StaffProfileSerializer(serializers.ModelSerializer):
         ]
 
 class UserSerializer(serializers.ModelSerializer):
-    staff_profile = StaffProfileSerializer(read_only=True)
+    staff_profile = serializers.SerializerMethodField()
     profile_photo = serializers.SerializerMethodField()
 
     class Meta:
@@ -26,6 +26,14 @@ class UserSerializer(serializers.ModelSerializer):
             'created_at', 'staff_profile'
         ]
         read_only_fields = ['id', 'role', 'created_at']
+
+    def get_staff_profile(self, obj):
+        try:
+            if hasattr(obj, 'staff_profile') and obj.staff_profile:
+                return StaffProfileSerializer(obj.staff_profile).data
+        except Exception:
+            pass
+        return None
 
     def get_profile_photo(self, obj):
         if obj.profile_photo:

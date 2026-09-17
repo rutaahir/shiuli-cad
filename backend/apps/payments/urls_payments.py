@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import create_payment_session, verify_payment, pay_stage_payment, PaymentPlanTemplateViewSet
+from .views import create_payment_session, verify_payment, pay_stage_payment, PaymentPlanTemplateViewSet, incoming_gateway_logs
 from .views_purchases import (
     create_purchase,
     resend_otp,
@@ -14,6 +14,7 @@ router = DefaultRouter()
 router.register(r'templates', PaymentPlanTemplateViewSet, basename='payment-plan-template')
 
 urlpatterns = [
+    path('gateway-log/', incoming_gateway_logs, name='payment-gateway-log'),
     path('create-order/', create_payment_session, name='payment-create-order'),
     path('verify/', verify_payment, name='payment-verify'),
     path('pay-stage/', pay_stage_payment, name='payment-pay-stage'),

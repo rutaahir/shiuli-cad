@@ -44,6 +44,8 @@ export interface ServicePageData {
   subtitle: string;
   hero_image?: string;
   intro_text: string;
+  starting_price_usd?: string;
+  starting_price_inr?: string;
   display_order: number;
   linked_category?: number;
   linked_category_name?: string;
@@ -66,23 +68,44 @@ export interface ModificationTypeData {
   display_order: number;
 }
 
+export interface PortfolioImage {
+  id?: number;
+  image: string;
+  caption?: string;
+  display_order?: number;
+}
+
 export interface PortfolioItemData {
   id: number;
   title: string;
   category?: number;
   category_name?: string;
   category_slug?: string;
-  is_ai_project: boolean;
-  is_custom_project: boolean;
+  is_ai_project?: boolean;
+  is_custom_project?: boolean;
   primary_image?: string;
-  gallery_images: { id: number; image: string; caption: string }[];
+  gallery_images?: { id?: number; image: string; caption?: string }[];
   description: string;
   completed_date?: string;
-  is_featured: boolean;
-  is_published: boolean;
-  display_order: number;
+  craftsman_note?: string;
+  aspect_ratio?: string;
+  is_featured?: boolean;
+  is_published?: boolean;
+  display_order?: number;
 }
 
+
+export interface ContactMessageData {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  subject: string;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+  ip_address?: string | null;
+}
 
 export type AdminModuleId =
   | 'overview'
@@ -93,6 +116,7 @@ export type AdminModuleId =
   | 'approvals'
   | 'custom-requests'
   | 'custom-options'
+  | 'contact-inquiries'
   | 'orders'
   | 'staff'
   | 'payments'

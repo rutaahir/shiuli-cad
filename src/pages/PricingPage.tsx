@@ -23,23 +23,23 @@ export const PricingPage: React.FC<PricingPageProps> = ({ onNavigate }) => {
 
   return (
     <div className="min-h-screen bg-[#060B1E] text-slate-100 pt-28 sm:pt-32 pb-16 px-4 sm:px-6 lg:px-8 xl:px-12">
-      {/* Page Header */}
-      <div className="max-w-4xl mx-auto text-center space-y-4 mb-10">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#F5E7A3] text-xs font-semibold uppercase tracking-wider">
-          <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
-          Transparent Studio Pricing & Services
+      <div className="max-w-[1600px] mx-auto space-y-10">
+        {/* Page Header */}
+        <div className="text-center space-y-4 max-w-3xl mx-auto">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#F5E7A3] text-xs font-semibold uppercase tracking-wider">
+            <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+            Transparent Studio Pricing & Services
+          </div>
+          <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
+            CAD Engineering Pricing Structure
+          </h1>
+          <p className="text-slate-300 text-base sm:text-lg max-w-2xl mx-auto">
+            Clear, competitive pricing for ready-to-cast CAD models, file modifications, custom bespoke designs, and high-volume studio retainers.
+          </p>
         </div>
-        <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
-          CAD Engineering Pricing Structure
-        </h1>
-        <p className="text-slate-300 text-base sm:text-lg max-w-2xl mx-auto">
-          Clear, competitive pricing for ready-to-cast CAD models, file modifications, custom bespoke designs, and high-volume studio retainers.
-        </p>
-      </div>
 
-      {/* 4-Tab Navigation */}
-      <div className="max-w-4xl mx-auto mb-10">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-slate-900/80 p-2 rounded-2xl border border-slate-800">
+        {/* 4-Tab Navigation */}
+        <div className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-2 bg-slate-900/80 p-2 rounded-2xl border border-slate-800">
           <button
             onClick={() => setActiveTab('cad_design')}
             className={`py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 ${

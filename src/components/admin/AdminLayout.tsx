@@ -23,7 +23,8 @@ import {
   X,
   ExternalLink,
   ShieldCheck,
-  Sliders
+  Sliders,
+  Mail
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -73,6 +74,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     { id: 'approvals', label: 'Design Approvals', icon: <CheckCircle2 className="w-4 h-4" />, badge: 3 },
     { id: 'custom-requests', label: 'Custom Requests', icon: <MessageSquare className="w-4 h-4" />, badge: 2 },
     { id: 'custom-options', label: 'Custom Design Options', icon: <Sliders className="w-4 h-4" /> },
+    { id: 'contact-inquiries', label: 'Contact Inquiries', icon: <Mail className="w-4 h-4" /> },
     { id: 'orders', label: 'Master Orders', icon: <ShoppingBag className="w-4 h-4" /> },
     { id: 'staff', label: 'Staff & Job Limits', icon: <Users className="w-4 h-4" /> },
     { id: 'payments', label: 'Payments & Settlements', icon: <CreditCard className="w-4 h-4" /> },
@@ -83,7 +85,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   ];
 
   return (
-    <div className="h-screen w-screen bg-[#F6F7FB] text-[#1E2230] flex flex-col font-sans selection:bg-[#D4AF37] selection:text-[#0B1330] overflow-hidden">
+    <div className="h-screen w-screen bg-[#F6F7FB] text-[#1E2230] flex flex-col font-sans overflow-hidden">
       {/* Prototype Banner Notice */}
       <div className="bg-[#09112B] border-b border-[#D4AF37]/30 px-4 py-1.5 text-center text-xs text-[#F5F1E8] flex items-center justify-center gap-2 flex-shrink-0">
         <ShieldCheck className="w-3.5 h-3.5 text-[#D4AF37]" />

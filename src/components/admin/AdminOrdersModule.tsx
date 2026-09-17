@@ -239,6 +239,38 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                   <span>{selectedOrderDrawer.downloadSize}</span>
                 </div>
               </div>
+
+              {/* Client Portfolio Consent & Feature Action */}
+              <div className="pt-3 border-t border-[#E5E7EF] space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-[#1E2230]">Client Portfolio Consent:</span>
+                  <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${
+                    selectedOrderDrawer.client_consent_to_feature ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                  }`}>
+                    {selectedOrderDrawer.client_consent_to_feature ? 'Opt-In Consent Granted' : 'No Consent'}
+                  </span>
+                </div>
+
+                <button
+                  disabled={!selectedOrderDrawer.client_consent_to_feature}
+                  onClick={() => {
+                    alert(`Order ${selectedOrderDrawer.orderNumber} promoted to public portfolio showcase!`);
+                  }}
+                  className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors ${
+                    selectedOrderDrawer.client_consent_to_feature
+                      ? 'bg-[#0D1B4C] hover:bg-[#12245E] text-[#F5E7A3] shadow-md cursor-pointer'
+                      : 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+                  }`}
+                >
+                  <FileText className="w-4 h-4 text-[#D4AF37]" />
+                  <span>Feature in Portfolio</span>
+                </button>
+                {!selectedOrderDrawer.client_consent_to_feature && (
+                  <p className="text-[10px] text-[#6B7280] italic text-center">
+                    Cannot feature in public portfolio: Client opt-in consent is required.
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>

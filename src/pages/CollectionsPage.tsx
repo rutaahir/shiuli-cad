@@ -286,7 +286,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
   );
 
   return (
-    <div className="min-h-screen bg-[#0B1330] text-[#F5F1E8] pt-28 pb-20 px-4 sm:px-8 lg:px-12">
+    <div className="min-h-screen bg-[#0B1330] text-[#F5F1E8] pt-28 pb-20 px-4 sm:px-6 lg:px-8 xl:px-12">
       <div className="max-w-[1600px] mx-auto space-y-8">
 
         {/* Breadcrumbs & Header */}
