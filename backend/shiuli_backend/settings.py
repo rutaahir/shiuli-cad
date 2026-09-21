@@ -10,6 +10,15 @@ import sys
 sys.path.insert(0, str(BASE_DIR))
 sys.path.insert(0, str(BASE_DIR / 'apps'))
 
+# Prevent charmap / cp1252 UnicodeEncodeError on Windows PowerShell terminal outputs
+try:
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    if hasattr(sys.stderr, 'reconfigure'):
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+except Exception:
+    pass
+
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-shiuli-cad-studio-secret-key-2026-production-ready')
 
 DEBUG = config('DEBUG', default=True, cast=bool)
@@ -185,7 +194,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='socialbuzz31@gmail.com')
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='lrhnjiuctfhzieal')
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='socialbuzz31@gmail.com').strip()
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='xwdnospocqnkotvl').strip().replace(' ', '')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='Shiuli CAD Studio <socialbuzz31@gmail.com>')
 

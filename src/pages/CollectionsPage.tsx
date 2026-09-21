@@ -76,19 +76,38 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
     const result: { slug: string; name: string; count: number; isSubcat: boolean }[] = [];
 
     categories.forEach((cat) => {
-      // Count = cat's own products + all subcategory products
-      const directCount = countBySlug.get(cat.slug) || 0;
+      const getMatchingCount = (slug: string) => {
+        const s = slug.toLowerCase();
+        return products.filter((p) => {
+          const pCatSlug = (p.category_slug || '').toLowerCase();
+          const pParentSlug = ((p as any).parent_slug || '').toLowerCase();
+          const pCatName = (p.category_name || '').toLowerCase();
+
+          return (
+            pCatSlug === s ||
+            pParentSlug === s ||
+            pCatName === s ||
+            (s.includes('ring') && (pCatSlug.includes('ring') || pParentSlug.includes('ring'))) ||
+            (s.includes('necklace') && (pCatSlug.includes('necklace') || pCatSlug.includes('pendant') || pParentSlug.includes('necklace'))) ||
+            (s.includes('earring') && (pCatSlug.includes('earring') || pParentSlug.includes('earring'))) ||
+            (s.includes('bracelet') && (pCatSlug.includes('bracelet') || pCatSlug.includes('bangle') || pParentSlug.includes('bracelet')))
+          );
+        }).length;
+      };
+
+      const directCount = getMatchingCount(cat.slug);
       const subCount = (cat.subcategories || []).reduce(
-        (sum, sc) => sum + (countBySlug.get(sc.slug) || 0),
+        (sum, sc) => sum + getMatchingCount(sc.slug),
         0
       );
-      result.push({ slug: cat.slug, name: cat.name, count: directCount + subCount, isSubcat: false });
+      const totalCount = Math.max(directCount, subCount);
+      result.push({ slug: cat.slug, name: cat.name, count: totalCount > 0 ? totalCount : directCount + subCount, isSubcat: false });
 
       (cat.subcategories || []).forEach((sc) => {
         result.push({
           slug: sc.slug,
           name: sc.name,
-          count: countBySlug.get(sc.slug) || 0,
+          count: getMatchingCount(sc.slug),
           isSubcat: true,
         });
       });
@@ -121,9 +140,16 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
         //  - product's own category_slug matches (e.g. sub-category selected directly)
         //  - product's parent_slug matches (e.g. top-level "Rings" selected, product is in "Solitaire Rings")
         if (selectedSlug !== 'all') {
-          const exactMatch = (p.category_slug || '') === selectedSlug;
-          const parentMatch = (p as any).parent_slug === selectedSlug;
-          if (!exactMatch && !parentMatch) return false;
+          const exactMatch = (p.category_slug || '').toLowerCase() === selectedSlug.toLowerCase();
+          const parentMatch = ((p as any).parent_slug || '').toLowerCase() === selectedSlug.toLowerCase();
+          const catNameMatch = (p.category_name || '').toLowerCase().includes(selectedSlug.toLowerCase()) || selectedSlug.toLowerCase().includes((p.category_name || '').toLowerCase());
+          const flexibleMatch =
+            (selectedSlug.includes('ring') && ((p.category_slug || '').includes('ring') || ((p as any).parent_slug || '').includes('ring'))) ||
+            (selectedSlug.includes('necklace') && ((p.category_slug || '').includes('necklace') || (p.category_slug || '').includes('pendant') || ((p as any).parent_slug || '').includes('necklace'))) ||
+            (selectedSlug.includes('earring') && ((p.category_slug || '').includes('earring') || ((p as any).parent_slug || '').includes('earring'))) ||
+            (selectedSlug.includes('bracelet') && ((p.category_slug || '').includes('bracelet') || (p.category_slug || '').includes('bangle') || ((p as any).parent_slug || '').includes('bracelet')));
+
+          if (!exactMatch && !parentMatch && !catNameMatch && !flexibleMatch) return false;
         }
 
         // Price filter
@@ -291,47 +317,44 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
 
         {/* Breadcrumbs & Header */}
         <RevealOnScroll>
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
               {/* Breadcrumb */}
-              <div className="flex items-center gap-1.5 text-[11px] text-[#C9C2A6] mb-3">
+              <div className="flex items-center gap-1.5 text-[11px] text-[#C9C2A6] mb-3 flex-wrap">
                 <button
                   onClick={() => onNavigate('home')}
                   className="hover:text-[#D4AF37] transition-colors"
                 >
                   Home
                 </button>
-                <ChevronRight className="w-3 h-3 opacity-40" />
-                <button
-                  onClick={() => setSelectedSlug('all')}
-                  className="hover:text-[#D4AF37] transition-colors"
-                >
-                  CAD Collections Catalog
-                </button>
+                <ChevronRight className="w-3 h-3 text-[#D4AF37]/50" />
+                <span className="text-[#F5E7A3]">CAD Collections</span>
                 {selectedSlug !== 'all' && (
                   <>
-                    <ChevronRight className="w-3 h-3 opacity-40" />
-                    <span className="text-[#F5E7A3]">{activeCatLabel}</span>
+                    <ChevronRight className="w-3 h-3 text-[#D4AF37]/50" />
+                    <span className="text-[#FAF8F3] font-semibold">{activeCatLabel}</span>
                   </>
                 )}
               </div>
 
-              <h1 className="font-serif text-3xl sm:text-4xl text-[#FAF8F3] leading-tight">
-                {selectedSlug === 'all' ? 'Ready-To-Cast CAD Collections' : activeCatLabel}
+              <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl text-[#FAF8F3] leading-tight">
+                {activeCatLabel}
               </h1>
-              <p className="text-xs sm:text-sm text-[#C9C2A6] mt-1 font-light">
-                Calibrated Rhino .3DM parametric models and watertight solid .STL meshes for immediate 3D wax printing.
+              <p className="text-xs sm:text-sm text-[#C9C2A6] font-light max-w-xl mt-1">
+                Explore production-ready Rhino 3DM native files and high-precision watertight STL models.
               </p>
             </div>
 
-            {/* Mobile filter toggle */}
-            <button
-              onClick={() => setMobileFilterOpen(true)}
-              className="lg:hidden flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#121F4D] border border-[#D4AF37]/30 text-xs font-semibold text-[#F5E7A3] shrink-0"
-            >
-              <SlidersHorizontal className="w-4 h-4" />
-              <span>Filters ({filteredProducts.length})</span>
-            </button>
+            {/* Filter Toggle Mobile & Sort Controls */}
+            <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+              <button
+                onClick={() => setMobileFilterOpen(true)}
+                className="lg:hidden px-4 py-2 rounded-xl bg-[#121F4D] border border-[#D4AF37]/40 text-xs font-semibold text-[#F5E7A3] flex items-center gap-2"
+              >
+                <SlidersHorizontal className="w-4 h-4 text-[#D4AF37]" />
+                <span>Filters ({filteredProducts.length})</span>
+              </button>
+            </div>
           </div>
         </RevealOnScroll>
 

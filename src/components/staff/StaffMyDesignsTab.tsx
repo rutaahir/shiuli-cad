@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StaffSubmission } from '../../types';
-import { Upload, Sparkles, Clock, Plus, Award, Loader2, AlertCircle, ImageIcon, Check } from 'lucide-react';
+import { Upload, Sparkles, Clock, Plus, Award, Loader2, AlertCircle, ImageIcon, Check, Trash2 } from 'lucide-react';
 import { api } from '../../services/api';
 
 interface StaffMyDesignsTabProps {
@@ -15,7 +15,7 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = ({
   const [filter, setFilter] = useState<'all' | 'approved' | 'pending' | 'rejected'>('all');
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [apiSubmissions, setApiSubmissions] = useState<StaffSubmission[]>([]);
+  const [apiSubmissions, setApiSubmissions] = useState<(StaffSubmission & { slug?: string })[]>([]);
   const [categoriesList, setCategoriesList] = useState<Array<{ id: number; name: string }>>([]);
 
   // Form State
@@ -29,7 +29,7 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = ({
   const [uploading, setUploading] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-  // Fetch Categories, Catalog Submissions, and Bespoke Custom Orders from API
+  // Fetch Categories and Catalog Submissions from API
   const fetchCatalogSubmissions = async () => {
     setLoading(true);
     try {
@@ -40,15 +40,16 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = ({
         setSelectedCategoryId(catRes[0].id);
       }
 
-      const combinedSubmissions: (StaffSubmission & { isBespoke?: boolean })[] = [];
+      const combinedSubmissions: (StaffSubmission & { slug?: string; isBespoke?: boolean })[] = [];
 
-      // 2. Fetch catalog store products
+      // 2. Fetch catalog store products (original CAD submissions)
       try {
         const res = await api.getProducts();
         const resultsArray = Array.isArray(res) ? res : res?.results || [];
         resultsArray.forEach((p: any) => {
           combinedSubmissions.push({
             id: p.slug || `SUB-${p.id}`,
+            slug: p.slug,
             title: p.title,
             category: p.category_name || p.category?.name || 'Jewellery Design',
             submittedAt: p.created_at ? new Date(p.created_at).toISOString().split('T')[0] : 'Recently',
@@ -68,60 +69,59 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = ({
         console.warn('Could not fetch catalog products from API:', prodErr);
       }
 
-      // 3. Fetch bespoke custom order submissions (e.g., ORD-7, Bespoke Diamond Pins Test)
-      try {
-        const ordersRes = await api.request<any>('/orders/');
-        const orderList = Array.isArray(ordersRes) ? ordersRes : ordersRes?.results || [];
-        
-        orderList.forEach((ord: any) => {
-          const req = ord.custom_request || {};
-          const sketchImg = ord.preview_image || req.sketches?.[0]?.image_url || req.sketches?.[0]?.image;
-
-          let subStatus: 'approved' | 'pending' | 'rejected' = 'pending';
-          if (ord.status === 'preview_ready' || ord.status === 'completed' || ord.quality_approved) {
-            subStatus = 'approved';
-          } else if (ord.status === 'rejected') {
-            subStatus = 'rejected';
-          } else {
-            subStatus = 'pending';
-          }
-
-          combinedSubmissions.push({
-            id: `ORD-${ord.id}`,
-            title: req.category_name ? `Bespoke ${req.category_name} (Order #${ord.id})` : `Bespoke Order #${ord.id}`,
-            category: req.category_name || 'Bespoke Order',
-            submittedAt: ord.assigned_at ? new Date(ord.assigned_at).toISOString().split('T')[0] : 'Recently',
-            thumbnail: sketchImg || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&q=80&w=600',
-            suggestedPrice: 0,
-            status: subStatus,
-            fileFormats: ['3DM', 'STL', 'Render'],
-            specs: {
-              metalWeight18k: req.metal_alloy_name || '18K Gold',
-              diamondCount: req.gemstones?.length || 1,
-              dimensions: 'Client CAD Spec',
-            },
-            isBespoke: true,
-          });
-        });
-      } catch (ordErr) {
-        console.warn('Could not fetch custom orders for submissions tab:', ordErr);
-      }
-
-      if (combinedSubmissions.length > 0) {
-        setApiSubmissions(combinedSubmissions);
-      }
+      // Always update state (even if empty, so 0 items shows 0 items with NO dummy fallback)
+      setApiSubmissions(combinedSubmissions);
     } catch (e) {
       console.warn('Could not fetch submissions from API:', e);
+      setApiSubmissions([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // Clear any stale local storage mock data on mount
+    try {
+      localStorage.removeItem('shiuli_staff_submissions');
+    } catch {}
     fetchCatalogSubmissions();
   }, []);
 
-  const displayList = apiSubmissions.length > 0 ? apiSubmissions : submissions;
+  const displayList = apiSubmissions;
+
+  const handleDeleteSubmission = async (slugOrId: string) => {
+    if (!confirm('Are you sure you want to permanently delete this CAD submission?')) return;
+    try {
+      await api.deleteProduct(slugOrId);
+      setToastMsg('Submission deleted successfully');
+      fetchCatalogSubmissions();
+    } catch (err: any) {
+      console.error('Failed to delete submission:', err);
+      alert(err?.message || 'Failed to delete submission');
+    }
+  };
+
+  const handleClearAllSubmissions = async () => {
+    if (!confirm('Are you sure you want to remove ALL submissions and start completely fresh?')) return;
+    setLoading(true);
+    try {
+      for (const item of apiSubmissions) {
+        const slug = item.slug || item.id;
+        try {
+          await api.deleteProduct(slug);
+        } catch (e) {
+          console.warn('Delete item notice:', e);
+        }
+      }
+      setToastMsg('All submissions removed successfully. You can now start fresh.');
+      fetchCatalogSubmissions();
+    } catch (err: any) {
+      console.error('Clear all error:', err);
+      alert(err?.message || 'Failed to clear all submissions');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filtered = displayList.filter((s) => {
     if (filter === 'all') return true;
@@ -220,13 +220,25 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={() => setShowModal(true)}
-          className="btn-gold-luxury px-5 py-3 rounded-xl text-xs font-semibold uppercase tracking-wider shadow-md flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5 shrink-0"
-        >
-          <Plus className="w-4 h-4 stroke-[3]" />
-          <span>Upload Original CAD Design</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {displayList.length > 0 && (
+            <button
+              onClick={handleClearAllSubmissions}
+              className="px-4 py-3 rounded-xl text-xs font-semibold uppercase tracking-wider text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Clear All Submissions</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setShowModal(true)}
+            className="btn-gold-luxury px-5 py-3 rounded-xl text-xs font-semibold uppercase tracking-wider shadow-md flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5 shrink-0"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>Upload Original CAD Design</span>
+          </button>
+        </div>
       </div>
 
       {/* Distinction Tip Banner */}
@@ -327,14 +339,29 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = ({
               </div>
 
               <div className="mt-4 pt-3 border-t border-[#E5E7EF] flex items-center justify-between text-[10px] text-[#6B7280]">
-                <span className="font-mono">Formats:</span>
-                <div className="flex items-center gap-1 font-mono font-bold">
-                  {item.fileFormats.map((f) => (
-                    <span key={f} className="px-1.5 py-0.5 rounded bg-slate-100 text-[#1E2230] border border-slate-200">
-                      {f}
-                    </span>
-                  ))}
+                <div className="flex items-center gap-1.5 font-mono">
+                  <span>Formats:</span>
+                  <div className="flex items-center gap-1 font-bold">
+                    {item.fileFormats.map((f) => (
+                      <span key={f} className="px-1.5 py-0.5 rounded bg-slate-100 text-[#1E2230] border border-slate-200">
+                        {f}
+                      </span>
+                    ))}
+                  </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteSubmission((item as any).slug || item.id);
+                  }}
+                  className="px-2.5 py-1 rounded-lg text-rose-600 hover:bg-rose-50 border border-rose-200 hover:border-rose-300 font-semibold flex items-center gap-1 text-[11px] transition-all cursor-pointer shadow-xs"
+                  title="Permanently delete this submission"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete</span>
+                </button>
               </div>
             </div>
           ))}

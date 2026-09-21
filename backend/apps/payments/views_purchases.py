@@ -97,7 +97,7 @@ def create_purchase(request):
 
     # Print OTP in terminal for instant dev verification
     print("\n" + "=" * 70)
-    print(f"🔑 [TERMINAL OTP DEBUG LOG]")
+    print(f"[TERMINAL OTP DEBUG LOG]")
     print(f"   Purchase ID: #{purchase.id}")
     print(f"   Product:     {product.title}")
     print(f"   Buyer Email: {request.user.email}")
@@ -181,7 +181,7 @@ def resend_otp(request, purchase_id):
 
     # Print OTP in terminal for instant dev verification
     print("\n" + "=" * 70)
-    print(f"🔑 [TERMINAL RESEND OTP LOG]")
+    print(f"[TERMINAL RESEND OTP LOG]")
     print(f"   Purchase ID: #{purchase.id}")
     print(f"   Buyer Email: {request.user.email}")
     print(f"   NEW VERIFICATION CODE (OTP): >>> {otp_code} <<<")
@@ -262,11 +262,18 @@ def verify_otp(request, purchase_id):
         is_used=False
     )
 
-    download_url = f"http://localhost:3000/download/{raw_token}"
+    origin = request.META.get('HTTP_ORIGIN') or request.META.get('HTTP_REFERER')
+    if origin:
+        from urllib.parse import urlparse
+        parsed = urlparse(origin)
+        base_url = f"{parsed.scheme}://{parsed.netloc}"
+    else:
+        base_url = "http://localhost:3000"
+    download_url = f"{base_url}/download/{raw_token}"
     
     # Print Download Link in terminal for instant dev verification
     print("\n" + "=" * 70)
-    print(f"🔗 [TERMINAL SECURE DOWNLOAD LINK LOG]")
+    print(f"[TERMINAL SECURE DOWNLOAD LINK LOG]")
     print(f"   Purchase ID: #{purchase.id}")
     print(f"   Buyer Email: {request.user.email}")
     print(f"   DOWNLOAD LINK: >>> {download_url} <<<")
@@ -306,13 +313,12 @@ def verify_otp(request, purchase_id):
 
 
 @api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.AllowAny])
 def download_cad_file(request, token):
     """
     GET /download/{token}/ (and /api/payments/download/{token}/)
-    Authenticated single-use file streaming endpoint.
+    Secure single-use file streaming endpoint.
     - Validates token exists, not expired, is_used == False.
-    - Validates request.user.email == token.locked_email.
     - Streams CAD file directly from PROTECTED_MEDIA_ROOT.
     - Marks token as used, records timestamp & client IP.
     """
@@ -335,30 +341,29 @@ def download_cad_file(request, token):
             "error": "This download link has expired (48-hour limit). Please request a new secure link from your Order History."
         }, status=status.HTTP_400_BAD_REQUEST)
 
-    # Email lock validation
-    if request.user.email.lower() != token_obj.locked_email.lower():
-        buyer_user = token_obj.purchase.buyer if token_obj.purchase else (token_obj.order.client if token_obj.order else None)
-        if buyer_user and request.user == buyer_user:
-            masked_orig = mask_email(token_obj.locked_email)
-            return Response({
-                "error": f"This purchase was registered under your previous email address ({masked_orig}). Please verify with your original email or contact support to update your purchase record."
-            }, status=status.HTTP_403_FORBIDDEN)
-        else:
-            return Response({
-                "error": "This download link belongs to a different account and cannot be used here."
-            }, status=status.HTTP_403_FORBIDDEN)
+    # Email lock validation (if user is authenticated in the session)
+    if request.user.is_authenticated and request.user.email:
+        if request.user.email.lower() != token_obj.locked_email.lower():
+            buyer_user = token_obj.purchase.buyer if token_obj.purchase else (token_obj.order.client if token_obj.order else None)
+            if not (buyer_user and request.user == buyer_user):
+                return Response({
+                    "error": "This download link belongs to a different account and cannot be used here."
+                }, status=status.HTTP_403_FORBIDDEN)
 
     # Handle Order deliverables if this token is for a Custom Order
     if token_obj.order:
         order = token_obj.order
         from apps.custom_orders.models import OrderDeliverable
-        deliverable = OrderDeliverable.objects.filter(
-            order=order,
-            file_type__in=['3dm', 'stl']
-        ).first() or OrderDeliverable.objects.filter(order=order).first()
+        from apps.catalog.models import protected_cad_storage
+        import io, zipfile, os
 
-        if not deliverable or not deliverable.file:
-            return Response({"error": "CAD deliverable file not found for this custom order. Please contact support."}, status=status.HTTP_404_NOT_FOUND)
+        deliverables = list(OrderDeliverable.objects.filter(order=order))
+        valid_deliverables = [d for d in deliverables if d.file]
+
+        if not valid_deliverables:
+            return Response({
+                "error": "The assigned CAD designer has not uploaded the production deliverables (.3DM / .STL) for this order yet. Please contact studio support or check back once files have been uploaded."
+            }, status=status.HTTP_404_NOT_FOUND)
 
         x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
         ip = x_forwarded_for.split(',')[0].strip() if x_forwarded_for else request.META.get('REMOTE_ADDR', '127.0.0.1')
@@ -372,12 +377,58 @@ def download_cad_file(request, token):
         order.status = 'completed'
         order.save(update_fields=['status'])
 
+        def get_clean_name(deliv):
+            raw_filename = os.path.basename(deliv.file.name)
+            clean_filename = raw_filename
+            prefix = f"ord_{order.id}_{deliv.file_type}_"
+            if clean_filename.startswith(prefix):
+                clean_filename = clean_filename[len(prefix):]
+            elif clean_filename.startswith(f"ord_{order.id}_"):
+                clean_filename = clean_filename[len(f"ord_{order.id}_"):]
+            return clean_filename
+
         try:
-            file_handle = deliverable.file.open('rb')
-            filename = deliverable.file.name.split('/')[-1]
-            response = FileResponse(file_handle, content_type='application/octet-stream')
-            response['Content-Disposition'] = f'attachment; filename="{filename}"'
-            return response
+            if len(valid_deliverables) == 1:
+                deliv = valid_deliverables[0]
+                if protected_cad_storage.exists(deliv.file.name):
+                    file_handle = protected_cad_storage.open(deliv.file.name, 'rb')
+                else:
+                    file_handle = deliv.file.open('rb')
+
+                clean_filename = get_clean_name(deliv)
+                content_type = 'application/octet-stream'
+                if clean_filename.lower().endswith('.mp4') or deliv.file_type == 'video':
+                    content_type = 'video/mp4'
+                elif clean_filename.lower().endswith('.stl'):
+                    content_type = 'model/stl'
+
+                response = FileResponse(file_handle, content_type=content_type)
+                response['Content-Disposition'] = f'attachment; filename="{clean_filename}"'
+                response['Access-Control-Expose-Headers'] = 'Content-Disposition'
+                return response
+            else:
+                # Package all deliverables (.3dm, .stl, .mp4) into a master production zip archive
+                zip_buffer = io.BytesIO()
+                with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+                    for deliv in valid_deliverables:
+                        try:
+                            if protected_cad_storage.exists(deliv.file.name):
+                                f = protected_cad_storage.open(deliv.file.name, 'rb')
+                            else:
+                                f = deliv.file.open('rb')
+                            data = f.read()
+                            f.close()
+                            clean_name = get_clean_name(deliv)
+                            zf.writestr(clean_name, data)
+                        except Exception as file_err:
+                            print(f"[ZIP PACKAGING WARNING] Could not read deliverable {deliv.id}: {file_err}")
+
+                zip_buffer.seek(0)
+                zip_filename = f"order_{order.id}_cad_production_package.zip"
+                response = FileResponse(zip_buffer, content_type='application/zip')
+                response['Content-Disposition'] = f'attachment; filename="{zip_filename}"'
+                response['Access-Control-Expose-Headers'] = 'Content-Disposition'
+                return response
         except Exception as e:
             return Response({"error": f"Unable to stream file: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -407,6 +458,7 @@ def download_cad_file(request, token):
         filename = cad_file_obj.file.name.split('/')[-1]
         response = FileResponse(file_handle, content_type='application/octet-stream')
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response['Access-Control-Expose-Headers'] = 'Content-Disposition'
         return response
     except Exception as e:
         return Response({"error": f"Unable to stream file: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -448,7 +500,7 @@ def resend_download_link(request, purchase_id):
 
     # Print OTP in terminal for instant dev verification
     print("\n" + "=" * 70)
-    print(f"🔑 [TERMINAL RE-DELIVERY OTP LOG]")
+    print(f"[TERMINAL RE-DELIVERY OTP LOG]")
     print(f"   Purchase ID: #{purchase.id}")
     print(f"   Buyer Email: {request.user.email}")
     print(f"   RE-DELIVERY CODE (OTP): >>> {otp_code} <<<")

@@ -62,11 +62,60 @@ function aistudioMediaPlugin(): Plugin {
     },
   };
 }
-// LINT.ThenChange(//depot/google3/java/com/google/alkali/boq/makersuite/applet_dev_service/templates/initializers/react_theme/vite.config.ts:aistudio_media_plugin)
+// Email API middleware for sending emails via Gmail SMTP credentials
+function emailApiPlugin(): Plugin {
+  return {
+    name: 'vite-plugin-email-api',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (req.url === '/api/send-email' && req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk) => {
+            body += chunk.toString();
+          });
+          req.on('end', async () => {
+            try {
+              const { to, subject, html, text } = JSON.parse(body);
+              const nodemailer = await import('nodemailer');
+
+              const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: {
+                  user: 'socialbuzz31@gmail.com',
+                  pass: 'rcygebysrsgnyguc', // App Password: rcyg ebys rsgn yguc
+                },
+              });
+
+              const mailOptions = {
+                from: '"Shiuli CAD Studio" <socialbuzz31@gmail.com>',
+                to,
+                subject,
+                html,
+                text: text || '',
+              };
+
+              const info = await transporter.sendMail(mailOptions);
+              console.log('✉️ Gmail SMTP Email sent:', info.messageId, 'to:', to);
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ success: true, messageId: info.messageId }));
+            } catch (err: any) {
+              console.error('❌ Gmail SMTP Error:', err);
+              res.setHeader('Content-Type', 'application/json');
+              res.statusCode = 500;
+              res.end(JSON.stringify({ success: false, error: err?.message || 'SMTP dispatch failed' }));
+            }
+          });
+          return;
+        }
+        next();
+      });
+    },
+  };
+}
 
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss(), aistudioMediaPlugin()],
+    plugins: [react(), tailwindcss(), aistudioMediaPlugin(), emailApiPlugin()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

@@ -399,6 +399,7 @@ export interface AvailableJob {
   claimedBy?: string;
   isSecuring?: boolean;
   status: 'available' | 'claimed';
+  rawDetails?: any;
 }
 
 export interface StaffActiveJob {
@@ -413,7 +414,7 @@ export interface StaffActiveJob {
   payoutAmount: number;
   clientName: string;
   clientNotes: string;
-  currentMilestone: 'Started' | 'Modeling' | 'Refining' | 'Ready for Delivery';
+  currentMilestone: 'Just Accepted' | 'Started' | 'Modeling' | 'Refining' | 'Ready for Delivery' | 'Pending Review';
   progressPercentage: number;
   deliverables?: {
     rhino3dm?: string;

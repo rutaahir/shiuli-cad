@@ -381,55 +381,19 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
               <div className="flex items-baseline justify-between">
                 <div>
                   <div className="text-4xl font-serif font-bold text-[#F5E7A3]">
-                    ₹{currentPrice.toFixed(0)} INR
-                  </div>
-                  <div className="text-[11px] text-[#C9C2A6] mt-0.5">
-                    {selectedLicense === 'standard'
-                      ? 'Single atelier casting license'
-                      : 'Extended commercial mass production license (+80%)'}
+                    ₹{product.price.toFixed(0)} INR
                   </div>
                 </div>
                 {product.originalPrice && (
                   <div className="text-right">
                     <span className="text-sm text-[#C9C2A6] line-through block">
-                      ₹{(product.originalPrice * (selectedLicense === 'commercial' ? 1.8 : 1)).toFixed(0)}
+                      ₹{product.originalPrice.toFixed(0)}
                     </span>
                     <span className="text-[10px] text-emerald-400 uppercase tracking-wider font-semibold">
-                      Save ₹{((product.originalPrice - product.price) * (selectedLicense === 'commercial' ? 1.8 : 1)).toFixed(0)}
+                      Save ₹{(product.originalPrice - product.price).toFixed(0)}
                     </span>
                   </div>
                 )}
-              </div>
-
-              {/* License Selection */}
-              <div className="space-y-2 pt-2 border-t border-white/10">
-                <span className="text-[11px] uppercase tracking-wider text-[#D4AF37] font-semibold block">
-                  Select License Agreement
-                </span>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setSelectedLicense('standard')}
-                    className={`p-3 rounded-xl text-left border text-xs transition-all ${
-                      selectedLicense === 'standard'
-                        ? 'border-[#D4AF37] bg-[#D4AF37]/15 shadow-[0_0_16px_rgba(212,175,55,0.15)]'
-                        : 'border-white/10 text-[#C9C2A6] hover:border-white/20'
-                    }`}
-                  >
-                    <div className="font-bold text-[#FAF8F3]">Atelier License</div>
-                    <div className="text-[10px] text-[#C9C2A6] mt-0.5">Workshop &amp; bespoke client casts</div>
-                  </button>
-                  <button
-                    onClick={() => setSelectedLicense('commercial')}
-                    className={`p-3 rounded-xl text-left border text-xs transition-all ${
-                      selectedLicense === 'commercial'
-                        ? 'border-[#1E4FA3] bg-[#1E4FA3]/25 shadow-[0_0_16px_rgba(30,79,163,0.2)]'
-                        : 'border-white/10 text-[#C9C2A6] hover:border-white/20'
-                    }`}
-                  >
-                    <div className="font-bold text-[#7EACFC]">Commercial Mass (+80%)</div>
-                    <div className="text-[10px] text-[#C9C2A6] mt-0.5">Global factory manufacturing</div>
-                  </button>
-                </div>
               </div>
 
               {/* Action Buttons */}

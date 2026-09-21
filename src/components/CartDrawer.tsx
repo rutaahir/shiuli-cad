@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CartItem, PageId } from '../types';
 import { X, Trash2, ShieldCheck, Download, Sparkles, ArrowRight, CheckCircle2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { sendCadDownloadEmail } from '../services/emailService';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -79,7 +80,7 @@ ${items.map((it, i) => `  ${i + 1}. ${it.product.title}
      - License: ${it.license.toUpperCase()} PRODUCTION`).join('\n\n')}
 
 Manufacturing Guarantee: 100% Watertight Solid Geometry. Zero non-manifold edges.
-Support: info@shiulicadstudio.com | Phone: +91 9662159084`;
+Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
     const blob = new Blob([manifest], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -90,6 +91,15 @@ Support: info@shiulicadstudio.com | Phone: +91 9662159084`;
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+
+    // Dispatch real email via Gmail SMTP
+    const firstTitle = items.length > 0 ? items[0].product.title : 'Master CAD Package';
+    sendCadDownloadEmail(
+      'socialbuzz31@gmail.com',
+      items.length > 1 ? `${firstTitle} (+${items.length - 1} more items)` : firstTitle,
+      ['.3DM (Rhino 8 Layered)', '.STL (Watertight Mesh)', '.OBJ (Universal Mesh)', '4K Renders'],
+      window.location.origin
+    ).catch((e) => console.warn('Background email dispatch notice:', e));
   };
 
   return (

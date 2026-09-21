@@ -88,12 +88,18 @@ def process_stage_payment_success(payment_stage, transaction_id=None):
                     defaults={'amount': payout, 'status': Settlement.Status.PENDING}
                 )
         else:
-            # Unlock next stage if it has no approval precondition
+            # Unlock next stage if it has no approval precondition or if precondition is met
             next_stage = all_stages.filter(order_index=stage.order_index + 1).first()
             if next_stage and next_stage.status == OrderPaymentStage.Status.LOCKED:
                 if next_stage.trigger_type == "immediate":
                     next_stage.status = OrderPaymentStage.Status.DUE
                     next_stage.save()
+                elif next_stage.trigger_type == "on_final_delivery":
+                    # If client approved preview or order passed QC, unlock final release milestone
+                    has_approved = order.milestones.filter(stage__icontains="Approved").exists() or order.quality_approved
+                    if has_approved:
+                        next_stage.status = OrderPaymentStage.Status.DUE
+                        next_stage.save()
 
         create_notification(
             recipient=order.client,
@@ -109,25 +115,37 @@ def process_stage_payment_success(payment_stage, transaction_id=None):
 def approve_design_preview_and_unlock_stage(order):
     """
     Called when Client approves design preview.
-    Logs milestone and unlocks next payment stage with trigger_type='on_design_approval'.
+    Logs milestone and unlocks next payment stage (Stage 1 if unpaid, or Stage 2 final delivery if Stage 1 is paid).
     """
     with transaction.atomic():
         OrderMilestone.objects.create(order=order, stage="Design Preview Approved by Client")
         
-        # Unlock stage waiting on design approval
-        locked_stage = order.payment_stages.filter(
+        # Check if design approval milestone stage is still locked
+        design_stage = order.payment_stages.filter(
             trigger_type="on_design_approval",
             status=OrderPaymentStage.Status.LOCKED
         ).first()
 
-        if locked_stage:
-            locked_stage.status = OrderPaymentStage.Status.DUE
-            locked_stage.save()
+        final_stage = order.payment_stages.filter(
+            trigger_type="on_final_delivery",
+            status=OrderPaymentStage.Status.LOCKED
+        ).first()
+
+        unlocked_label = ""
+        if design_stage:
+            design_stage.status = OrderPaymentStage.Status.DUE
+            design_stage.save()
+            unlocked_label = design_stage.label
+        elif final_stage:
+            # Stage 1 was already paid, so client approving preview unlocks final 60% balance payment!
+            final_stage.status = OrderPaymentStage.Status.DUE
+            final_stage.save()
+            unlocked_label = final_stage.label
 
         create_notification(
             recipient=order.client,
             title="Design Approved",
-            body=f"You approved the 3D design preview for Order #{order.id}. Next payment stage '{locked_stage.label if locked_stage else ''}' is now due.",
+            body=f"You approved the 3D design preview for Order #{order.id}." + (f" Next payment stage '{unlocked_label}' is now due." if unlocked_label else ""),
             notification_type="general",
             related_order=order
         )

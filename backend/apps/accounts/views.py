@@ -92,7 +92,7 @@ class RequestEmailChangeOTPView(APIView):
 
         # Print OTP in terminal for instant dev verification
         print("\n" + "=" * 70)
-        print(f"🔑 [TERMINAL OTP DEBUG LOG] EMAIL CHANGE")
+        print(f"[TERMINAL OTP DEBUG LOG] EMAIL CHANGE")
         print(f"   User:       {request.user.username}")
         print(f"   Current:    {request.user.email}")
         print(f"   New Email:  {new_email}")

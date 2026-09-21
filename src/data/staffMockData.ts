@@ -92,113 +92,11 @@ export const INITIAL_AVAILABLE_JOBS: AvailableJob[] = [
   },
 ];
 
-export const INITIAL_STAFF_ACTIVE_JOBS: StaffActiveJob[] = [
-  {
-    id: 'SCS-2026-089',
-    orderNumber: 'SCS-2026-089',
-    title: 'Nizam Royal Kundan Choker Suite',
-    category: 'Necklace',
-    referenceImage: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&q=80&w=800',
-    acceptedAt: '2026-09-08 14:00',
-    deadline: '2026-09-10 18:00',
-    hoursRemaining: 30,
-    payoutAmount: 28000,
-    clientName: 'Maharani S. Devi',
-    clientNotes: 'Strict 0.3mm seat depth for uncut Polki stones. Provide 3D STL with castable sprue channels included.',
-    currentMilestone: 'Modeling',
-    progressPercentage: 60,
-    status: 'With CAD Designer',
-    deliverables: {
-      rhino3dm: 'Nizam_Choker_v2_Rahim.3dm',
-      stlFile: 'Nizam_Choker_PrintReady.stl',
-      renders: [
-        'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&q=80&w=800',
-      ],
-    },
-    adminFeedback: 'Initial prong positions look solid. Ensure hinge pins have 0.25mm movement clearance.',
-  },
-];
+export const INITIAL_STAFF_ACTIVE_JOBS: StaffActiveJob[] = [];
 
-export const INITIAL_STAFF_SUBMISSIONS: StaffSubmission[] = [
-  {
-    id: 'SUB-401',
-    title: 'Victorian Rose Gold Bangle Set',
-    category: 'Bracelets',
-    submittedAt: '2026-09-07',
-    thumbnail: 'https://images.unsplash.com/photo-1611591475140-be3617c978d2?auto=format&fit=crop&q=80&w=600',
-    suggestedPrice: 38000,
-    status: 'approved',
-    adminNote: 'Excellent mesh density and clean stone seats. Approved for store publication.',
-    fileFormats: ['3DM', 'STL', 'Render'],
-    specs: {
-      metalWeight18k: '32.4g',
-      diamondCount: 96,
-      dimensions: '62mm Inner Dia',
-    },
-  },
-  {
-    id: 'SUB-402',
-    title: 'Art Deco Hexagonal Diamond Band',
-    category: 'Rings',
-    submittedAt: '2026-09-06',
-    thumbnail: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&q=80&w=600',
-    suggestedPrice: 22000,
-    status: 'approved',
-    adminNote: 'Priced and pushed to Ready Designs store.',
-    fileFormats: ['3DM', 'STL'],
-    specs: {
-      metalWeight18k: '8.2g',
-      diamondCount: 24,
-      dimensions: 'Ring Size 7',
-    },
-  },
-  {
-    id: 'SUB-403',
-    title: 'Temple Ruby Peacock Pendant',
-    category: 'Pendants',
-    submittedAt: '2026-09-05',
-    thumbnail: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&q=80&w=600',
-    suggestedPrice: 42000,
-    status: 'pending',
-    fileFormats: ['3DM', 'STL', 'Render', 'Video'],
-    specs: {
-      metalWeight18k: '24.1g',
-      diamondCount: 52,
-      dimensions: '45mm x 32mm',
-    },
-  },
-];
+export const INITIAL_STAFF_SUBMISSIONS: StaffSubmission[] = [];
 
-export const INITIAL_STAFF_EARNINGS: StaffEarningsRecord[] = [
-  {
-    id: 'EARN-801',
-    orderNumber: 'SCS-2026-081',
-    title: 'Imperial Peacock Emerald Pendant',
-    completedDate: '2026-09-04',
-    amount: 22000,
-    status: 'Settled',
-    settlementRef: 'TXN-BANK-994821',
-    pdfUrl: '#statement-801',
-  },
-  {
-    id: 'EARN-802',
-    orderNumber: 'SCS-2026-078',
-    title: 'Solitaire Crown Setting 6-Prong',
-    completedDate: '2026-09-01',
-    amount: 14500,
-    status: 'Settled',
-    settlementRef: 'TXN-BANK-883109',
-    pdfUrl: '#statement-802',
-  },
-  {
-    id: 'EARN-803',
-    orderNumber: 'SCS-2026-089',
-    title: 'Nizam Royal Kundan Choker Suite',
-    completedDate: 'Pending Completion',
-    amount: 28000,
-    status: 'Pending Settlement',
-  },
-];
+export const INITIAL_STAFF_EARNINGS: StaffEarningsRecord[] = [];
 
 export const STAFF_NOTIFICATIONS: AdminNotification[] = [
   {

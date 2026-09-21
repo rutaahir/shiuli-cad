@@ -97,6 +97,7 @@ class CustomRequest(models.Model):
         UK = "uk", "UK"
         EU = "eu", "EU"
         IN = "in", "Indian"
+        IN_HK = "in_hk", "Indian / HK"
         MM = "mm", "Diameter mm"
 
     client = models.ForeignKey(
@@ -106,8 +107,9 @@ class CustomRequest(models.Model):
     )
     reference_image = models.ImageField(upload_to="custom_requests/references/", null=True, blank=True)
     description = models.TextField(blank=True)
-    contact_name = models.CharField(max_length=100)
-    contact_phone = models.CharField(max_length=20)
+    contact_name = models.CharField(max_length=100, blank=True)
+    contact_phone = models.CharField(max_length=20, blank=True)
+    contact_email = models.EmailField(blank=True)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
     aesthetic_style = models.ForeignKey(AestheticStyle, null=True, blank=True, on_delete=models.SET_NULL)
     metal_alloy = models.ForeignKey(MetalAlloy, null=True, blank=True, on_delete=models.SET_NULL)
@@ -130,6 +132,7 @@ class CustomRequest(models.Model):
     delivery_speed = models.ForeignKey(
         OptionValue, null=True, blank=True, related_name="delivery_requests", on_delete=models.SET_NULL
     )
+    catalog_references_data = models.JSONField(default=list, blank=True)
     submission_intent = models.CharField(max_length=20, choices=Intent.choices, default=Intent.QUOTE_ONLY)
 
     estimated_price_shown = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
@@ -161,6 +164,8 @@ class CustomRequestStone(models.Model):
 
     request = models.ForeignKey(CustomRequest, related_name="stones", on_delete=models.CASCADE)
     stone_type = models.CharField(max_length=100)
+    shape = models.CharField(max_length=50, blank=True)
+    setting_style = models.CharField(max_length=50, blank=True)
     quantity = models.PositiveIntegerField(default=1)
     size_value = models.CharField(max_length=50, blank=True)
     size_unit = models.CharField(max_length=10, choices=SizeUnit.choices, default=SizeUnit.CARAT)
@@ -257,6 +262,14 @@ class Order(models.Model):
     admin_review_notes = models.TextField(blank=True)
     quality_approved = models.BooleanField(default=False)
     client_consent_to_feature = models.BooleanField(default=False)
+
+    # Secure Single-Use CAD Deliverable Download Control
+    download_enabled_by_admin = models.BooleanField(default=False)
+    download_otp = models.CharField(max_length=10, blank=True)
+    download_otp_created_at = models.DateTimeField(null=True, blank=True)
+    download_token = models.CharField(max_length=64, blank=True)
+    download_token_used = models.BooleanField(default=False)
+    download_count = models.PositiveIntegerField(default=0)
 
     # Settlement Tracking (Stage 13)
     settlement_status = models.CharField(max_length=20, default='pending')

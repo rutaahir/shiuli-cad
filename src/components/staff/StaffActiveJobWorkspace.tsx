@@ -21,7 +21,8 @@ import {
   FileText,
   Video,
   Image as ImageIcon,
-  AlertTriangle
+  AlertTriangle,
+  Calendar
 } from 'lucide-react';
 
 interface StaffActiveJobWorkspaceProps {
@@ -150,26 +151,29 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
 
   // Determine current milestone stage from backend milestones
   const getLatestMilestoneIndex = () => {
+    if (orderData?.status === 'completed' || orderData?.status === 'pending_review') return 3;
+
     if (!milestonesList || milestonesList.length === 0) {
-      if (orderData?.status === 'completed' || orderData?.status === 'pending_review') return 3;
-      return 0; // Step 01 Started
+      if (deliverablesList.length >= 3) return 2;
+      if (deliverablesList.length >= 2) return 1;
+      if (deliverablesList.length >= 1) return 0;
+      return -1; // Freshly accepted order: no milestone marked yet (0% progress)
     }
 
     const stageNames = milestonesList.map((m: any) => m.stage);
-    let highestIdx = 0;
+    let highestIdx = -1;
     MILESTONES.forEach((m, idx) => {
       if (stageNames.includes(m.name) || stageNames.includes(m.label)) {
         highestIdx = idx;
       }
     });
 
-    if (orderData?.status === 'completed' || orderData?.status === 'pending_review') return 3;
     return highestIdx;
   };
 
-  const currentMilestoneIndex = orderData ? getLatestMilestoneIndex() : 0;
-  const currentMilestoneObj = MILESTONES[currentMilestoneIndex];
-  const progressPercentage = MILESTONES[currentMilestoneIndex]?.progress || 25;
+  const currentMilestoneIndex = orderData ? getLatestMilestoneIndex() : -1;
+  const currentMilestoneObj = currentMilestoneIndex >= 0 ? MILESTONES[currentMilestoneIndex] : null;
+  const progressPercentage = currentMilestoneIndex >= 0 ? (MILESTONES[currentMilestoneIndex]?.progress || 0) : 0;
 
   // Advance Milestone via API
   const handleStepClick = async (targetIdx: number) => {
@@ -273,11 +277,12 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
     }
   };
 
-  // Extract client reference sketches ONLY from req.sketches (No fake auction artwork!)
+  // Extract client reference sketches & catalog reference products
+  const catRefImages = (req.catalog_references || []).map((c: any) => c.image).filter(Boolean);
   const sketchesList: any[] = req.sketches || [];
-  const referenceImages: string[] = sketchesList
-    .map((s: any) => s.image_url || s.image)
-    .filter(Boolean);
+  const sketchImages = sketchesList.map((s: any) => s.image_url || s.image).filter(Boolean);
+  const mainRef = req.reference_image ? [req.reference_image] : [];
+  const referenceImages: string[] = Array.from(new Set([...catRefImages, ...sketchImages, ...mainRef]));
 
   const activeReferenceImage = referenceImages[selectedSketchIndex] || referenceImages[0];
 
@@ -411,6 +416,31 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                   Standard Metal Only (No Stones)
                 </span>
               )}
+
+              {req.ring_size && (
+                <span className="px-3 py-1 rounded-lg bg-[#F1F5F9] border border-slate-200 text-xs text-[#09112B] font-medium flex items-center gap-1">
+                  Size: {req.ring_size} ({req.ring_size_standard?.toUpperCase() || 'US'})
+                </span>
+              )}
+
+              {req.target_weight_grams && (
+                <span className="px-3 py-1 rounded-lg bg-[#F1F5F9] border border-slate-200 text-xs text-[#09112B] font-medium flex items-center gap-1">
+                  Target Weight: {req.target_weight_grams}g
+                </span>
+              )}
+
+              {req.needed_by_date && (
+                <span className="px-3 py-1 rounded-lg bg-amber-50 border border-amber-300 text-xs text-amber-900 font-medium flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-[#C9A227]" />
+                  Due: {new Date(req.needed_by_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </span>
+              )}
+
+              {req.selections?.map((sel: any, idx: number) => (
+                <span key={idx} className="px-3 py-1 rounded-lg bg-[#F1F5F9] border border-slate-200 text-xs text-[#09112B] font-medium flex items-center gap-1">
+                  {sel.group_label}: <strong className="ml-0.5">{sel.value_label || sel.other_text}</strong>
+                </span>
+              ))}
             </div>
 
             {/* Client Notes / Instructions */}
@@ -438,7 +468,7 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               {MILESTONES.map((m, idx) => {
                 const isActive = idx === currentMilestoneIndex;
-                const isPassed = idx <= currentMilestoneIndex;
+                const isPassed = currentMilestoneIndex >= 0 && idx <= currentMilestoneIndex;
 
                 return (
                   <button
@@ -470,9 +500,9 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
 
             <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E5E7EF] text-xs text-[#6B7280] flex items-center justify-between">
               <span>
-                Current Stage: <strong className="text-[#1E2230] font-serif">{currentMilestoneObj?.label}</strong>
+                Current Stage: <strong className="text-[#1E2230] font-serif">{currentMilestoneObj ? currentMilestoneObj.label : 'Commission Claimed • Ready to Begin Blueprint Setup'}</strong>
               </span>
-              <span className="text-[10px] text-slate-400 font-mono">Click step to record milestone</span>
+              <span className="text-[10px] text-slate-400 font-mono">Click any step to advance milestone</span>
             </div>
           </div>
 
@@ -806,6 +836,32 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                         </button>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* Studio Catalog References List */}
+                {req.catalog_references && req.catalog_references.length > 0 && (
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                    <span className="text-[10px] font-mono font-bold uppercase text-[#C9A227] block">
+                      Studio Catalog References ({req.catalog_references.length}):
+                    </span>
+                    {req.catalog_references.map((cRef: any, cIdx: number) => (
+                      <div
+                        key={cIdx}
+                        onClick={() => cRef.image && setActiveZoomImage(cRef.image)}
+                        className="flex items-center gap-2.5 text-xs p-2 rounded-lg bg-white border border-slate-200 hover:border-[#C9A227] cursor-pointer transition-all hover:shadow-sm"
+                      >
+                        {cRef.image ? (
+                          <img src={cRef.image} alt={cRef.title} className="w-9 h-9 rounded-md object-cover border border-slate-100 shrink-0" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-md bg-slate-100 flex items-center justify-center text-[10px] font-mono text-slate-500 shrink-0">CAD</div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-[#1E2230] truncate">{cRef.title}</p>
+                          <span className="text-[10px] font-mono text-[#C9A227] font-semibold">{cRef.sku || `SKU-${cRef.id}`}</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

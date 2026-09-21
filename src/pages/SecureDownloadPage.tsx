@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Download, AlertTriangle, Lock, ArrowLeft, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { sendCadDownloadEmail } from '../services/emailService';
 import { useAuth } from '../context/AuthContext';
 
 export const SecureDownloadPage: React.FC = () => {
@@ -15,13 +16,6 @@ export const SecureDownloadPage: React.FC = () => {
   const token = pathParts.length > 1 ? pathParts[1].replace(/\/$/, '') : '';
 
   useEffect(() => {
-    if (!isLoggedIn) {
-      // Redirect to login preserving current route
-      const currentPath = window.location.pathname + window.location.search;
-      window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
-      return;
-    }
-
     if (!token) {
       setStatus('error');
       setErrorMessage('No download token specified.');
@@ -29,11 +23,11 @@ export const SecureDownloadPage: React.FC = () => {
     }
 
     triggerSecureDownload();
-  }, [isLoggedIn, token]);
+  }, [token]);
 
   const triggerSecureDownload = async () => {
     setStatus('downloading');
-    setErrorMessage(null);
+    setErrorMessage('');
 
     const jwtToken = localStorage.getItem('shiuli_access_token');
     const headers: Record<string, string> = {};
@@ -42,7 +36,7 @@ export const SecureDownloadPage: React.FC = () => {
     }
 
     try {
-      const response = await fetch(`/download/${token}/`, {
+      const response = await fetch(`/api/payments/download/${token}/`, {
         method: 'GET',
         headers,
       });
@@ -81,6 +75,15 @@ export const SecureDownloadPage: React.FC = () => {
       window.URL.revokeObjectURL(blobUrl);
 
       setStatus('complete');
+
+      if (user?.email) {
+        sendCadDownloadEmail(
+          user.email,
+          filename.replace(/_/g, ' '),
+          ['.3DM (Rhino 8 Native)', '.STL (Watertight High-Res Mesh)', '.OBJ (Universal Quad Mesh)'],
+          window.location.href
+        ).catch((e) => console.warn('Background email dispatch notice:', e));
+      }
     } catch (err: any) {
       setStatus('error');
       setErrorMessage('Failed to connect to secure file delivery service.');

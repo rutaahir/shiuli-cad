@@ -24,7 +24,8 @@ import {
   ExternalLink,
   ShieldCheck,
   Sliders,
-  Mail
+  Mail,
+  Menu
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -47,6 +48,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   children,
 }) => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showQuickNew, setShowQuickNew] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -68,7 +70,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   const navItems: { id: AdminModuleId; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: 'overview', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
     { id: 'catalog', label: 'Categories & Products', icon: <FolderKanban className="w-4 h-4" /> },
-    { id: 'services', label: 'CAD Services CMS', icon: <Sparkles className="w-4 h-4" /> },
     { id: 'file-edits', label: 'File Modifications', icon: <Sliders className="w-4 h-4" /> },
     { id: 'portfolio', label: 'Portfolio Showcase', icon: <FolderKanban className="w-4 h-4" /> },
     { id: 'approvals', label: 'Design Approvals', icon: <CheckCircle2 className="w-4 h-4" />, badge: 3 },
@@ -87,23 +88,97 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   return (
     <div className="h-screen w-screen bg-[#F6F7FB] text-[#1E2230] flex flex-col font-sans overflow-hidden">
       {/* Prototype Banner Notice */}
-      <div className="bg-[#09112B] border-b border-[#D4AF37]/30 px-4 py-1.5 text-center text-xs text-[#F5F1E8] flex items-center justify-center gap-2 flex-shrink-0">
-        <ShieldCheck className="w-3.5 h-3.5 text-[#D4AF37]" />
-        <span>
-          <strong className="text-[#F5E7A3]">SUPER ADMIN CONTROL PANEL (Internal Prototype)</strong> — Visible toggle for demo review only. Production route will use auth gating (`/admin/login`).
-        </span>
+      <div className="bg-[#09112B] border-b border-[#D4AF37]/30 px-3 py-1.5 text-center text-xs text-[#F5F1E8] flex items-center justify-between sm:justify-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 text-[11px] sm:text-xs">
+          <ShieldCheck className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
+          <span>
+            <strong className="text-[#F5E7A3]">SUPER ADMIN CONTROL PANEL</strong>
+          </span>
+        </div>
         <button
           onClick={onExitAdmin}
-          className="ml-3 text-[11px] underline text-[#D4AF37] hover:text-white transition-colors"
+          className="text-[11px] underline text-[#D4AF37] hover:text-white transition-colors shrink-0"
         >
-          Exit to Client Site
+          Exit to Site
         </button>
       </div>
 
-      <div className="flex-1 flex min-h-0 overflow-hidden">
-        {/* Royal Sapphire & Gold Metallic Sidebar */}
+      <div className="flex-1 flex min-h-0 overflow-hidden relative">
+        {/* Mobile Slide-over Drawer Backdrop */}
+        {isMobileSidebarOpen && (
+          <div
+            onClick={() => setIsMobileSidebarOpen(false)}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 lg:hidden animate-in fade-in duration-200"
+          />
+        )}
+
+        {/* Mobile Slide-over Drawer */}
         <aside
-          className={`h-full flex-shrink-0 bg-gradient-to-b from-[#09112B] via-[#0B1536] to-[#060B1E] text-[#F5F1E8] border-r border-[#D4AF37]/25 flex flex-col justify-between transition-all duration-300 z-30 shadow-[10px_0_30px_rgba(0,0,0,0.5)] ${
+          className={`fixed inset-y-0 left-0 w-[280px] bg-gradient-to-b from-[#09112B] via-[#0B1536] to-[#060B1E] text-[#F5F1E8] z-50 flex flex-col justify-between transition-transform duration-300 lg:hidden shadow-2xl ${
+            isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="p-4 flex items-center justify-between border-b border-[#D4AF37]/20 bg-[#09112B]">
+              <BrandLogo variant="horizontal" size="sm" />
+              <button
+                onClick={() => setIsMobileSidebarOpen(false)}
+                className="p-1.5 rounded-lg bg-white/10 text-white hover:bg-white/20"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <nav className="p-3 space-y-1 overflow-y-auto flex-1">
+              {navItems.map((item) => {
+                const isActive = activeModule === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      onSelectModule(item.id);
+                      setIsMobileSidebarOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-medium transition-all ${
+                      isActive
+                        ? 'bg-gradient-to-r from-[#D4AF37]/30 to-transparent text-[#F5E7A3] font-bold border-l-4 border-[#D4AF37]'
+                        : 'text-[#C9C2A6]/80 hover:bg-[#122254]/60 hover:text-white'
+                    }`}
+                  >
+                    <span className={isActive ? 'text-[#D4AF37]' : 'text-[#8A9BC7]'}>
+                      {item.icon}
+                    </span>
+                    <span className="truncate flex-1 text-left">{item.label}</span>
+                    {item.badge && item.badge > 0 ? (
+                      <span className="px-2 py-0.5 rounded-full bg-[#D4AF37] text-[#0B1330] font-mono text-[10px] font-bold">
+                        {item.badge}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+          <div className="p-4 border-t border-[#D4AF37]/20 bg-[#060B1E]">
+            <div className="flex items-center gap-3 p-2 rounded-xl bg-[#0B1536] border border-[#D4AF37]/25">
+              <img
+                src="/unsplash-img/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80"
+                alt="Admin"
+                className="w-8 h-8 rounded-full object-cover border-2 border-[#D4AF37]"
+              />
+              <div className="flex-1 overflow-hidden">
+                <div className="text-xs font-serif font-bold text-[#FAF8F3] truncate">Harshil Shah</div>
+                <div className="text-[10px] text-[#D4AF37] font-mono">Head CAD Engineer</div>
+              </div>
+              <button onClick={onExitAdmin} className="text-[#C9C2A6] hover:text-[#D14343] p-1">
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        {/* Royal Sapphire & Gold Metallic Desktop Sidebar */}
+        <aside
+          className={`h-full flex-shrink-0 bg-gradient-to-b from-[#09112B] via-[#0B1536] to-[#060B1E] text-[#F5F1E8] border-r border-[#D4AF37]/25 hidden lg:flex flex-col justify-between transition-all duration-300 z-30 shadow-[10px_0_30px_rgba(0,0,0,0.5)] ${
             isSidebarCollapsed ? 'w-[76px]' : 'w-[260px]'
           }`}
         >
@@ -199,16 +274,24 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         {/* Main Content Workspace */}
         <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
           {/* Top Bar */}
-          <header className="bg-white border-b border-[#E5E7EF] px-6 py-3.5 flex items-center justify-between sticky top-0 z-20 shadow-sm">
-            {/* Left Search Bar Trigger */}
-            <div className="flex items-center gap-3">
+          <header className="bg-white border-b border-[#E5E7EF] px-4 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-20 shadow-sm">
+            {/* Left Hamburger + Search Bar Trigger */}
+            <div className="flex items-center gap-2.5">
+              <button
+                onClick={() => setIsMobileSidebarOpen(true)}
+                className="p-2 rounded-xl bg-[#09112B] text-[#F5E7A3] lg:hidden hover:bg-[#122254] transition-colors shadow-sm"
+                title="Open Admin Menu"
+              >
+                <Menu className="w-5 h-5 text-[#D4AF37]" />
+              </button>
+
               <button
                 onClick={() => setShowCommandPalette(true)}
-                className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] text-xs text-[#6B7280] hover:border-[#C9A227]/50 transition-all w-64 sm:w-80 justify-between"
+                className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] text-xs text-[#6B7280] hover:border-[#C9A227]/50 transition-all w-44 sm:w-80 justify-between"
               >
-                <div className="flex items-center gap-2">
-                  <Search className="w-3.5 h-3.5 text-[#2856C7]" />
-                  <span>Search orders, staff, products...</span>
+                <div className="flex items-center gap-2 truncate">
+                  <Search className="w-3.5 h-3.5 text-[#2856C7] shrink-0" />
+                  <span className="truncate">Search orders, staff...</span>
                 </div>
                 <div className="flex items-center gap-1 font-mono text-[10px] bg-white border border-[#E5E7EF] px-1.5 py-0.5 rounded text-[#1E2230]">
                   <Command className="w-3 h-3" />

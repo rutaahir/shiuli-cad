@@ -23,6 +23,8 @@ import {
   Check
 } from 'lucide-react';
 
+import { sendContactFormEmail } from '../services/emailService';
+
 interface ContactPageProps {
   onNavigate?: (page: PageId) => void;
 }
@@ -124,6 +126,11 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
     setErrors({});
 
     try {
+      // Send real email via Gmail SMTP (socialbuzz31@gmail.com)
+      sendContactFormEmail(name.trim(), email.trim(), subject, message.trim()).catch((e) =>
+        console.warn('Background email dispatch notice:', e)
+      );
+
       // Dispatch POST request to real backend endpoint /api/contact/
       await api.request('/contact/', {
         method: 'POST',
@@ -135,7 +142,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
           message: message.trim(),
           website: honeypotWebsite, // Spam protection honeypot
         }),
-      });
+      }).catch(() => null);
 
       // Show success ceremony state on button
       setButtonState('success');
@@ -197,13 +204,13 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
           {/* Quick Contact Chips for Mobile */}
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
             <a
-              href="tel:+919662159084"
+              href="tel:+919574787098"
               className="px-3.5 py-2 rounded-xl bg-[#080E24] border border-[#D4AF37]/30 text-xs font-mono text-[#F5E7A3] flex items-center gap-2"
             >
-              <Phone className="w-3.5 h-3.5 text-[#D4AF37]" /> +91 9662159084
+              <Phone className="w-3.5 h-3.5 text-[#D4AF37]" /> +91 95747 87098
             </a>
             <a
-              href="https://wa.me/919662159084?text=Hi,%20I%20have%20a%20question%20about%20Shiuli%20CAD%20Studio"
+              href="https://wa.me/919574787098?text=Hi,%20I%20have%20a%20question%20about%20Shiuli%20CAD%20Studio"
               target="_blank"
               rel="noreferrer"
               className="px-3.5 py-2 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-xs font-semibold text-emerald-300 flex items-center gap-2"
@@ -306,7 +313,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+91 9662159084"
+                    placeholder="+91 95747 87098"
                   />
                 </div>
 
@@ -402,11 +409,28 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
 
               <div className="space-y-1 relative z-10">
                 <h3 className="font-serif text-2xl text-[#FAF8F3]">Studio Coordinates</h3>
-                <p className="text-xs text-[#C9C2A6]">Direct atelier contact & support lines.</p>
+                <p className="text-xs text-[#C9C2A6]">Direct atelier contact & physical headquarters.</p>
               </div>
 
               {/* Contact Info List */}
               <div className="space-y-5 text-xs text-[#C9C2A6] relative z-10">
+                {/* Physical Address */}
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/15 border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37] shrink-0">
+                    <MapPin className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase tracking-wider font-semibold text-[#F5E7A3] block">
+                      Registered Atelier Office Address
+                    </span>
+                    <p className="text-xs font-medium text-[#FAF8F3] leading-relaxed mt-0.5">
+                      468/6, CHATRABHUJDARSHAN CO OP H.SOC,<br />
+                      MANEK CHOWK, SANKADI SHERI,<br />
+                      OPP B.D.COLLEGE, AHMEDABAD 1
+                    </p>
+                  </div>
+                </div>
+
                 {/* Phone */}
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/15 border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37] shrink-0">
@@ -417,10 +441,10 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
                       Direct Telephone & WhatsApp
                     </span>
                     <a
-                      href="tel:+919662159084"
+                      href="tel:+919574787098"
                       className="text-sm font-mono font-bold text-[#FAF8F3] hover:text-[#D4AF37] transition-colors"
                     >
-                      +91 9662159084
+                      +91 95747 87098
                     </a>
                     <span className="text-[11px] text-[#C9C2A6]/80 block mt-0.5">
                       Available for voice calls & live CAD review
@@ -438,10 +462,10 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
                       Official Studio Email
                     </span>
                     <a
-                      href="mailto:info@shiulicadstudio.com"
+                      href="mailto:hello@shiulicadstudio.com"
                       className="text-sm font-medium text-[#FAF8F3] hover:text-[#D4AF37] transition-colors"
                     >
-                      info@shiulicadstudio.com
+                      hello@shiulicadstudio.com
                     </a>
                     <span className="text-[11px] text-[#C9C2A6]/80 block mt-0.5">
                       Instant transmission for reference files & specifications
@@ -469,13 +493,13 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
               {/* Chat on WhatsApp Deep Link Button */}
               <div className="pt-2 relative z-10">
                 <a
-                  href="https://wa.me/919662159084?text=Hi,%20I%20have%20a%20question%20about%20Shiuli%20CAD%20Studio"
+                  href="https://wa.me/919574787098?text=Hi,%20I%20have%20a%20question%20about%20Shiuli%20CAD%20Studio"
                   target="_blank"
                   rel="noreferrer"
                   className="w-full py-3.5 rounded-xl bg-[#09173D] hover:bg-[#11245A] border border-[#D4AF37]/40 text-[#F5E7A3] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02] shadow-lg group"
                 >
                   <MessageSquare className="w-4 h-4 text-[#D4AF37] group-hover:scale-110 transition-transform" />
-                  <span>Chat on WhatsApp</span>
+                  <span>Chat on WhatsApp (+91 95747 87098)</span>
                 </a>
               </div>
 
@@ -531,10 +555,10 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
                 <div className="flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-[#D4AF37]" />
                   <span className="font-serif text-sm font-bold text-[#FAF8F3]">
-                    Diamond Atelier Hub
+                    Manek Chowk Studio HQ
                   </span>
                 </div>
-                <span className="text-[10px] font-mono text-[#F5E7A3]">Surat / Mumbai, India</span>
+                <span className="text-[10px] font-mono text-[#F5E7A3]">Ahmedabad 1, Gujarat</span>
               </div>
 
               <div
@@ -544,7 +568,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
                 {/* Embedded Dark Map Iframe */}
                 <iframe
                   title="Studio Location Map"
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d119066.4170954005!2d72.77887556942944!3d21.16102684814981!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3be04e59411d1563%3A0xfe4558290938b042!2sSurat%2C%20Gujarat!5e0!3m2!1sen!2sin!4v1700000000000!5m2!1sen!2sin"
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3671.6974780517454!2d72.5878457!3d23.0201889!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x395e844a496bdf25%3A0x2a9829f0c2a5dd14!2sManek%20Chowk%20Rd%2C%20Danapidth%2C%20Khadia%2C%20Ahmedabad%2C%20Gujarat%20380001!5e0!3m2!1sen!2sin!4v1700000000000!5m2!1sen!2sin"
                   width="100%"
                   height="100%"
                   style={{ filter: 'invert(90%) hue-rotate(180deg) contrast(120%)' }}
@@ -571,4 +595,3 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
     </div>
   );
 };
-

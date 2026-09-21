@@ -208,47 +208,5 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS("[OK] Demo ready-made products created."))
 
-        # 5. Custom Request & Order Workflow
-        custom_req, cr_created = CustomRequest.objects.get_or_create(
-            client=client1,
-            description="Custom 3-stone emerald cut diamond ring with hidden halo in platinum 950.",
-            defaults={
-                "contact_name": "Vikram Mehta",
-                "contact_phone": "+91 91234 56789",
-                "category": solitaire,
-                "reference_image": ContentFile(dummy_png, name="ref_ring.png"),
-                "status": CustomRequest.Status.AGREED,
-                "agreed_price": 350.00
-            }
-        )
-        if cr_created:
-            NegotiationMessage.objects.create(
-                request=custom_req,
-                sender_type=NegotiationMessage.SenderType.ADMIN,
-                message="We can design this custom 3-stone ring for ₹350 within 48 hours.",
-                offered_price=350.00
-            )
-
-        order, o_created = Order.objects.get_or_create(
-            custom_request=custom_req,
-            defaults={
-                "client": client1,
-                "order_type": Order.OrderType.CUSTOM,
-                "total_price": 350.00,
-                "advance_amount": 175.00,
-                "advance_paid": True,
-                "status": Order.Status.IN_DESIGN,
-                "unassigned_since": timezone.now()
-            }
-        )
-        if o_created:
-            Payment.objects.create(
-                order=order,
-                payment_type=Payment.PaymentType.ADVANCE,
-                amount=175.00,
-                gateway_transaction_id="mock_tx_demo_seed_001",
-                status=Payment.Status.SUCCESS
-            )
-
-        self.stdout.write(self.style.SUCCESS("[OK] Demo custom request and unassigned order in pool created."))
         self.stdout.write(self.style.SUCCESS("Demo data seeding completed successfully!"))
+

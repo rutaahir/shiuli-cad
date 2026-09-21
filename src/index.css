@@ -434,3 +434,57 @@ select::-moz-selection,
   0% { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
 }
+
+/* ═══════════════════════════════════════════
+   UNIVERSAL MOBILE RESPONSIVENESS SYSTEM
+═══════════════════════════════════════════ */
+@media (max-width: 640px) {
+  /* Prevent horizontal overflow on screens down to 320px */
+  html, body {
+    overflow-x: hidden !important;
+    width: 100% !important;
+  }
+
+  /* Responsive typography scaling */
+  h1 {
+    font-size: clamp(2rem, 8vw, 3.2rem) !important;
+    line-height: 1.15 !important;
+  }
+  h2 {
+    font-size: clamp(1.5rem, 6vw, 2.5rem) !important;
+    line-height: 1.2 !important;
+  }
+  h3 {
+    font-size: clamp(1.25rem, 5vw, 1.8rem) !important;
+  }
+
+  /* Ensure touch targets meet 44px minimum */
+  button, input, select, textarea, a {
+    touch-action: manipulation;
+  }
+
+  /* Responsive video positioning */
+  .hero-video-bg {
+    object-position: center 30% !important;
+  }
+
+  /* Flexible modal scaling */
+  .modal-responsive {
+    max-height: 90vh !important;
+    margin: 1rem !important;
+    width: calc(100% - 2rem) !important;
+  }
+}
+
+/* Table responsive wrapping fallback */
+.responsive-table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Image aspect ratio defense */
+img {
+  max-width: 100%;
+  height: auto;
+}
+

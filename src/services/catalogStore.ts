@@ -5,6 +5,7 @@
  */
 
 import { api } from './api';
+import { PRODUCTS } from '../data/mockData';
 
 // ─── Raw backend shapes ─────────────────────────────────────────────────────
 
@@ -106,17 +107,44 @@ export const DEFAULT_CATEGORIES: BackendCategory[] = [
     product_count: 6,
     subcategories: [
       { id: 18, name: 'Kadas & Cuffs', slug: 'kadas-cuffs', parent: 7, parent_name: 'Bracelets & Bangles', display_order: 1, product_count: 3, subcategories: [] },
-      { id: 19, name: 'Tennis Bracelets', slug: 'tennis-bracelets', parent: 7, parent_name: 'Bracelets & Bangles', display_order: 2, product_count: 3, subcategories: [] },
     ],
   },
 ];
+
+export const DEFAULT_PRODUCTS: BackendProduct[] = PRODUCTS.map((p, i) => {
+  const cSlug = (p.category || '').toLowerCase();
+  let parentSlug = 'rings';
+  if (cSlug.includes('earring')) parentSlug = 'earrings';
+  else if (cSlug.includes('pendant') || cSlug.includes('necklace')) parentSlug = 'necklaces';
+  else if (cSlug.includes('bracelet') || cSlug.includes('bangle')) parentSlug = 'bracelets-bangles';
+
+  return {
+    id: i + 1,
+    title: p.title,
+    slug: p.id,
+    category: i + 1,
+    category_name: (p as any).categoryName || p.category,
+    category_slug: cSlug,
+    parent_slug: parentSlug,
+    price: p.price,
+    compare_at_price: p.originalPrice || null,
+    description: p.description || '',
+    metal_weight_grams: 4.5,
+    stone_count: 1,
+    is_bestseller: p.isBestseller || false,
+    is_new: p.isNew || false,
+    status: 'published',
+    primary_image: p.primaryImage || (p.images && p.images[0]) || null,
+    created_at: new Date().toISOString(),
+  };
+});
 
 type Listener = (state: CatalogState) => void;
 
 let state: CatalogState = {
   categories: DEFAULT_CATEGORIES,
   allCategories: flattenCategories(DEFAULT_CATEGORIES),
-  products: [],
+  products: DEFAULT_PRODUCTS,
   styles: [],
   isLoading: false,
   lastFetchedAt: null,
@@ -212,18 +240,29 @@ export async function fetchCatalog(force = false): Promise<void> {
       const finalCats = (cats && cats.length > 0) ? cats : DEFAULT_CATEGORIES;
       const flat = flattenCategories(finalCats);
       const products = enrichProducts(rawProds, flat);
+      const finalProducts = (products && products.length > 0) ? products : DEFAULT_PRODUCTS;
 
       state = {
         categories: finalCats,
         allCategories: flat,
-        products,
+        products: finalProducts,
         styles,
         isLoading: false,
         lastFetchedAt: Date.now(),
       };
     } catch (err) {
       console.error('[catalogStore] fetch failed:', err);
-      state = { ...state, isLoading: false };
+      const finalCats = state.categories.length > 0 ? state.categories : DEFAULT_CATEGORIES;
+      const flat = flattenCategories(finalCats);
+      const finalProducts = state.products.length > 0 ? state.products : DEFAULT_PRODUCTS;
+      state = {
+        categories: finalCats,
+        allCategories: flat,
+        products: finalProducts,
+        styles: state.styles,
+        isLoading: false,
+        lastFetchedAt: Date.now(),
+      };
     } finally {
       fetchPromise = null;
       notify();

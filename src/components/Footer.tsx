@@ -175,19 +175,19 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             <div className="space-y-2.5 text-sm text-[#C9C2A6]">
               <div className="flex items-center gap-2.5">
                 <Phone className="w-4 h-4 text-[#D4AF37]" />
-                <a href="tel:+919662159084" className="hover:text-[#FAF8F3] transition-colors">
-                  +91 9662159084
+                <a href="tel:+919574787098" className="hover:text-[#FAF8F3] transition-colors">
+                  +91 95747 87098
                 </a>
               </div>
               <div className="flex items-center gap-2.5">
                 <Mail className="w-4 h-4 text-[#D4AF37]" />
-                <a href="mailto:info@shiulicadstudio.com" className="hover:text-[#FAF8F3] transition-colors">
-                  info@shiulicadstudio.com
+                <a href="mailto:hello@shiulicadstudio.com" className="hover:text-[#FAF8F3] transition-colors">
+                  hello@shiulicadstudio.com
                 </a>
               </div>
               <div className="flex items-start gap-2.5">
                 <MapPin className="w-4 h-4 text-[#D4AF37] flex-shrink-0 mt-0.5" />
-                <span>Diamond & Jewellery Hub, Surat / Mumbai, India</span>
+                <span className="leading-snug">468/6, CHATRABHUJDARSHAN CO OP H.SOC, MANEK CHOWK, SANKADI SHERI, OPP B.D.COLLEGE, AHMEDABAD 1</span>
               </div>
             </div>
 

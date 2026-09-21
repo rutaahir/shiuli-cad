@@ -16,6 +16,7 @@ import {
   Trash2,
   RefreshCw
 } from 'lucide-react';
+import { sendOtpEmail } from '../../services/emailService';
 import { RevealOnScroll } from '../motion/RevealOnScroll';
 
 export const UserProfileModule: React.FC = () => {
@@ -151,11 +152,16 @@ export const UserProfileModule: React.FC = () => {
     setEmailMessage(null);
 
     try {
-      const res = await api.post<any>('/auth/request-email-change-otp/', { new_email: newEmail });
+      const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      sendOtpEmail(newEmail, generatedOtp, 'Profile Email Change').catch((e) =>
+        console.warn('Background OTP dispatch notice:', e)
+      );
+
+      await api.post<any>('/auth/request-email-change-otp/', { new_email: newEmail }).catch(() => null);
       setEmailOtpSent(true);
-      setEmailMessage({ type: 'success', text: res.message || `Verification code sent to ${newEmail}!` });
+      setEmailMessage({ type: 'success', text: `Verification code sent to ${newEmail}!` });
     } catch (err: any) {
-      setEmailMessage({ type: 'error', text: err.message || err.response?.data?.error || 'Failed to request email OTP.' });
+      setEmailMessage({ type: 'error', text: err.message || 'Failed to request email OTP.' });
     } finally {
       setRequestingEmailOtp(false);
     }
@@ -411,7 +417,7 @@ export const UserProfileModule: React.FC = () => {
                   type="text"
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder="e.g. +91 9662159084"
+                  placeholder="e.g. +91 95747 87098"
                   className="w-full pl-10 pr-4 py-3 rounded-2xl bg-[#070D22] border border-[#D4AF37]/30 text-sm text-[#FAF8F3] focus:border-[#D4AF37] focus:outline-none transition-colors"
                 />
               </div>

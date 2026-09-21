@@ -1,3 +1,5 @@
+import { sendCustomDesignConfirmationEmail } from '../services/emailService';
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { PageId } from '../types';
 import {
@@ -37,7 +39,10 @@ import {
   Search,
   Grid,
   CheckSquare,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Mic,
+  Volume2,
+  Square
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -93,39 +98,28 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
   const [categories, setCategories] = useState<any[]>([]);
   const [optionsLoading, setOptionsLoading] = useState(true);
 
-  // Category Selection
-  const [selectedCategory, setSelectedCategory] = useState<string>('rings');
+  // Category Selection (Starts unselected so customer chooses their own)
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
 
-  // Category-Specific Specs
+  // Category-Specific Specs (All start completely empty)
   const [ringSizeStandard, setRingSizeStandard] = useState('US');
-  const [ringSize, setRingSize] = useState('6.5');
-  const [targetWeightGrams, setTargetWeightGrams] = useState('4.5');
+  const [ringSize, setRingSize] = useState('');
+  const [targetWeightGrams, setTargetWeightGrams] = useState('');
   const [heightMm, setHeightMm] = useState('');
   const [widthMm, setWidthMm] = useState('');
-  const [chainLength, setChainLength] = useState('18 inches (Standard)');
-  const [earringBacking, setEarringBacking] = useState('Push Back');
+  const [chainLength, setChainLength] = useState('');
+  const [earringBacking, setEarringBacking] = useState('');
   const [wristCircumference, setWristCircumference] = useState('');
-  const [braceletStyle, setBraceletStyle] = useState('Kada');
+  const [braceletStyle, setBraceletStyle] = useState('');
   const [customSpecsText, setCustomSpecsText] = useState('');
 
-  // Selections Map for Dynamic Option Groups (group.key -> option_value.id)
+  // Selections Map for Dynamic Option Groups (group.key -> option_value.id) - starts empty
   const [selections, setSelections] = useState<Record<string, number>>({});
 
-  // Stones Specification
+  // Stones Specification - starts completely empty
   const [isMetalOnly, setIsMetalOnly] = useState(false);
-  const [stonesList, setStonesList] = useState<CustomRequestStonePayload[]>([
-    {
-      stone_type: 'Natural Diamond',
-      shape: 'Round Brilliant',
-      setting_style: 'Prong',
-      size_value: '1.0',
-      size_unit: 'carat',
-      clarity: 'VS1',
-      quantity: 1,
-      is_center_stone: true
-    }
-  ]);
+  const [stonesList, setStonesList] = useState<CustomRequestStonePayload[]>([]);
 
   // Personalization & Branding
   const [engravingText, setEngravingText] = useState('');
@@ -142,16 +136,146 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
   const [catalogCategoryFilter, setCatalogCategoryFilter] = useState('all');
   const [selectedCatalogProducts, setSelectedCatalogProducts] = useState<SelectedCatalogRef[]>([]);
 
-  // Files & Attachments
+  // Files & Attachments & Voice Note Requisition
   const [sketchFiles, setSketchFiles] = useState<File[]>([]);
   const [sketchPreviews, setSketchPreviews] = useState<string[]>([]);
   const [specialInstructions, setSpecialInstructions] = useState(
     initialProductId ? `Referencing SKU #${initialProductId} modifications.` : ''
   );
 
-  // Project Complexity Tier & Needed By Date
-  const [projectTier, setProjectTier] = useState('High Precision Fine Jewelry');
+  // Voice Note & Speech Recognition State with Live Recording Timer
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [voiceAudioFile, setVoiceAudioFile] = useState<File | null>(null);
+  const [voiceAudioPreviewUrl, setVoiceAudioPreviewUrl] = useState<string>('');
+  const [mediaRecorderInstance, setMediaRecorderInstance] = useState<MediaRecorder | null>(null);
+  const [speechRecognitionInstance, setSpeechRecognitionInstance] = useState<any>(null);
+
+  // Timer Effect when recording
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (isRecordingVoice) {
+      interval = setInterval(() => {
+        setRecordingSeconds(prev => prev + 1);
+      }, 1000);
+    } else {
+      setRecordingSeconds(0);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isRecordingVoice]);
+
+  const formatRecordingTime = (sec: number) => {
+    const mins = Math.floor(sec / 60);
+    const secs = sec % 60;
+    return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
+  const handleStartVoiceRecording = async () => {
+    setRecordingSeconds(0);
+    setVoiceAudioFile(null);
+    setVoiceAudioPreviewUrl('');
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    // Start Audio Stream via MediaRecorder (Guarantees recorded voice file creation + live timer)
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream);
+        const audioChunks: Blob[] = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const audioFile = new File([audioBlob], `Voice_Instruction_${Date.now()}.webm`, { type: 'audio/webm' });
+          setVoiceAudioFile(audioFile);
+          setVoiceAudioPreviewUrl(URL.createObjectURL(audioBlob));
+          setSpecialInstructions(prev => {
+            const label = '[Live Recorded Voice Note Uploaded]';
+            return prev ? `${prev}\n\n${label}` : label;
+          });
+          stream.getTracks().forEach(track => track.stop());
+          setIsRecordingVoice(false);
+        };
+
+        mediaRecorder.start();
+        setMediaRecorderInstance(mediaRecorder);
+        setIsRecordingVoice(true);
+
+        // Also start speech recognition parallel transcriber if supported by browser
+        if (SpeechRecognition) {
+          try {
+            const recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onresult = (event: any) => {
+              let transcript = '';
+              for (let i = 0; i < event.results.length; i++) {
+                transcript += event.results[i][0].transcript + ' ';
+              }
+              const text = transcript.trim();
+              if (text) {
+                setSpecialInstructions(prev => {
+                  const cleanBase = prev.replace(/\n\n\[Speech Transcribed\]:.*/s, '').replace(/\[Live Recorded Voice Note Uploaded\].*/s, '').trim();
+                  return cleanBase ? `${cleanBase}\n\n[Speech Transcribed]: ${text}` : `[Speech Transcribed]: ${text}`;
+                });
+              }
+            };
+
+            recognition.start();
+            setSpeechRecognitionInstance(recognition);
+          } catch (err) {
+            console.warn('Speech recognition parallel failed:', err);
+          }
+        }
+      } catch (err: any) {
+        alert(`Microphone permission error: ${err.message || 'Access denied'}. Please check microphone permissions in your browser.`);
+        setIsRecordingVoice(false);
+      }
+    } else {
+      alert('Microphone access is not supported in this browser environment. Please use the Upload Voice Note file option.');
+    }
+  };
+
+  const handleStopVoiceRecording = () => {
+    if (mediaRecorderInstance && mediaRecorderInstance.state !== 'inactive') {
+      mediaRecorderInstance.stop();
+      setMediaRecorderInstance(null);
+    }
+    if (speechRecognitionInstance) {
+      try {
+        speechRecognitionInstance.stop();
+      } catch {
+        // Safe fallback
+      }
+      setSpeechRecognitionInstance(null);
+    }
+    setIsRecordingVoice(false);
+  };
+
+  const handleVoiceFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      setVoiceAudioFile(file);
+      setVoiceAudioPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  // Project Complexity Tier & Needed By Date (Starts unselected)
+  const [projectTier, setProjectTier] = useState('');
   const [neededByDate, setNeededByDate] = useState('');
+  const minSelectableDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
+  }, []);
   const [selectedDeliverySpeedId, setSelectedDeliverySpeedId] = useState<number | null>(null);
 
   // Contact Info & Portfolio Consent
@@ -325,26 +449,9 @@ const DEFAULT_OPTION_GROUPS: OptionGroupData[] = [
         setOptionGroups(effectiveGroups);
         setCategories(Array.isArray(catsData) ? catsData : []);
 
-        if (Array.isArray(catsData) && catsData.length > 0) {
-          setSelectedCategoryId(catsData[0].id);
-        }
-
-        // Set default selections for each group
-        const defaults: Record<string, number> = {};
-        effectiveGroups.forEach(group => {
-          const activeOptions = (group.options || []).filter(o => o.is_active);
-          if (activeOptions.length > 0) {
-            defaults[group.key] = activeOptions[0].id;
-          }
-        });
-        setSelections(defaults);
-
-        // Find default delivery speed id
-        const deliveryGroup = effectiveGroups.find(g => g.key === 'delivery_speed');
-        if (deliveryGroup && deliveryGroup.options && deliveryGroup.options.length > 0) {
-          const std = deliveryGroup.options.find(o => o.key === 'standard' || o.label.toLowerCase().includes('standard')) || deliveryGroup.options[0];
-          setSelectedDeliverySpeedId(std.id);
-        }
+        // Do not pre-populate defaults: let selections start empty so customer chooses their own
+        setSelections({});
+        setSelectedDeliverySpeedId(null);
       } catch (err) {
         console.error('Failed to load custom design option groups:', err);
         setOptionGroups(DEFAULT_OPTION_GROUPS);
@@ -480,16 +587,44 @@ const DEFAULT_OPTION_GROUPS: OptionGroupData[] = [
     setIsSubmitting(true);
 
     try {
-      const selectedValueIds: number[] = Object.values(selections).filter((id): id is number => typeof id === 'number' && Boolean(id));
-      const selectedOptionsPayload = selectedValueIds.map(valId => {
-        let groupObj = optionGroups.find(g => (g.options || []).some(o => o.id === valId));
-        return {
-          option_group: groupObj ? groupObj.id : 1,
-          option_value: valId
-        };
-      });
+      // Format selections with group_key, group_label, value_label, and swatch_color
+      const selectedOptionsPayload = Object.entries(selections)
+        .filter(([_, valId]) => Boolean(valId))
+        .map(([groupKey, valId]) => {
+          const groupObj = groupMap[groupKey] || optionGroups.find(g => g.key === groupKey || (g.options || []).some(o => o.id === valId));
+          const valObj = groupObj?.options?.find(o => o.id === valId);
+          return {
+            group_key: groupKey,
+            group_label: groupObj?.label || groupKey,
+            option_group: groupObj?.id || groupKey,
+            option_value: valId,
+            value_label: valObj?.label || '',
+            other_text: valObj?.label || '',
+            swatch_color: valObj?.swatch_color || ''
+          };
+        });
 
-      // Format catalog references into instructions text
+      // Upload draft sketch files if user attached any
+      let draftSketchIds: number[] = [];
+      if (sketchFiles && sketchFiles.length > 0) {
+        try {
+          const uploadPromises = sketchFiles.map(f => api.uploadDraftSketch(f));
+          const uploadResults = await Promise.all(uploadPromises);
+          draftSketchIds = uploadResults.map(r => r.id).filter(Boolean);
+        } catch (uploadErr) {
+          console.warn('Draft sketches upload warning:', uploadErr);
+        }
+      }
+
+      // Format catalog references into structured array and notes
+      const catalogRefsPayload = selectedCatalogProducts.map(p => ({
+        id: p.id,
+        title: p.title,
+        image: p.image,
+        sku: p.sku || `SKU-${p.id}`,
+        price: p.price
+      }));
+
       let fullNotes = specialInstructions;
       if (selectedCatalogProducts.length > 0) {
         const catRefsText = selectedCatalogProducts.map(p => `[Ref SKU: ${p.id} - ${p.title}]`).join(', ');
@@ -499,7 +634,7 @@ const DEFAULT_OPTION_GROUPS: OptionGroupData[] = [
       const bodyData = {
         category: selectedCategoryId,
         category_group: selectedCategory,
-        ring_size_standard: selectedCategory === 'rings' ? ringSizeStandard : '',
+        ring_size_standard: selectedCategory === 'rings' ? (ringSizeStandard ? ringSizeStandard.toLowerCase() : 'in_hk') : '',
         ring_size: selectedCategory === 'rings' ? ringSize : '',
         target_weight_grams: selectedCategory === 'rings' ? targetWeightGrams : '',
         height_mm: heightMm,
@@ -516,17 +651,39 @@ const DEFAULT_OPTION_GROUPS: OptionGroupData[] = [
         has_logo: hasLogo,
         budget_range: projectTier,
         needed_by_date: neededByDate || null,
+        description: fullNotes || customSpecsText || `Custom ${selectedCategory} design request`,
         special_instructions: fullNotes,
         client_consent_to_feature: clientConsent,
         submission_intent: submissionIntent,
-        client_name: clientName,
-        client_email: clientEmail,
-        client_phone: clientPhone,
+        contact_name: clientName || user?.first_name || user?.username || 'Client',
+        contact_phone: clientPhone || user?.phone_number || '',
+        contact_email: clientEmail || user?.email || '',
+        client_name: clientName || user?.first_name || user?.username || 'Client',
+        client_email: clientEmail || user?.email || '',
+        client_phone: clientPhone || user?.phone_number || '',
+        reference_image: selectedCatalogProducts[0]?.image || '',
+        catalog_references: catalogRefsPayload,
+        catalog_references_data: catalogRefsPayload,
         selected_options: selectedOptionsPayload,
-        stones: isMetalOnly ? [] : stonesList
+        selections_data: selectedOptionsPayload,
+        stones: isMetalOnly ? [] : stonesList,
+        stones_data: isMetalOnly ? [] : stonesList,
+        draft_sketch_ids: draftSketchIds
       };
 
       const res = await api.createCustomRequest(bodyData);
+      
+      // Dispatch real email via Gmail SMTP
+      if (clientEmail) {
+        sendCustomDesignConfirmationEmail(
+          clientEmail,
+          customSpecsText || `${selectedCategory} Custom Project`,
+          clientName || 'Valued Jeweller',
+          selectedCategory || 'Jewellery CAD',
+          fullNotes || 'Full design specifications attached.'
+        ).catch((e) => console.warn('Background email dispatch notice:', e));
+      }
+
       setSubmittedTicket(res);
       setIsSubmitted(true);
       confetti({ particleCount: 140, spread: 90, origin: { y: 0.55 } });
@@ -612,7 +769,7 @@ const DEFAULT_OPTION_GROUPS: OptionGroupData[] = [
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
-              onClick={() => onNavigate('my-submissions')}
+              onClick={() => onNavigate('account')}
               className="px-8 py-3.5 btn-gold-luxury font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
             >
               View My CAD Submissions <ArrowRight className="w-5 h-5" />
@@ -820,6 +977,7 @@ const DEFAULT_OPTION_GROUPS: OptionGroupData[] = [
                               onChange={e => setChainLength(e.target.value)}
                               className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3"
                             >
+                              <option value="">-- Choose Chain Specification (Optional) --</option>
                               <option value="No Chain / Pendant Only">No Chain / Pendant Only</option>
                               <option value="16 inches (Choker)">16 inches (Choker)</option>
                               <option value="18 inches (Standard)">18 inches (Standard)</option>
@@ -855,6 +1013,7 @@ const DEFAULT_OPTION_GROUPS: OptionGroupData[] = [
                               onChange={e => setEarringBacking(e.target.value)}
                               className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3"
                             >
+                              <option value="">-- Choose Backing Mechanism (Optional) --</option>
                               <option value="Push Back">Push Back (Friction Post)</option>
                               <option value="Screw Back">Screw Back (Security Post)</option>
                               <option value="Lever Back">Lever Back</option>
@@ -890,6 +1049,7 @@ const DEFAULT_OPTION_GROUPS: OptionGroupData[] = [
                               onChange={e => setBraceletStyle(e.target.value)}
                               className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3"
                             >
+                              <option value="">-- Choose Bracelet Style (Optional) --</option>
                               <option value="Kada">Traditional Kada</option>
                               <option value="Tennis Bracelet">Tennis Bracelet (Continuous Stones)</option>
                               <option value="Link / Chain">Link / Charm Chain</option>
@@ -926,9 +1086,21 @@ const DEFAULT_OPTION_GROUPS: OptionGroupData[] = [
                         <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">Required CAD Output Format</label>
                         <select
                           value={selections['cad_file_format'] || ''}
-                          onChange={e => setSelections(prev => ({ ...prev, cad_file_format: Number(e.target.value) }))}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setSelections(prev => {
+                              const updated = { ...prev };
+                              if (!val) {
+                                delete updated['cad_file_format'];
+                              } else {
+                                updated['cad_file_format'] = Number(val);
+                              }
+                              return updated;
+                            });
+                          }}
                           className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3"
                         >
+                          <option value="">-- Choose Required CAD Format (Optional) --</option>
                           {(groupMap['cad_file_format'].options || [])
                             .filter(o => o.is_active)
                             .map(opt => (
@@ -1115,22 +1287,38 @@ const DEFAULT_OPTION_GROUPS: OptionGroupData[] = [
                           </button>
                         </div>
 
-                        {stonesList.map((stone, idx) => (
-                          <div key={idx} className="p-4 bg-[#121F4D]/40 border border-white/10 rounded-2xl relative space-y-3">
-                            <div className="flex justify-between items-center pb-2 border-b border-white/10">
-                              <span className="text-xs font-bold text-[#F5E7A3] uppercase">
-                                Stone #{idx + 1} {stone.is_center_stone ? '(Main Centerpiece)' : '(Accent Stone)'}
-                              </span>
-                              {stonesList.length > 1 && (
+                        {stonesList.length === 0 ? (
+                          <div className="p-8 rounded-2xl bg-[#121F4D]/30 border border-dashed border-[#D4AF37]/35 text-center space-y-3">
+                            <Gem className="w-8 h-8 text-[#D4AF37]/60 mx-auto" />
+                            <div className="space-y-1">
+                              <p className="text-sm font-semibold text-[#FAF8F3]">No Gemstone Rows Added</p>
+                              <p className="text-xs text-[#FAF8F3]/60 max-w-sm mx-auto">
+                                If your design features diamonds or gemstones, click below to specify shapes, sizes, and setting styles. Or leave empty for a metal-focused piece.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={addStoneRow}
+                              className="px-4 py-2 bg-[#D4AF37]/20 hover:bg-[#D4AF37]/30 text-[#F5E7A3] border border-[#D4AF37]/50 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1.5"
+                            >
+                              <Plus className="w-4 h-4" /> Add Diamond / Gemstone Specification
+                            </button>
+                          </div>
+                        ) : (
+                          stonesList.map((stone, idx) => (
+                            <div key={idx} className="p-4 bg-[#121F4D]/40 border border-white/10 rounded-2xl relative space-y-3">
+                              <div className="flex justify-between items-center pb-2 border-b border-white/10">
+                                <span className="text-xs font-bold text-[#F5E7A3] uppercase">
+                                  Stone #{idx + 1} {stone.is_center_stone ? '(Main Centerpiece)' : '(Accent Stone)'}
+                                </span>
                                 <button
                                   type="button"
                                   onClick={() => removeStoneRow(idx)}
-                                  className="text-rose-400 hover:text-rose-300 text-xs font-semibold flex items-center gap-1"
+                                  className="text-rose-400 hover:text-rose-300 text-xs font-semibold flex items-center gap-1 cursor-pointer"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" /> Remove
                                 </button>
-                              )}
-                            </div>
+                              </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                               <div>
@@ -1262,11 +1450,12 @@ const DEFAULT_OPTION_GROUPS: OptionGroupData[] = [
                               </label>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
                 {/* STEP 4: BRANDING & REFERENCES */}
                 {currentStep === 4 && (
@@ -1529,16 +1718,103 @@ const DEFAULT_OPTION_GROUPS: OptionGroupData[] = [
                       )}
                     </div>
 
-                    {/* Notes & Instructions */}
-                    <div>
-                      <label className="block text-xs font-bold text-[#F5E7A3] uppercase tracking-wider mb-1.5">Special Design Notes</label>
+                    {/* Special Design Notes & Voice Requisition Module */}
+                    <div className="space-y-4 bg-[#121F4D]/40 border border-[#D4AF37]/30 rounded-2xl p-5">
+                      <div className="flex justify-between items-center">
+                        <label className="block text-xs font-bold text-[#F5E7A3] uppercase tracking-wider flex items-center gap-1.5">
+                          <Mic className="w-4 h-4 text-[#D4AF37]" /> Special Design Notes & Voice Requisition
+                        </label>
+                        <span className="text-[10px] text-[#D4AF37] font-mono">Text, Speech AI & Audio</span>
+                      </div>
+
                       <textarea
                         rows={3}
                         value={specialInstructions}
                         onChange={e => setSpecialInstructions(e.target.value)}
                         placeholder="Add specific instructions regarding prong thickness, metal relief, hollow interior, or stone clearance..."
-                        className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3"
+                        className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3 focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]"
                       />
+
+                      {/* Voice Note & Speech-To-Text Controls */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                        {/* Option A: Real-Time Microphone Record & Speech Recognition */}
+                        <div className="p-3.5 rounded-xl bg-[#09112B] border border-[#D4AF37]/25 space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-[#FAF8F3] flex items-center gap-1.5">
+                              <Mic className={`w-3.5 h-3.5 ${isRecordingVoice ? 'text-rose-500 animate-pulse' : 'text-[#D4AF37]'}`} />
+                              Record Voice Instructions
+                            </span>
+                            {isRecordingVoice && (
+                              <span className="text-xs text-rose-400 font-mono font-bold animate-pulse flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                                {formatRecordingTime(recordingSeconds)}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-[#FAF8F3]/60 leading-tight">
+                            Click start to speak your CAD instructions. Spoken words will be transcribed & audio file attached automatically.
+                          </p>
+                          <div className="pt-1 flex gap-2">
+                            {!isRecordingVoice ? (
+                              <button
+                                type="button"
+                                onClick={handleStartVoiceRecording}
+                                className="w-full py-2.5 rounded-lg bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#F5E7A3] hover:bg-[#D4AF37]/30 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                              >
+                                <Mic className="w-3.5 h-3.5 text-[#D4AF37]" /> Start Recording
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={handleStopVoiceRecording}
+                                className="w-full py-2.5 rounded-lg bg-rose-600 border border-rose-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg animate-pulse transition-all cursor-pointer"
+                              >
+                                <Square className="w-3.5 h-3.5 fill-white" />
+                                <span>Stop Recording &amp; Attach Audio ({formatRecordingTime(recordingSeconds)})</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Option B: Upload Voice Note Audio File */}
+                        <div className="p-3.5 rounded-xl bg-[#09112B] border border-[#D4AF37]/25 space-y-2 relative">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-[#FAF8F3] flex items-center gap-1.5">
+                              <Upload className="w-3.5 h-3.5 text-[#D4AF37]" /> Upload Voice Note
+                            </span>
+                            {voiceAudioFile && (
+                              <span className="text-[10px] text-emerald-400 font-mono font-bold">✓ Attached</span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-[#FAF8F3]/60 leading-tight">
+                            Attach a pre-recorded audio file (.MP3, .WAV, .M4A, .OGG up to 25MB).
+                          </p>
+                          <div className="pt-1 relative">
+                            <input
+                              type="file"
+                              accept="audio/*"
+                              onChange={handleVoiceFileUpload}
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                            />
+                            <div className="w-full py-2 rounded-lg bg-[#121F4D] border border-white/10 text-xs font-semibold text-[#FAF8F3] flex items-center justify-center gap-1.5 text-center">
+                              <Volume2 className="w-3.5 h-3.5 text-[#D4AF37]" />
+                              <span className="truncate max-w-[150px]">
+                                {voiceAudioFile ? voiceAudioFile.name : 'Select Audio File'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {voiceAudioPreviewUrl && (
+                        <div className="p-2.5 rounded-xl bg-[#09112B] border border-emerald-500/30 flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-xs text-emerald-300 font-medium">
+                            <Volume2 className="w-4 h-4 text-emerald-400" />
+                            <span>Voice Note Attached</span>
+                          </div>
+                          <audio controls src={voiceAudioPreviewUrl} className="h-7 max-w-[200px]" />
+                        </div>
+                      )}
                     </div>
 
                     {/* Complexity Tier & Timeline */}
@@ -1552,6 +1828,7 @@ const DEFAULT_OPTION_GROUPS: OptionGroupData[] = [
                           onChange={e => setProjectTier(e.target.value)}
                           className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3"
                         >
+                          <option value="">-- Choose Project Tier (Optional) --</option>
                           <option value="Standard Commercial CAD">Standard Commercial CAD</option>
                           <option value="High Precision Fine Jewelry">High Precision Fine Jewelry</option>
                           <option value="Exquisite Masterpiece">Exquisite Masterpiece</option>
@@ -1559,16 +1836,84 @@ const DEFAULT_OPTION_GROUPS: OptionGroupData[] = [
                         </select>
                       </div>
 
-                      <div>
-                        <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5 flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5 text-[#D4AF37]" /> Target Completion Date (Optional)
-                        </label>
-                        <input
-                          type="date"
-                          value={neededByDate}
-                          onChange={e => setNeededByDate(e.target.value)}
-                          className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2 px-3"
-                        />
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-xs font-semibold text-[#FAF8F3]/80 flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-[#D4AF37]" /> Target Completion Date (Optional)
+                          </label>
+                          {neededByDate && (
+                            <button
+                              type="button"
+                              onClick={() => setNeededByDate('')}
+                              className="text-[10px] text-rose-400 hover:text-rose-300 underline font-mono"
+                            >
+                              Clear Date
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="relative">
+                          <input
+                            type="date"
+                            min={minSelectableDate}
+                            value={neededByDate}
+                            onChange={e => setNeededByDate(e.target.value)}
+                            className="w-full text-xs rounded-xl border border-[#D4AF37]/40 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3 focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] [color-scheme:dark] cursor-pointer"
+                          />
+                        </div>
+
+                        {/* Quick Presets for Target Deadline */}
+                        <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
+                          <span className="text-[10px] font-mono text-[#FAF8F3]/50">Quick Pick:</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const d = new Date();
+                              d.setDate(d.getDate() + 7);
+                              setNeededByDate(d.toISOString().split('T')[0]);
+                            }}
+                            className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-white/5 hover:bg-[#D4AF37]/20 border border-white/10 hover:border-[#D4AF37]/40 text-[#FAF8F3]/80 transition-all cursor-pointer"
+                          >
+                            +7d (Rush)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const d = new Date();
+                              d.setDate(d.getDate() + 14);
+                              setNeededByDate(d.toISOString().split('T')[0]);
+                            }}
+                            className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-white/5 hover:bg-[#D4AF37]/20 border border-white/10 hover:border-[#D4AF37]/40 text-[#FAF8F3]/80 transition-all cursor-pointer"
+                          >
+                            +14d (Standard)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const d = new Date();
+                              d.setDate(d.getDate() + 30);
+                              setNeededByDate(d.toISOString().split('T')[0]);
+                            }}
+                            className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-white/5 hover:bg-[#D4AF37]/20 border border-white/10 hover:border-[#D4AF37]/40 text-[#FAF8F3]/80 transition-all cursor-pointer"
+                          >
+                            +30d (Relaxed)
+                          </button>
+                        </div>
+
+                        {neededByDate && (
+                          <div className="p-2 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-xs text-[#F5E7A3] flex items-center justify-between font-mono">
+                            <span className="flex items-center gap-1.5">
+                              <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+                              Target Deadline: {new Date(neededByDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </span>
+                            <span className="text-[10px] text-emerald-400 font-bold">
+                              {(() => {
+                                const diff = Math.ceil((new Date(neededByDate + 'T00:00:00').getTime() - new Date().setHours(0,0,0,0)) / (1000 * 60 * 60 * 24));
+                                return diff > 0 ? `In ${diff} day${diff === 1 ? '' : 's'}` : 'Today';
+                              })()}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1746,8 +2091,14 @@ const DEFAULT_OPTION_GROUPS: OptionGroupData[] = [
                   {currentStep < 5 && (
                     <button
                       type="button"
-                      onClick={() => setCurrentStep(prev => Math.min(prev + 1, 5))}
-                      className="px-6 py-2.5 bg-[#1E4FA3] hover:bg-[#2A66D6] text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-2 transition-all"
+                      onClick={() => {
+                        if (currentStep === 1 && !selectedCategory) {
+                          alert('Please select a jewelry category (e.g. Rings, Pendants, Earrings) before proceeding to the next step.');
+                          return;
+                        }
+                        setCurrentStep(prev => Math.min(prev + 1, 5));
+                      }}
+                      className="px-6 py-2.5 bg-[#1E4FA3] hover:bg-[#2A66D6] text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer"
                     >
                       Next Step <ArrowRight className="w-4 h-4" />
                     </button>
@@ -1757,56 +2108,112 @@ const DEFAULT_OPTION_GROUPS: OptionGroupData[] = [
             )}
           </div>
 
-          {/* Specification Summary Sidebar (NO COST/PRICING SHOWN) */}
+          {/* Real-time Sticky Specification Summary Sidebar */}
           <div className="lg:col-span-4 space-y-6">
-            <div className="bg-[#09112B]/90 backdrop-blur-xl rounded-3xl p-6 shadow-2xl border border-[#D4AF37]/30 sticky top-28 space-y-5">
-              <div className="flex items-center justify-between pb-3 border-b border-[#D4AF37]/20">
-                <h3 className="font-serif gold-gradient-text font-bold text-base flex items-center gap-2">
-                  <Sliders className="w-4 h-4 text-[#D4AF37]" /> Specification Summary
-                </h3>
-                <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-[#D4AF37]/20 text-[#F5E7A3] border border-[#D4AF37]/30 font-bold uppercase">
-                  {selectedCategory}
+            <div className="bg-[#09112B]/95 backdrop-blur-2xl rounded-3xl p-6 shadow-[0_20px_60px_rgba(0,0,0,0.6)] border border-[#D4AF37]/35 sticky top-28 space-y-5">
+              
+              {/* Header Badge */}
+              <div className="flex items-center justify-between pb-3.5 border-b border-[#D4AF37]/25">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37] flex items-center justify-center text-[#F5E7A3]">
+                    <Sliders className="w-4 h-4 text-[#D4AF37]" />
+                  </div>
+                  <div>
+                    <h3 className="font-serif gold-gradient-text font-bold text-base leading-tight">
+                      Specification Summary
+                    </h3>
+                    <p className="text-[10px] text-[#FAF8F3]/50">Real-time studio configuration</p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-mono px-2.5 py-1 rounded-full bg-[#D4AF37]/20 text-[#F5E7A3] border border-[#D4AF37]/40 font-bold uppercase tracking-wider">
+                  {selectedCategory || 'Unselected'}
                 </span>
               </div>
 
-              {/* Selected Options Summary List */}
-              <div className="space-y-3">
-                <h4 className="text-[11px] font-bold text-[#F5E7A3] uppercase tracking-wider flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5 text-[#D4AF37]" /> Configured Parameters
-                </h4>
+              {/* Configured Parameters Stream */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[11px] font-bold text-[#F5E7A3] uppercase tracking-wider flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-[#D4AF37]" /> Configured Parameters
+                  </h4>
+                  <span className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                    Live Spec
+                  </span>
+                </div>
                 
-                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                  {/* Selected Category */}
-                  <div className="p-2.5 rounded-xl bg-[#121F4D]/60 border border-white/10 text-xs flex justify-between items-center">
-                    <span className="text-[#FAF8F3]/60">Design Type:</span>
-                    <span className="font-bold text-[#FAF8F3] capitalize">{selectedCategory}</span>
+                <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1 text-xs">
+                  {/* Category */}
+                  <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
+                    <span className="text-[#FAF8F3]/60 font-medium">Design Type:</span>
+                    <span className="font-bold text-[#FAF8F3] capitalize">{selectedCategory || 'Unselected'}</span>
                   </div>
 
-                  {/* Ring Sizing info */}
-                  {selectedCategory === 'rings' && (
-                    <div className="p-2.5 rounded-xl bg-[#121F4D]/60 border border-white/10 text-xs flex justify-between items-center">
-                      <span className="text-[#FAF8F3]/60">Target Ring Size:</span>
+                  {/* Ring Size */}
+                  {selectedCategory === 'rings' && ringSize && (
+                    <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
+                      <span className="text-[#FAF8F3]/60 font-medium">Target Ring Size:</span>
                       <span className="font-bold text-[#F5E7A3]">{ringSize} ({ringSizeStandard})</span>
                     </div>
                   )}
 
-                  {/* Selected Catalog References */}
+                  {/* Ring Metal Weight */}
+                  {selectedCategory === 'rings' && targetWeightGrams && (
+                    <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
+                      <span className="text-[#FAF8F3]/60 font-medium">Target Metal Weight:</span>
+                      <span className="font-bold text-[#FAF8F3]">{targetWeightGrams} grams</span>
+                    </div>
+                  )}
+
+                  {/* Height & Width dimensions */}
+                  {(heightMm || widthMm) && (
+                    <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
+                      <span className="text-[#FAF8F3]/60 font-medium">Target Dimensions:</span>
+                      <span className="font-bold text-[#FAF8F3]">{heightMm ? `H: ${heightMm}mm ` : ''}{widthMm ? `W: ${widthMm}mm` : ''}</span>
+                    </div>
+                  )}
+
+                  {/* Chain length / Earring backing / Wrist size */}
+                  {selectedCategory === 'pendants' && chainLength && (
+                    <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
+                      <span className="text-[#FAF8F3]/60 font-medium">Chain Specification:</span>
+                      <span className="font-bold text-[#FAF8F3]">{chainLength}</span>
+                    </div>
+                  )}
+                  {selectedCategory === 'earrings' && earringBacking && (
+                    <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
+                      <span className="text-[#FAF8F3]/60 font-medium">Earring Backing:</span>
+                      <span className="font-bold text-[#FAF8F3]">{earringBacking}</span>
+                    </div>
+                  )}
+                  {selectedCategory === 'bracelets' && (wristCircumference || braceletStyle) && (
+                    <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
+                      <span className="text-[#FAF8F3]/60 font-medium">Style & Wrist:</span>
+                      <span className="font-bold text-[#FAF8F3]">{braceletStyle} {wristCircumference ? `(${wristCircumference})` : ''}</span>
+                    </div>
+                  )}
+
+                  {/* Catalog References */}
                   {selectedCatalogProducts.length > 0 && (
-                    <div className="p-2.5 rounded-xl bg-[#121F4D]/60 border border-[#D4AF37]/30 text-xs space-y-1">
+                    <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-[#D4AF37]/35 space-y-1.5">
                       <div className="flex justify-between items-center">
-                        <span className="text-[#FAF8F3]/60">Catalog References:</span>
+                        <span className="text-[#FAF8F3]/60 font-medium">Catalog References:</span>
                         <span className="font-bold text-[#D4AF37]">{selectedCatalogProducts.length} Selected</span>
                       </div>
-                      <div className="text-[11px] text-[#FAF8F3]/80 font-medium truncate">
-                        {selectedCatalogProducts.map(p => p.title).join(', ')}
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {selectedCatalogProducts.map(p => (
+                          <span key={p.id} className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#D4AF37]/20 text-[#F5E7A3] border border-[#D4AF37]/30">
+                            {p.title}
+                          </span>
+                        ))}
                       </div>
                     </div>
                   )}
 
-                  {/* Option Selections */}
+                  {/* Dynamic Option Selections from Backend API */}
                   {selectedValuesSummary.map((item, idx) => (
-                    <div key={idx} className="p-2.5 rounded-xl bg-[#121F4D]/60 border border-white/10 text-xs flex justify-between items-center">
-                      <span className="text-[#FAF8F3]/60 truncate max-w-[120px]">{item.group}:</span>
+                    <div key={idx} className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
+                      <span className="text-[#FAF8F3]/60 font-medium truncate max-w-[130px]">{item.group}:</span>
                       <span className="font-bold text-[#FAF8F3] flex items-center gap-1.5">
                         {item.color && (
                           <span className="w-3 h-3 rounded-full border border-white/30" style={{ backgroundColor: item.color }} />
@@ -1816,51 +2223,79 @@ const DEFAULT_OPTION_GROUPS: OptionGroupData[] = [
                     </div>
                   ))}
 
-                  {/* Gemstone Count */}
-                  <div className="p-2.5 rounded-xl bg-[#121F4D]/60 border border-white/10 text-xs flex justify-between items-center">
-                    <span className="text-[#FAF8F3]/60">Gemstone Setup:</span>
+                  {/* Gemstone Layout */}
+                  <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
+                    <span className="text-[#FAF8F3]/60 font-medium">Gemstone Layout:</span>
                     <span className="font-bold text-[#FAF8F3]">
-                      {isMetalOnly ? 'Solid Metal Only' : `${stonesList.length} Stone Row(s)`}
+                      {isMetalOnly ? 'Plain Metal (No Stones)' : `${stonesList.length} Stone Row(s)`}
                     </span>
                   </div>
 
-                  {/* Engraving */}
+                  {!isMetalOnly && stonesList.length > 0 && (
+                    <div className="p-2.5 rounded-2xl bg-[#09112B]/80 border border-white/5 space-y-1 text-[11px]">
+                      {stonesList.map((st, i) => (
+                        <div key={i} className="flex justify-between text-[#FAF8F3]/80">
+                          <span>Row {i + 1}: {st.shape} {st.stone_type} ({st.quantity}x)</span>
+                          <span className="font-bold text-[#F5E7A3]">{st.size_value} {st.size_unit}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Personalization & Engraving */}
                   {engravingText && (
-                    <div className="p-2.5 rounded-xl bg-[#121F4D]/60 border border-white/10 text-xs flex justify-between items-center">
-                      <span className="text-[#FAF8F3]/60">Custom Engraving:</span>
+                    <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
+                      <span className="text-[#FAF8F3]/60 font-medium">Inside Engraving:</span>
                       <span className="font-bold text-[#F5E7A3] italic">"{engravingText}"</span>
                     </div>
                   )}
 
-                  {/* Vector Logo */}
+                  {/* Logo Stamp */}
                   {hasLogo && (
-                    <div className="p-2.5 rounded-xl bg-[#121F4D]/60 border border-white/10 text-xs flex justify-between items-center">
-                      <span className="text-[#FAF8F3]/60">Hallmark Logo:</span>
-                      <span className="font-bold text-[#D4AF37]">Vector Stamp Included</span>
+                    <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
+                      <span className="text-[#FAF8F3]/60 font-medium">Vector Hallmark:</span>
+                      <span className="font-bold text-[#D4AF37]">Custom Logo Stamp</span>
+                    </div>
+                  )}
+
+                  {/* Sketches */}
+                  {sketchFiles.length > 0 && (
+                    <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
+                      <span className="text-[#FAF8F3]/60 font-medium">Uploaded Sketches:</span>
+                      <span className="font-bold text-emerald-400">{sketchFiles.length} File(s) Attached</span>
+                    </div>
+                  )}
+
+                  {/* Target Date */}
+                  {neededByDate && (
+                    <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
+                      <span className="text-[#FAF8F3]/60 font-medium">Required By:</span>
+                      <span className="font-bold text-[#F5E7A3]">{neededByDate}</span>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Included Deliverables Badge */}
-              <div className="p-4 bg-[#121F4D]/80 border border-[#D4AF37]/30 rounded-2xl text-xs space-y-2">
+              {/* Master CAD Deliverables Guarantee Card */}
+              <div className="p-4 bg-[#121F4D]/80 border border-[#D4AF37]/35 rounded-2xl text-xs space-y-2">
                 <h4 className="font-bold text-[#F5E7A3] flex items-center gap-1.5">
-                  <Box className="w-4 h-4 text-[#D4AF37]" /> Included CAD Assets
+                  <Box className="w-4 h-4 text-[#D4AF37]" /> Master CAD Deliverables
                 </h4>
-                <ul className="space-y-1 text-[#FAF8F3]/70 text-[11px]">
-                  <li className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-[#D4AF37]" /> Native 3DM Rhino / Matrix File</li>
-                  <li className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-[#D4AF37]" /> Printable High-Density STL Mesh</li>
-                  <li className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-[#D4AF37]" /> 4K Ultra-HD Photorealistic Renders</li>
+                <ul className="space-y-1 text-[#FAF8F3]/75 text-[11px]">
+                  <li className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-[#D4AF37]" /> Layered Rhino (.3DM) Native File</li>
+                  <li className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-[#D4AF37]" /> Watertight Wax-Ready (.STL) Mesh</li>
+                  <li className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-[#D4AF37]" /> 4K Photorealistic Ray-Traced Render</li>
                 </ul>
               </div>
 
-              {/* 100% CAD Guarantee Card */}
-              <div className="p-4 bg-[#09112B] rounded-2xl border border-[#D4AF37]/30 text-[#FAF8F3]/75 text-[11px] space-y-1.5">
+              {/* 100% Production Guarantee */}
+              <div className="p-3.5 bg-[#060D22] rounded-2xl border border-[#D4AF37]/30 text-[#FAF8F3]/75 text-[11px] space-y-1">
                 <div className="flex items-center gap-2 font-bold text-[#F5E7A3]">
-                  <ShieldCheck className="w-4 h-4 text-[#D4AF37]" /> 100% Production Guarantee
+                  <ShieldCheck className="w-4 h-4 text-[#D4AF37]" /> Production Ready Guarantee
                 </div>
-                <p className="leading-relaxed">All CAD models undergo stringent stone seat clearance and casting shrink allowance checks by master goldsmiths.</p>
+                <p className="leading-relaxed text-[10px] text-[#FAF8F3]/60">100% tested for stone seat clearance &amp; casting shrinkage.</p>
               </div>
+
             </div>
           </div>
         </div>

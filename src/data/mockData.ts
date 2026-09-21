@@ -629,6 +629,6 @@ export const FAQS = [
   {
     question: 'How do I submit my sketches or reference photos for a custom quote?',
     answer:
-      'You can submit directly through our interactive Custom Design page by uploading pencil sketches, photos, or Pinterest moodboards, along with target stone dimensions and budget. Alternatively, you can message our master CAD team directly on WhatsApp (+91 9662159084) for instant evaluation.',
+      'You can submit directly through our interactive Custom Design page by uploading pencil sketches, photos, or Pinterest moodboards, along with target stone dimensions and budget. Alternatively, you can message our master CAD team directly on WhatsApp (+91 95747 87098) for instant evaluation.',
   },
 ];

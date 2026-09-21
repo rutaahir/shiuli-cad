@@ -5,6 +5,8 @@ import { FloatingLabelInput } from '../components/FloatingLabelInput';
 import { Mail, ArrowRight, ArrowLeft, CheckCircle2, Info } from 'lucide-react';
 import { PageId } from '../types';
 
+import { sendOtpEmail } from '../services/emailService';
+
 interface ForgotPasswordPageProps {
   onNavigate: (page: PageId, extraId?: string) => void;
 }
@@ -25,7 +27,12 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
     setIsLoading(true);
     setErrorMessage(null);
 
-    // Simulate sending request & set submitted state
+    // Generate 6-digit OTP code and dispatch via Gmail SMTP
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    sendOtpEmail(email.trim(), otpCode, 'Password Reset Access').catch((e) =>
+      console.warn('Background OTP dispatch notice:', e)
+    );
+
     setTimeout(() => {
       setIsLoading(false);
       setIsSubmitted(true);

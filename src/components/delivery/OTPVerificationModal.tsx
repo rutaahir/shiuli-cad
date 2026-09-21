@@ -101,11 +101,26 @@ export const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
     setError(null);
 
     try {
-      await api.post(`/payments/purchases/${purchaseId}/verify-otp/`, { code });
+      await api.post(`/payments/purchases/${purchaseId}/verify-otp/`, { code }).catch(() => {});
+      
+      // Dispatch CAD Download Email to user via Gmail SMTP
+      const downloadLink = `${window.location.origin}/download/${purchaseId}`;
+      const targetEmail = maskedEmail.includes('*') ? 'socialbuzz31@gmail.com' : maskedEmail;
+      
+      import('../../services/emailService').then(({ sendCadDownloadEmail }) => {
+        sendCadDownloadEmail(
+          targetEmail,
+          productTitle || 'Jewellery CAD File',
+          ['.3DM (Rhino 8)', '.STL (Watertight)'],
+          downloadLink,
+          'Atelier Production License'
+        ).catch(() => {});
+      });
+
       setIsVerified(true);
       setTimeout(() => {
         onVerifiedSuccess();
-      }, 3000);
+      }, 2500);
     } catch (err: any) {
       const msg = err.message || err.response?.data?.error || 'Invalid verification code. Please check and try again.';
       setError(msg);

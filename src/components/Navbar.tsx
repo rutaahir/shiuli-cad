@@ -229,18 +229,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 Home
               </button>
 
-              {/* CAD Services */}
-              <button
-                onClick={() => onNavigate('cad-service')}
-                className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-medium transition-colors ${
-                  activePage === 'cad-service'
-                    ? 'text-[#F5E7A3] font-bold'
-                    : 'text-[#F5F1E8]/80 hover:text-[#FAF8F3]'
-                }`}
-              >
-                CAD Services
-              </button>
-
               {/* Custom Design */}
               <button
                 onClick={() => onNavigate('custom-design')}
@@ -378,16 +366,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 Portfolio
               </button>
 
-              {/* Pricing */}
-              <button
-                onClick={() => onNavigate('pricing')}
-                className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-medium transition-colors ${
-                  activePage === 'pricing' ? 'text-[#F5E7A3] font-bold' : 'text-[#F5F1E8]/80 hover:text-[#FAF8F3]'
-                }`}
-              >
-                Pricing
-              </button>
-
               {/* About Us */}
               <button
                 onClick={() => onNavigate('about')}
@@ -410,7 +388,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </nav>
 
             {/* Right Quick Action Icons */}
-            <div className="flex items-center space-x-3 sm:space-x-4">
+            <div className="flex items-center space-x-1.5 sm:space-x-3">
               <button
                 onClick={() => setSearchOverlayOpen(true)}
                 className="p-2 text-[#F5F1E8]/80 hover:text-[#D4AF37] transition-colors rounded-full hover:bg-white/5"
@@ -432,22 +410,23 @@ export const Navbar: React.FC<NavbarProps> = ({
                 )}
               </button>
 
-              {/* Account Dropdown */}
+              {/* Account Icon / Button */}
               <div className="relative">
                 {isLoggedIn ? (
                   <button
                     onClick={() => setAccountDropdownOpen(prev => !prev)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#121F4D] border border-[#D4AF37]/30 text-xs font-bold text-[#F5E7A3]"
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-[#121F4D] border border-[#D4AF37]/30 text-xs font-bold text-[#F5E7A3]"
                   >
                     <User className="w-3.5 h-3.5 text-[#D4AF37]" />
-                    <span>{user?.first_name || 'Account'}</span>
+                    <span className="hidden sm:inline">{user?.first_name || 'Account'}</span>
                   </button>
                 ) : (
                   <button
                     onClick={onOpenAuth}
-                    className="btn-gold-luxury px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5"
+                    className="btn-gold-luxury px-2.5 sm:px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1"
                   >
-                    <User className="w-3.5 h-3.5" /> Client Sign In
+                    <User className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Sign In</span>
                   </button>
                 )}
 
@@ -505,65 +484,96 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* Mobile Hamburger Toggle */}
               <button
                 onClick={() => setMobileMenuOpen(true)}
-                className="lg:hidden p-2 text-[#FAF8F3] hover:text-[#D4AF37]"
+                className="lg:hidden p-2 text-[#FAF8F3] hover:text-[#D4AF37] rounded-full hover:bg-white/5"
+                aria-label="Toggle Menu"
               >
-                <Menu className="w-6 h-6" />
+                <Menu className="w-5 h-5" />
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* MOBILE COLLAPSIBLE ACCORDION NAVIGATION DRAWER */}
+      {/* MOBILE LUXURY NAVIGATION DRAWER */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 bg-[#060B1E]/95 backdrop-blur-2xl flex flex-col p-6 overflow-y-auto">
-          <div className="flex justify-between items-center pb-4 border-b border-[#D4AF37]/30">
-            <BrandLogo variant="horizontal" size="sm" onClick={() => { onNavigate('home'); setMobileMenuOpen(false); }} />
-            <button onClick={() => setMobileMenuOpen(false)} className="p-2 text-[#FAF8F3]/60 hover:text-white">
-              <X className="w-6 h-6" />
-            </button>
+        <div className="fixed inset-0 z-50 bg-[#060B1E]/98 backdrop-blur-3xl flex flex-col justify-between p-5 sm:p-6 overflow-y-auto animate-in fade-in slide-in-from-right duration-300">
+          <div>
+            <div className="flex justify-between items-center pb-4 border-b border-[#D4AF37]/30">
+              <BrandLogo variant="horizontal" size="sm" onClick={() => { onNavigate('home'); setMobileMenuOpen(false); }} />
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-2.5 rounded-full bg-[#121F4D]/60 text-[#FAF8F3] hover:text-[#D4AF37] border border-[#D4AF37]/20"
+                aria-label="Close menu"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* User status card on mobile menu */}
+            <div className="mt-4 p-3.5 rounded-2xl bg-[#121F4D]/70 border border-[#D4AF37]/30 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37] flex items-center justify-center text-[#F5E7A3]">
+                  <User className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-[#FAF8F3]">
+                    {isLoggedIn ? (user?.first_name ? `${user.first_name} ${user.last_name || ''}` : user?.email || 'Valued Client') : 'Guest Atelier'}
+                  </p>
+                  <p className="text-[10px] text-[#D4AF37]">
+                    {isLoggedIn ? `${user?.role?.toUpperCase() || 'CLIENT'} ACCOUNT` : 'Sign in to access 3DM downloads'}
+                  </p>
+                </div>
+              </div>
+              {isLoggedIn ? (
+                <button
+                  onClick={() => { onNavigate('account'); setMobileMenuOpen(false); }}
+                  className="px-3 py-1.5 text-xs font-bold bg-[#D4AF37] text-[#0B1330] rounded-xl hover:bg-[#F5E7A3]"
+                >
+                  Dashboard
+                </button>
+              ) : (
+                <button
+                  onClick={() => { onOpenAuth(); setMobileMenuOpen(false); }}
+                  className="px-3 py-1.5 text-xs font-bold bg-[#D4AF37] text-[#0B1330] rounded-xl hover:bg-[#F5E7A3]"
+                >
+                  Sign In
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-2 py-6">
+              {[
+                { id: 'home', label: 'Home Atelier', icon: <Gem className="w-4 h-4 text-[#D4AF37]" /> },
+                { id: 'custom-design', label: 'Custom Design Order', icon: <Sliders className="w-4 h-4 text-[#D4AF37]" /> },
+                { id: 'file-editing', label: 'File Editing & Revision', icon: <Edit2 className="w-4 h-4 text-[#D4AF37]" /> },
+                { id: 'ai-jewellery', label: 'AI + Jewellery Concepts', icon: <Sparkles className="w-4 h-4 text-[#D4AF37] animate-pulse" /> },
+                { id: 'collections', label: 'CAD Files Library', icon: <Box className="w-4 h-4 text-[#D4AF37]" /> },
+                { id: 'portfolio', label: 'Portfolio & Renders', icon: <Award className="w-4 h-4 text-[#D4AF37]" /> },
+                { id: 'about', label: 'About Studio', icon: <Shield className="w-4 h-4 text-[#D4AF37]" /> },
+                { id: 'contact', label: 'Contact Us', icon: <Phone className="w-4 h-4 text-[#D4AF37]" /> },
+              ].map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => { onNavigate(item.id as PageId); setMobileMenuOpen(false); }}
+                  className={`w-full text-left px-4 py-3 rounded-2xl flex items-center justify-between font-serif text-base transition-all ${
+                    activePage === item.id
+                      ? 'bg-[#D4AF37] text-[#0B1330] font-bold shadow-lg'
+                      : 'text-[#FAF8F3] hover:bg-[#121F4D]/80 border border-white/5'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 opacity-70" />
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="space-y-4 py-6">
-            <button onClick={() => { onNavigate('home'); setMobileMenuOpen(false); }} className="w-full text-left font-serif text-lg font-bold text-[#FAF8F3]">
-              Home
-            </button>
-
-            <button onClick={() => { onNavigate('cad-service'); setMobileMenuOpen(false); }} className="w-full text-left font-serif text-lg font-bold text-[#FAF8F3]">
-              CAD Services
-            </button>
-
-            <button onClick={() => { onNavigate('custom-design'); setMobileMenuOpen(false); }} className="w-full text-left font-serif text-lg font-bold text-[#FAF8F3]">
-              Custom Design
-            </button>
-
-            <button onClick={() => { onNavigate('file-editing'); setMobileMenuOpen(false); }} className="w-full text-left font-serif text-lg font-bold text-[#FAF8F3]">
-              File Editing
-            </button>
-
-            <button onClick={() => { onNavigate('ai-jewellery'); setMobileMenuOpen(false); }} className="w-full text-left font-serif text-lg font-bold text-[#FAF8F3] flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-[#D4AF37]" /> AI + Jewellery
-            </button>
-
-            <button onClick={() => { onNavigate('collections'); setMobileMenuOpen(false); }} className="w-full text-left font-serif text-lg font-bold text-[#FAF8F3]">
-              CAD Files Catalog
-            </button>
-
-            <button onClick={() => { onNavigate('portfolio'); setMobileMenuOpen(false); }} className="w-full text-left font-serif text-lg font-bold text-[#FAF8F3]">
-              Portfolio Showcase
-            </button>
-
-            <button onClick={() => { onNavigate('pricing'); setMobileMenuOpen(false); }} className="w-full text-left font-serif text-lg font-bold text-[#FAF8F3]">
-              Pricing & Plans
-            </button>
-
-            <button onClick={() => { onNavigate('about'); setMobileMenuOpen(false); }} className="w-full text-left font-serif text-lg font-bold text-[#FAF8F3]">
-              About Us
-            </button>
-
-            <button onClick={() => { onNavigate('contact'); setMobileMenuOpen(false); }} className="w-full text-left font-serif text-lg font-bold text-[#FAF8F3]">
-              Contact Us
-            </button>
+          <div className="pt-4 border-t border-[#D4AF37]/20 flex items-center justify-between text-xs text-[#C9C2A6]">
+            <span>Shiuli CAD Studio © 2026</span>
+            <span className="text-[#D4AF37] font-semibold">Rhino .3DM & .STL Atelier</span>
           </div>
         </div>
       )}

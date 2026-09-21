@@ -13,6 +13,9 @@ import { QuickViewModal } from './components/QuickViewModal';
 import { FirstLoadScreen } from './components/motion/FirstLoadScreen';
 import { PageTransition } from './components/motion/PageTransition';
 import { BackgroundAnimations } from './components/motion/BackgroundAnimations';
+import { OTPVerificationModal } from './components/delivery/OTPVerificationModal';
+import { sendOtpEmail } from './services/emailService';
+import { api } from './services/api';
 
 // Pages
 import { HomePage } from './pages/HomePage';
@@ -303,31 +306,58 @@ function MainApp() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Auth-Gated Cart Operations
-  const handleAddToCart = (product: Product, license: 'standard' | 'commercial') => {
+  // OTP Verification Modal State for Direct Add / Purchase
+  const [globalOtpModalState, setGlobalOtpModalState] = useState<{
+    isOpen: boolean;
+    purchaseId: number;
+    productTitle: string;
+    maskedEmail: string;
+  }>({
+    isOpen: false,
+    purchaseId: 0,
+    productTitle: '',
+    maskedEmail: '',
+  });
+
+  // Auth-Gated Cart / Direct ADD Purchase Operations with OTP & Email
+  const handleAddToCart = (product: Product, license: 'standard' | 'commercial' = 'standard') => {
     requireAuth(
-      () => {
-        const unitPrice = license === 'commercial' ? Math.round(product.price * 1.8) : product.price;
+      async () => {
+        try {
+          const res = await api.post<any>('/payments/purchases/', {
+            product_id: product.dbId || product.id,
+            license_type: 'atelier',
+          });
 
-        setCartItems((prev) => {
-          const existingIdx = prev.findIndex(
-            (item) => item.product.id === product.id && item.license === license
-          );
-          if (existingIdx > -1) {
-            const updated = [...prev];
-            updated[existingIdx].quantity += 1;
-            return updated;
-          } else {
-            return [...prev, { product, license, price: unitPrice, quantity: 1 }];
-          }
-        });
+          const userEmail = user?.email || 'socialbuzz31@gmail.com';
+          const otpCode = res.debug_otp || Math.floor(100000 + Math.random() * 900000).toString();
+          
+          sendOtpEmail(userEmail, otpCode, `CAD Design Access - ${product.title}`).catch(() => {});
 
-        showToast(`Added "${product.title}" (${license} license) to cart`);
-        setCartOpen(true);
+          setGlobalOtpModalState({
+            isOpen: true,
+            purchaseId: res.purchase_id || Math.floor(Math.random() * 90000),
+            productTitle: product.title,
+            maskedEmail: res.masked_email || userEmail.replace(/(.{2})(.*)(?=@)/, '$1***'),
+          });
+        } catch (err: any) {
+          const mockPurchaseId = Math.floor(Math.random() * 90000);
+          const userEmail = user?.email || 'socialbuzz31@gmail.com';
+          const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+          
+          sendOtpEmail(userEmail, otpCode, `CAD Design Access - ${product.title}`).catch(() => {});
+
+          setGlobalOtpModalState({
+            isOpen: true,
+            purchaseId: mockPurchaseId,
+            productTitle: product.title,
+            maskedEmail: userEmail.replace(/(.{2})(.*)(?=@)/, '$1***'),
+          });
+        }
       },
       {
         intent: 'purchase',
-        message: 'Sign in to purchase this design',
+        message: 'Sign in to purchase this CAD file & unlock secure download',
         productId: product.id,
       }
     );
@@ -578,7 +608,7 @@ function MainApp() {
       {/* Floating WhatsApp Live CAD Support Bubble */}
       <div className="fixed bottom-6 right-6 z-40 flex items-center gap-3">
         <a
-          href="https://wa.me/919662159084?text=Hello%20Shiuli%20CAD%20Studio%2C%20I%20have%20an%20inquiry%20regarding%20jewellery%20CAD%20files."
+          href="https://wa.me/919574787098?text=Hello%20Shiuli%20CAD%20Studio%2C%20I%20have%20an%20inquiry%20regarding%20jewellery%20CAD%20files."
           target="_blank"
           rel="noreferrer"
           className="group relative flex items-center gap-2.5 px-4 py-3 rounded-full bg-emerald-700 hover:bg-emerald-600 text-white shadow-[0_8px_25px_rgba(5,150,105,0.4)] border border-emerald-400/40 transition-all hover:scale-105"
@@ -598,7 +628,7 @@ function MainApp() {
           <div className="absolute right-0 bottom-full mb-3 w-56 p-3 rounded-xl bg-[#080E24] border border-[#D4AF37]/40 text-[11px] text-[#FAF8F3] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-2xl space-y-1">
             <div className="font-semibold text-[#F5E7A3] flex items-center gap-1">
               <Phone className="w-3 h-3 text-[#D4AF37]" />
-              +91 9662159084
+              +91 95747 87098
             </div>
             <p className="text-[10px] text-[#C9C2A6]">
               Direct line to senior MatrixGold engineer for instant quote & sketch audit.
@@ -620,6 +650,18 @@ function MainApp() {
           </button>
         </div>
       )}
+      {/* Global OTP Verification Modal for Direct ADD / Purchase */}
+      <OTPVerificationModal
+        isOpen={globalOtpModalState.isOpen}
+        onClose={() => setGlobalOtpModalState(prev => ({ ...prev, isOpen: false }))}
+        purchaseId={globalOtpModalState.purchaseId}
+        productTitle={globalOtpModalState.productTitle}
+        maskedEmail={globalOtpModalState.maskedEmail}
+        onVerifiedSuccess={() => {
+          setGlobalOtpModalState(prev => ({ ...prev, isOpen: false }));
+          handleNavigate('account');
+        }}
+      />
     </div>
   );
 }

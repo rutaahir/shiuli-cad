@@ -111,25 +111,32 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
       if (res && Array.isArray(res.pool_orders)) {
         const mapped: AvailableJob[] = res.pool_orders.map((ord: any) => {
           const req = ord.custom_request;
-          const total = parseFloat(ord.total_price || req?.agreed_price || req?.estimated_price_shown || '200');
+          const stoneCount = (req?.stones && Array.isArray(req.stones) ? req.stones.length : 0) +
+                             (req?.gemstones && Array.isArray(req.gemstones) ? req.gemstones.length : 0);
+          const selMetal = req?.selections?.find((s: any) => s.group_key === 'metal' || s.group_label?.toLowerCase().includes('metal'));
+          const metalPreference = selMetal?.value_label || req?.metal_alloy_name || '';
+
           return {
             id: ord.id.toString(),
             orderNumber: `ORD-${ord.id}`,
             title: req?.category_name ? `Bespoke ${req.category_name}` : `Custom Design #${ord.id}`,
             category: req?.category_name || 'Custom Jewellery',
-            agreedPayout: Math.round(total * 0.4),
-            deadlineHours: 48,
+            agreedPayout: 0, // Staff does NOT see price
+            clientBudget: '',
+            deadlineHours: ord.deadline_hours || 48,
             releasedTimeAgo: ord.unassigned_since
               ? new Date(ord.unassigned_since).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               : 'Recently',
-            referenceImage: req?.sketches?.[0]?.image_url || req?.sketches?.[0]?.image || req?.reference_image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&q=80&w=600',
+            referenceImage: req?.catalog_references?.[0]?.image || req?.reference_image || req?.sketches?.[0]?.image_url || req?.sketches?.[0]?.image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&q=80&w=600',
             description: req?.description || 'Watertight 3D CAD design request.',
-            metalPreference: req?.metal_alloy_name || '18K Yellow Gold',
+            metalPreference: metalPreference,
             specsSummary: {
-              diamondCount: req?.gemstones?.length ? `${req.gemstones.length} stones` : 'As per brief',
-              weightEst: req?.metal_alloy_name ? `Calibrated ${req.metal_alloy_name}` : 'Custom weight',
-              ringSize: 'US 7.0',
+              diamondCount: stoneCount,
+              weightEst: req?.target_weight_grams ? `${req.target_weight_grams} gm` : (metalPreference || 'As per CAD'),
+              ringSize: req?.ring_size ? `${req.ring_size} (${req.ring_size_standard || 'US'})` : undefined,
             },
+            status: 'available',
+            rawDetails: req,
           };
         });
         setAvailableJobs(mapped);
@@ -151,30 +158,94 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
       if (orderList.length > 0) {
         // Filter out finished/completed/delivered orders from active workbench tray
         const activeOrders = orderList.filter(
-          (ord: any) => ord.status !== 'completed' && ord.status !== 'delivered' && ord.status !== 'preview_ready'
+          (ord: any) => ord.status !== 'completed' && ord.status !== 'delivered'
         );
         const completedOrders = orderList.filter(
-          (ord: any) => ord.status === 'completed' || ord.status === 'delivered' || ord.status === 'preview_ready'
+          (ord: any) => ord.status === 'completed' || ord.status === 'delivered'
         );
 
         const mappedActive: StaffActiveJob[] = activeOrders.map((ord: any) => {
           const req = ord.custom_request;
           const total = parseFloat(ord.total_price || '200');
+
+          // Dynamically compute real milestone and progress percentage from backend
+          const milestones: any[] = ord.milestones || [];
+          const deliverables: any[] = ord.deliverables || [];
+          let currentMilestone: StaffActiveJob['currentMilestone'] = 'Just Accepted';
+          let progressPercentage = 0;
+
+          const isClientApproved = milestones.some((m: any) => 
+            (m.stage || '').toLowerCase().includes('approved by client')
+          );
+
+          if (ord.status === 'completed' || ord.status === 'delivered') {
+            currentMilestone = 'Ready for Delivery';
+            progressPercentage = 100;
+          } else if (isClientApproved) {
+            currentMilestone = 'Ready for Delivery';
+            progressPercentage = 95;
+          } else if (ord.status === 'pending_review') {
+            currentMilestone = 'Pending Review';
+            progressPercentage = 90;
+          } else if (ord.status === 'preview_ready') {
+            currentMilestone = 'Refining';
+            progressPercentage = 85;
+          } else if (milestones.length > 0) {
+            const stageNames = milestones.map((m: any) => m.stage);
+            if (stageNames.includes('Ready for Delivery') || stageNames.includes('04. Final STL Export & 4K Renders')) {
+              currentMilestone = 'Ready for Delivery';
+              progressPercentage = 95;
+            } else if (stageNames.includes('Refining') || stageNames.includes('03. Tolerances, Prongs & Castability')) {
+              currentMilestone = 'Refining';
+              progressPercentage = 85;
+            } else if (stageNames.includes('Modeling') || stageNames.includes('02. Stone Seats & Filigree Detailing')) {
+              currentMilestone = 'Modeling';
+              progressPercentage = 60;
+            } else if (stageNames.includes('Started') || stageNames.includes('01. Blueprint Setup & Mesh Blocking')) {
+              currentMilestone = 'Started';
+              progressPercentage = 25;
+            }
+          } else if (deliverables.length > 0) {
+            if (deliverables.length >= 3) {
+              currentMilestone = 'Refining';
+              progressPercentage = 85;
+            } else if (deliverables.length >= 2) {
+              currentMilestone = 'Modeling';
+              progressPercentage = 60;
+            } else {
+              currentMilestone = 'Started';
+              progressPercentage = 25;
+            }
+          } else {
+            // Freshly accepted order: 0% real progress!
+            currentMilestone = 'Just Accepted';
+            progressPercentage = 0;
+          }
+
+          let displayStatus: StaffActiveJob['status'] = 'With CAD Designer';
+          if (ord.status === 'pending_review') {
+            displayStatus = 'Pending Admin QC Review' as any;
+          } else if (ord.status === 'preview_ready') {
+            displayStatus = isClientApproved 
+              ? 'Client Approved • Upload Master Deliverables' as any
+              : 'In Client 3D Review' as any;
+          }
+
           return {
             id: ord.id.toString(),
             orderNumber: `ORD-${ord.id}`,
             title: req?.category_name ? `Bespoke ${req.category_name}` : `Custom Design #${ord.id}`,
             category: req?.category_name || 'Custom Jewellery',
-            referenceImage: req?.sketches?.[0]?.image_url || req?.sketches?.[0]?.image || req?.reference_image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&q=80&w=600',
+            referenceImage: req?.catalog_references?.[0]?.image || req?.reference_image || req?.sketches?.[0]?.image_url || req?.sketches?.[0]?.image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&q=80&w=600',
             acceptedAt: ord.assigned_at ? new Date(ord.assigned_at).toLocaleDateString() : 'Active',
             deadline: 'In 48 Hours',
             hoursRemaining: 48,
             payoutAmount: Math.round(total * 0.4),
             clientName: req?.contact_name || ord.client?.first_name || 'Jewellery Atelier',
             clientNotes: req?.description || 'Watertight 3D CAD design request.',
-            currentMilestone: ord.status === 'pending_review' ? 'Pending Review' : 'Modeling',
-            progressPercentage: ord.status === 'pending_review' ? 100 : 50,
-            status: ord.status === 'pending_review' ? 'Pending Admin QC Review' : 'With CAD Designer',
+            currentMilestone: currentMilestone,
+            progressPercentage: progressPercentage,
+            status: displayStatus,
           };
         });
 

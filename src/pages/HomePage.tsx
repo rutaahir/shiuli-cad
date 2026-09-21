@@ -28,6 +28,239 @@ import { RevealOnScroll } from '../components/motion/RevealOnScroll';
 import { StaggerGrid, StaggerItem } from '../components/motion/StaggerGrid';
 import { LazyImage } from '../components/motion/LazyImage';
 
+// Dynamic Category Box with slowly moving product slideshow + hover/touch selector
+interface CategoryBoxCardProps {
+  cat: any;
+  idx: number;
+  allProducts: Product[];
+  onNavigate: (page: PageId, extraId?: string) => void;
+  onQuickView: (product: Product) => void;
+}
+
+const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
+  cat,
+  idx,
+  allProducts,
+  onNavigate,
+  onQuickView,
+}) => {
+  const fallbackImages = [
+    'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1630019852942-f89202989a59?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1599643477877-530eb83abc8e?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1603561591411-07134e71a2a9?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1598560917505-59a3ad559071?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=800&q=80',
+  ];
+
+  const categoryProducts = React.useMemo(() => {
+    const matched = allProducts.filter((p) => {
+      const pCat = (p.category || '').toLowerCase();
+      const pCatName = (p.categoryName || '').toLowerCase();
+      const cSlug = (cat.slug || cat.id || '').toLowerCase();
+      const cName = (cat.name || '').toLowerCase();
+
+      return (
+        pCat === cSlug ||
+        pCatName === cName ||
+        (cSlug.includes('ring') && (pCat.includes('ring') || pCatName.includes('ring'))) ||
+        (cSlug.includes('necklace') && (pCat.includes('necklace') || pCat.includes('pendant') || pCatName.includes('necklace') || pCatName.includes('pendant'))) ||
+        (cSlug.includes('earring') && (pCat.includes('earring') || pCatName.includes('earring'))) ||
+        (cSlug.includes('bracelet') && (pCat.includes('bracelet') || pCat.includes('bangle') || pCatName.includes('bracelet') || pCatName.includes('bangle')))
+      );
+    });
+
+    if (matched.length > 0) return matched;
+
+    const defaultImg = cat.image || fallbackImages[idx % fallbackImages.length];
+    return [
+      {
+        id: `${cat.id || idx}-1`,
+        title: `${cat.name} Solitaire`,
+        category: cat.slug || cat.id,
+        categoryName: cat.name,
+        price: 1499,
+        image: defaultImg,
+        images: [defaultImg],
+        description: `Watertight ${cat.name} 3D CAD File`,
+        rating: 4.9,
+        reviewsCount: 24,
+      } as unknown as Product,
+      {
+        id: `${cat.id || idx}-2`,
+        title: `Royal Halo ${cat.name}`,
+        category: cat.slug || cat.id,
+        categoryName: cat.name,
+        price: 1899,
+        image: fallbackImages[(idx + 1) % fallbackImages.length],
+        images: [fallbackImages[(idx + 1) % fallbackImages.length]],
+        description: `Precision ${cat.name} 3D CAD File`,
+        rating: 5.0,
+        reviewsCount: 38,
+      } as unknown as Product,
+      {
+        id: `${cat.id || idx}-3`,
+        title: `Pavilion ${cat.name} Master`,
+        category: cat.slug || cat.id,
+        categoryName: cat.name,
+        price: 2199,
+        image: fallbackImages[(idx + 2) % fallbackImages.length],
+        images: [fallbackImages[(idx + 2) % fallbackImages.length]],
+        description: `Watertight ${cat.name} 3D CAD File`,
+        rating: 4.8,
+        reviewsCount: 19,
+      } as unknown as Product,
+      {
+        id: `${cat.id || idx}-4`,
+        title: `Atelier ${cat.name} Edition`,
+        category: cat.slug || cat.id,
+        categoryName: cat.name,
+        price: 2499,
+        image: fallbackImages[(idx + 3) % fallbackImages.length],
+        images: [fallbackImages[(idx + 3) % fallbackImages.length]],
+        description: `Watertight ${cat.name} 3D CAD File`,
+        rating: 4.9,
+        reviewsCount: 42,
+      } as unknown as Product,
+    ];
+  }, [allProducts, cat, idx]);
+
+  const [activeProductIdx, setActiveProductIdx] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  // Auto slow slideshow moving every 3.2 seconds
+  useEffect(() => {
+    if (isPaused || categoryProducts.length <= 1) return;
+    const timer = setInterval(() => {
+      setActiveProductIdx((prev) => (prev + 1) % categoryProducts.length);
+    }, 3200);
+    return () => clearInterval(timer);
+  }, [isPaused, categoryProducts.length]);
+
+  const getImg = (p: any) => {
+    if (!p) return fallbackImages[idx % fallbackImages.length];
+    return p.primaryImage || p.image || (Array.isArray(p.images) && p.images[0]) || fallbackImages[idx % fallbackImages.length];
+  };
+
+  const activeProduct = categoryProducts[activeProductIdx] || categoryProducts[0];
+  const count = cat.product_count ?? cat.count ?? categoryProducts.length;
+
+  return (
+    <StaggerItem key={cat.id || idx}>
+      <motion.div
+        whileHover={{ y: -6, scale: 1.01 }}
+        transition={{ duration: 0.3 }}
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+        className="group relative rounded-2xl overflow-hidden aspect-[4/5.2] bg-[#0E183D] border border-[#D4AF37]/30 cursor-pointer shadow-2xl transition-all hover:border-[#D4AF37] flex flex-col justify-between"
+      >
+        {/* Main Background Image displaying current active product */}
+        <div 
+          onClick={() => onNavigate('collections', cat.slug)}
+          className="absolute inset-0 w-full h-full"
+        >
+          <AnimatePresence mode="wait">
+            <motion.img
+              key={activeProduct?.id || activeProductIdx}
+              src={getImg(activeProduct)}
+              alt={activeProduct?.title || cat.name}
+              initial={{ opacity: 0.4, scale: 1.04 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0.3, scale: 0.98 }}
+              transition={{ duration: 0.5 }}
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            />
+          </AnimatePresence>
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0B1330] via-[#0B1330]/40 to-transparent z-10" />
+        </div>
+
+        {/* Bottom Panel anchored at down side of category card */}
+        <div className="absolute bottom-0 inset-x-0 z-20 p-4 sm:p-5 space-y-2.5 bg-gradient-to-t from-[#060D24] via-[#060D24]/90 to-transparent pt-12">
+          {/* Category Name ONLY */}
+          <div 
+            onClick={() => onNavigate('collections', cat.slug)}
+            className="cursor-pointer"
+          >
+            <h3 className="font-serif text-xl sm:text-3xl text-[#FAF8F3] font-bold group-hover:text-[#F5E7A3] transition-colors leading-tight line-clamp-1">
+              {cat.name}
+            </h3>
+          </div>
+
+          {/* Interactive Products Strip (Hover/Touch Selector) */}
+          <div className="pt-0.5">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none snap-x">
+              {categoryProducts.map((prod, pIdx) => {
+                const isActive = pIdx === activeProductIdx;
+                const imgUrl = getImg(prod);
+                return (
+                  <button
+                    key={prod.id || pIdx}
+                    type="button"
+                    onMouseEnter={() => {
+                      setIsPaused(true);
+                      setActiveProductIdx(pIdx);
+                    }}
+                    onTouchStart={() => {
+                      setIsPaused(true);
+                      setActiveProductIdx(pIdx);
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onQuickView(prod);
+                    }}
+                    title={`View ${prod.title}`}
+                    className={`relative w-9 h-9 sm:w-11 sm:h-11 rounded-xl overflow-hidden shrink-0 border transition-all duration-300 snap-center ${
+                      isActive
+                        ? 'border-[#D4AF37] ring-2 ring-[#D4AF37] scale-105 shadow-[0_0_12px_rgba(212,175,55,0.6)] z-10'
+                        : 'border-white/20 opacity-60 hover:opacity-100 hover:border-white/50'
+                    }`}
+                  >
+                    <img
+                      src={imgUrl}
+                      alt={prod.title}
+                      className="w-full h-full object-cover"
+                    />
+                    {isActive && (
+                      <div className="absolute inset-0 bg-[#D4AF37]/15 border border-[#F5E7A3]/50 pointer-events-none" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Action Row */}
+          <div className="pt-1 flex items-center justify-between text-[11px] text-[#F5E7A3]">
+            <button
+              type="button"
+              onClick={() => onNavigate('collections', cat.slug)}
+              className="font-semibold uppercase tracking-wider flex items-center gap-1 hover:text-white transition-colors"
+            >
+              <span>Explore Collection</span>
+              <ArrowRight className="w-3 h-3 text-[#D4AF37]" />
+            </button>
+
+            {activeProduct && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onQuickView(activeProduct);
+                }}
+                className="px-2 py-0.5 rounded-md bg-[#121F4D] border border-[#D4AF37]/30 text-[10px] text-[#C9C2A6] hover:text-[#FAF8F3] hover:border-[#D4AF37] transition-all flex items-center gap-1"
+              >
+                <Eye className="w-3 h-3 text-[#D4AF37]" /> Quick View
+              </button>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </StaggerItem>
+  );
+};
+
 interface HomePageProps {
   onNavigate: (page: PageId, extraId?: string) => void;
   onQuickView: (product: Product) => void;
@@ -57,6 +290,11 @@ export const HomePage: React.FC<HomePageProps> = ({
   const heroOpacity = useTransform(heroScrollProgress, [0, 0.8], [1, 0]);
 
   const { products: liveProducts, categories, isLoading } = useCatalog();
+
+  const allProducts: Product[] = React.useMemo(
+    () => (liveProducts.length > 0 ? liveProducts.map(toProductShape) : PRODUCTS),
+    [liveProducts]
+  );
 
   // Filter products for section 6
   // A product matches if:
@@ -95,22 +333,22 @@ export const HomePage: React.FC<HomePageProps> = ({
           aria-hidden="true"
         />
 
-        {/* DARK SCRIM */}
+        {/* DARK SCRIM FOR MAXIMUM HIGH-CONTRAST TEXT VISIBILITY */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            background: 'linear-gradient(180deg, rgba(9,17,43,0.55) 0%, rgba(9,17,43,0.70) 40%, rgba(9,17,43,0.85) 100%)',
+            background: 'linear-gradient(180deg, rgba(6,11,30,0.72) 0%, rgba(6,11,30,0.86) 50%, rgba(6,11,30,0.96) 100%)',
             zIndex: 1,
           }}
         />
 
         {/* Ambient glow orbs */}
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-[#1E4FA3]/10 blur-[120px] pointer-events-none" style={{ zIndex: 2 }} />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-60 rounded-full bg-[#D4AF37]/08 blur-[80px] pointer-events-none" style={{ zIndex: 2 }} />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-[#1E4FA3]/15 blur-[120px] pointer-events-none" style={{ zIndex: 2 }} />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-60 rounded-full bg-[#D4AF37]/12 blur-[80px] pointer-events-none" style={{ zIndex: 2 }} />
 
-        {/* HERO CONTENT WITH PARALLAX SCROLL MOTION */}
+        {/* HERO CONTENT WITH HIGH CONTRAST BRIGHT TYPOGRAPHY */}
         <motion.div
-          style={{ y: heroY, opacity: heroOpacity, zIndex: 10, maxWidth: '860px' }}
+          style={{ y: heroY, opacity: heroOpacity, zIndex: 10, maxWidth: '880px' }}
           className="relative flex flex-col items-start pt-36 pb-28 px-6 sm:px-12 lg:px-20 xl:px-28"
         >
           {/* Vertical gold rule */}
@@ -120,66 +358,66 @@ export const HomePage: React.FC<HomePageProps> = ({
           {/* ROYAL CROWN ORNAMENT */}
           <div className="hero-anim-1 flex items-center gap-4 mb-8">
             <div className="flex items-center gap-2">
-              <div className="h-px w-8 bg-gradient-to-r from-transparent to-[#D4AF37]/60" />
-              <div className="w-1 h-1 rotate-45 bg-[#D4AF37]/70" />
-              <div className="h-px w-16 bg-gradient-to-r from-[#D4AF37]/60 to-[#D4AF37]/20" />
+              <div className="h-px w-8 bg-gradient-to-r from-transparent to-[#D4AF37]" />
+              <div className="w-1.5 h-1.5 rotate-45 bg-[#D4AF37]" />
+              <div className="h-px w-16 bg-gradient-to-r from-[#D4AF37] to-[#D4AF37]/40" />
             </div>
             <svg width="28" height="22" viewBox="0 0 28 22" fill="none" className="hero-crown-glow flex-shrink-0">
-              <path d="M2 20L5 8L10 14L14 2L18 14L23 8L26 20H2Z" fill="none" stroke="#D4AF37" strokeWidth="1.5" strokeLinejoin="round"/>
-              <circle cx="2" cy="8" r="1.5" fill="#D4AF37" opacity="0.8"/>
-              <circle cx="14" cy="2" r="1.5" fill="#F5E7A3"/>
-              <circle cx="26" cy="8" r="1.5" fill="#D4AF37" opacity="0.8"/>
-              <line x1="2" y1="21" x2="26" y2="21" stroke="#D4AF37" strokeWidth="1" opacity="0.5"/>
+              <path d="M2 20L5 8L10 14L14 2L18 14L23 8L26 20H2Z" fill="none" stroke="#F5E7A3" strokeWidth="1.8" strokeLinejoin="round"/>
+              <circle cx="2" cy="8" r="1.5" fill="#D4AF37" opacity="0.9"/>
+              <circle cx="14" cy="2" r="1.8" fill="#FFF099"/>
+              <circle cx="26" cy="8" r="1.5" fill="#D4AF37" opacity="0.9"/>
+              <line x1="2" y1="21" x2="26" y2="21" stroke="#F5E7A3" strokeWidth="1.2" opacity="0.8"/>
             </svg>
             <div className="flex items-center gap-2">
-              <div className="h-px w-16 bg-gradient-to-l from-[#D4AF37]/60 to-[#D4AF37]/20" />
-              <div className="w-1 h-1 rotate-45 bg-[#D4AF37]/70" />
-              <div className="h-px w-8 bg-gradient-to-l from-transparent to-[#D4AF37]/60" />
+              <div className="h-px w-16 bg-gradient-to-l from-[#D4AF37] to-[#D4AF37]/40" />
+              <div className="w-1.5 h-1.5 rotate-45 bg-[#D4AF37]" />
+              <div className="h-px w-8 bg-gradient-to-l from-transparent to-[#D4AF37]" />
             </div>
           </div>
 
           {/* BADGE */}
           <div className="hero-anim-1 relative mb-8">
             <div className="hero-badge-ring absolute -inset-[3px] rounded-full" />
-            <div className="relative inline-flex items-center gap-3 px-6 py-2.5 rounded-full border border-[#D4AF37]/45 bg-[#060E22]/70 backdrop-blur-xl">
-              <span className="hero-badge-dot w-2 h-2 rounded-full bg-[#D4AF37] flex-shrink-0" />
-              <span className="text-[10px] uppercase tracking-[0.3em] font-bold text-[#F5E7A3]">Official Luxury CAD Atelier</span>
-              <span className="w-px h-3 bg-[#D4AF37]/30" />
-              <Gem className="w-3.5 h-3.5 text-[#D4AF37] flex-shrink-0" />
+            <div className="relative inline-flex items-center gap-3 px-6 py-2.5 rounded-full border border-[#D4AF37]/60 bg-[#060E22]/90 backdrop-blur-xl shadow-[0_0_20px_rgba(212,175,55,0.25)]">
+              <span className="hero-badge-dot w-2.5 h-2.5 rounded-full bg-[#F5E7A3] flex-shrink-0 shadow-[0_0_8px_#F5E7A3]" />
+              <span className="text-[11px] uppercase tracking-[0.3em] font-extrabold text-[#FFF099] drop-shadow-md">Official Luxury CAD Atelier</span>
+              <span className="w-px h-3.5 bg-[#D4AF37]/50" />
+              <Gem className="w-4 h-4 text-[#F5E7A3] flex-shrink-0" />
             </div>
           </div>
 
           {/* HEADLINE */}
-          <div className="mb-4 overflow-hidden">
-            <h1 className="font-serif leading-[1.1] tracking-tight">
-              <span className="hero-line-reveal-1 block whitespace-nowrap text-[2.6rem] sm:text-5xl lg:text-[3.5rem] xl:text-[4rem] text-white font-light">
+          <div className="mb-6 overflow-hidden">
+            <h1 className="font-serif leading-[1.1] tracking-tight drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]">
+              <span className="hero-line-reveal-1 block whitespace-nowrap text-[2.8rem] sm:text-5xl lg:text-[3.6rem] xl:text-[4.2rem] text-white font-medium">
                 Where{' '}
-                <em className="not-italic font-normal hero-italic-word" style={{ color: '#E8D87A' }}>Imagination</em>
+                <em className="not-italic font-bold hero-italic-word text-[#FFF099] drop-shadow-[0_0_12px_rgba(255,240,153,0.5)]">Imagination</em>
               </span>
-              <span className="hero-line-reveal-2 block whitespace-nowrap text-[2.6rem] sm:text-5xl lg:text-[3.5rem] xl:text-[4rem] font-bold">
-                <span className="hero-gold-title">Becomes Jewellery</span>
+              <span className="hero-line-reveal-2 block whitespace-nowrap text-[2.8rem] sm:text-5xl lg:text-[3.6rem] xl:text-[4.2rem] font-extrabold">
+                <span className="hero-gold-title text-[#F5E7A3]">Becomes Jewellery</span>
               </span>
             </h1>
           </div>
 
           {/* ORNATE DIVIDER */}
           <div className="hero-anim-3 flex items-center gap-2.5 mb-8">
-            <div className="h-px flex-1 max-w-[60px] bg-gradient-to-r from-[#D4AF37] to-[#D4AF37]/50" />
+            <div className="h-px flex-1 max-w-[70px] bg-gradient-to-r from-[#D4AF37] to-[#D4AF37]/60" />
             <div className="flex items-center gap-1.5">
-              <div className="w-1 h-1 rotate-45 bg-[#D4AF37]" />
-              <div className="w-1.5 h-1.5 rotate-45 bg-[#F5E7A3]" />
-              <div className="w-1 h-1 rotate-45 bg-[#D4AF37]" />
+              <div className="w-1.5 h-1.5 rotate-45 bg-[#D4AF37]" />
+              <div className="w-2 h-2 rotate-45 bg-[#FFF099]" />
+              <div className="w-1.5 h-1.5 rotate-45 bg-[#D4AF37]" />
             </div>
-            <div className="h-px w-32 bg-gradient-to-r from-[#D4AF37]/50 to-transparent" />
+            <div className="h-px w-36 bg-gradient-to-r from-[#D4AF37]/60 to-transparent" />
           </div>
 
-          {/* SUBHEADLINE */}
-          <p className="hero-anim-4 font-sans text-[15px] sm:text-base text-[#9A9080] font-light leading-[2] max-w-[460px] mb-10">
+          {/* SUBHEADLINE (HIGH VISIBILITY BRIGHT FONTS) */}
+          <p className="hero-anim-4 font-sans text-base sm:text-lg text-[#EBE3D3] font-medium leading-[1.9] max-w-[540px] mb-10 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
             Premium Rhino{' '}
-            <span className="text-[#E8D87A] font-semibold">.3DM</span> files &amp; watertight{' '}
-            <span className="text-[#7EACFC] font-semibold">STL</span> meshes —
+            <span className="text-[#FFE066] font-bold underline decoration-[#D4AF37]/60 underline-offset-4">.3DM</span> files &amp; watertight{' '}
+            <span className="text-[#93C5FD] font-bold underline decoration-blue-400/60 underline-offset-4">STL</span> meshes —
             engineered to{' '}
-            <span className="text-[#FAF8F3] font-semibold">±0.02 mm tolerance</span>{' '}
+            <span className="text-white font-extrabold bg-[#D4AF37]/20 px-2 py-0.5 rounded border border-[#D4AF37]/40">±0.02 mm tolerance</span>{' '}
             for the world's finest jewellers.
           </p>
 
@@ -187,7 +425,7 @@ export const HomePage: React.FC<HomePageProps> = ({
           <div className="hero-anim-5 flex flex-wrap gap-4 mb-12">
             <button
               onClick={() => onNavigate('collections')}
-              className="hero-btn-primary group relative overflow-hidden flex items-center gap-3 px-9 py-4 rounded-xl font-bold tracking-[0.15em] uppercase text-[11px] shadow-2xl"
+              className="hero-btn-primary group relative overflow-hidden flex items-center gap-3 px-9 py-4 rounded-xl font-extrabold tracking-[0.15em] uppercase text-xs shadow-[0_10px_30px_rgba(212,175,55,0.4)]"
             >
               <span className="hero-btn-shimmer" />
               <span className="hero-corner-tl" />
@@ -199,31 +437,28 @@ export const HomePage: React.FC<HomePageProps> = ({
 
             <button
               onClick={() => onNavigate('custom-design')}
-              className="hero-btn-secondary group relative overflow-hidden flex items-center gap-3 px-9 py-4 rounded-xl font-bold tracking-[0.15em] uppercase text-[11px] text-[#FAF8F3]"
+              className="hero-btn-secondary group relative overflow-hidden flex items-center gap-3 px-9 py-4 rounded-xl font-extrabold tracking-[0.15em] uppercase text-xs text-[#FAF8F3] bg-[#09112B]/90 border-2 border-[#D4AF37] hover:bg-[#121F4D] transition-all shadow-xl"
             >
               <span className="hero-corner-tl hero-corner-tl--gold" />
               <span className="hero-corner-br hero-corner-br--gold" />
-              <Gem className="w-4 h-4 text-[#D4AF37] flex-shrink-0 group-hover:scale-110 transition-transform duration-300" />
-              <span>Start Custom Order</span>
-              <ChevronRight className="w-4 h-4 text-[#D4AF37]/60 flex-shrink-0 group-hover:translate-x-1 transition-transform duration-300" />
+              <Gem className="w-4 h-4 text-[#F5E7A3] flex-shrink-0 group-hover:scale-110 transition-transform duration-300" />
+              <span className="text-[#FAF8F3]">Start Custom Order</span>
+              <ChevronRight className="w-4 h-4 text-[#F5E7A3] flex-shrink-0 group-hover:translate-x-1 transition-transform duration-300" />
             </button>
           </div>
 
-          {/* TRUST STRIP */}
-          <div className="hero-anim-6 flex flex-wrap items-center gap-x-5 gap-y-3">
+          {/* TRUST STRIP (BRIGHT HIGH-CONTRAST CHIPS) */}
+          <div className="hero-anim-6 flex flex-wrap items-center gap-3">
             {[
-              { icon: <FileCheck2 className="w-3.5 h-3.5 text-[#D4AF37]" />, label: 'Native .3DM' },
-              { icon: <Check className="w-3.5 h-3.5 text-[#5B8DEF]" />, label: 'Watertight STL' },
-              { icon: <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />, label: 'Castable Ready' },
-              { icon: <Award className="w-3.5 h-3.5 text-[#F5E7A3]" />, label: '±0.02 mm' },
-            ].map(({ icon, label }, i) => (
-              <React.Fragment key={label}>
-                <div className="flex items-center gap-1.5 text-[11px] text-[#6A6050] hover:text-[#A09070] transition-colors">
-                  {icon}
-                  <span>{label}</span>
-                </div>
-                {i < 3 && <div className="w-px h-3 bg-[#D4AF37]/20 hidden sm:block" />}
-              </React.Fragment>
+              { icon: <FileCheck2 className="w-4 h-4 text-[#FFE066]" />, label: 'Native .3DM' },
+              { icon: <Check className="w-4 h-4 text-[#60A5FA]" />, label: 'Watertight STL' },
+              { icon: <ShieldCheck className="w-4 h-4 text-emerald-300" />, label: 'Castable Ready' },
+              { icon: <Award className="w-4 h-4 text-[#F5E7A3]" />, label: '±0.02 mm' },
+            ].map(({ icon, label }) => (
+              <div key={label} className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#080E24]/90 border border-[#D4AF37]/35 text-xs text-[#FAF8F3] font-bold shadow-lg backdrop-blur-md">
+                {icon}
+                <span>{label}</span>
+              </div>
             ))}
           </div>
         </motion.div>
@@ -285,59 +520,18 @@ export const HomePage: React.FC<HomePageProps> = ({
             </motion.button>
           </RevealOnScroll>
 
-          {/* Category Cards Grid — 100% live from backend */}
-          <StaggerGrid className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-            {(categories.length > 0 ? categories : CATEGORIES).map((cat: any, idx: number) => {
-              // Fallback jewellery images for categories without a real photo
-              const fallbackImages = [
-                'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=800&q=80',
-                'https://images.unsplash.com/photo-1630019852942-f89202989a59?auto=format&fit=crop&w=800&q=80',
-                'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=800&q=80',
-                'https://images.unsplash.com/photo-1599643477877-530eb83abc8e?auto=format&fit=crop&w=800&q=80',
-                'https://images.unsplash.com/photo-1603561591411-07134e71a2a9?auto=format&fit=crop&w=800&q=80',
-                'https://images.unsplash.com/photo-1598560917505-59a3ad559071?auto=format&fit=crop&w=800&q=80',
-                'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=800&q=80',
-                'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=800&q=80',
-              ];
-              const image = cat.image || fallbackImages[idx % fallbackImages.length];
-              const count = cat.product_count ?? cat.count ?? 0;
-              const tagline = cat.tagline || (cat.subcategories?.length
-                ? cat.subcategories.map((s: any) => s.name).join(', ')
-                : `Browse ${cat.name} CAD designs`);
-              return (
-                <StaggerItem key={cat.id}>
-                  <motion.div
-                    whileHover={{ y: -8, scale: 1.02 }}
-                    transition={{ duration: 0.3 }}
-                    onClick={() => onNavigate('collections', cat.slug)}
-                    className="group relative rounded-2xl overflow-hidden aspect-[4/5] bg-[#0E183D] border border-[#D4AF37]/25 cursor-pointer shadow-xl transition-all hover:border-[#D4AF37]"
-                  >
-                    <LazyImage
-                      src={image}
-                      alt={cat.name}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0B1330] via-[#0B1330]/40 to-transparent z-10" />
-
-                    <div className="absolute bottom-0 inset-x-0 p-4 sm:p-6 space-y-1 z-20">
-                      <span className="text-[10px] text-[#D4AF37] uppercase tracking-wider font-semibold">
-                        {count} Files Available
-                      </span>
-                      <h3 className="font-serif text-xl sm:text-2xl text-[#FAF8F3] font-medium group-hover:text-[#F5E7A3] transition-colors">
-                        {cat.name}
-                      </h3>
-                      <p className="text-[11px] text-[#C9C2A6] line-clamp-1 font-light opacity-80">
-                        {tagline}
-                      </p>
-                      <div className="pt-2 flex items-center gap-1 text-[11px] text-[#F5E7A3] font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                        <span>View Designs</span>
-                        <ArrowRight className="w-3 h-3" />
-                      </div>
-                    </div>
-                  </motion.div>
-                </StaggerItem>
-              );
-            })}
+          {/* Category Cards Grid with Slowly Moving Slideshow & Hover/Touch Product Switcher */}
+          <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            {(categories.length > 0 ? categories : CATEGORIES).map((cat: any, idx: number) => (
+              <CategoryBoxCard
+                key={cat.id || idx}
+                cat={cat}
+                idx={idx}
+                allProducts={allProducts}
+                onNavigate={onNavigate}
+                onQuickView={onQuickView}
+              />
+            ))}
           </StaggerGrid>
         </div>
       </section>
@@ -701,12 +895,12 @@ export const HomePage: React.FC<HomePageProps> = ({
                 </motion.button>
 
                 <a
-                  href="https://wa.me/919662159084"
+                  href="https://wa.me/919574787098"
                   target="_blank"
                   rel="noreferrer"
                   className="px-6 py-3.5 rounded-full border border-[#D4AF37]/30 text-xs text-[#FAF8F3] hover:border-[#D4AF37] hover:bg-white/5 transition-colors"
                 >
-                  Chat on WhatsApp (+91 9662159084)
+                  Chat on WhatsApp (+91 95747 87098)
                 </a>
               </div>
             </RevealOnScroll>

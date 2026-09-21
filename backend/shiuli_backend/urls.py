@@ -19,6 +19,8 @@ urlpatterns = [
     path('api/auth/', include('apps.accounts.urls')),
     path('api/catalog/', include('apps.catalog.urls')),
     path('api/custom-requests/', include('apps.custom_orders.urls_custom_requests')),
+    path('api/option-groups/', include('apps.custom_orders.urls_option_groups')),
+    path('api/option-values/', include('apps.custom_orders.urls_option_values')),
     path('api/orders/', include('apps.custom_orders.urls_orders')),
     path('api/staff/', include('apps.staff_management.urls_staff')),
     path('api/platform-settings/', include('apps.staff_management.urls_settings')),

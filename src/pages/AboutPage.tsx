@@ -562,23 +562,6 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
           />
         </div>
 
-        {/* "Meet the Craftsmen" 3D Mouse-Tilt Staff Cards */}
-        <div className="pt-6 space-y-8">
-          <div className="text-center space-y-2">
-            <span className="text-xs font-bold uppercase tracking-widest text-[#D4AF37]">
-              MEET THE CRAFTSMEN
-            </span>
-            <h3 className="text-2xl sm:text-3xl font-serif font-extrabold text-white">
-              Senior CAD Architects & Gemmologists
-            </h3>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {staffMembers.map((member, i) => (
-              <StaffTiltCard key={member.name} member={member} index={i} />
-            ))}
-          </div>
-        </div>
       </section>
 
       {/* ================= SECTION 4: OUR TECHNOLOGY ("Precision, Engineered.") ================= */}

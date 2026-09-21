@@ -1,6 +1,8 @@
 import secrets
 from datetime import timedelta
+from django.http import FileResponse
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from django.conf import settings
 from django.contrib.auth.hashers import make_password, check_password
@@ -11,6 +13,7 @@ from rest_framework.response import Response
 
 from apps.core.permissions import IsClient, IsStaff, IsAdmin, IsStaffOrAdmin
 from apps.staff_management.models import PlatformSettings
+from apps.payments.models import OrderPaymentStage
 from .models import (
     CustomRequest, NegotiationMessage, Order, OrderMilestone, OrderDeliverable,
     AestheticStyle, MetalAlloy, GemstoneOption, PricingRule, CustomRequestGemstone, CustomRequestImage,
@@ -123,13 +126,24 @@ class CustomRequestViewSet(viewsets.ModelViewSet):
         # Stage 1: Visible ONLY to client who created it and Admin. NEVER visible to staff.
         if getattr(user, 'role', None) == 'staff':
             return CustomRequest.objects.none()
+        
+        # Strictly scope to the logged-in client's own requests
+        user_email = (user.email or '').strip()
+        if user_email:
+            return CustomRequest.objects.filter(
+                Q(client=user) | Q(contact_email__iexact=user_email)
+            ).order_by('-created_at').distinct()
         return CustomRequest.objects.filter(client=user).order_by('-created_at')
 
     def perform_create(self, serializer):
         user = self.request.user if (self.request.user and self.request.user.is_authenticated) else None
         if not user:
             from apps.accounts.models import User
-            user = User.objects.filter(role='client').first()
+            contact_email = serializer.validated_data.get('contact_email') or self.request.data.get('contact_email')
+            if contact_email:
+                user = User.objects.filter(email__iexact=str(contact_email).strip()).first()
+            if not user:
+                user = User.objects.filter(role='client').first()
         serializer.save(client=user, status=CustomRequest.Status.NEW)
 
     @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny], url_path='upload-sketch')
@@ -413,6 +427,11 @@ class CustomRequestViewSet(viewsets.ModelViewSet):
 class OrderViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_permissions(self):
+        if self.action == 'download_deliverable_staff_admin':
+            return [permissions.AllowAny()]
+        return super().get_permissions()
+
     def get_serializer_class(self):
         user = self.request.user
         # STAGE 6 CRITICAL RULE: Staff receives StaffOrderSerializer (PRICE COMPLETELY REMOVED FROM JSON API RESPONSE)
@@ -426,12 +445,24 @@ class OrderViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = Order.objects.all().select_related('client', 'assigned_staff', 'product', 'custom_request').prefetch_related('milestones', 'deliverables', 'payment_stages')
 
-        if user.role == 'client':
+        if not user or not user.is_authenticated:
+            raw_token = self.request.query_params.get('token')
+            if raw_token:
+                try:
+                    from rest_framework_simplejwt.authentication import JWTAuthentication
+                    validated = JWTAuthentication().get_validated_token(raw_token)
+                    user = JWTAuthentication().get_user(validated)
+                    self.request.user = user
+                except Exception:
+                    pass
+
+        role = getattr(user, 'role', None)
+        if role == 'client':
             return queryset.filter(client=user).order_by('-created_at')
-        elif user.role == 'staff':
+        elif role == 'staff':
             # Staff only sees orders assigned to them
             return queryset.filter(assigned_staff=user).order_by('-created_at')
-        elif user.role == 'admin':
+        elif role == 'admin' or getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False):
             return queryset.order_by('-created_at')
         return Order.objects.none()
 
@@ -581,6 +612,70 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         return Response(StaffOrderSerializer(order, context={'request': request}).data)
 
+    # STAFF & ADMIN DELIVERABLE INSPECTION DOWNLOAD
+    @action(detail=True, methods=['get'], permission_classes=[permissions.AllowAny], url_path='deliverables/(?P<deliverable_id>[0-9]+)/download')
+    def download_deliverable_staff_admin(self, request, pk=None, deliverable_id=None):
+        try:
+            order = Order.objects.select_related('assigned_staff').get(pk=pk)
+        except Order.DoesNotExist:
+            return Response({"error": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        user = request.user
+
+        # Support token authentication from query param or Authorization header
+        if not user or not user.is_authenticated:
+            raw_token = request.query_params.get('token')
+            if not raw_token:
+                auth_hdr = request.headers.get('Authorization', '')
+                if auth_hdr.startswith('Bearer '):
+                    raw_token = auth_hdr.split('Bearer ')[1].strip()
+
+            if raw_token:
+                try:
+                    from rest_framework_simplejwt.authentication import JWTAuthentication
+                    validated = JWTAuthentication().get_validated_token(raw_token)
+                    user = JWTAuthentication().get_user(validated)
+                except Exception:
+                    user = None
+
+        is_admin = user and (getattr(user, 'role', None) == 'admin' or getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False))
+        is_assigned = user and (order.assigned_staff == user)
+        if not (is_admin or is_assigned):
+            return Response({"error": "Forbidden. Only assigned staff or studio admins may inspect CAD deliverables."}, status=status.HTTP_403_FORBIDDEN)
+
+        deliverable = order.deliverables.filter(id=deliverable_id).first()
+        if not deliverable or not deliverable.file:
+            return Response({"error": "Deliverable file not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            from apps.catalog.models import protected_cad_storage
+            if protected_cad_storage.exists(deliverable.file.name):
+                file_handle = protected_cad_storage.open(deliverable.file.name, 'rb')
+            else:
+                file_handle = deliverable.file.open('rb')
+
+            import os
+            raw_filename = os.path.basename(deliverable.file.name)
+            clean_filename = raw_filename
+            prefix = f"ord_{order.id}_{deliverable.file_type}_"
+            if clean_filename.startswith(prefix):
+                clean_filename = clean_filename[len(prefix):]
+            elif clean_filename.startswith(f"ord_{order.id}_"):
+                clean_filename = clean_filename[len(f"ord_{order.id}_"):]
+
+            content_type = 'application/octet-stream'
+            if clean_filename.lower().endswith('.mp4') or deliverable.file_type == 'video':
+                content_type = 'video/mp4'
+            elif clean_filename.lower().endswith('.stl'):
+                content_type = 'model/stl'
+
+            response = FileResponse(file_handle, content_type=content_type)
+            response['Content-Disposition'] = f'attachment; filename="{clean_filename}"'
+            response['Access-Control-Expose-Headers'] = 'Content-Disposition'
+            return response
+        except Exception as e:
+            return Response({"error": f"Unable to stream deliverable: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     # SUBMIT & COMPLETE JOB ACTION (Pending Admin QC)
     @action(detail=True, methods=['post'], permission_classes=[IsStaff], url_path='complete')
     def complete_order_action(self, request, pk=None):
@@ -621,10 +716,18 @@ class OrderViewSet(viewsets.ModelViewSet):
             order.admin_review_notes = notes
             order.save(update_fields=['status', 'quality_approved', 'admin_review_notes'])
 
+            OrderMilestone.objects.create(order=order, stage="3D CAD Preview Approved by Admin QC")
+
+            # Unlock Stage 1: Design Approval Milestone (30%) so client can review & settle
+            stage1 = order.payment_stages.filter(trigger_type="on_design_approval", status=OrderPaymentStage.Status.LOCKED).first()
+            if stage1:
+                stage1.status = OrderPaymentStage.Status.DUE
+                stage1.save(update_fields=['status'])
+
             create_notification(
                 recipient=order.client,
                 title="Design Preview Ready!",
-                body=f"Your 3D CAD design preview for Order #{order.id} is now ready for review!",
+                body=f"Your 3D CAD design preview for Order #{order.id} has passed Admin QC and is ready for review!",
                 notification_type="preview_ready",
                 related_order=order
             )
@@ -634,6 +737,8 @@ class OrderViewSet(viewsets.ModelViewSet):
             order.status = Order.Status.WITH_DESIGNER
             order.admin_review_notes = notes
             order.save(update_fields=['status', 'admin_review_notes'])
+
+            OrderMilestone.objects.create(order=order, stage=f"Admin QC Revision: {notes[:100]}")
 
             if order.assigned_staff:
                 create_notification(
@@ -647,7 +752,39 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         return Response({"error": "Invalid decision. Use 'approve' or 'reject'."}, status=status.HTTP_400_BAD_REQUEST)
 
-    # STAGE 12 — GENERATE 6-DIGIT OTP FOR CAD DOWNLOAD UPON 100% PAYMENT
+    # STAGE 11 — CLIENT 3D DESIGN PREVIEW APPROVAL
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated], url_path='approve-design-preview')
+    def approve_design_preview(self, request, pk=None):
+        order = self.get_object()
+        if order.client != request.user and getattr(request.user, 'role', None) != 'admin' and not getattr(request.user, 'is_superuser', False):
+            return Response({"error": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
+
+        from apps.payments.services import approve_design_preview_and_unlock_stage
+        approve_design_preview_and_unlock_stage(order)
+        return Response(ClientOrderSerializer(order, context={'request': request}).data)
+
+    # ADMIN TOGGLE DOWNLOAD PERMISSION
+    @action(detail=True, methods=['post'], permission_classes=[IsAdmin], url_path='toggle-download-permission')
+    def toggle_download_permission(self, request, pk=None):
+        order = self.get_object()
+        enabled = request.data.get('enabled')
+        if enabled is not None:
+            order.download_enabled_by_admin = bool(enabled)
+        else:
+            order.download_enabled_by_admin = not order.download_enabled_by_admin
+        order.save(update_fields=['download_enabled_by_admin'])
+
+        create_notification(
+            recipient=order.client,
+            title="CAD Download Enabled!" if order.download_enabled_by_admin else "CAD Download Locked",
+            body=f"Admin has {'enabled' if order.download_enabled_by_admin else 'disabled'} CAD file downloads for Order #{order.id}.",
+            notification_type="general",
+            related_order=order
+        )
+
+        return Response(AdminOrderSerializer(order, context={'request': request}).data)
+
+    # STAGE 12 — GENERATE 6-DIGIT OTP FOR CAD DOWNLOAD UPON 100% PAYMENT + ADMIN TOGGLE
     @action(detail=True, methods=['post'], permission_classes=[IsClient], url_path='request-otp')
     def request_order_otp(self, request, pk=None):
         from apps.payments.models import DownloadOTP
@@ -658,6 +795,19 @@ class OrderViewSet(viewsets.ModelViewSet):
         if unpaid_stages.exists():
             return Response({
                 "error": "All payment stages must be fully paid before generating secure CAD download OTP."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if Admin has toggled download permission ON
+        if not order.download_enabled_by_admin:
+            return Response({
+                "error": "Download permission is currently locked by studio administration. Please contact atelier support to enable your download."
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # Check if staff has uploaded production CAD deliverables
+        has_cad = order.deliverables.filter(file_type__in=['3dm', 'stl']).exists()
+        if not has_cad:
+            return Response({
+                "error": "The assigned CAD designer has not uploaded the production CAD files (.3DM / .STL) for this order yet. Download will become available once staff uploads them."
             }, status=status.HTTP_400_BAD_REQUEST)
 
         now = timezone.now()
@@ -675,36 +825,42 @@ class OrderViewSet(viewsets.ModelViewSet):
         )
 
         # Print OTP in terminal for dev verification
-        print("\n" + "=" * 70)
-        print(f"🔑 [TERMINAL OTP DEBUG LOG] CUSTOM ORDER CAD DOWNLOAD")
-        print(f"   Order ID:    #{order.id}")
-        print(f"   Buyer Email: {request.user.email}")
-        print(f"   VERIFICATION CODE (OTP): >>> {otp_code} <<<")
-        print("=" * 70 + "\n")
+        print("\n" + "=" * 70, flush=True)
+        print(f"[OTP DEBUG LOG] CUSTOM ORDER CAD DOWNLOAD", flush=True)
+        print(f"   Order ID:    #{order.id}", flush=True)
+        print(f"   Buyer Email: {request.user.email}", flush=True)
+        print(f"   VERIFICATION CODE (OTP): >>> {otp_code} <<<", flush=True)
+        print("=" * 70 + "\n", flush=True)
 
         try:
             send_mail(
-                subject=f"Verify Email to Unlock CAD Deliverable - Order #{order.id}",
+                subject=f"[Shiuli CAD Studio] Download OTP Code: {otp_code} for Order #{order.id}",
                 message=(
                     f"Hello {request.user.first_name or request.user.username},\n\n"
-                    f"Your custom CAD design Order #{order.id} is 100% paid and ready for delivery!\n\n"
-                    f"Your 6-digit email verification code is: {otp_code}\n\n"
-                    f"This code will expire in 10 minutes.\n\n"
-                    f"Warm regards,\nShiuli CAD Studio Security Team"
+                    f"Your custom CAD design Order #{order.id} is ready for download!\n\n"
+                    f"Your One-Time Security Code is: {otp_code}\n\n"
+                    f"This OTP will expire in 10 minutes. Enter this code on your dashboard to receive your single-use download link.\n\n"
+                    f"Warm regards,\nShiuli CAD Studio Atelier Support\nhello@shiulicadstudio.com"
                 ),
                 from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com'),
                 recipient_list=[request.user.email],
-                fail_silently=True
+                fail_silently=False
             )
+            print(f"[EMAIL SUCCESS] Dispatched OTP code {otp_code} to {request.user.email} via Gmail SMTP.", flush=True)
         except Exception as e:
-            print(f"[EMAIL WARNING] Failed to send order OTP email: {e}")
+            print(f"[EMAIL ERROR] Google SMTP failed to deliver OTP email to {request.user.email}: {e}", flush=True)
 
-        return Response({
+        resp_data = {
             "message": f"Verification code sent to {request.user.email}.",
-            "expires_in_seconds": 600
-        })
+            "expires_in_seconds": 600,
+            "masked_email": request.user.email[:2] + "***" + request.user.email[request.user.email.find('@'):] if '@' in request.user.email else request.user.email
+        }
+        if getattr(settings, 'DEBUG', True):
+            resp_data["debug_otp"] = otp_code
 
-    # STAGE 12 — VERIFY 6-DIGIT OTP AND GENERATE SECURE DOWNLOAD TOKEN
+        return Response(resp_data)
+
+    # STAGE 12 — VERIFY 6-DIGIT OTP AND GENERATE SECURE SINGLE-USE DOWNLOAD TOKEN
     @action(detail=True, methods=['post'], permission_classes=[IsClient], url_path='verify-otp')
     def verify_order_otp(self, request, pk=None):
         from apps.payments.models import DownloadOTP, DownloadToken
@@ -732,6 +888,12 @@ class OrderViewSet(viewsets.ModelViewSet):
         otp_obj.is_verified = True
         otp_obj.save(update_fields=['is_verified'])
 
+        # USER REQUIREMENT:
+        # Immediately turn off admin download toggle so button disappears from customer portal
+        order.download_enabled_by_admin = False
+        order.download_count += 1
+        order.save(update_fields=['download_enabled_by_admin', 'download_count'])
+
         # Generate single-use DownloadToken
         raw_token = secrets.token_urlsafe(32)
         expires_at = now + timedelta(hours=48)
@@ -744,34 +906,46 @@ class OrderViewSet(viewsets.ModelViewSet):
             is_used=False
         )
 
-        download_url = f"http://localhost:3000/download/{raw_token}"
+        origin = request.META.get('HTTP_ORIGIN') or request.META.get('HTTP_REFERER')
+        if origin:
+            from urllib.parse import urlparse
+            parsed = urlparse(origin)
+            base_url = f"{parsed.scheme}://{parsed.netloc}"
+        else:
+            base_url = "http://localhost:3000"
+        download_url = f"{base_url}/download/{raw_token}"
 
-        print("\n" + "=" * 70)
-        print(f"🔗 [TERMINAL SECURE DOWNLOAD LINK LOG] CUSTOM ORDER")
-        print(f"   Order ID:    #{order.id}")
-        print(f"   Buyer Email: {request.user.email}")
-        print(f"   DOWNLOAD LINK: >>> {download_url} <<<")
-        print("=" * 70 + "\n")
+        print("\n" + "=" * 70, flush=True)
+        print(f"[SECURE DOWNLOAD LINK LOG] CUSTOM ORDER", flush=True)
+        print(f"   Order ID:    #{order.id}", flush=True)
+        print(f"   Buyer Email: {request.user.email}", flush=True)
+        print(f"   DOWNLOAD LINK: >>> {download_url} <<<", flush=True)
+        print("=" * 70 + "\n", flush=True)
 
         try:
             send_mail(
-                subject=f"Your Secure CAD Download Link - Order #{order.id}",
+                subject=f"[Shiuli CAD Studio] Your Single-Use CAD Download Link - Order #{order.id}",
                 message=(
                     f"Hello {request.user.first_name or request.user.username},\n\n"
-                    f"Your email verification is successful!\n\n"
+                    f"Your email verification is confirmed!\n\n"
                     f"Here is your single-use secure CAD download link for Order #{order.id}:\n\n"
                     f"{download_url}\n\n"
-                    f"This link is valid for 48 hours and locked to your email account ({request.user.email}).\n\n"
-                    f"Warm regards,\nShiuli CAD Studio Security Team"
+                    f"IMPORTANT SECURITY NOTICE:\n"
+                    f"- This link can be used to download your production files (.3DM / .STL) ONCE only.\n"
+                    f"- After downloading, this link automatically self-destructs and cannot be opened again.\n"
+                    f"- If you need to download your CAD assets again in the future, please contact studio administration to re-authorize download access.\n\n"
+                    f"Warm regards,\nShiuli CAD Studio Master Atelier\nhello@shiulicadstudio.com"
                 ),
                 from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com'),
                 recipient_list=[request.user.email],
-                fail_silently=True
+                fail_silently=False
             )
+            print(f"[EMAIL SUCCESS] Dispatched single-use download link to {request.user.email} via Gmail SMTP.", flush=True)
         except Exception as e:
-            print(f"[EMAIL WARNING] Failed to send order download token email: {e}")
+            print(f"[EMAIL ERROR] Google SMTP failed to deliver download link email to {request.user.email}: {e}", flush=True)
 
         return Response({
-            "message": f"Verified! Single-use secure download link sent to {request.user.email}.",
-            "download_token": raw_token
+            "message": f"Verification confirmed! Single-use download link sent to {request.user.email}. Note: the link will expire immediately after first download.",
+            "download_token": raw_token,
+            "download_url": download_url
         })
