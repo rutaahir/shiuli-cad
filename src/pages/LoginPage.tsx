@@ -19,6 +19,7 @@ const BRAND_QUOTES = [
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) => {
   const { login } = useAuth();
+  const [userType, setUserType] = useState<'client' | 'staff'>('client');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -38,7 +39,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
     setErrorMessage(null);
 
     if (!email.trim()) {
-      setErrorMessage('Please enter your email address');
+      setErrorMessage('Please enter your email address or username');
       return;
     }
     if (!password) {
@@ -49,8 +50,24 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
     setIsLoading(true);
     try {
       const res = await login(email, password);
+      const role = (res?.role || res?.user?.role || 'client').toLowerCase();
+
+      // Enforce Tab-Role Alignment
+      if (userType === 'staff') {
+        if (role !== 'staff' && role !== 'admin') {
+          setIsLoading(false);
+          setErrorMessage('This account is registered as a Client. Please switch to the Client Login tab to sign in.');
+          return;
+        }
+      } else if (userType === 'client') {
+        if (role === 'staff' || role === 'admin') {
+          setIsLoading(false);
+          setErrorMessage('This is a Staff/Modeller account. Please switch to the Staff / Modeller tab to sign in.');
+          return;
+        }
+      }
+
       setIsLoading(false);
-      const role = res?.role || res?.user?.role;
       if (role === 'admin') {
         onNavigate('admin');
       } else if (role === 'staff') {
@@ -159,11 +176,41 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
           {/* Form Header */}
           <div className="space-y-2">
             <h1 className="font-serif text-3xl sm:text-4xl text-[#FAF8F3] tracking-wide">
-              Welcome Back
+              {userType === 'staff' ? 'Staff & Designer Portal' : 'Client Atelier Sign In'}
             </h1>
             <p className="text-xs text-[#C9C2A6] font-light leading-relaxed">
-              Sign in to continue your jewellery journey, access your ready CAD library, and track custom orders.
+              {userType === 'staff'
+                ? 'Sign in to access your CAD Workbench & active job pool'
+                : 'Sign in to access your ready CAD library, track custom orders & download files'}
             </p>
+          </div>
+
+          {/* User Role Selector Tab */}
+          <div className="flex rounded-xl bg-[#060D22] p-1 border border-[#D4AF37]/20">
+            <button
+              type="button"
+              onClick={() => {
+                setUserType('client');
+                setErrorMessage(null);
+              }}
+              className={`flex-1 py-2 text-xs font-semibold rounded-lg tracking-wider transition-all cursor-pointer ${
+                userType === 'client' ? 'bg-[#D4AF37] text-[#0B1330] shadow-md font-bold' : 'text-[#C9C2A6] hover:text-white'
+              }`}
+            >
+              Client Login
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setUserType('staff');
+                setErrorMessage(null);
+              }}
+              className={`flex-1 py-2 text-xs font-semibold rounded-lg tracking-wider transition-all cursor-pointer ${
+                userType === 'staff' ? 'bg-[#D4AF37] text-[#0B1330] shadow-md font-bold' : 'text-[#C9C2A6] hover:text-white'
+              }`}
+            >
+              Staff / Modeller
+            </button>
           </div>
 
           {/* Calm Error Banner */}

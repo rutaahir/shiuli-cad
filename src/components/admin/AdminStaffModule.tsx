@@ -20,6 +20,11 @@ import {
   Check,
   RefreshCw,
   Loader2,
+  Briefcase,
+  ArrowRight,
+  UserMinus,
+  UserCheck,
+  Trash2,
 } from 'lucide-react';
 
 interface AdminStaffModuleProps {
@@ -27,6 +32,7 @@ interface AdminStaffModuleProps {
   onUpdateStaffLimit: (staffId: string, newLimit: number) => void;
   onToggleStaffStatus: (staffId: string) => void;
   onAddStaff: (newStaff: StaffMember) => void;
+  onDeleteStaff?: (staffId: string) => void;
   escalationTimerMinutes: number;
   onChangeEscalationTimer: (mins: number) => void;
   assignmentMode: 'first-accept' | 'least-loaded';
@@ -38,18 +44,59 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
   onUpdateStaffLimit,
   onToggleStaffStatus,
   onAddStaff,
+  onDeleteStaff,
   escalationTimerMinutes,
   onChangeEscalationTimer,
   assignmentMode,
   onChangeAssignmentMode,
 }) => {
-  const [subTab, setSubTab] = useState<'all' | 'board' | 'rules' | 'performance'>('board');
+  const [subTab, setSubTab] = useState<'board' | 'all' | 'rules' | 'performance'>('board');
   const [loadFilter, setLoadFilter] = useState<'all' | 'available' | 'full'>('all');
   const [showAddDrawer, setShowAddDrawer] = useState(false);
 
   // Dynamic Staff List State
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [isLoadingStaff, setIsLoadingStaff] = useState(true);
+
+  // Deletion state
+  const [deletingStaff, setDeletingStaff] = useState<StaffMember | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Assigned Jobs Drawer State
+  const [selectedStaffForJobs, setSelectedStaffForJobs] = useState<StaffMember | null>(null);
+  const [reassigningJobId, setReassigningJobId] = useState<number | null>(null);
+  const [targetModellerId, setTargetModellerId] = useState<string>('');
+  const [isReassignSubmitting, setIsReassignSubmitting] = useState(false);
+  const [updatingLimitId, setUpdatingLimitId] = useState<string | null>(null);
+
+  const handleConfirmDelete = async () => {
+    if (!deletingStaff || isDeleting) return;
+    setIsDeleting(true);
+    const targetId = deletingStaff.id;
+    const targetName = deletingStaff.name;
+
+    try {
+      // 1. Local & appStore update
+      const updated = appStore.deleteStaff(targetId);
+      setStaffMembers(updated);
+      if (onDeleteStaff) onDeleteStaff(targetId);
+
+      // 2. Call backend API endpoint if connected
+      try {
+        await api.deleteStaff(targetId);
+      } catch (apiErr) {
+        console.warn('Backend deleteStaff API call warning:', apiErr);
+      }
+
+      setSuccessToast(`Staff member "${targetName}" has been permanently deleted.`);
+      setTimeout(() => setSuccessToast(null), 3500);
+    } catch (err: any) {
+      alert(err?.message || 'Failed to delete staff member.');
+    } finally {
+      setIsDeleting(false);
+      setDeletingStaff(null);
+    }
+  };
 
   // Form State
   const [fullName, setFullName] = useState('');
@@ -91,7 +138,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
         jobsCompleted: item.total_jobs_completed || 0,
         rating: item.rating_average ? parseFloat(item.rating_average) : 5.0,
         totalEarnings: 0,
-        activeJobs: [],
+        activeJobs: item.active_jobs || [],
       }));
       setStaffMembers(mapped);
       appStore.saveStaffList(mapped);
@@ -168,8 +215,11 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
     const emailPrefix = email.trim().split('@')[0].toLowerCase().replace(/[^a-z0-9._-]/g, '_');
     const derivedUsername = `${emailPrefix}_${Math.floor(100 + Math.random() * 900)}`;
 
+    let apiResult: any = null;
+    let hasFieldErrors = false;
+
     try {
-      const res: any = await api.createStaff({
+      apiResult = await api.createStaff({
         username: derivedUsername,
         email: email.trim(),
         password: password,
@@ -179,7 +229,27 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
         max_concurrent_jobs: Number(maxJobLimit),
         specialty_tags: specialtyTags.trim() || 'CAD Modeller',
       });
+    } catch (apiErr: any) {
+      console.warn('Backend API createStaff warning, completing via local store fallback:', apiErr);
+      if (apiErr?.fieldErrors) {
+        const mappedErrors: typeof fieldErrors = {};
+        if (apiErr.fieldErrors.email) mappedErrors.email = apiErr.fieldErrors.email[0];
+        if (apiErr.fieldErrors.username) mappedErrors.fullName = apiErr.fieldErrors.username[0];
+        if (apiErr.fieldErrors.password) mappedErrors.password = apiErr.fieldErrors.password[0];
+        if (apiErr.fieldErrors.phone_number) mappedErrors.phoneNumber = apiErr.fieldErrors.phone_number[0];
+        if (Object.keys(mappedErrors).length > 0) {
+          hasFieldErrors = true;
+          setFieldErrors(mappedErrors);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+    }
 
+    if (hasFieldErrors) return;
+
+    try {
+      const res = apiResult;
       const newMember: StaffMember = {
         id: (res?.id || `STF-${Date.now()}`).toString(),
         name: `${res?.first_name || firstName} ${res?.last_name || lastName}`.trim() || derivedUsername,
@@ -196,9 +266,20 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
         activeJobs: [],
       };
 
-      const updated = [newMember, ...staffMembers];
+      // Register account in appStore for login verification
+      appStore.saveUserAccount({
+        email: email.trim(),
+        username: derivedUsername,
+        password: password,
+        role: 'staff',
+        first_name: firstName,
+        last_name: lastName,
+        phone_number: phoneNumber.trim(),
+      });
+
+      // Update staff list cleanly through store deduplication
+      const updated = appStore.addStaff(newMember);
       setStaffMembers(updated);
-      appStore.saveStaffList(updated);
       onAddStaff(newMember);
 
       setSuccessToast(`${fullName} has been added to your team successfully!`);
@@ -213,20 +294,10 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
       setPassword('');
       setShowAddDrawer(false);
 
-      // Re-fetch live list to ensure complete backend alignment
-      await fetchStaffList();
+      // Try re-fetching live list if API available
+      fetchStaffList().catch(() => {});
     } catch (err: any) {
-      if (err.fieldErrors) {
-        const mappedErrors: typeof fieldErrors = {};
-        if (err.fieldErrors.email) mappedErrors.email = err.fieldErrors.email[0];
-        if (err.fieldErrors.username) mappedErrors.fullName = err.fieldErrors.username[0];
-        if (err.fieldErrors.password) mappedErrors.password = err.fieldErrors.password[0];
-        if (err.fieldErrors.phone_number) mappedErrors.phoneNumber = err.fieldErrors.phone_number[0];
-        mappedErrors.general = err.message;
-        setFieldErrors(mappedErrors);
-      } else {
-        setFieldErrors({ general: err.message || 'Failed to create staff member.' });
-      }
+      setFieldErrors({ general: err.message || 'Failed to create staff member.' });
     } finally {
       setIsSubmitting(false);
     }
@@ -256,12 +327,16 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
 
   // Live Limit Update with Optimistic UI & Parent State Sync
   const handleUpdateLimit = async (staffId: string, newLimit: number) => {
-    const safeLimit = Math.max(1, newLimit);
-    const previousStaff = [...staffMembers];
+    const safeLimit = Math.max(1, Math.min(20, newLimit));
+    const currentStaff = staffMembers.find((s) => s.id === staffId);
+    if (!currentStaff || currentStaff.maxJobLimit === safeLimit) return;
+
+    setUpdatingLimitId(staffId);
+
+    // 1. Optimistically update local view and localStorage
     const updatedStaff = staffMembers.map((s) =>
       s.id === staffId ? { ...s, maxJobLimit: safeLimit } : s
     );
-    // 1. Optimistically update local view and localStorage
     setStaffMembers(updatedStaff);
     appStore.saveStaffList(updatedStaff);
     // 2. Notify SuperAdminPage parent state
@@ -269,12 +344,52 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
 
     try {
       await api.updateStaff(staffId, { max_concurrent_jobs: safeLimit });
-    } catch (err) {
-      console.warn('Backend updateStaff limit failed, reverting:', err);
-      setStaffMembers(previousStaff);
-      appStore.saveStaffList(previousStaff);
-      const prevLimit = previousStaff.find((s) => s.id === staffId)?.maxJobLimit || 2;
-      onUpdateStaffLimit(staffId, prevLimit);
+      setSuccessToast(`Job limit updated to ${safeLimit} for ${currentStaff.name}`);
+      setTimeout(() => setSuccessToast(null), 2500);
+    } catch (err: any) {
+      console.error('Backend updateStaff limit failed:', err);
+      // Keep optimistic update in localStorage but show error toast
+      setSuccessToast(`⚠ Limit updated locally — backend sync failed: ${err?.message || 'Unknown error'}`);
+      setTimeout(() => setSuccessToast(null), 4000);
+    } finally {
+      setUpdatingLimitId(null);
+    }
+  };
+
+  const handleOpenStaffJobs = (staff: StaffMember) => {
+    setSelectedStaffForJobs(staff);
+    setReassigningJobId(null);
+    setTargetModellerId('');
+  };
+
+  const handleReassignJob = async (orderId: number, newStaffId: string | null) => {
+    setIsReassignSubmitting(true);
+    try {
+      await api.request(`/orders/${orderId}/reassign/`, {
+        method: 'POST',
+        body: JSON.stringify({ staff_id: newStaffId }),
+      });
+      setSuccessToast(newStaffId ? 'Job reassigned to modeller successfully!' : 'Job released back to open pool.');
+      setTimeout(() => setSuccessToast(null), 4000);
+      setReassigningJobId(null);
+      setTargetModellerId('');
+      // Refresh staff list
+      await fetchStaffList();
+      // Also update selectedStaffForJobs with fresh data
+      const freshData: any = await api.getStaffList();
+      const raw = Array.isArray(freshData) ? freshData : (freshData?.results || []);
+      const current = raw.find((s: any) => s.id.toString() === selectedStaffForJobs?.id);
+      if (current) {
+        setSelectedStaffForJobs(prev => prev ? {
+          ...prev,
+          currentLoad: current.current_load || 0,
+          activeJobs: current.active_jobs || [],
+        } : null);
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Failed to reassign job.');
+    } finally {
+      setIsReassignSubmitting(false);
     }
   };
 
@@ -449,15 +564,28 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                         </div>
                       </div>
 
-                      {isFull ? (
-                        <span className="px-2.5 py-1 rounded-full bg-[#D14343]/10 text-[#D14343] font-bold text-[10px] uppercase">
-                          🔴 FULL
-                        </span>
-                      ) : (
-                        <span className="px-2.5 py-1 rounded-full bg-[#1F9D66]/10 text-[#1F9D66] font-bold text-[10px] uppercase animate-pulse">
-                          🟢 AVAILABLE
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {isFull ? (
+                          <span className="px-2.5 py-1 rounded-full bg-[#D14343]/10 text-[#D14343] font-bold text-[10px] uppercase">
+                            🔴 FULL
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full bg-[#1F9D66]/10 text-[#1F9D66] font-bold text-[10px] uppercase animate-pulse">
+                            🟢 AVAILABLE
+                          </span>
+                        )}
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeletingStaff(staff);
+                          }}
+                          className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white border border-rose-200 transition-all cursor-pointer shadow-sm"
+                          title="Permanently Delete Staff Member"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Circular Slots Indicator */}
@@ -487,6 +615,14 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                         })}
                       </div>
                     </div>
+
+                    <button
+                      onClick={() => handleOpenStaffJobs(staff)}
+                      className="w-full py-2 px-3 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] hover:bg-[#E5E7EF] font-semibold text-xs text-[#0D1B4C] flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+                    >
+                      <Briefcase className="w-3.5 h-3.5 text-[#C9A227]" />
+                      <span>Manage Assigned Jobs ({staff.currentLoad})</span>
+                    </button>
                   </div>
 
                   {/* Inline Limit Adjuster Stepper (+ / -) */}
@@ -494,23 +630,31 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                     <span className="text-xs font-medium text-[#6B7280]">Max Limit:</span>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() =>
-                          handleUpdateLimit(staff.id, Math.max(1, staff.maxJobLimit - 1))
-                        }
-                        className="w-7 h-7 rounded-lg bg-[#F6F7FB] border border-[#E5E7EF] font-bold text-xs hover:bg-[#E5E7EF]"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          handleUpdateLimit(staff.id, staff.maxJobLimit - 1);
+                        }}
+                        disabled={staff.maxJobLimit <= 1 || updatingLimitId === staff.id}
+                        className="w-7 h-7 rounded-lg bg-[#F6F7FB] border border-[#E5E7EF] font-bold text-xs hover:bg-[#0D1B4C] hover:text-white hover:border-[#0D1B4C] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 active:scale-90 flex items-center justify-center"
+                        title="Decrease job limit"
                       >
-                        -
+                        {updatingLimitId === staff.id ? '·' : '−'}
                       </button>
-                      <span className="font-mono font-bold text-sm text-[#1E2230]">
+                      <span className={`font-mono font-bold text-sm min-w-[24px] text-center transition-colors duration-200 ${updatingLimitId === staff.id ? 'text-[#C9A227]' : 'text-[#1E2230]'}`}>
                         {staff.maxJobLimit}
                       </span>
                       <button
-                        onClick={() =>
-                          handleUpdateLimit(staff.id, staff.maxJobLimit + 1)
-                        }
-                        className="w-7 h-7 rounded-lg bg-[#F6F7FB] border border-[#E5E7EF] font-bold text-xs hover:bg-[#E5E7EF]"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          handleUpdateLimit(staff.id, staff.maxJobLimit + 1);
+                        }}
+                        disabled={staff.maxJobLimit >= 20 || updatingLimitId === staff.id}
+                        className="w-7 h-7 rounded-lg bg-[#F6F7FB] border border-[#E5E7EF] font-bold text-xs hover:bg-[#0D1B4C] hover:text-white hover:border-[#0D1B4C] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 active:scale-90 flex items-center justify-center"
+                        title="Increase job limit"
                       >
-                        +
+                        {updatingLimitId === staff.id ? '·' : '+'}
                       </button>
                     </div>
                   </div>
@@ -563,8 +707,17 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                       </span>
                     </td>
                     <td className="py-3.5 px-4">
-                      <div className="font-mono font-bold text-[#1E2230]">
-                        {staff.currentLoad} / {staff.maxJobLimit}
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-[#1E2230]">
+                          {staff.currentLoad} / {staff.maxJobLimit}
+                        </span>
+                        <button
+                          onClick={() => handleOpenStaffJobs(staff)}
+                          className="px-2 py-0.5 rounded bg-[#F6F7FB] border border-[#E5E7EF] hover:bg-[#0D1B4C] hover:text-white font-semibold text-[10px] text-[#0D1B4C] transition-colors"
+                          title="Manage Active Jobs"
+                        >
+                          Jobs ({staff.currentLoad})
+                        </button>
                       </div>
                     </td>
                     <td className="py-3.5 px-4">
@@ -588,21 +741,42 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                     <td className="py-3.5 px-4 text-right">
                       <div className="inline-flex items-center gap-1.5 justify-end">
                         <button
-                          onClick={() => handleUpdateLimit(staff.id, Math.max(1, staff.maxJobLimit - 1))}
-                          className="w-7 h-7 rounded-lg bg-[#F6F7FB] border border-[#E5E7EF] font-bold text-xs hover:bg-[#E5E7EF] text-[#6B7280] flex items-center justify-center transition-all"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            handleUpdateLimit(staff.id, staff.maxJobLimit - 1);
+                          }}
+                          disabled={staff.maxJobLimit <= 1 || updatingLimitId === staff.id}
+                          className="w-7 h-7 rounded-lg bg-[#F6F7FB] border border-[#E5E7EF] font-bold text-xs hover:bg-[#0D1B4C] hover:text-white hover:border-[#0D1B4C] text-[#6B7280] flex items-center justify-center transition-all duration-200 active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed"
                           title="Decrease Limit"
                         >
-                          -
+                          {updatingLimitId === staff.id ? '·' : '−'}
                         </button>
-                        <span className="font-mono font-bold text-xs text-[#1E2230] min-w-[20px] text-center">
+                        <span className={`font-mono font-bold text-xs min-w-[24px] text-center transition-colors duration-200 ${updatingLimitId === staff.id ? 'text-[#C9A227]' : 'text-[#1E2230]'}`}>
                           {staff.maxJobLimit}
                         </span>
                         <button
-                          onClick={() => handleUpdateLimit(staff.id, staff.maxJobLimit + 1)}
-                          className="w-7 h-7 rounded-lg bg-[#F6F7FB] border border-[#E5E7EF] font-bold text-xs hover:bg-[#E5E7EF] text-[#6B7280] flex items-center justify-center transition-all"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            handleUpdateLimit(staff.id, staff.maxJobLimit + 1);
+                          }}
+                          disabled={staff.maxJobLimit >= 20 || updatingLimitId === staff.id}
+                          className="w-7 h-7 rounded-lg bg-[#F6F7FB] border border-[#E5E7EF] font-bold text-xs hover:bg-[#0D1B4C] hover:text-white hover:border-[#0D1B4C] text-[#6B7280] flex items-center justify-center transition-all duration-200 active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed"
                           title="Increase Limit"
                         >
-                          +
+                          {updatingLimitId === staff.id ? '·' : '+'}
+                        </button>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeletingStaff(staff);
+                          }}
+                          className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white border border-rose-200 transition-all cursor-pointer ml-1.5 shadow-sm"
+                          title="Permanently Delete Staff Member"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>
@@ -821,6 +995,218 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
           </div>
         </div>
       )}
+
+      {/* PART 2 — ASSIGNED JOBS MANAGEMENT DRAWER */}
+      {selectedStaffForJobs && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-end">
+          <div className="w-full max-w-lg bg-white h-full shadow-2xl p-6 overflow-y-auto space-y-6 animate-in slide-in-from-right duration-250 text-[#1E2230]">
+            <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-4">
+              <div className="flex items-center gap-3">
+                <img
+                  src={selectedStaffForJobs.avatar}
+                  alt=""
+                  className="w-11 h-11 rounded-full object-cover border-2 border-[#0D1B4C]"
+                />
+                <div>
+                  <h3 className="font-serif text-lg font-bold text-[#1E2230]">
+                    {selectedStaffForJobs.name}
+                  </h3>
+                  <p className="text-xs text-[#6B7280]">
+                    {selectedStaffForJobs.role} • <span className="font-mono font-bold text-[#0D1B4C]">{selectedStaffForJobs.currentLoad} / {selectedStaffForJobs.maxJobLimit} Jobs</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedStaffForJobs(null)}
+                className="text-[#6B7280] hover:text-[#1E2230] p-1.5 rounded-lg hover:bg-[#F6F7FB]"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Capacity Banner */}
+            <div className="p-3.5 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <Briefcase className="w-4 h-4 text-[#C9A227]" />
+                <span className="font-medium text-[#1E2230]">Current Assigned Workbench</span>
+              </div>
+              <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase ${
+                selectedStaffForJobs.currentLoad >= selectedStaffForJobs.maxJobLimit
+                  ? 'bg-rose-500/10 text-rose-600'
+                  : 'bg-emerald-500/10 text-emerald-600'
+              }`}>
+                {selectedStaffForJobs.currentLoad >= selectedStaffForJobs.maxJobLimit ? 'Full Capacity' : 'Available for Work'}
+              </span>
+            </div>
+
+            {/* Job List */}
+            <div className="space-y-4">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-[#6B7280] font-mono">
+                Active Assigned Designs ({selectedStaffForJobs.activeJobs?.length || 0})
+              </h4>
+
+              {(!selectedStaffForJobs.activeJobs || selectedStaffForJobs.activeJobs.length === 0) ? (
+                <div className="p-8 text-center bg-[#F6F7FB] rounded-2xl border border-dashed border-[#E5E7EF] space-y-2">
+                  <Briefcase className="w-8 h-8 text-[#6B7280] mx-auto opacity-50" />
+                  <p className="font-medium text-xs text-[#1E2230]">No Active Jobs Assigned</p>
+                  <p className="text-[11px] text-[#6B7280] max-w-xs mx-auto">
+                    This modeller currently has no active custom CAD jobs on their workbench. They are ready to claim designs from the open job pool.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {selectedStaffForJobs.activeJobs.map((job: any) => (
+                    <div
+                      key={job.id}
+                      className="p-4 rounded-xl bg-white border border-[#E5E7EF] shadow-sm space-y-3 hover:border-[#C9A227]/40 transition-all"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs font-bold text-[#0D1B4C]">#{job.id}</span>
+                            <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold uppercase">
+                              {job.status.replace(/_/g, ' ')}
+                            </span>
+                          </div>
+                          <h5 className="font-bold text-xs text-[#1E2230] mt-1">{job.title}</h5>
+                          <p className="text-[11px] text-[#6B7280]">
+                            Client: {job.client_name} ({job.client_email})
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Reassignment Controls */}
+                      {reassigningJobId === job.id ? (
+                        <div className="p-3 bg-[#F6F7FB] rounded-xl border border-[#E5E7EF] space-y-2">
+                          <label className="text-[11px] font-semibold text-[#1E2230] block">
+                            Select New CAD Modeller:
+                          </label>
+                          <select
+                            value={targetModellerId}
+                            onChange={(e) => setTargetModellerId(e.target.value)}
+                            className="w-full px-2.5 py-1.5 text-xs bg-white border border-[#E5E7EF] rounded-lg focus:outline-none focus:border-[#0D1B4C]"
+                          >
+                            <option value="">-- Choose Modeller --</option>
+                            {staffMembers
+                              .filter((s) => s.id !== selectedStaffForJobs.id)
+                              .map((s) => (
+                                <option key={s.id} value={s.id}>
+                                  {s.name} ({s.currentLoad}/{s.maxJobLimit} jobs)
+                                </option>
+                              ))}
+                          </select>
+                          <div className="flex justify-end gap-2 pt-1">
+                            <button
+                              onClick={() => setReassigningJobId(null)}
+                              disabled={isReassignSubmitting}
+                              className="px-2.5 py-1 text-[11px] text-[#6B7280] hover:text-[#1E2230]"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => handleReassignJob(job.id, targetModellerId)}
+                              disabled={!targetModellerId || isReassignSubmitting}
+                              className="btn-gold-luxury px-3 py-1 text-[11px] font-bold rounded-lg uppercase disabled:opacity-50"
+                            >
+                              {isReassignSubmitting ? 'Reassigning...' : 'Confirm Reassign'}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between pt-2 border-t border-[#E5E7EF] text-xs">
+                          <button
+                            onClick={() => {
+                              setReassigningJobId(job.id);
+                              setTargetModellerId('');
+                            }}
+                            className="text-[#0D1B4C] hover:text-[#C9A227] font-semibold flex items-center gap-1 text-[11px] transition-colors"
+                          >
+                            <UserCheck className="w-3.5 h-3.5" />
+                            <span>Reassign Modeller</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Release Order #${job.id} back to the unassigned open pool?`)) {
+                                handleReassignJob(job.id, null);
+                              }
+                            }}
+                            disabled={isReassignSubmitting}
+                            className="text-rose-600 hover:text-rose-700 font-semibold flex items-center gap-1 text-[11px] transition-colors"
+                          >
+                            <UserMinus className="w-3.5 h-3.5" />
+                            <span>Release to Open Pool</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-4 border-t border-[#E5E7EF] flex justify-end">
+              <button
+                onClick={() => setSelectedStaffForJobs(null)}
+                className="px-4 py-2 bg-[#F6F7FB] hover:bg-[#E5E7EF] text-[#1E2230] rounded-xl text-xs font-semibold"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Permanent Delete Staff Confirmation Modal */}
+      {deletingStaff && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-white rounded-3xl border border-[#E5E7EF] shadow-2xl p-6 sm:p-8 space-y-6 text-[#1E2230] relative overflow-hidden">
+            <div className="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-600 mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <div className="text-center space-y-2">
+              <h3 className="font-serif text-xl font-bold text-[#1E2230]">
+                Permanently Delete Staff Member?
+              </h3>
+              <p className="text-xs text-[#6B7280] leading-relaxed">
+                Are you sure you want to permanently delete <strong className="text-[#1E2230]">{deletingStaff.name}</strong> (<span className="font-mono text-[11px]">#{deletingStaff.id}</span>)?
+              </p>
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-[11px] font-medium text-left mt-3 leading-snug">
+                ⚠️ <strong>Warning:</strong> This will revoke all CAD workbench access, delete login credentials, and remove them from capacity load boards. This action cannot be undone.
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeletingStaff(null)}
+                disabled={isDeleting}
+                className="flex-1 py-3 px-4 rounded-xl border border-[#E5E7EF] bg-white hover:bg-[#F6F7FB] text-xs font-semibold text-[#1E2230] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="flex-1 py-3 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete Permanently</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+

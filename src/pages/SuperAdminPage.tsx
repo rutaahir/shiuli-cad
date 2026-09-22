@@ -80,6 +80,11 @@ export const SuperAdminPage: React.FC<SuperAdminPageProps> = ({ onNavigate, init
     setStaffList(updated);
   };
 
+  const handleDeleteStaff = (staffId: string) => {
+    const updated = appStore.deleteStaff(staffId);
+    setStaffList(updated);
+  };
+
   const handleMarkNotificationRead = (id: string) => {
     const updated = notifications.map((n) => (n.id === id ? { ...n, read: true } : n));
     setNotifications(updated);
@@ -149,6 +154,7 @@ export const SuperAdminPage: React.FC<SuperAdminPageProps> = ({ onNavigate, init
           onUpdateStaffLimit={handleUpdateStaffLimit}
           onToggleStaffStatus={handleToggleStaffStatus}
           onAddStaff={handleAddStaff}
+          onDeleteStaff={handleDeleteStaff}
           escalationTimerMinutes={escalationTimerMinutes}
           onChangeEscalationTimer={setEscalationTimerMinutes}
           assignmentMode={assignmentMode}

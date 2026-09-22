@@ -784,6 +784,71 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         return Response(AdminOrderSerializer(order, context={'request': request}).data)
 
+    # ADMIN ASSIGN / REASSIGN MODELLER OR RELEASE TO OPEN POOL
+    @action(detail=True, methods=['post'], permission_classes=[IsAdmin], url_path='reassign')
+    def reassign_staff(self, request, pk=None):
+        order = self.get_object()
+        staff_id = request.data.get('staff_id')
+
+        if not staff_id or str(staff_id).strip() in ['', 'null', '0', 'unassigned']:
+            # Release back to open pool
+            old_staff = order.assigned_staff
+            order.assigned_staff = None
+            order.status = Order.Status.IN_DESIGN
+            order.unassigned_since = timezone.now()
+            order.save(update_fields=['assigned_staff', 'status', 'unassigned_since'])
+
+            OrderMilestone.objects.create(
+                order=order,
+                stage=f"Released to Open Pool by Admin (Previously assigned to: {old_staff.username if old_staff else 'Unassigned'})"
+            )
+            return Response(AdminOrderSerializer(order, context={'request': request}).data)
+
+        from apps.accounts.models import User
+        # Resolve staff by id or username
+        staff_user = None
+        if str(staff_id).isdigit():
+            staff_user = User.objects.filter(id=int(staff_id), role=User.Role.STAFF).first()
+        if not staff_user:
+            staff_user = User.objects.filter(username=str(staff_id), role=User.Role.STAFF).first()
+
+        if not staff_user:
+            return Response({"error": f"CAD Modeller with ID or username '{staff_id}' not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Capacity check
+        profile = getattr(staff_user, 'staff_profile', None)
+        max_jobs = profile.max_concurrent_jobs if profile else 2
+        active_jobs = Order.objects.filter(assigned_staff=staff_user, status=Order.Status.WITH_DESIGNER).exclude(id=order.id).count()
+
+        force = request.data.get('force', False)
+        if active_jobs >= max_jobs and not force:
+            return Response({
+                "error": f"{staff_user.get_full_name() or staff_user.username} is at maximum capacity ({active_jobs}/{max_jobs} active jobs).",
+                "capacity_full": True,
+                "current_load": active_jobs,
+                "max_limit": max_jobs
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        order.assigned_staff = staff_user
+        order.status = Order.Status.WITH_DESIGNER
+        order.assigned_at = timezone.now()
+        order.save(update_fields=['assigned_staff', 'status', 'assigned_at'])
+
+        OrderMilestone.objects.create(
+            order=order,
+            stage=f"Assigned to CAD Modeller: {staff_user.get_full_name() or staff_user.username}"
+        )
+
+        create_notification(
+            recipient=staff_user,
+            title=f"New CAD Assignment: Order #{order.id}",
+            body=f"Studio Admin has assigned custom CAD Order #{order.id} to your workbench.",
+            notification_type="general",
+            related_order=order
+        )
+
+        return Response(AdminOrderSerializer(order, context={'request': request}).data)
+
     # STAGE 12 — GENERATE 6-DIGIT OTP FOR CAD DOWNLOAD UPON 100% PAYMENT + ADMIN TOGGLE
     @action(detail=True, methods=['post'], permission_classes=[IsClient], url_path='request-otp')
     def request_order_otp(self, request, pk=None):

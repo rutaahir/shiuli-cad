@@ -27,7 +27,6 @@ import { LazyImage } from '../components/motion/LazyImage';
 import { SkeletonShimmer } from '../components/motion/SkeletonShimmer';
 
 import { api } from '../services/api';
-import { sendOtpEmail } from '../services/emailService';
 import { OTPVerificationModal } from '../components/delivery/OTPVerificationModal';
 import { PaymentGatewayModal } from '../components/payment/PaymentGatewayModal';
 import { useAuth } from '../context/AuthContext';
@@ -210,11 +209,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
       return;
     }
 
-    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
     const recipientEmail = user.email || 'shahharshil3103@gmail.com';
-    sendOtpEmail(recipientEmail, generatedOtp, `CAD Download Access - ${product.title}`).catch((e) => {
-      console.warn('Failed to dispatch OTP email:', e);
-    });
 
     setPurchasing(true);
     try {
@@ -231,7 +226,6 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
         productTitle: product.title,
         maskedEmail: res.masked_email || recipientEmail.replace(/(.{2})(.*)(?=@)/, '$1***'),
         userEmail: recipientEmail,
-        debugOtp: generatedOtp,
       });
     } catch (err: any) {
       console.error('Purchase initiation failed:', err);

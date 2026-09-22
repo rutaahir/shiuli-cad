@@ -59,10 +59,27 @@ export const appStore = {
 
   // Staff Members
   getStaffList(): StaffMember[] {
-    return getStored<StaffMember[]>(KEYS.STAFF_LIST, []);
+    const raw = getStored<StaffMember[]>(KEYS.STAFF_LIST, []);
+    // Deduplicate by ID or Email
+    const uniqueMap = new Map<string, StaffMember>();
+    raw.forEach((s) => {
+      const key = (s.id || s.email || '').toString().toLowerCase();
+      if (key && !uniqueMap.has(key)) {
+        uniqueMap.set(key, s);
+      }
+    });
+    return Array.from(uniqueMap.values());
   },
   saveStaffList(staff: StaffMember[]) {
-    setStored(KEYS.STAFF_LIST, staff);
+    const uniqueMap = new Map<string, StaffMember>();
+    staff.forEach((s) => {
+      const key = (s.id || s.email || '').toString().toLowerCase();
+      if (key && !uniqueMap.has(key)) {
+        uniqueMap.set(key, s);
+      }
+    });
+    const uniqueList = Array.from(uniqueMap.values());
+    setStored(KEYS.STAFF_LIST, uniqueList);
   },
   updateStaffLimit(staffId: string, limit: number) {
     const list = this.getStaffList().map((s) =>
@@ -81,9 +98,71 @@ export const appStore = {
     return list;
   },
   addStaff(newStaff: StaffMember) {
-    const list = [newStaff, ...this.getStaffList()];
+    const current = this.getStaffList();
+    const exists = current.some(
+      (s) => s.id === newStaff.id || (s.email && s.email.toLowerCase() === newStaff.email.toLowerCase())
+    );
+    if (exists) {
+      const updated = current.map((s) =>
+        s.id === newStaff.id || (s.email && s.email.toLowerCase() === newStaff.email.toLowerCase()) ? newStaff : s
+      );
+      this.saveStaffList(updated);
+      return updated;
+    }
+    const list = [newStaff, ...current];
     this.saveStaffList(list);
     return list;
+  },
+  deleteStaff(staffId: string) {
+    const current = this.getStaffList();
+    const filtered = current.filter(
+      (s) => s.id.toString() !== staffId.toString()
+    );
+    this.saveStaffList(filtered);
+
+    // Also remove from local user accounts registry
+    const accounts = this.getUserAccounts();
+    const target = current.find((s) => s.id.toString() === staffId.toString());
+    if (target?.email) {
+      const filteredAccounts = accounts.filter(
+        (acc) => acc.email.toLowerCase() !== target.email.toLowerCase()
+      );
+      setStored('shiuli_store_user_accounts', filteredAccounts);
+    }
+    return filtered;
+  },
+
+  // User Accounts Registry for Login
+  getUserAccounts(): any[] {
+    return getStored<any[]>('shiuli_store_user_accounts', []);
+  },
+  saveUserAccount(acc: { email: string; username?: string; password?: string; role: string; first_name?: string; last_name?: string; phone_number?: string }) {
+    const list = this.getUserAccounts();
+    const filtered = list.filter((u) => u.email.toLowerCase() !== acc.email.toLowerCase() && u.username?.toLowerCase() !== acc.username?.toLowerCase());
+    const updated = [acc, ...filtered];
+    setStored('shiuli_store_user_accounts', updated);
+  },
+  findUserByCredentials(usernameOrEmail: string, password?: string): any | null {
+    const query = usernameOrEmail.trim().toLowerCase();
+    const list = this.getUserAccounts();
+    const match = list.find(
+      (u) =>
+        (u.email.toLowerCase() === query || u.username?.toLowerCase() === query) &&
+        (!password || !u.password || u.password === password)
+    );
+    if (match) {
+      return {
+        id: match.id || 99,
+        username: match.username || query.split('@')[0],
+        email: match.email,
+        first_name: match.first_name || 'Staff',
+        last_name: match.last_name || 'Modeller',
+        role: match.role || 'staff',
+        is_staff: match.role === 'staff' || match.role === 'admin',
+        is_active_staff: true,
+      };
+    }
+    return null;
   },
 
   // Design Approvals

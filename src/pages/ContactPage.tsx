@@ -51,7 +51,8 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
   const [honeypotWebsite, setHoneypotWebsite] = useState(''); // Hidden spam trap
 
   // Form Validation & Submission State
-  const [errors, setErrors] = useState<{ name?: string; email?: string; message?: string; general?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; email?: string; phone?: string; subject?: string; message?: string; general?: string }>({});
+  const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [buttonState, setButtonState] = useState<'idle' | 'loading' | 'success'>('idle');
   const [isSuccess, setIsSuccess] = useState(false);
@@ -127,7 +128,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
 
   // Client-side Validation
   const validateForm = () => {
-    const newErrors: { name?: string; email?: string; message?: string } = {};
+    const newErrors: { name?: string; email?: string; phone?: string; subject?: string; message?: string } = {};
 
     const nameErr = validateSingleField('name', name);
     if (nameErr) newErrors.name = nameErr;
@@ -135,11 +136,54 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
     const emailErr = validateSingleField('email', email);
     if (emailErr) newErrors.email = emailErr;
 
+    // Validate phone if user entered something
+    if (phone.trim()) {
+      const phoneErr = validateSingleField('phone', phone);
+      if (phoneErr) newErrors.phone = phoneErr;
+    }
+
+    const subjectErr = validateSingleField('subject', subject);
+    if (subjectErr) newErrors.subject = subjectErr;
+
     const messageErr = validateSingleField('message', message);
     if (messageErr) newErrors.message = messageErr;
 
     setErrors(newErrors);
+    // Mark all fields as touched on submit attempt
+    setTouchedFields(new Set(['name', 'email', 'phone', 'subject', 'message']));
     return Object.keys(newErrors).length === 0;
+  };
+
+  // Real-time single-field validation on blur
+  const handleFieldBlur = (fieldName: string, value: string) => {
+    setTouchedFields((prev) => new Set(prev).add(fieldName));
+    const err = validateSingleField(fieldName, value);
+    setErrors((prev) => {
+      const updated = { ...prev };
+      if (err) {
+        (updated as any)[fieldName] = err;
+      } else {
+        delete (updated as any)[fieldName];
+      }
+      return updated;
+    });
+  };
+
+  // Restrict phone input to digits, spaces, +, (, ), -
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    // Only allow digits, +, spaces, hyphens, parentheses
+    const filtered = raw.replace(/[^0-9+\s\-()]/g, '');
+    setPhone(filtered);
+    // Clear error while typing if previously touched
+    if (touchedFields.has('phone') && filtered.trim()) {
+      const err = validateSingleField('phone', filtered);
+      setErrors((prev) => {
+        const updated = { ...prev };
+        if (err) updated.phone = err; else delete updated.phone;
+        return updated;
+      });
+    }
   };
 
   // Submit Handler
@@ -208,6 +252,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
     setIsSuccess(false);
     setMessage('');
     setErrors({});
+    setTouchedFields(new Set());
   };
 
   return (
@@ -320,7 +365,8 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
                   id="contact-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  error={errors.name}
+                  onBlur={() => handleFieldBlur('name', name)}
+                  error={touchedFields.has('name') ? errors.name : undefined}
                   required
                 />
 
@@ -332,18 +378,29 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    error={errors.email}
+                    onBlur={() => handleFieldBlur('email', email)}
+                    error={touchedFields.has('email') ? errors.email : undefined}
                     required
                   />
 
-                  <FloatingLabelInput
-                    label="Phone Number (Optional)"
-                    id="contact-phone"
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+91 95747 87098"
-                  />
+                  <div className="space-y-1">
+                    <FloatingLabelInput
+                      label="Phone Number (Optional)"
+                      id="contact-phone"
+                      type="tel"
+                      value={phone}
+                      onChange={handlePhoneChange}
+                      onBlur={() => handleFieldBlur('phone', phone)}
+                      error={touchedFields.has('phone') ? errors.phone : undefined}
+                      placeholder="+91 95747 87098"
+                      maxLength={15}
+                    />
+                    {!errors.phone && phone.trim() && touchedFields.has('phone') && (
+                      <p className="text-[10px] text-emerald-400/80 font-light pl-1 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> Valid phone number
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 {/* Field 3: Subject Dropdown */}
@@ -371,25 +428,34 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
 
                 {/* Field 4: Message Textarea */}
                 <div className="space-y-1">
-                  <label className="block text-[11px] uppercase tracking-wider font-semibold text-[#F5E7A3] mb-1">
-                    Your Message / Inquiry Details *
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] uppercase tracking-wider font-semibold text-[#F5E7A3]">
+                      Your Message / Inquiry Details *
+                    </label>
+                    <span className={`text-[10px] font-mono transition-colors ${
+                      message.trim().length > 1000 ? 'text-rose-400' : message.trim().length >= 20 ? 'text-emerald-400/70' : 'text-[#C9C2A6]/40'
+                    }`}>
+                      {message.trim().length} / 1,000
+                    </span>
+                  </div>
                   <div className="relative group">
                     <textarea
                       rows={5}
                       required
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
+                      onBlur={() => handleFieldBlur('message', message)}
                       placeholder="Tell us about the custom CAD commission, stone specs, or order details..."
+                      maxLength={1200}
                       className={`w-full bg-[#060D24]/80 border ${
-                        errors.message ? 'border-rose-500/70' : 'border-[#D4AF37]/30 group-hover:border-[#D4AF37]/60'
-                      } rounded-xl p-4 text-sm text-[#FAF8F3] placeholder-[#C9C2A6]/40 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 transition-all duration-200`}
+                        (touchedFields.has('message') && errors.message) ? 'border-rose-500/70' : 'border-[#D4AF37]/30 group-hover:border-[#D4AF37]/60'
+                      } rounded-xl p-4 text-sm text-[#FAF8F3] placeholder-[#C9C2A6]/40 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 transition-all duration-200 resize-none`}
                     />
                     <div
                       className={`absolute bottom-1.5 left-3 right-3 h-[2px] bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] transition-transform duration-300 scale-x-0 group-focus-within:scale-x-100`}
                     />
                   </div>
-                  {errors.message && (
+                  {touchedFields.has('message') && errors.message && (
                     <p className="text-[11px] text-rose-400 font-light pl-1">{errors.message}</p>
                   )}
                 </div>

@@ -41,7 +41,9 @@ import { AIJewelleryPage } from './pages/AIJewelleryPage';
 import { PortfolioPage } from './pages/PortfolioPage';
 import { PricingPage } from './pages/PricingPage';
 
-import { MessageSquare, Phone, CheckCircle2, X } from 'lucide-react';
+import { FloatingQuickMenu } from './components/FloatingQuickMenu';
+
+import { CheckCircle2, X } from 'lucide-react';
 
 const DEFAULT_PRODUCT_ID = 'scs-ring-01';
 
@@ -595,37 +597,8 @@ function MainApp() {
         }}
       />
 
-      {/* Floating WhatsApp Live CAD Support Bubble */}
-      <div className="fixed bottom-6 right-6 z-40 flex items-center gap-3">
-        <a
-          href="https://wa.me/919574787098?text=Hello%20Shiuli%20CAD%20Studio%2C%20I%20have%20an%20inquiry%20regarding%20jewellery%20CAD%20files."
-          target="_blank"
-          rel="noreferrer"
-          className="group relative flex items-center gap-2.5 px-4 py-3 rounded-full bg-emerald-700 hover:bg-emerald-600 text-white shadow-[0_8px_25px_rgba(5,150,105,0.4)] border border-emerald-400/40 transition-all hover:scale-105"
-        >
-          <span className="relative flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75" />
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-200" />
-          </span>
-
-          <MessageSquare className="w-5 h-5 text-[#FAF8F3]" />
-
-          <span className="hidden sm:inline text-xs font-semibold tracking-wider uppercase">
-            Live CAD WhatsApp
-          </span>
-
-          {/* Tooltip on Hover */}
-          <div className="absolute right-0 bottom-full mb-3 w-56 p-3 rounded-xl bg-[#080E24] border border-[#D4AF37]/40 text-[11px] text-[#FAF8F3] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-2xl space-y-1">
-            <div className="font-semibold text-[#F5E7A3] flex items-center gap-1">
-              <Phone className="w-3 h-3 text-[#D4AF37]" />
-              +91 95747 87098
-            </div>
-            <p className="text-[10px] text-[#C9C2A6]">
-              Direct line to senior MatrixGold engineer for instant quote & sketch audit.
-            </p>
-          </div>
-        </a>
-      </div>
+      {/* Floating Quick Menu + Scroll-to-Top */}
+      <FloatingQuickMenu onNavigate={handleNavigate} />
 
       {/* Toast Notification */}
       {toastMessage && (

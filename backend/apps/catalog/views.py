@@ -155,6 +155,13 @@ class ProductViewSet(viewsets.ModelViewSet):
             return ProductCreateSerializer
         return ProductDetailSerializer
 
+    def perform_create(self, serializer):
+        user = self.request.user if self.request.user.is_authenticated else None
+        if user and (getattr(user, 'role', '') == 'admin' or getattr(user, 'is_superuser', False) or getattr(user, 'is_staff', False)):
+            serializer.save(uploaded_by=user, status=Product.Status.APPROVED, approved_at=timezone.now())
+        else:
+            serializer.save(uploaded_by=user, status=Product.Status.PENDING)
+
     @action(detail=False, methods=['get'], permission_classes=[IsAdmin])
     def pending(self, request):
         # Only staff-submitted products awaiting approval show up in the Design Approvals queue

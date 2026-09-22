@@ -199,6 +199,9 @@ class TestCustomOrderLifecycle13Stages(APITestCase):
         s2.save()
 
         # Stage 12: Request 6-Digit OTP for CAD Download
+        # Must enable download permission first (admin toggle)
+        order.download_enabled_by_admin = True
+        order.save(update_fields=['download_enabled_by_admin'])
         self.api.force_authenticate(user=self.client_user)
         otp_req_res = self.api.post(f'/api/orders/{order.id}/request-otp/')
         assert otp_req_res.status_code == 200

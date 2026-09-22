@@ -17,13 +17,15 @@ class StaffListSerializer(serializers.ModelSerializer):
     rating_average = serializers.DecimalField(source='staff_profile.rating_average', max_digits=3, decimal_places=2, read_only=True)
     total_jobs_completed = serializers.IntegerField(source='staff_profile.total_jobs_completed', read_only=True)
     current_load = serializers.SerializerMethodField()
+    active_jobs = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name', 'phone_number',
             'is_active', 'is_active_staff', 'profile_id', 'max_concurrent_jobs',
-            'specialty_tags', 'bio', 'rating_average', 'total_jobs_completed', 'current_load'
+            'specialty_tags', 'bio', 'rating_average', 'total_jobs_completed',
+            'current_load', 'active_jobs'
         ]
 
     def get_current_load(self, obj):
@@ -31,6 +33,25 @@ class StaffListSerializer(serializers.ModelSerializer):
             assigned_staff=obj,
             status=Order.Status.WITH_DESIGNER
         ).count()
+
+    def get_active_jobs(self, obj):
+        orders = Order.objects.filter(
+            assigned_staff=obj,
+            status=Order.Status.WITH_DESIGNER
+        ).select_related('custom_request', 'client').order_by('-assigned_at')
+        return [
+            {
+                "id": o.id,
+                "title": o.custom_request.title if o.custom_request else f"Custom CAD Design #{o.id}",
+                "client_name": o.client.get_full_name() or o.client.username,
+                "client_email": o.client.email,
+                "status": o.status,
+                "assigned_at": o.assigned_at,
+                "deadline_hours": o.deadline_hours,
+                "preview_image": o.preview_image.url if o.preview_image else None
+            }
+            for o in orders
+        ]
 
 
 class CreateStaffSerializer(serializers.ModelSerializer):
@@ -53,6 +74,8 @@ class CreateStaffSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password')
 
         validated_data['role'] = User.Role.STAFF
+        validated_data['is_staff'] = True
+        validated_data['is_active_staff'] = True
         user = User.objects.create_user(**validated_data)
         user.set_password(password)
         user.save()

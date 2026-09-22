@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { CartItem, PageId } from '../types';
 import { X, Trash2, ShieldCheck, Download, Sparkles, ArrowRight, CheckCircle2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { sendCadDownloadEmail, sendOtpEmail } from '../services/emailService';
 import { PaymentGatewayModal } from './payment/PaymentGatewayModal';
 import { OTPVerificationModal } from './delivery/OTPVerificationModal';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../services/api';
+import { sendCadDownloadEmail } from '../services/emailService';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -84,22 +85,32 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const handlePaymentSuccess = async (_result: any) => {
     setIsPaymentModalOpen(false);
     
-    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
     const recipientEmail = user?.email || 'shahharshil3103@gmail.com';
     const mainTitle = items.length > 0 ? items[0].product.title : 'CAD File Package';
 
-    sendOtpEmail(recipientEmail, generatedOtp, `CAD Download Access - ${mainTitle}`).catch((e) => {
-      console.warn('Failed to dispatch OTP email:', e);
-    });
+    try {
+      let lastPurchaseId = 0;
+      let lastMaskedEmail = '';
+      for (const item of items) {
+        const res = await api.post<any>('/payments/purchases/', {
+          product_id: item.product.id,
+          license_type: item.license === 'commercial' ? 'commercial' : 'atelier',
+          payment_transaction_id: (_result && _result.transactionId) ? _result.transactionId : `TXN-CART-${Date.now()}`,
+        });
+        lastPurchaseId = res.purchase_id;
+        lastMaskedEmail = res.masked_email;
+      }
 
-    setOtpModalState({
-      isOpen: true,
-      purchaseId: Math.floor(10000 + Math.random() * 90000),
-      productTitle: items.length > 1 ? `${mainTitle} (+${items.length - 1} items)` : mainTitle,
-      maskedEmail: recipientEmail.replace(/(.{2})(.*)(?=@)/, '$1***'),
-      userEmail: recipientEmail,
-      debugOtp: generatedOtp,
-    });
+      setOtpModalState({
+        isOpen: true,
+        purchaseId: lastPurchaseId,
+        productTitle: items.length > 1 ? `${mainTitle} (+${items.length - 1} items)` : mainTitle,
+        maskedEmail: lastMaskedEmail || recipientEmail.replace(/(.{2})(.*)(?=@)/, '$1***'),
+        userEmail: recipientEmail,
+      });
+    } catch (err: any) {
+      console.error('Cart checkout purchase creation failed:', err);
+    }
   };
 
   const handleOtpVerifiedSuccess = () => {

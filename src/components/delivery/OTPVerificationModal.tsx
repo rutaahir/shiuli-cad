@@ -1,10 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, Mail, Clock, RefreshCw, KeyRound, AlertCircle, CheckCircle2, Lock } from 'lucide-react';
+import { ShieldCheck, Mail, Clock, RefreshCw, KeyRound, AlertCircle, CheckCircle2, Lock, Download } from 'lucide-react';
 import { api } from '../../services/api';
-
-
-import { sendCadDownloadEmail, sendOtpEmail } from '../../services/emailService';
 import { useAuth } from '../../context/AuthContext';
 
 interface OTPVerificationModalProps {
@@ -34,6 +31,7 @@ export const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
   const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isVerified, setIsVerified] = useState(false);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   
   // Timers
   const [expirySeconds, setExpirySeconds] = useState(600); // 10 mins countdown
@@ -50,35 +48,36 @@ export const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
     return () => clearInterval(interval);
   }, [isOpen, isVerified]);
 
-  // Cooldown Timer countdown
+  // Cooldown Timer
   useEffect(() => {
     if (cooldownSeconds <= 0) return;
-    const interval = setInterval(() => {
-      setCooldownSeconds(prev => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(interval);
+    const timer = setTimeout(() => setCooldownSeconds(c => c - 1), 1000);
+    return () => clearInterval(timer);
   }, [cooldownSeconds]);
 
-  // Focus first input on open
+  // Reset modal state on open
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => {
-        inputRefs.current[0]?.focus();
-      }, 200);
+      setOtp(Array(6).fill(''));
+      setError(null);
+      setIsVerified(false);
+      setDownloadUrl(null);
+      setExpirySeconds(600);
+      setCooldownSeconds(0);
+      setTimeout(() => inputRefs.current[0]?.focus(), 100);
     }
   }, [isOpen]);
 
-  const handleInputChange = (index: number, value: string) => {
-    if (!/^\d*$/.test(value)) return;
+  const handleInputChange = (index: number, val: string) => {
+    if (!/^\d*$/.test(val)) return;
     const newOtp = [...otp];
-    newOtp[index] = value.slice(-1);
+    newOtp[index] = val.slice(-1);
     setOtp(newOtp);
-    setError(null);
 
-    // Auto-advance
-    if (value && index < 5) {
+    if (val && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
+    setError(null);
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -109,57 +108,19 @@ export const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
     setError(null);
 
     try {
-      let verifiedOk = false;
-      let errMessage = 'Invalid verification code. Please check your email and try again.';
-
-      // Attempt API backend verification first
-      try {
-        const res = await api.post<any>(`/payments/purchases/${purchaseId}/verify-otp/`, { code });
-        if (res && (res.message || res.purchase || res.success)) {
-          verifiedOk = true;
-        }
-      } catch (apiErr: any) {
-        if (apiErr.data?.error) {
-          errMessage = apiErr.data.error;
-        } else if (apiErr.data?.detail) {
-          errMessage = apiErr.data.detail;
-        } else if (apiErr.message && !apiErr.message.includes('Server Error') && !apiErr.message.includes('500') && !apiErr.message.includes('HTTP')) {
-          errMessage = apiErr.message;
-        }
+      const res = await api.post<any>(`/payments/purchases/${purchaseId}/verify-otp/`, { code });
+      if (res && res.download_url) {
+        setDownloadUrl(res.download_url);
       }
-
-      // Check debug/expected OTP generated during purchase
-      if (!verifiedOk && debugOtp && code.trim() === debugOtp.trim()) {
-        verifiedOk = true;
-      }
-
-      // STRICTLY REJECT WRONG OTP!
-      if (!verifiedOk) {
-        setError(errMessage);
-        setLoading(false);
-        return;
-      }
-
-      // Dispatch CAD Download Email to user's registered email via Gmail SMTP
-      const targetEmail = userEmail || user?.email || (maskedEmail.includes('*') ? '' : maskedEmail);
-      if (targetEmail) {
-        const downloadLink = `${window.location.origin}/account`;
-        sendCadDownloadEmail(
-          targetEmail,
-          productTitle || 'Jewellery CAD File',
-          ['.3DM (Rhino 8)', '.STL (Watertight)'],
-          downloadLink,
-          'Atelier Production License'
-        ).catch(() => {});
-      }
-
       setIsVerified(true);
-      setTimeout(() => {
-        onVerifiedSuccess();
-      }, 2000);
-    } catch (err: any) {
-      const msg = err.data?.error || err.data?.detail || (err.message && !err.message.includes('Server Error') && !err.message.includes('500') ? err.message : 'Invalid verification code. Please check and try again.');
-      setError(msg);
+      onVerifiedSuccess();
+    } catch (apiErr: any) {
+      const errMessage =
+        apiErr.data?.error ||
+        apiErr.data?.detail ||
+        apiErr.message ||
+        'Invalid verification code. Please check your email and try again.';
+      setError(errMessage);
     } finally {
       setLoading(false);
     }
@@ -171,18 +132,13 @@ export const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
     setError(null);
 
     try {
-      const targetEmail = userEmail || user?.email || 'shahharshil3103@gmail.com';
-      if (debugOtp) {
-        await sendOtpEmail(targetEmail, debugOtp, productTitle || 'CAD Download Verification');
-      } else {
-        await api.post(`/payments/purchases/${purchaseId}/resend-otp/`).catch(() => {});
-      }
+      await api.post(`/payments/purchases/${purchaseId}/resend-otp/`);
       setExpirySeconds(600);
       setCooldownSeconds(60);
       setOtp(Array(6).fill(''));
       inputRefs.current[0]?.focus();
     } catch (err: any) {
-      const msg = err.message || err.response?.data?.error || 'Failed to resend code. Please try again.';
+      const msg = err.data?.error || err.message || 'Failed to resend verification code. Please try again.';
       setError(msg);
     } finally {
       setResending(false);
@@ -317,28 +273,60 @@ export const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="py-8 text-center space-y-4"
+              className="py-6 text-center space-y-4"
             >
-              <div className="inline-flex p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-full text-emerald-400 mb-2">
-                <CheckCircle2 className="w-12 h-12 animate-bounce" />
+              <div className="inline-flex p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-full text-emerald-400 mb-1">
+                <CheckCircle2 className="w-12 h-12" />
               </div>
 
-              <h3 className="text-2xl font-serif font-bold text-amber-100">Identity Verified!</h3>
+              <h3 className="text-2xl font-serif font-bold text-amber-100">Verification Successful!</h3>
               <p className="text-sm text-zinc-300 max-w-md mx-auto">
-                Your single-use secure download link has been dispatched to{' '}
+                Your one-time secure CAD download link has been emailed to{' '}
                 <span className="text-amber-300 font-semibold">{maskedEmail}</span>.
               </p>
+
+              {downloadUrl && (
+                <div className="pt-2 pb-2">
+                  <a
+                    href={downloadUrl}
+                    className="inline-flex items-center justify-center gap-2 w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-bold text-sm shadow-xl shadow-amber-500/20 transition-all uppercase tracking-wider"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Download CAD Files Now (.3DM + .STL)</span>
+                  </a>
+                  <p className="text-[11px] text-zinc-400 mt-1.5">
+                    Single-use link: You can download right now or use the link in your email within 48 hours.
+                  </p>
+                </div>
+              )}
 
               <div className="p-4 bg-zinc-900 border border-amber-500/20 rounded-xl text-xs text-zinc-400 max-w-sm mx-auto space-y-2 text-left">
                 <div className="flex items-center space-x-2 text-amber-400 font-semibold">
                   <Lock className="w-4 h-4" />
-                  <span>Security Delivery Policy</span>
+                  <span>Security & Delivery Protocol</span>
                 </div>
-                <p>• The email link is locked to your account.</p>
-                <p>• It will expire after 48 hours or after 1 download.</p>
+                <p>• Authentic production files (.3DM & .STL) packaged and ready.</p>
+                <p>• Single-use download link sent to your email inbox.</p>
+                <p>• Download status and license tracked in your account.</p>
               </div>
 
-              <p className="text-xs text-zinc-500 pt-2">Closing modal automatically...</p>
+              <div className="pt-2 flex gap-3">
+                <button
+                  onClick={onClose}
+                  className="flex-1 py-2.5 rounded-xl border border-zinc-700 hover:border-zinc-500 text-xs text-zinc-300 transition-colors"
+                >
+                  Done
+                </button>
+                <button
+                  onClick={() => {
+                    onClose();
+                    window.location.href = '/account';
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 hover:bg-amber-500/20 text-xs font-semibold transition-colors"
+                >
+                  View in My CAD Vault
+                </button>
+              </div>
             </motion.div>
           )}
         </motion.div>

@@ -4,6 +4,7 @@ import { BrandLogo } from './BrandLogo';
 import { FloatingLabelInput } from './FloatingLabelInput';
 import { X, Mail, Lock, User, Phone, Sparkles, ArrowRight, ArrowLeft, KeyRound, AlertCircle, ShieldCheck, CheckCircle2, RefreshCw, Check } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../services/api';
 import {
   validateFullName,
   validateEmail,
@@ -170,8 +171,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     try {
       if (authMode === 'login') {
         const data = await login(usernameOrEmail, password);
+        const userRole = (data?.user?.role || data?.role || 'client').toLowerCase();
+
+        // Enforce strict Role Isolation per Tab
+        if (userType === 'staff') {
+          if (userRole !== 'staff' && userRole !== 'admin') {
+            await api.logout();
+            setIsLoading(false);
+            setErrorMessage('This account is registered as a Client. Please switch to the Client Login tab to sign in.');
+            return;
+          }
+        } else if (userType === 'client') {
+          if (userRole === 'staff' || userRole === 'admin') {
+            await api.logout();
+            setIsLoading(false);
+            setErrorMessage('This is a Staff/Modeller account. Please switch to the Staff / Modeller tab to sign in.');
+            return;
+          }
+        }
+
         setIsLoading(false);
-        const userRole = data?.user?.role || data?.role;
         if (onLoginSuccess) {
           onLoginSuccess(data.user?.email || usernameOrEmail, userRole);
         }
