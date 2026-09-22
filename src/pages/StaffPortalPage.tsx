@@ -261,7 +261,6 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
           ...prev,
           currentLoad: mappedActive.length,
           jobsCompleted: Math.max(prev.jobsCompleted, completedOrders.length),
-          maxJobLimit: Math.max(mappedActive.length, prev.maxJobLimit || 4),
         }));
       }
     } catch (e) {
@@ -269,7 +268,27 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
     }
   };
 
+  const fetchStaffDashboard = async () => {
+    try {
+      const dash: any = await api.request('/staff/me/dashboard/');
+      if (dash) {
+        setStaff((prev) => ({
+          ...prev,
+          name: `${dash.user?.first_name || ''} ${dash.user?.last_name || ''}`.trim() || dash.user?.username || prev.name,
+          email: dash.user?.email || prev.email,
+          maxJobLimit: dash.max_concurrent_jobs || prev.maxJobLimit || 2,
+          currentLoad: dash.active_jobs_count ?? prev.currentLoad,
+          jobsCompleted: dash.total_completed ?? prev.jobsCompleted,
+          rating: dash.user?.rating_average ? parseFloat(dash.user.rating_average) : prev.rating,
+        }));
+      }
+    } catch (e) {
+      console.warn('Failed to fetch staff dashboard:', e);
+    }
+  };
+
   useEffect(() => {
+    fetchStaffDashboard();
     fetchPoolJobs();
     fetchMyActiveJobs();
   }, [activeTab]);

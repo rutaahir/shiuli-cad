@@ -1,6 +1,10 @@
 import uuid
+import hmac
+import hashlib
 import logging
+import razorpay
 from abc import ABC, abstractmethod
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
@@ -161,42 +165,130 @@ class PaymentGatewayInterface(ABC):
         pass
 
 
-class MockPaymentGatewayService(PaymentGatewayInterface):
-    def create_payment_session(self, order, payment_type, amount):
-        transaction_id = f"mock_tx_{uuid.uuid4().hex[:12]}"
+class RazorpayPaymentGatewayService(PaymentGatewayInterface):
+    def __init__(self):
+        self.key_id = getattr(settings, 'RAZORPAY_KEY_ID', '').strip()
+        self.key_secret = getattr(settings, 'RAZORPAY_KEY_SECRET', '').strip()
+        self.client = None
+        if self.key_id and self.key_secret and not self.key_id.startswith('dummy'):
+            try:
+                self.client = razorpay.Client(auth=(self.key_id, self.key_secret))
+            except Exception as e:
+                logger.warning(f"Razorpay Client initialization warning: {e}")
+
+    def is_sandbox_mode(self):
+        if not self.key_id or not self.key_secret:
+            return True
+        if self.key_id.startswith('rzp_test_') or getattr(settings, 'DEBUG', False):
+            return True
+        return False
+
+    def create_payment_session(self, order, payment_type, amount, notes=None):
+        amount_paise = int(round(float(amount) * 100))
+        receipt = f"rcpt_ord_{order.id}_{payment_type[:4]}"
+        notes_payload = notes or {'order_id': order.id, 'payment_type': payment_type}
+
+        order_id = None
+        # If client configured with live or real test keys, attempt order create with Razorpay
+        if self.client and not self.key_id.startswith('dummy'):
+            try:
+                order_data = {
+                    'amount': amount_paise,
+                    'currency': 'INR',
+                    'receipt': receipt,
+                    'notes': notes_payload
+                }
+                rzp_order = self.client.order.create(data=order_data)
+                order_id = rzp_order.get('id')
+            except Exception as e:
+                logger.error(f"Razorpay order create exception: {e}")
+                order_id = f"order_test_{uuid.uuid4().hex[:14]}"
+        else:
+            order_id = f"order_test_{uuid.uuid4().hex[:14]}"
+
         payment = Payment.objects.create(
             order=order,
             payment_type=payment_type,
             amount=amount,
-            gateway_transaction_id=transaction_id,
+            gateway_transaction_id=order_id,
             status=Payment.Status.PENDING
         )
+
         return {
             "payment_id": payment.id,
-            "gateway_transaction_id": transaction_id,
+            "gateway_order_id": order_id,
+            "razorpay_order_id": order_id,
+            "key_id": self.key_id or "rzp_test_shiuli_sandbox",
             "order_id": order.id,
             "amount": str(amount),
+            "amount_paise": amount_paise,
+            "currency": "INR",
             "payment_type": payment_type,
-            "checkout_url": f"/mock-checkout/{transaction_id}"
+            "is_sandbox": self.is_sandbox_mode()
         }
 
     def verify_payment(self, payload):
         payment_id = payload.get('payment_id')
-        transaction_id = payload.get('gateway_transaction_id')
-        status_input = payload.get('status', 'success').lower()
+        razorpay_order_id = payload.get('razorpay_order_id')
+        razorpay_payment_id = payload.get('razorpay_payment_id') or payload.get('gateway_transaction_id')
+        razorpay_signature = payload.get('razorpay_signature')
 
-        try:
-            payment = Payment.objects.get(id=payment_id)
-        except Payment.DoesNotExist:
+        payment = None
+        if payment_id:
+            try:
+                payment = Payment.objects.get(id=payment_id)
+            except Payment.DoesNotExist:
+                pass
+        if not payment and razorpay_order_id:
+            payment = Payment.objects.filter(gateway_transaction_id=razorpay_order_id).first()
+
+        if not payment:
             return False, "Payment record not found.", None
 
-        if status_input == 'success':
-            payment = process_payment_success(payment, transaction_id or payment.gateway_transaction_id)
+        # Idempotency check: if already marked SUCCESS, return existing verified payment
+        if payment.status == Payment.Status.SUCCESS:
+            return True, "Payment already verified successfully.", payment
+
+        # Cryptographic signature verification
+        is_valid = False
+        if self.client and self.key_secret and razorpay_signature and razorpay_payment_id:
+            try:
+                self.client.utility.verify_payment_signature({
+                    'razorpay_order_id': razorpay_order_id or payment.gateway_transaction_id,
+                    'razorpay_payment_id': razorpay_payment_id,
+                    'razorpay_signature': razorpay_signature
+                })
+                is_valid = True
+            except razorpay.errors.SignatureVerificationError:
+                is_valid = False
+            except Exception as e:
+                logger.error(f"Signature check error: {e}")
+                is_valid = False
+        elif self.is_sandbox_mode():
+            # In sandbox/development test mode
+            if self.key_secret and razorpay_signature and razorpay_order_id and razorpay_payment_id:
+                msg = f"{razorpay_order_id}|{razorpay_payment_id}".encode()
+                expected = hmac.new(self.key_secret.encode(), msg, hashlib.sha256).hexdigest()
+                is_valid = hmac.compare_digest(expected, razorpay_signature)
+            else:
+                # Sandbox test bypass allowed if transaction id provided
+                is_valid = bool(razorpay_payment_id or razorpay_order_id)
+        else:
+            is_valid = False
+
+        if is_valid:
+            payment = process_payment_success(payment, razorpay_payment_id or razorpay_order_id)
             return True, "Payment verified successfully.", payment
         else:
             payment.status = Payment.Status.FAILED
             payment.save()
-            return False, "Payment failed.", payment
+            return False, "Cryptographic payment verification failed.", payment
+
+
+def get_payment_gateway() -> PaymentGatewayInterface:
+    """Factory returning active payment gateway service."""
+    return RazorpayPaymentGatewayService()
+
 
 
 def process_payment_success(payment, gateway_tx_id):

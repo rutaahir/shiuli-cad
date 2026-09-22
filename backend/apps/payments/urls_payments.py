@@ -1,8 +1,17 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import create_payment_session, verify_payment, pay_stage_payment, PaymentPlanTemplateViewSet, incoming_gateway_logs
+from .views import (
+    create_payment_session,
+    verify_payment,
+    pay_stage_payment,
+    PaymentPlanTemplateViewSet,
+    incoming_gateway_logs,
+    razorpay_webhook
+)
 from .views_purchases import (
     create_purchase,
+    create_razorpay_purchase_order,
+    verify_razorpay_purchase,
     resend_otp,
     verify_otp,
     download_cad_file,
@@ -17,8 +26,11 @@ urlpatterns = [
     path('gateway-log/', incoming_gateway_logs, name='payment-gateway-log'),
     path('create-order/', create_payment_session, name='payment-create-order'),
     path('verify/', verify_payment, name='payment-verify'),
+    path('webhook/', razorpay_webhook, name='payment-webhook'),
     path('pay-stage/', pay_stage_payment, name='payment-pay-stage'),
     path('purchases/', create_purchase, name='purchase-create'),
+    path('purchases/create-order/', create_razorpay_purchase_order, name='purchase-create-order'),
+    path('purchases/verify/', verify_razorpay_purchase, name='purchase-verify-payment'),
     path('purchases/mine/', list_my_purchases, name='purchase-mine'),
     path('purchases/<int:purchase_id>/resend-otp/', resend_otp, name='purchase-resend-otp'),
     path('purchases/<int:purchase_id>/verify-otp/', verify_otp, name='purchase-verify-otp'),
@@ -26,5 +38,6 @@ urlpatterns = [
     path('download/<str:token>/', download_cad_file, name='download-cad-file'),
     path('', include(router.urls)),
 ]
+
 
 

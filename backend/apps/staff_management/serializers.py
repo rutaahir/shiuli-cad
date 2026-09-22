@@ -67,6 +67,9 @@ class CreateStaffSerializer(serializers.ModelSerializer):
         )
         return user
 
+    def to_representation(self, instance):
+        return StaffListSerializer(instance, context=self.context).data
+
 
 class UpdateStaffSerializer(serializers.ModelSerializer):
     max_concurrent_jobs = serializers.IntegerField(required=False)
@@ -95,5 +98,10 @@ class UpdateStaffSerializer(serializers.ModelSerializer):
             for attr, value in profile_data.items():
                 setattr(profile, attr, value)
             profile.save()
+            instance.staff_profile = profile
 
         return instance
+
+    def to_representation(self, instance):
+        return StaffListSerializer(instance, context=self.context).data
+

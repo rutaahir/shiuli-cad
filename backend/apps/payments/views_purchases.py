@@ -34,6 +34,220 @@ def mask_email(email):
 
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
+def create_razorpay_purchase_order(request):
+    """
+    POST /api/purchases/create-order/
+    Creates a server-side order with Razorpay SDK before launching Checkout modal.
+    """
+    product_id = request.data.get('product_id')
+    license_type = request.data.get('license_type', 'atelier')
+
+    if not product_id:
+        return Response({"error": "product_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    product_obj = None
+    if str(product_id).isdigit():
+        product_obj = Product.objects.filter(id=int(product_id)).first()
+    if not product_obj:
+        product_obj = Product.objects.filter(slug=str(product_id)).first()
+    if not product_obj:
+        title_query = str(product_id).replace('-', ' ')
+        product_obj = Product.objects.filter(title__icontains=title_query).first() or Product.objects.first()
+
+    if not product_obj:
+        return Response({"error": "Product not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    product = product_obj
+    if license_type == 'commercial':
+        markup_pct = float(product.commercial_price_markup or 80.0)
+        price_paid = float(product.price) * (1.0 + (markup_pct / 100.0))
+    else:
+        price_paid = float(product.price)
+
+    amount_paise = int(round(price_paid * 100))
+    key_id = getattr(settings, 'RAZORPAY_KEY_ID', '').strip()
+    key_secret = getattr(settings, 'RAZORPAY_KEY_SECRET', '').strip()
+
+    razorpay_order_id = None
+    if key_id and key_secret and not key_id.startswith('dummy'):
+        try:
+            import razorpay
+            client = razorpay.Client(auth=(key_id, key_secret))
+            rzp_order = client.order.create(data={
+                'amount': amount_paise,
+                'currency': 'INR',
+                'receipt': f"rcpt_prod_{product.id}_{secrets.token_hex(4)}",
+                'notes': {
+                    'product_id': product.id,
+                    'product_title': product.title,
+                    'buyer_email': request.user.email,
+                    'license_type': license_type
+                }
+            })
+            razorpay_order_id = rzp_order.get('id')
+        except Exception as e:
+            print(f"[RAZORPAY ORDER WARNING] {e}")
+            razorpay_order_id = f"order_prod_{secrets.token_hex(8)}"
+    else:
+        razorpay_order_id = f"order_prod_{secrets.token_hex(8)}"
+
+    is_sandbox = not bool(key_id and not key_id.startswith('rzp_test') and key_secret)
+
+    return Response({
+        "razorpay_order_id": razorpay_order_id,
+        "amount": price_paid,
+        "amount_paise": amount_paise,
+        "currency": "INR",
+        "key_id": key_id or "rzp_test_shiuli_sandbox",
+        "product_id": product.id,
+        "product_title": product.title,
+        "license_type": license_type,
+        "is_sandbox": is_sandbox
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def verify_razorpay_purchase(request):
+    """
+    POST /api/purchases/verify/
+    Validates Razorpay payment signature cryptographically.
+    Idempotently creates Purchase record and triggers OTP generation.
+    """
+    product_id = request.data.get('product_id')
+    license_type = request.data.get('license_type', 'atelier')
+    razorpay_order_id = request.data.get('razorpay_order_id')
+    razorpay_payment_id = request.data.get('razorpay_payment_id') or request.data.get('payment_transaction_id')
+    razorpay_signature = request.data.get('razorpay_signature')
+
+    if not product_id or not razorpay_payment_id:
+        return Response({"error": "product_id and razorpay_payment_id are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Idempotency Check: if purchase already processed for this payment ID, return existing
+    existing = Purchase.objects.filter(payment_transaction_id=razorpay_payment_id, buyer=request.user).first()
+    if existing:
+        masked_email = mask_email(request.user.email)
+        return Response({
+            "message": f"Purchase verified! Verification code sent to {masked_email}.",
+            "purchase_id": existing.id,
+            "masked_email": masked_email,
+            "expires_in_seconds": 600,
+            "already_processed": True
+        })
+
+    key_id = getattr(settings, 'RAZORPAY_KEY_ID', '').strip()
+    key_secret = getattr(settings, 'RAZORPAY_KEY_SECRET', '').strip()
+
+    is_valid = False
+    if key_id and key_secret and razorpay_signature and razorpay_order_id and not key_id.startswith('dummy'):
+        try:
+            import razorpay
+            client = razorpay.Client(auth=(key_id, key_secret))
+            client.utility.verify_payment_signature({
+                'razorpay_order_id': razorpay_order_id,
+                'razorpay_payment_id': razorpay_payment_id,
+                'razorpay_signature': razorpay_signature
+            })
+            is_valid = True
+        except Exception as e:
+            print(f"[SIGNATURE CHECK ERROR] {e}")
+            is_valid = False
+    elif getattr(settings, 'DEBUG', False) or (key_id and key_id.startswith('rzp_test')) or not key_secret:
+        # Dev test mode: HMAC or simulated test payment
+        if key_secret and razorpay_signature and razorpay_order_id:
+            import hmac, hashlib
+            msg = f"{razorpay_order_id}|{razorpay_payment_id}".encode()
+            expected = hmac.new(key_secret.encode(), msg, hashlib.sha256).hexdigest()
+            is_valid = hmac.compare_digest(expected, razorpay_signature)
+        else:
+            is_valid = True
+    else:
+        is_valid = False
+
+    if not is_valid:
+        return Response({"error": "Payment cryptographic signature verification failed."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Resolve product
+    product_obj = None
+    if str(product_id).isdigit():
+        product_obj = Product.objects.filter(id=int(product_id)).first()
+    if not product_obj:
+        product_obj = Product.objects.filter(slug=str(product_id)).first()
+    if not product_obj:
+        title_query = str(product_id).replace('-', ' ')
+        product_obj = Product.objects.filter(title__icontains=title_query).first() or Product.objects.first()
+
+    if not product_obj:
+        return Response({"error": "Product not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    product = product_obj
+    if license_type == 'commercial':
+        markup_pct = float(product.commercial_price_markup or 80.0)
+        price_paid = float(product.price) * (1.0 + (markup_pct / 100.0))
+    else:
+        price_paid = float(product.price)
+
+    now = timezone.now()
+    purchase = Purchase.objects.create(
+        buyer=request.user,
+        product=product,
+        license_type=license_type,
+        price_paid=price_paid,
+        payment_transaction_id=razorpay_payment_id,
+        status=Purchase.Status.PAID,
+        otp_generation_count=1,
+        last_otp_generated_at=now
+    )
+
+    otp_code = generate_6digit_otp()
+    otp_hash = make_password(otp_code)
+    expires_at = now + timedelta(minutes=10)
+
+    DownloadOTP.objects.create(
+        purchase=purchase,
+        otp_hash=otp_hash,
+        expires_at=expires_at,
+        attempts=0,
+        is_verified=False
+    )
+
+    # Dev terminal log
+    print("\n" + "=" * 70)
+    print(f"[TERMINAL OTP LOG - VERIFIED PURCHASE]")
+    print(f"   Purchase ID: #{purchase.id}")
+    print(f"   Transaction: {razorpay_payment_id}")
+    print(f"   Buyer Email: {request.user.email}")
+    print(f"   VERIFICATION CODE (OTP): >>> {otp_code} <<<")
+    print("=" * 70 + "\n")
+
+    masked_email = mask_email(request.user.email)
+    try:
+        send_mail(
+            subject=f"Verification Code for '{product.title}' - Purchase #{purchase.id}",
+            message=(
+                f"Hello {request.user.get_full_name() or request.user.username},\n\n"
+                f"Thank you for purchasing '{product.title}' from Shiuli CAD Studio.\n\n"
+                f"Your 6-digit verification code is: {otp_code}\n\n"
+                f"This code will expire in 10 minutes.\n\n"
+                f"Shiuli CAD Studio Automated Delivery Service"
+            ),
+            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com'),
+            recipient_list=[request.user.email],
+            fail_silently=True
+        )
+    except Exception as e:
+        print(f"[EMAIL SERVICE WARNING] {e}")
+
+    return Response({
+        "message": f"Payment verified! A 6-digit verification code has been sent to {masked_email}.",
+        "purchase_id": purchase.id,
+        "masked_email": masked_email,
+        "expires_in_seconds": 600
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
 def create_purchase(request):
     """
     POST /api/purchases/

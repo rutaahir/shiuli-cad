@@ -166,10 +166,10 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
     const emailPrefix = email.trim().split('@')[0].toLowerCase().replace(/[^a-z0-9._-]/g, '_');
-    const derivedUsername = emailPrefix || fullName.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    const derivedUsername = `${emailPrefix}_${Math.floor(100 + Math.random() * 900)}`;
 
     try {
-      await api.createStaff({
+      const res: any = await api.createStaff({
         username: derivedUsername,
         email: email.trim(),
         password: password,
@@ -179,6 +179,27 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
         max_concurrent_jobs: Number(maxJobLimit),
         specialty_tags: specialtyTags.trim() || 'CAD Modeller',
       });
+
+      const newMember: StaffMember = {
+        id: (res?.id || `STF-${Date.now()}`).toString(),
+        name: `${res?.first_name || firstName} ${res?.last_name || lastName}`.trim() || derivedUsername,
+        email: res?.email || email.trim(),
+        phone: res?.phone_number || phoneNumber.trim(),
+        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
+        role: specialtyTags.trim() || 'CAD Modeller',
+        status: 'active',
+        maxJobLimit: Number(maxJobLimit) || 2,
+        currentLoad: 0,
+        jobsCompleted: 0,
+        rating: 5.0,
+        totalEarnings: 0,
+        activeJobs: [],
+      };
+
+      const updated = [newMember, ...staffMembers];
+      setStaffMembers(updated);
+      appStore.saveStaffList(updated);
+      onAddStaff(newMember);
 
       setSuccessToast(`${fullName} has been added to your team successfully!`);
       setTimeout(() => setSuccessToast(null), 4000);
@@ -192,7 +213,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
       setPassword('');
       setShowAddDrawer(false);
 
-      // Re-fetch live list
+      // Re-fetch live list to ensure complete backend alignment
       await fetchStaffList();
     } catch (err: any) {
       if (err.fieldErrors) {
@@ -213,22 +234,47 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
 
   // Live Status Toggle
   const handleToggleStatus = async (staff: StaffMember) => {
-    const newStatus = staff.status === 'active' ? false : true;
+    const newStatusBool = staff.status !== 'active';
+    const newStatusStr = newStatusBool ? 'active' : 'inactive';
+    const previousStaff = [...staffMembers];
+    const updatedStaff = staffMembers.map((s) =>
+      s.id === staff.id ? { ...s, status: newStatusStr as 'active' | 'inactive' } : s
+    );
+    setStaffMembers(updatedStaff);
+    appStore.saveStaffList(updatedStaff);
+    onToggleStaffStatus(staff.id);
+
     try {
-      await api.updateStaff(staff.id, { is_active_staff: newStatus });
-      await fetchStaffList();
-    } catch {
+      await api.updateStaff(staff.id, { is_active_staff: newStatusBool });
+    } catch (err) {
+      console.warn('Backend toggle status failed, reverting:', err);
+      setStaffMembers(previousStaff);
+      appStore.saveStaffList(previousStaff);
       onToggleStaffStatus(staff.id);
     }
   };
 
-  // Live Limit Update
+  // Live Limit Update with Optimistic UI & Parent State Sync
   const handleUpdateLimit = async (staffId: string, newLimit: number) => {
+    const safeLimit = Math.max(1, newLimit);
+    const previousStaff = [...staffMembers];
+    const updatedStaff = staffMembers.map((s) =>
+      s.id === staffId ? { ...s, maxJobLimit: safeLimit } : s
+    );
+    // 1. Optimistically update local view and localStorage
+    setStaffMembers(updatedStaff);
+    appStore.saveStaffList(updatedStaff);
+    // 2. Notify SuperAdminPage parent state
+    onUpdateStaffLimit(staffId, safeLimit);
+
     try {
-      await api.updateStaff(staffId, { max_concurrent_jobs: newLimit });
-      await fetchStaffList();
-    } catch {
-      onUpdateStaffLimit(staffId, newLimit);
+      await api.updateStaff(staffId, { max_concurrent_jobs: safeLimit });
+    } catch (err) {
+      console.warn('Backend updateStaff limit failed, reverting:', err);
+      setStaffMembers(previousStaff);
+      appStore.saveStaffList(previousStaff);
+      const prevLimit = previousStaff.find((s) => s.id === staffId)?.maxJobLimit || 2;
+      onUpdateStaffLimit(staffId, prevLimit);
     }
   };
 
@@ -488,7 +534,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                   <th className="py-3.5 px-4 font-semibold">Live Load / Limit</th>
                   <th className="py-3.5 px-4 font-semibold">Rating</th>
                   <th className="py-3.5 px-4 font-semibold">Status</th>
-                  <th className="py-3.5 px-4 font-semibold text-right">Actions</th>
+                  <th className="py-3.5 px-4 font-semibold text-right">Job Limit (+ / -)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E5E7EF]">
@@ -540,13 +586,25 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                       </button>
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => handleUpdateLimit(staff.id, staff.maxJobLimit + 1)}
-                        className="p-1.5 rounded-lg border border-[#E5E7EF] text-[#6B7280] hover:text-[#1E2230] hover:bg-[#F6F7FB]"
-                        title="Increase Limit"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="inline-flex items-center gap-1.5 justify-end">
+                        <button
+                          onClick={() => handleUpdateLimit(staff.id, Math.max(1, staff.maxJobLimit - 1))}
+                          className="w-7 h-7 rounded-lg bg-[#F6F7FB] border border-[#E5E7EF] font-bold text-xs hover:bg-[#E5E7EF] text-[#6B7280] flex items-center justify-center transition-all"
+                          title="Decrease Limit"
+                        >
+                          -
+                        </button>
+                        <span className="font-mono font-bold text-xs text-[#1E2230] min-w-[20px] text-center">
+                          {staff.maxJobLimit}
+                        </span>
+                        <button
+                          onClick={() => handleUpdateLimit(staff.id, staff.maxJobLimit + 1)}
+                          className="w-7 h-7 rounded-lg bg-[#F6F7FB] border border-[#E5E7EF] font-bold text-xs hover:bg-[#E5E7EF] text-[#6B7280] flex items-center justify-center transition-all"
+                          title="Increase Limit"
+                        >
+                          +
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

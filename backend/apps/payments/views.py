@@ -1,4 +1,9 @@
+import json
+import hmac
+import hashlib
+from django.conf import settings
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
@@ -7,7 +12,7 @@ from apps.core.permissions import IsAdmin, IsStaff
 from apps.custom_orders.models import Order
 from .models import Payment, Settlement, PaymentPlanTemplate, OrderPaymentStage
 from .serializers import PaymentSerializer, SettlementSerializer, PaymentPlanTemplateSerializer, OrderPaymentStageSerializer
-from .services import MockPaymentGatewayService, process_stage_payment_success
+from .services import get_payment_gateway, process_stage_payment_success
 
 class PaymentPlanTemplateViewSet(viewsets.ModelViewSet):
     queryset = PaymentPlanTemplate.objects.all()
@@ -42,29 +47,49 @@ def pay_stage_payment(request):
 @permission_classes([permissions.IsAuthenticated])
 def create_payment_session(request):
     order_id = request.data.get('order_id')
+    stage_id = request.data.get('stage_id')
     payment_type = request.data.get('payment_type', 'advance')
 
-    try:
-        order = Order.objects.get(id=order_id, client=request.user)
-    except Order.DoesNotExist:
-        return Response({"error": "Order not found or does not belong to you."}, status=status.HTTP_404_NOT_FOUND)
+    order = None
+    stage = None
+    if stage_id:
+        try:
+            stage = OrderPaymentStage.objects.get(id=stage_id, order__client=request.user)
+            order = stage.order
+            amount = stage.amount
+            payment_type = f"stage_{stage.order_index}"
+        except OrderPaymentStage.DoesNotExist:
+            return Response({"error": "Payment stage not found or not owned by you."}, status=status.HTTP_404_NOT_FOUND)
+    elif order_id:
+        try:
+            order = Order.objects.get(id=order_id, client=request.user)
+        except Order.DoesNotExist:
+            return Response({"error": "Order not found or does not belong to you."}, status=status.HTTP_404_NOT_FOUND)
 
-    if payment_type == 'advance':
-        amount = order.advance_amount if order.advance_amount > 0 else (order.total_price * 0.5)
-    elif payment_type == 'balance':
-        amount = order.total_price - order.advance_amount
+        if payment_type == 'advance':
+            amount = order.advance_amount if order.advance_amount > 0 else (order.total_price * 0.5)
+        elif payment_type == 'balance':
+            amount = order.total_price - order.advance_amount
+        else:
+            amount = order.total_price
     else:
-        amount = order.total_price
+        return Response({"error": "order_id or stage_id is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-    gateway = MockPaymentGatewayService()
+    gateway = get_payment_gateway()
     session_data = gateway.create_payment_session(order, payment_type, amount)
+
+    if stage:
+        payment_id = session_data.get('payment_id')
+        if payment_id:
+            Payment.objects.filter(id=payment_id).update(payment_stage=stage)
+
     return Response(session_data, status=status.HTTP_201_CREATED)
 
 
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
 def verify_payment(request):
-    gateway = MockPaymentGatewayService()
+    gateway = get_payment_gateway()
     success, message, payment = gateway.verify_payment(request.data)
 
     if not success:
@@ -72,8 +97,71 @@ def verify_payment(request):
 
     return Response({
         "message": message,
-        "payment": PaymentSerializer(payment).data
+        "payment": PaymentSerializer(payment).data if payment else {}
     })
+
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def razorpay_webhook(request):
+    """
+    POST /api/payments/webhook/
+    Handles incoming Razorpay webhook events with signature verification and idempotency.
+    """
+    webhook_secret = getattr(settings, 'RAZORPAY_WEBHOOK_SECRET', '').strip()
+    signature = request.headers.get('X-Razorpay-Signature')
+    body = request.body
+
+    if webhook_secret:
+        if not signature:
+            return Response({"error": "Missing X-Razorpay-Signature header"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            expected_signature = hmac.new(
+                webhook_secret.encode('utf-8'),
+                body,
+                hashlib.sha256
+            ).hexdigest()
+            if not hmac.compare_digest(expected_signature, signature):
+                return Response({"error": "Invalid webhook signature"}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": f"Webhook verification error: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        data = json.loads(body.decode('utf-8'))
+    except Exception:
+        return Response({"error": "Invalid JSON payload"}, status=status.HTTP_400_BAD_REQUEST)
+
+    event = data.get('event')
+    payload = data.get('payload', {})
+    payment_entity = payload.get('payment', {}).get('entity', {})
+    payment_id = payment_entity.get('id')
+    order_id = payment_entity.get('order_id')
+
+    # Idempotency check: verify if payment_id already processed
+    if payment_id:
+        existing_payment = Payment.objects.filter(gateway_transaction_id=payment_id, status=Payment.Status.SUCCESS).first()
+        if existing_payment:
+            return Response({"status": "already_processed", "payment_id": payment_id})
+
+    if event == 'payment.captured':
+        payment = None
+        if order_id:
+            payment = Payment.objects.filter(gateway_transaction_id=order_id).first()
+        if not payment and payment_id:
+            payment = Payment.objects.filter(gateway_transaction_id=payment_id).first()
+
+        if payment:
+            gateway = get_payment_gateway()
+            gateway.verify_payment({
+                'payment_id': payment.id,
+                'gateway_transaction_id': payment_id,
+                'status': 'success'
+            })
+            return Response({"status": "captured", "payment_id": payment_id})
+
+    return Response({"status": "received", "event": event})
+
 
 
 @api_view(['GET'])

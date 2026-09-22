@@ -409,7 +409,7 @@ class ApiClient {
     }
   }
 
-  async ensureAdminToken() {
+  ensureAdminToken() {
     const token = localStorage.getItem('shiuli_access_token');
     const userStr = localStorage.getItem('shiuli_user');
     let user: any = null;
@@ -422,29 +422,12 @@ class ApiClient {
     if (!token || !isStaffOrAdmin) {
       throw new Error('Administrator or Staff authentication required.');
     }
-
-    // Verify stored token is valid against backend
-    try {
-      await this.request('/auth/me/');
-    } catch (err: any) {
-      this.clearSession();
-      throw new Error('Admin session expired or invalid. Please log in again.');
-    }
   }
 
   // Staff Management Endpoints
   async getStaffList() {
-    await this.ensureAdminToken();
-    try {
-      return await this.request<any[]>('/staff/');
-    } catch (err: any) {
-      if (err.status === 401 || err.status === 403) {
-        localStorage.removeItem('shiuli_access_token');
-        await this.ensureAdminToken();
-        return await this.request<any[]>('/staff/');
-      }
-      throw err;
-    }
+    this.ensureAdminToken();
+    return await this.request<any[]>('/staff/');
   }
 
   async createStaff(staffData: {
@@ -458,51 +441,21 @@ class ApiClient {
     specialty_tags?: string;
     bio?: string;
   }) {
-    await this.ensureAdminToken();
-    try {
-      return await this.request<any>('/staff/', {
-        method: 'POST',
-        body: JSON.stringify(staffData),
-      });
-    } catch (err: any) {
-      if (err.status === 401 || err.status === 403) {
-        localStorage.removeItem('shiuli_access_token');
-        await this.ensureAdminToken();
-        return await this.request<any>('/staff/', {
-          method: 'POST',
-          body: JSON.stringify(staffData),
-        });
-      }
-      throw err;
-    }
+    this.ensureAdminToken();
+    return await this.request<any>('/staff/', {
+      method: 'POST',
+      body: JSON.stringify(staffData),
+    });
   }
 
   async getAdminClients() {
-    await this.ensureAdminToken();
-    try {
-      return await this.request<any[]>('/auth/admin/clients/');
-    } catch (err: any) {
-      if (err.status === 401 || err.status === 403) {
-        localStorage.removeItem('shiuli_access_token');
-        await this.ensureAdminToken();
-        return await this.request<any[]>('/auth/admin/clients/');
-      }
-      throw err;
-    }
+    this.ensureAdminToken();
+    return await this.request<any[]>('/auth/admin/clients/');
   }
 
   async getGatewayLogs() {
-    await this.ensureAdminToken();
-    try {
-      return await this.request<any[]>('/payments/gateway-log/');
-    } catch (err: any) {
-      if (err.status === 401 || err.status === 403) {
-        localStorage.removeItem('shiuli_access_token');
-        await this.ensureAdminToken();
-        return await this.request<any[]>('/payments/gateway-log/');
-      }
-      throw err;
-    }
+    this.ensureAdminToken();
+    return await this.request<any[]>('/payments/gateway-log/');
   }
 
   async updateStaff(
@@ -517,23 +470,11 @@ class ApiClient {
       bio?: string;
     }
   ) {
-    await this.ensureAdminToken();
-    try {
-      return await this.request<any>(`/staff/${staffId}/`, {
-        method: 'PATCH',
-        body: JSON.stringify(updates),
-      });
-    } catch (err: any) {
-      if (err.status === 401 || err.status === 403) {
-        localStorage.removeItem('shiuli_access_token');
-        await this.ensureAdminToken();
-        return await this.request<any>(`/staff/${staffId}/`, {
-          method: 'PATCH',
-          body: JSON.stringify(updates),
-        });
-      }
-      throw err;
-    }
+    this.ensureAdminToken();
+    return await this.request<any>(`/staff/${staffId}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
   }
 
   async getStaffPerformance(staffId: number | string) {

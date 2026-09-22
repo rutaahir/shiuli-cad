@@ -19,7 +19,7 @@ class StaffViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdmin]
 
     def get_queryset(self):
-        return User.objects.filter(role=User.Role.STAFF).select_related('staff_profile')
+        return User.objects.filter(role=User.Role.STAFF).select_related('staff_profile').order_by('id')
 
     def get_serializer_class(self):
         if self.action == 'create':
