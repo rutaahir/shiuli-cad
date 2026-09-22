@@ -35,6 +35,7 @@ import { api } from '../services/api';
 import { PortfolioItemData, PageId } from '../types';
 import { SkeletonShimmer } from '../components/motion/SkeletonShimmer';
 import { BrandLogo } from '../components/BrandLogo';
+import { getOptimizedImageUrl, handleImgError } from '../utils/imageHelper';
 
 interface PortfolioPageProps {
   onNavigate: (page: PageId, slug?: string) => void;
@@ -502,8 +503,9 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({ onNavigate }) => {
                   <div className="lg:col-span-7 relative group">
                     <div className="aspect-[16/10] relative rounded-2xl overflow-hidden bg-[#060B1E] border border-[#D4AF37]/40 shadow-xl">
                       <img
-                        src={activeSpotlightItem.primary_image || '/unsplash-img/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=1000&q=85'}
+                        src={getOptimizedImageUrl(activeSpotlightItem.primary_image, activeSpotlightItem.category_slug)}
                         alt={activeSpotlightItem.title}
+                        onError={(e) => handleImgError(e, activeSpotlightItem.category_slug)}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                       />
                       <div className="absolute top-3 left-3 flex gap-2">
@@ -629,8 +631,9 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({ onNavigate }) => {
                     {/* Fixed Height Uniform Image Container */}
                     <div className="relative h-64 sm:h-72 w-full bg-[#060B1E] overflow-hidden flex items-center justify-center shrink-0 border-b border-[#D4AF37]/15">
                       <img
-                        src={item.primary_image || '/unsplash-img/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=600&q=80'}
+                        src={getOptimizedImageUrl(item.primary_image, item.category_slug)}
                         alt={item.title}
+                        onError={(e) => handleImgError(e, item.category_slug)}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
                       />
 
@@ -761,8 +764,9 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({ onNavigate }) => {
               <div className="flex-1 bg-[#060B1E] relative flex items-center justify-center min-h-[340px] md:min-h-[520px]">
                 {getLightboxImages().length > 0 && (
                   <img
-                    src={getLightboxImages()[activeImageIndex]}
+                    src={getOptimizedImageUrl(getLightboxImages()[activeImageIndex], activeItem.category_slug)}
                     alt={activeItem.title}
+                    onError={(e) => handleImgError(e, activeItem.category_slug)}
                     className="max-h-[75vh] w-full object-contain p-4"
                   />
                 )}

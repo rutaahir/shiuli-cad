@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { RotateCw, ZoomIn, ZoomOut, Layers, Sparkles, Compass, Maximize2, Minimize2 } from 'lucide-react';
+import { getOptimizedImageUrl, VERIFIED_JEWELRY_IMAGES } from '../utils/imageHelper';
 
-const DEFAULT_FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=1000&q=80';
+const DEFAULT_FALLBACK_IMAGE = VERIFIED_JEWELRY_IMAGES.ring;
 
 interface TurntableSimulatorProps {
   images: string[];
@@ -20,15 +21,17 @@ export const TurntableSimulator: React.FC<TurntableSimulatorProps> = ({ images, 
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Active target image URL
-  const selectedImageFromList = images && images.length > 0
+  const rawTarget = images && images.length > 0
     ? (images[activeImageIdx] || images[Math.floor((rotationAngle / 360) * images.length) % images.length] || images[0])
     : DEFAULT_FALLBACK_IMAGE;
+
+  const selectedImageFromList = getOptimizedImageUrl(rawTarget);
 
   const [imgSrc, setImgSrc] = useState<string>(selectedImageFromList || DEFAULT_FALLBACK_IMAGE);
 
   useEffect(() => {
-    setImgSrc(selectedImageFromList || DEFAULT_FALLBACK_IMAGE);
-  }, [selectedImageFromList]);
+    setImgSrc(getOptimizedImageUrl(rawTarget) || DEFAULT_FALLBACK_IMAGE);
+  }, [rawTarget]);
 
   const handleImageError = () => {
     setImgSrc(DEFAULT_FALLBACK_IMAGE);

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Product, PageId } from '../types';
 import { X, Check, ShoppingBag, Heart, ExternalLink, ShieldCheck, Sparkles } from 'lucide-react';
+import { getOptimizedImageUrl, handleImgError } from '../utils/imageHelper';
 
 interface QuickViewModalProps {
   product: Product | null;
@@ -20,11 +21,20 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
   onNavigateToDetail,
 }) => {
   const [selectedLicense, setSelectedLicense] = useState<'standard' | 'commercial'>('standard');
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
+  const [addedNotice, setAddedNotice] = useState<boolean>(false);
 
   if (!product) return null;
 
-  const currentPrice = selectedLicense === 'commercial' ? product.price * 1.8 : product.price;
+  const currentPrice = selectedLicense === 'commercial' 
+    ? Math.round(product.price * 1.8) 
+    : product.price;
+
+  const handleAdd = () => {
+    onAddToCart(product, selectedLicense);
+    setAddedNotice(true);
+    setTimeout(() => setAddedNotice(false), 2000);
+  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
@@ -42,8 +52,9 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
           <div className="p-6 bg-[#070D22] flex flex-col justify-between space-y-4">
             <div className="relative rounded-xl overflow-hidden border border-[#D4AF37]/20 bg-[#0B1330] flex items-center justify-center aspect-square">
               <img
-                src={product.images[activeImageIndex] || product.primaryImage}
+                src={getOptimizedImageUrl(product.images[activeImageIndex] || product.primaryImage, product.category)}
                 alt={product.title}
+                onError={(e) => handleImgError(e, product.category)}
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover transition-all duration-300"
               />
@@ -63,7 +74,13 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
                       activeImageIndex === i ? 'border-[#D4AF37] scale-105 shadow-md' : 'border-white/10 opacity-70'
                     }`}
                   >
-                    <img src={img} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                    <img
+                      src={getOptimizedImageUrl(img, product.category)}
+                      alt=""
+                      onError={(e) => handleImgError(e, product.category)}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover"
+                    />
                   </button>
                 ))}
               </div>
@@ -84,11 +101,11 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
 
               <div className="flex items-baseline gap-3">
                 <span className="text-2xl font-serif text-[#F5E7A3] font-bold">
-                  ${currentPrice.toFixed(0)}
+                  ₹{Math.round(currentPrice * 84).toLocaleString('en-IN')} <span className="text-xs font-sans text-[#C9C2A6] font-normal">(${currentPrice.toFixed(0)} USD)</span>
                 </span>
                 {product.originalPrice && (
                   <span className="text-sm text-[#C9C2A6] line-through">
-                    ${(product.originalPrice * (selectedLicense === 'commercial' ? 1.8 : 1)).toFixed(0)}
+                    ₹{Math.round(product.originalPrice * (selectedLicense === 'commercial' ? 1.8 : 1) * 84).toLocaleString('en-IN')}
                   </span>
                 )}
                 <span className="text-[11px] text-[#C9C2A6]">

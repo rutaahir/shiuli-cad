@@ -2,7 +2,7 @@ import base64
 import uuid
 from django.core.files.base import ContentFile
 from rest_framework import serializers
-from .models import ServicePage, ServicePageFeature, ServicePageGalleryImage
+from .models import ServicePage, ServicePageFeature, ServicePageGalleryImage, Testimonial, FAQ
 
 class HybridImageField(serializers.Field):
     """
@@ -138,4 +138,29 @@ class ServicePageSerializer(serializers.ModelSerializer):
                     )
 
         return instance
+
+
+class TestimonialSerializer(serializers.ModelSerializer):
+    avatar_display = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Testimonial
+        fields = [
+            'id', 'name', 'role_or_company', 'quote', 'avatar',
+            'avatar_url', 'avatar_display', 'rating', 'project_type',
+            'is_featured', 'display_order', 'created_at'
+        ]
+
+    def get_avatar_display(self, obj):
+        if obj.avatar:
+            request = self.context.get('request')
+            return request.build_absolute_uri(obj.avatar.url) if request else obj.avatar.url
+        return obj.avatar_url or '/unsplash-img/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80'
+
+
+class FAQSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FAQ
+        fields = ['id', 'question', 'answer', 'category', 'display_order', 'is_published', 'created_at']
+
 

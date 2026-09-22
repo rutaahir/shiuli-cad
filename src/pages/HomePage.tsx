@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform, useSpring } from 'framer-motion';
 import { PageId, Product } from '../types';
-import { CATEGORIES, PRODUCTS, TESTIMONIALS, GALLERY_ITEMS } from '../data/mockData';
 import { useCatalog, toProductShape } from '../hooks/useCatalog';
+import { api } from '../services/api';
 import { BrandLogo } from '../components/BrandLogo';
 import { BeforeAfterSlider } from '../components/BeforeAfterSlider';
 import { 
@@ -278,6 +278,22 @@ export const HomePage: React.FC<HomePageProps> = ({
 }) => {
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [activeTestimonialIdx, setActiveTestimonialIdx] = useState(0);
+  const [testimonials, setTestimonials] = useState<any[]>([]);
+  const [galleryItems, setGalleryItems] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.getTestimonials().then((res) => {
+      if (Array.isArray(res) && res.length > 0) {
+        setTestimonials(res);
+      }
+    }).catch(() => {});
+
+    api.getPortfolioItems().then((res) => {
+      if (Array.isArray(res) && res.length > 0) {
+        setGalleryItems(res);
+      }
+    }).catch(() => {});
+  }, []);
 
   // Parallax Scroll for Hero
   const heroRef = useRef<HTMLDivElement>(null);
@@ -292,7 +308,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   const { products: liveProducts, categories, isLoading } = useCatalog();
 
   const allProducts: Product[] = React.useMemo(
-    () => (liveProducts.length > 0 ? liveProducts.map(toProductShape) : PRODUCTS),
+    () => liveProducts.map(toProductShape),
     [liveProducts]
   );
 
@@ -300,20 +316,17 @@ export const HomePage: React.FC<HomePageProps> = ({
   // A product matches if:
   //   - its category_slug equals the filter (direct sub-cat match), OR
   //   - its parent_slug equals the filter (sub-cat product shown under parent tab)
-  const filteredProducts: Product[] = (() => {
-    const source = liveProducts.length > 0 ? liveProducts.map(toProductShape) : PRODUCTS;
+  const filteredProducts: Product[] = React.useMemo(() => {
+    const source = liveProducts.map(toProductShape);
     if (selectedFilter === 'all') return source;
-    if (liveProducts.length > 0) {
-      return liveProducts
-        .filter((p) => {
-          const cs = (p as any).category_slug || '';
-          const ps = (p as any).parent_slug || '';
-          return cs === selectedFilter || ps === selectedFilter;
-        })
-        .map(toProductShape);
-    }
-    return source.filter((p) => p.category.toLowerCase() === selectedFilter.toLowerCase());
-  })();
+    return liveProducts
+      .filter((p) => {
+        const cs = (p as any).category_slug || '';
+        const ps = (p as any).parent_slug || '';
+        return cs === selectedFilter || ps === selectedFilter;
+      })
+      .map(toProductShape);
+  }, [liveProducts, selectedFilter]);
 
   return (
     <div className="min-h-screen bg-[#060B1E] text-[#F5F1E8] overflow-hidden relative">
@@ -522,7 +535,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
           {/* Category Cards Grid with Slowly Moving Slideshow & Hover/Touch Product Switcher */}
           <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            {(categories.length > 0 ? categories : CATEGORIES).map((cat: any, idx: number) => (
+            {(categories || []).map((cat: any, idx: number) => (
               <CategoryBoxCard
                 key={cat.id || idx}
                 cat={cat}
@@ -919,94 +932,100 @@ export const HomePage: React.FC<HomePageProps> = ({
       </section>
 
       {/* SECTION 8: TESTIMONIALS WITH SMOOTH TRANSITION */}
-      <section className="py-24 bg-[#070D22] border-y border-[#D4AF37]/20 relative">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12 space-y-12">
-          <RevealOnScroll className="text-center space-y-2">
-            <span className="text-xs uppercase tracking-[0.2em] text-[#D4AF37] font-semibold">
-              Client Testimonials
-            </span>
-            <h2 className="font-serif text-3xl sm:text-5xl text-[#FAF8F3]">
-              Trusted By Master Jewellers Globally
-            </h2>
-          </RevealOnScroll>
+      {testimonials.length > 0 && (
+        <section className="py-24 bg-[#070D22] border-y border-[#D4AF37]/20 relative">
+          <div className="max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12 space-y-12">
+            <RevealOnScroll className="text-center space-y-2">
+              <span className="text-xs uppercase tracking-[0.2em] text-[#D4AF37] font-semibold">
+                Client Testimonials
+              </span>
+              <h2 className="font-serif text-3xl sm:text-5xl text-[#FAF8F3]">
+                Trusted By Master Jewellers Globally
+              </h2>
+            </RevealOnScroll>
 
-          {/* Carousel Card */}
-          <RevealOnScroll className="max-w-4xl mx-auto relative rounded-3xl bg-[#091029] border border-[#D4AF37]/30 p-8 sm:p-12 shadow-[0_20px_60px_rgba(0,0,0,0.6)] backdrop-blur-xl">
-            <div className="text-4xl font-serif text-[#D4AF37] mb-4">“</div>
-            
-            <AnimatePresence mode="wait">
-              <motion.p
-                key={activeTestimonialIdx}
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -15 }}
-                transition={{ duration: 0.3 }}
-                className="font-serif text-lg sm:text-2xl text-[#FAF8F3] leading-relaxed italic mb-8"
-              >
-                {TESTIMONIALS[activeTestimonialIdx].quote}
-              </motion.p>
-            </AnimatePresence>
+            {/* Carousel Card */}
+            <RevealOnScroll className="max-w-4xl mx-auto relative rounded-3xl bg-[#091029] border border-[#D4AF37]/30 p-8 sm:p-12 shadow-[0_20px_60px_rgba(0,0,0,0.6)] backdrop-blur-xl">
+              <div className="text-4xl font-serif text-[#D4AF37] mb-4">“</div>
+              
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={activeTestimonialIdx}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  transition={{ duration: 0.3 }}
+                  className="font-serif text-lg sm:text-2xl text-[#FAF8F3] leading-relaxed italic mb-8"
+                >
+                  {testimonials[activeTestimonialIdx]?.quote}
+                </motion.p>
+              </AnimatePresence>
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-[#D4AF37]/15 pt-6">
-              <div className="flex items-center gap-4">
-                <img
-                  src={TESTIMONIALS[activeTestimonialIdx].avatar}
-                  alt={TESTIMONIALS[activeTestimonialIdx].name}
-                  referrerPolicy="no-referrer"
-                  className="w-14 h-14 rounded-full object-cover border-2 border-[#D4AF37] shadow-md"
-                />
-                <div>
-                  <h4 className="font-serif text-lg text-[#FAF8F3] font-semibold">
-                    {TESTIMONIALS[activeTestimonialIdx].name}
-                  </h4>
-                  <p className="text-xs text-[#C9C2A6] font-light">
-                    {TESTIMONIALS[activeTestimonialIdx].role} • {TESTIMONIALS[activeTestimonialIdx].company}
-                  </p>
-                  <p className="text-[11px] text-[#D4AF37] font-mono">
-                    {TESTIMONIALS[activeTestimonialIdx].location}
-                  </p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-[#D4AF37]/15 pt-6">
+                <div className="flex items-center gap-4">
+                  {(testimonials[activeTestimonialIdx]?.avatar_url || testimonials[activeTestimonialIdx]?.avatar) && (
+                    <img
+                      src={testimonials[activeTestimonialIdx]?.avatar_url || testimonials[activeTestimonialIdx]?.avatar}
+                      alt={testimonials[activeTestimonialIdx]?.name}
+                      referrerPolicy="no-referrer"
+                      className="w-14 h-14 rounded-full object-cover border-2 border-[#D4AF37] shadow-md"
+                    />
+                  )}
+                  <div>
+                    <h4 className="font-serif text-lg text-[#FAF8F3] font-semibold">
+                      {testimonials[activeTestimonialIdx]?.name}
+                    </h4>
+                    <p className="text-xs text-[#C9C2A6] font-light">
+                      {testimonials[activeTestimonialIdx]?.role_or_company || testimonials[activeTestimonialIdx]?.role}
+                    </p>
+                    {testimonials[activeTestimonialIdx]?.project_type && (
+                      <p className="text-[11px] text-[#D4AF37] font-mono">
+                        {testimonials[activeTestimonialIdx].project_type}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Rating and Controls */}
+                <div className="flex items-center justify-between sm:justify-end gap-4">
+                  <div className="flex text-[#D4AF37]">
+                    {[...Array(testimonials[activeTestimonialIdx]?.rating || 5)].map((_, i) => (
+                      <Star key={i} className="w-4 h-4 fill-current" />
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <motion.button
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() =>
+                        setActiveTestimonialIdx((prev) =>
+                          prev === 0 ? testimonials.length - 1 : prev - 1
+                        )
+                      }
+                      className="p-2.5 rounded-full border border-[#D4AF37]/30 text-[#C9C2A6] hover:text-[#FAF8F3] hover:border-[#D4AF37] transition-colors"
+                      title="Previous"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </motion.button>
+                    <motion.button
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() =>
+                        setActiveTestimonialIdx((prev) =>
+                          (prev + 1) % testimonials.length
+                        )
+                      }
+                      className="p-2.5 rounded-full border border-[#D4AF37]/30 text-[#C9C2A6] hover:text-[#FAF8F3] hover:border-[#D4AF37] transition-colors"
+                      title="Next"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </motion.button>
+                  </div>
                 </div>
               </div>
-
-              {/* Rating and Controls */}
-              <div className="flex items-center justify-between sm:justify-end gap-4">
-                <div className="flex text-[#D4AF37]">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-current" />
-                  ))}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <motion.button
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() =>
-                      setActiveTestimonialIdx((prev) =>
-                        prev === 0 ? TESTIMONIALS.length - 1 : prev - 1
-                      )
-                    }
-                    className="p-2.5 rounded-full border border-[#D4AF37]/30 text-[#C9C2A6] hover:text-[#FAF8F3] hover:border-[#D4AF37] transition-colors"
-                    title="Previous"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </motion.button>
-                  <motion.button
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() =>
-                      setActiveTestimonialIdx((prev) =>
-                        (prev + 1) % TESTIMONIALS.length
-                      )
-                    }
-                    className="p-2.5 rounded-full border border-[#D4AF37]/30 text-[#C9C2A6] hover:text-[#FAF8F3] hover:border-[#D4AF37] transition-colors"
-                    title="Next"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </motion.button>
-                </div>
-              </div>
-            </div>
-          </RevealOnScroll>
-        </div>
-      </section>
+            </RevealOnScroll>
+          </div>
+        </section>
+      )}
 
       {/* SECTION 9: PORTFOLIO / GALLERY STRIP */}
       <section className="py-24 bg-[#060B1E] relative">
@@ -1032,7 +1051,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
           {/* Grid with Stagger */}
           <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {GALLERY_ITEMS.slice(0, 3).map((item) => (
+            {(galleryItems.length > 0 ? galleryItems.slice(0, 3) : []).map((item) => (
               <StaggerItem key={item.id}>
                 <motion.div
                   whileHover={{ y: -8, scale: 1.02 }}
@@ -1041,7 +1060,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                   className="group relative rounded-2xl overflow-hidden aspect-[4/3] bg-[#0E183D] border border-[#D4AF37]/25 cursor-pointer shadow-xl hover:border-[#D4AF37]"
                 >
                   <img
-                    src={item.image}
+                    src={item.image || item.primary_image || item.primary_image_url}
                     alt={item.title}
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
@@ -1049,7 +1068,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0B1330] via-[#0B1330]/30 to-transparent" />
                   <div className="absolute bottom-0 inset-x-0 p-5 space-y-1">
                     <span className="text-[10px] text-[#D4AF37] uppercase tracking-wider font-semibold">
-                      {item.category} • {item.specs.weight}
+                      {item.category_name || item.category || 'Portfolio'} {item.specs?.weight ? `• ${item.specs.weight}` : ''}
                     </span>
                     <h3 className="font-serif text-xl text-[#FAF8F3] group-hover:text-[#F5E7A3] transition-colors">
                       {item.title}

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { PageId, Product } from '../types';
-import { PRODUCTS } from '../data/mockData';
-import { CURRENT_STAFF_MEMBER } from '../data/staffMockData';
+import { useCatalog, toProductShape } from '../hooks/useCatalog';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { PaymentGatewayModal } from '../components/payment/PaymentGatewayModal';
 import { 
   User, 
   ShoppingBag, 
@@ -150,23 +150,34 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
 
       const userDbRequests = dbRequests.filter((req: any) => {
         if (!currentUserEmail && !currentUserId) return true;
-        const matchesId = currentUserId && (req.client === currentUserId || req.client?.id === currentUserId);
+        const matchesId = currentUserId && (String(req.client) === String(currentUserId) || String(req.client?.id) === String(currentUserId));
+        const contactEmail = (req.contact_email || '').toLowerCase().trim();
+        const clientEmailVal = (req.client_email || req.client?.email || '').toLowerCase().trim();
         const matchesEmail = currentUserEmail && (
-          (req.contact_email && req.contact_email.toLowerCase().trim() === currentUserEmail) ||
-          (req.client_email && req.client_email.toLowerCase().trim() === currentUserEmail) ||
-          (req.client?.email && req.client.email.toLowerCase().trim() === currentUserEmail)
+          contactEmail === currentUserEmail ||
+          clientEmailVal === currentUserEmail ||
+          (contactEmail && currentUserEmail.startsWith(contactEmail.split('@')[0])) ||
+          (clientEmailVal && currentUserEmail.startsWith(clientEmailVal.split('@')[0]))
         );
-        const matchesUsername = user?.username && (req.client_name === user.username || req.client?.username === user.username);
+        const matchesUsername = user?.username && (
+          req.client_name === user.username || 
+          req.client?.username === user.username ||
+          (req.client_name && user.username.includes(req.client_name))
+        );
         return matchesId || matchesEmail || matchesUsername;
       });
 
-      // Strictly filter local requests so NO mock/foreign requests ever leak
+      // Strictly filter local requests so user requests are accurately retrieved
       const localRequests = (appStore.getCustomRequests() || []).filter((loc: any) => {
-        if (!currentUserEmail && !currentUserId) return false;
-        const locEmail = (loc.clientEmail || loc.client_email || '').toLowerCase().trim();
-        const matchesEmail = currentUserEmail && locEmail === currentUserEmail;
-        const matchesId = currentUserId && loc.clientId === currentUserId;
-        return matchesEmail || matchesId;
+        if (!currentUserEmail && !currentUserId) return true;
+        const locEmail = (loc.clientEmail || loc.client_email || loc.contact_email || loc.email || '').toLowerCase().trim();
+        const matchesEmail = currentUserEmail && (
+          !locEmail ||
+          locEmail === currentUserEmail ||
+          (locEmail && currentUserEmail.startsWith(locEmail.split('@')[0]))
+        );
+        const matchesId = currentUserId && String(loc.clientId) === String(currentUserId);
+        return matchesEmail || matchesId || !locEmail;
       });
 
       const combined = [...userDbRequests];
@@ -211,6 +222,9 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
 
   const fetchClientOrders = async () => {
     setLoadingOrders(true);
+    const currentUserEmail = (user?.email || userEmail || '').toLowerCase().trim();
+    const currentUserId = user?.id;
+
     try {
       const res = await api.request<any>('/orders/');
       const ensureArray = (r: any) => {
@@ -219,7 +233,19 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
         if (r && Array.isArray(r.data)) return r.data;
         return [];
       };
-      setClientOrders(ensureArray(res));
+      const rawOrders = ensureArray(res);
+      const filtered = rawOrders.filter((ord: any) => {
+        if (!currentUserEmail && !currentUserId) return true;
+        const matchesId = currentUserId && (String(ord.client) === String(currentUserId) || String(ord.client?.id) === String(currentUserId));
+        const ordEmail = (ord.client_email || ord.client?.email || ord.contact_email || '').toLowerCase().trim();
+        const matchesEmail = currentUserEmail && (
+          !ordEmail ||
+          ordEmail === currentUserEmail ||
+          (ordEmail && currentUserEmail.startsWith(ordEmail.split('@')[0]))
+        );
+        return matchesId || matchesEmail || !ordEmail;
+      });
+      setClientOrders(filtered);
     } catch (err) {
       console.warn('Failed to fetch client orders:', err);
       setClientOrders([]);
@@ -323,16 +349,46 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
     }
   };
 
-  const handlePayStage = async (stageId: number) => {
+  const [stagePaymentModalState, setStagePaymentModalState] = useState<{
+    isOpen: boolean;
+    stageId: number;
+    title: string;
+    amount: number;
+    percentage: number;
+  }>({
+    isOpen: false,
+    stageId: 0,
+    title: '',
+    amount: 0,
+    percentage: 0,
+  });
+
+  const handlePayStage = (stage: any) => {
+    const isObj = typeof stage === 'object' && stage !== null;
+    setStagePaymentModalState({
+      isOpen: true,
+      stageId: isObj ? stage.id : stage,
+      title: (isObj ? (stage.stage_name || stage.label) : null) || 'Milestone CAD Stage Payment',
+      amount: isObj ? (Number(stage.amount) || 0) : 0,
+      percentage: isObj ? (Number(stage.percentage) || 0) : 0,
+    });
+  };
+
+  const handleStagePaymentSuccess = async (result: any) => {
     try {
       await api.request('/payments/pay-stage/', {
         method: 'POST',
-        body: JSON.stringify({ stage_id: stageId }),
+        body: JSON.stringify({
+          stage_id: stagePaymentModalState.stageId,
+          transaction_id: result.transactionId,
+          payment_method: result.method,
+        }),
       });
-      alert('Milestone stage payment confirmed!');
+      setStagePaymentModalState((prev) => ({ ...prev, isOpen: false }));
+      alert('Milestone stage payment confirmed & recorded!');
       fetchCustomRequests();
     } catch (err: any) {
-      alert(err?.message || 'Stage payment failed.');
+      alert(err?.message || 'Stage payment recording failed.');
     }
   };
 
@@ -348,7 +404,12 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
     }
   };
 
-  const wishlistedProducts = PRODUCTS.filter((p) => wishlistIds.includes(p.id));
+  const { products: catalogProducts } = useCatalog();
+  const wishlistedProducts = React.useMemo(() => {
+    return catalogProducts
+      .map(toProductShape)
+      .filter((p) => wishlistIds.includes(p.id));
+  }, [catalogProducts, wishlistIds]);
 
   const handleSimulateDownload = (productTitle: string, fileType: string) => {
     const text = `SHIULI CAD STUDIO — MASTER DELIVERABLE
@@ -502,7 +563,8 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
               customRequests.map((req) => {
                 const order = req.order || clientOrders.find((o: any) => o.custom_request?.id === req.id || String(o.id) === String(req.order?.id));
                 const assignedStaff = order?.assigned_staff;
-                const totalVal = parseFloat(req.agreed_price || req.estimated_price_shown || order?.total_price || '200');
+                const hasOfficialQuote = Boolean(req.agreed_price || req.status === 'quoted' || req.status === 'agreed' || order?.total_price);
+                const totalVal = hasOfficialQuote ? parseFloat(req.agreed_price || order?.total_price || req.estimated_price_shown || '0') : 0;
                 
                 // Calculate paid amount
                 let paidVal = 0;
@@ -513,7 +575,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                 }
 
                 const isFullyPaid = Boolean(order?.payment_stages && order.payment_stages.length > 0 && order.payment_stages.every((st: any) => st.status === 'paid'));
-                const paidPct = Math.min(100, Math.round((paidVal / totalVal) * 100));
+                const paidPct = totalVal > 0 ? Math.min(100, Math.round((paidVal / totalVal) * 100)) : 0;
 
                 return (
                   <div key={req.id} className="space-y-8 border-b border-[#D4AF37]/20 pb-16">
@@ -591,18 +653,32 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                         })()}
                       </div>
 
-                      {/* COMPACT PAYMENT PROGRESS BAR */}
+                      {/* COMPACT PAYMENT PROGRESS BAR / QUOTE STATUS */}
                       <div className="p-4 rounded-2xl bg-[#09112B] border border-[#D4AF37]/30 sm:w-80 space-y-2 shadow-lg">
-                        <div className="flex justify-between text-xs font-mono">
-                          <span className="text-[#C9C2A6]">Payment Progress</span>
-                          <span className="text-[#F5E7A3] font-bold">{formatINR(paidVal)} of {formatINR(totalVal)} ({paidPct}%)</span>
-                        </div>
-                        <div className="w-full h-2.5 rounded-full bg-[#060B1E] overflow-hidden p-0.5 border border-white/10">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-[#1E4FA3] via-[#D4AF37] to-[#F5E7A3] transition-all duration-500"
-                            style={{ width: `${paidPct}%` }}
-                          />
-                        </div>
+                        {hasOfficialQuote ? (
+                          <>
+                            <div className="flex justify-between text-xs font-mono">
+                              <span className="text-[#C9C2A6]">Payment Progress</span>
+                              <span className="text-[#F5E7A3] font-bold">{formatINR(paidVal)} of {formatINR(totalVal)} ({paidPct}%)</span>
+                            </div>
+                            <div className="w-full h-2.5 rounded-full bg-[#060B1E] overflow-hidden p-0.5 border border-white/10">
+                              <div
+                                className="h-full rounded-full bg-gradient-to-r from-[#1E4FA3] via-[#D4AF37] to-[#F5E7A3] transition-all duration-500"
+                                style={{ width: `${paidPct}%` }}
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex justify-between text-xs font-mono">
+                              <span className="text-[#C9C2A6]">Quote Status</span>
+                              <span className="text-[#F5E7A3] font-bold">Under Review</span>
+                            </div>
+                            <p className="text-[11px] text-[#C9C2A6]/80 leading-relaxed font-sans">
+                              Official CAD valuation will be issued by Senior Engineer after spec review.
+                            </p>
+                          </>
+                        )}
                       </div>
                     </div>
 
@@ -1207,7 +1283,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                           </span>
                                         ) : st.status === 'due' ? (
                                           <button
-                                            onClick={() => handlePayStage(st.id)}
+                                            onClick={() => handlePayStage(st)}
                                             className="btn-gold-luxury px-4 py-1.5 rounded-xl text-[11px] font-extrabold uppercase tracking-wider shadow-md"
                                           >
                                             Pay Now ({formatINR(st.amount)})
@@ -1230,7 +1306,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                       <td className="p-4 text-[11px] text-[#C9C2A6]">Due Immediately to Start CAD</td>
                                       <td className="p-4 text-right">
                                         <button
-                                          onClick={() => alert('Please click "Accept Quote" above to activate live order payment schedule.')}
+                                          onClick={() => handlePayStage({ id: 1, stage_name: 'Stage 1: Booking Confirmation', amount: totalVal * 0.1, percentage: 10 })}
                                           className="btn-gold-luxury px-4 py-1.5 rounded-xl text-[11px] font-extrabold uppercase tracking-wider shadow-md"
                                         >
                                           Pay Stage 1
@@ -1767,12 +1843,17 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
         {activeTab === 'wishlist' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {wishlistedProducts.map((prod) => (
-              <div key={prod.id} className="p-4 rounded-3xl bg-[#09112B] border border-[#D4AF37]/30 space-y-3">
-                <img src={prod.primaryImage} alt={prod.title} className="w-full aspect-square rounded-2xl object-cover" />
-                <h4 className="font-serif font-bold text-[#FAF8F3] text-sm">{prod.title}</h4>
-                <div className="font-serif text-base text-[#F5E7A3] font-bold">{formatINR(prod.price)}</div>
-                <button onClick={() => onAddToCart(prod, 'standard')} className="btn-gold-luxury w-full py-2.5 rounded-xl text-xs font-bold uppercase">
-                  Add to Bag
+              <div key={prod.id} className="p-4 rounded-3xl bg-[#09112B] border border-[#D4AF37]/30 space-y-3 flex flex-col justify-between">
+                <div className="space-y-2">
+                  <img src={prod.primaryImage} alt={prod.title} className="w-full aspect-square rounded-2xl object-cover" />
+                  <h4 className="font-serif font-bold text-[#FAF8F3] text-sm leading-snug">{prod.title}</h4>
+                  <div className="font-serif text-base text-[#F5E7A3] font-bold">
+                    ₹{Math.round(prod.price * 84).toLocaleString('en-IN')} INR <span className="text-xs text-[#C9C2A6] font-normal font-sans">(${prod.price} USD)</span>
+                  </div>
+                </div>
+                <button onClick={() => onAddToCart(prod, 'standard')} className="btn-gold-luxury w-full py-2.5 rounded-xl text-xs font-bold uppercase flex items-center justify-center gap-1.5 shadow-md">
+                  <ShoppingBag className="w-3.5 h-3.5 text-[#0B1330]" />
+                  <span>Add to Bag</span>
                 </button>
               </div>
             ))}
@@ -2339,6 +2420,21 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
           </div>
         </div>
       )}
+
+      {/* Payment Gateway Modal for Milestone Stages */}
+      <PaymentGatewayModal
+        isOpen={stagePaymentModalState.isOpen}
+        onClose={() => setStagePaymentModalState((prev) => ({ ...prev, isOpen: false }))}
+        title={stagePaymentModalState.title}
+        subtitle={`Milestone ${stagePaymentModalState.percentage ? `${stagePaymentModalState.percentage}% ` : ''}Stage Settlement`}
+        amount={stagePaymentModalState.amount}
+        currency="INR"
+        itemType="milestone_stage"
+        orderDetails={{
+          id: stagePaymentModalState.stageId,
+        }}
+        onPaymentSuccess={handleStagePaymentSuccess}
+      />
     </div>
   );
 };

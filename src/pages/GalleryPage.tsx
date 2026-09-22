@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { PageId, PortfolioItemData } from '../types';
-import { GALLERY_ITEMS } from '../data/mockData';
 import { BeforeAfterSlider } from '../components/BeforeAfterSlider';
 import { Sparkles, Eye, X, ArrowRight, Layers, Gem, Scale, Loader2, Info } from 'lucide-react';
 import { StaggerGrid, StaggerItem } from '../components/motion/StaggerGrid';
@@ -33,25 +32,12 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ onNavigate }) => {
           setCategories(catsRes);
         }
 
-        if (Array.isArray(portfolioRes) && portfolioRes.length > 0) {
+        if (Array.isArray(portfolioRes)) {
           setItems(portfolioRes);
-        } else {
-          // Soft fallback to mock GALLERY_ITEMS if database hasn't been populated yet
-          setItems(
-            GALLERY_ITEMS.map((gItem, idx) => ({
-              id: Number(gItem.id) || idx + 1,
-              title: gItem.title,
-              description: gItem.description,
-              primary_image: gItem.image,
-              category_name: gItem.category,
-              category_slug: gItem.category.toLowerCase(),
-              completed_date: '2026',
-            })) as any
-          );
         }
       })
       .catch((err) => {
-        console.warn('Using fallback gallery items:', err);
+        console.error('Failed to load portfolio items:', err);
       })
       .finally(() => {
         if (isMounted) setLoading(false);

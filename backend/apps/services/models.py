@@ -62,3 +62,38 @@ class ServicePageGalleryImage(models.Model):
 
     def __str__(self):
         return f"{self.page.title} - Gallery Image #{self.id}"
+
+
+class Testimonial(models.Model):
+    name = models.CharField(max_length=120)
+    role_or_company = models.CharField(max_length=150, blank=True)
+    quote = models.TextField()
+    avatar = models.ImageField(upload_to="testimonials/", null=True, blank=True)
+    avatar_url = models.URLField(max_length=500, blank=True, null=True)
+    rating = models.PositiveSmallIntegerField(default=5)
+    project_type = models.CharField(max_length=150, blank=True)
+    is_featured = models.BooleanField(default=True)
+    display_order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['display_order', '-created_at']
+
+    def __str__(self):
+        return f"{self.name} ({self.rating}★)"
+
+
+class FAQ(models.Model):
+    question = models.CharField(max_length=300)
+    answer = models.TextField()
+    category = models.CharField(max_length=100, default="General")
+    display_order = models.PositiveIntegerField(default=0)
+    is_published = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['display_order', 'id']
+
+    def __str__(self):
+        return self.question
+

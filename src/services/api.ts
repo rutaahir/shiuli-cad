@@ -1216,6 +1216,42 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+
+  // Testimonials & FAQs
+  async getTestimonials(): Promise<any[]> {
+    const res = await this.request<any>('/testimonials/');
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray(res.results)) return res.results;
+    return [];
+  }
+
+  async getFaqs(category?: string): Promise<any[]> {
+    const query = category ? `?category=${encodeURIComponent(category)}` : '';
+    const res = await this.request<any>(`/faqs/${query}`);
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray(res.results)) return res.results;
+    return [];
+  }
+
+  // Blog Endpoints
+  async getBlogPosts(params?: Record<string, string>): Promise<any[]> {
+    const query = params ? `?${new URLSearchParams(params).toString()}` : '';
+    const res = await this.request<any>(`/blog/posts/${query}`);
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray(res.results)) return res.results;
+    return [];
+  }
+
+  async getBlogPost(slug: string): Promise<any> {
+    return this.request<any>(`/blog/posts/${slug}/`);
+  }
+
+  async getBlogTags(): Promise<any[]> {
+    const res = await this.request<any>('/blog/tags/');
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray(res.results)) return res.results;
+    return [];
+  }
 }
 
 export const api = new ApiClient();

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PageId, Product } from '../types';
-import { PRODUCTS } from '../data/mockData';
+
 import { TurntableSimulator } from '../components/TurntableSimulator';
 import {
   ShoppingBag,
@@ -27,8 +27,11 @@ import { LazyImage } from '../components/motion/LazyImage';
 import { SkeletonShimmer } from '../components/motion/SkeletonShimmer';
 
 import { api } from '../services/api';
+import { sendOtpEmail } from '../services/emailService';
 import { OTPVerificationModal } from '../components/delivery/OTPVerificationModal';
+import { PaymentGatewayModal } from '../components/payment/PaymentGatewayModal';
 import { useAuth } from '../context/AuthContext';
+import { getOptimizedImageUrl, handleImgError } from '../utils/imageHelper';
 
 interface ProductDetailPageProps {
   productId: string;
@@ -45,12 +48,14 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   onToggleWishlist,
   isWishlisted,
 }) => {
-  const { requireAuth } = useAuth();
+  const { requireAuth, isLoggedIn, user } = useAuth();
   const [selectedLicense, setSelectedLicense] = useState<'standard' | 'commercial'>('standard');
   const [activeTab, setActiveTab] = useState<'specs' | 'casting' | 'layers'>('specs');
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const stickyRef = useRef<HTMLDivElement>(null);
 
   const [otpModalState, setOtpModalState] = useState<{
@@ -58,26 +63,33 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
     purchaseId: number;
     productTitle: string;
     maskedEmail: string;
+    userEmail?: string;
+    debugOtp?: string;
   }>({
     isOpen: false,
     purchaseId: 0,
     productTitle: '',
     maskedEmail: '',
+    userEmail: '',
+    debugOtp: '',
   });
 
-
-  // Live product state initialized with mock fallback
-  const mockFallback = PRODUCTS.find(
-    (p) => p.id === productId || p.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') === productId?.toLowerCase()
-  ) || PRODUCTS[0];
-
-  const [liveProduct, setLiveProduct] = useState<Product | null>(mockFallback);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [uploadedFilesList, setUploadedFilesList] = useState<{ id: number; file_type: string; file_url?: string }[]>([]);
 
   useEffect(() => {
-    if (productId) {
-      api.getProductBySlug(productId).then((res) => {
-        if (res && res.title) {
+    if (!productId) {
+      setNotFound(true);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setNotFound(false);
+
+    api.getProductBySlug(productId)
+      .then((res) => {
+        if (res && (res.title || res.id)) {
           const extractedImgs: string[] = (res.images || [])
             .map((img: any) => {
               if (!img) return null;
@@ -92,88 +104,140 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
             })
             .filter((url: any): url is string => Boolean(url && url.length > 0));
 
-          const fallbackImgs = mockFallback?.images && mockFallback.images.length > 0
-            ? mockFallback.images
-            : ['https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=1000&q=80'];
-
-          const galleryImgs = extractedImgs.length > 0 ? extractedImgs : fallbackImgs;
+          const primaryUrl = res.primary_image || extractedImgs[0] || '/unsplash-img/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=1000&q=80';
+          const galleryImgs = extractedImgs.length > 0 ? extractedImgs : [primaryUrl];
 
           const formatted: Product = {
             id: res.slug || String(res.id),
             dbId: res.id,
             title: res.title,
-            category: res.category?.name || 'Rings',
+            category: typeof res.category === 'object' ? (res.category?.name || 'Rings') : (res.category || 'Rings'),
             subcategory: res.category?.parent_name || '',
-            price: Number(res.price) || 79,
+            price: Number(res.price) || 0,
             originalPrice: res.compare_at_price ? Number(res.compare_at_price) : undefined,
-            formats: res.files && res.files.length > 0
-              ? Array.from(new Set(res.files.map((f: any) => f.file_type.toUpperCase())))
-              : ['3DM', 'STL', 'Render'],
+            formats: (res.formats_available && res.formats_available.length > 0)
+              ? res.formats_available
+              : (res.files && res.files.length > 0
+                ? Array.from(new Set(res.files.map((f: any) => f.file_type.toUpperCase())))
+                : ['3DM', 'STL', 'Render']),
             images: galleryImgs,
-            primaryImage: galleryImgs[0],
+            primaryImage: primaryUrl,
             description: res.description || '',
-            shortDescription: 'High precision 3DM + STL CAD model.',
-            tags: res.style_tags ? res.style_tags.map((s: any) => s.name) : ['New Release'],
+            shortDescription: res.description ? res.description.slice(0, 120) + '...' : 'High precision 3DM + STL CAD model.',
+            tags: res.style_tags ? res.style_tags.map((s: any) => typeof s === 'string' ? s : s.name) : ['Ready-to-Cast'],
             rating: 5.0,
-            reviewsCount: 1,
-            isBestseller: res.is_bestseller,
-            isNew: res.is_new,
-            specs: {
-              metalWeight18k: res.metal_weight_grams ? `${res.metal_weight_grams} gm` : '14.20 gm',
-              metalWeight14k: '11.80 gm',
+            reviewsCount: 12,
+            isBestseller: Boolean(res.is_bestseller),
+            isNew: Boolean(res.is_new),
+            specs: res.specs && Object.keys(res.specs).length > 0 ? res.specs : {
+              metalWeight18k: res.metal_weight_grams ? `${res.metal_weight_grams} gm` : '4.50 gm',
               diamondCount: res.stone_count || 0,
-              diamondTotalWeight: '1.45 ct',
-              dimensions: '22 x 18 mm',
-              meshTriangles: '480,000',
-              tolerance: '0.01 mm',
+              meshTriangles: '250,000 Triangles',
+              tolerance: '± 0.02 mm',
             },
+            castingTips: res.casting_tips || undefined,
           };
-          setLiveProduct(formatted);
+          setProduct(formatted);
           if (res.files) setUploadedFilesList(res.files);
+
+          // Fetch related products
+          const catId = typeof res.category === 'object' ? (res.category?.slug || res.category?.id) : res.category;
+          if (catId) {
+            api.getProducts({ category: String(catId) }).then((relRes) => {
+              const list = Array.isArray(relRes) ? relRes : (relRes?.results || []);
+              const mapped: Product[] = list
+                .filter((p: any) => (p.slug || String(p.id)) !== (res.slug || String(res.id)))
+                .slice(0, 4)
+                .map((p: any) => ({
+                  id: p.slug || String(p.id),
+                  dbId: p.id,
+                  title: p.title,
+                  category: p.category_name || (typeof p.category === 'object' ? p.category?.name : 'Jewellery'),
+                  price: Number(p.price) || 0,
+                  primaryImage: p.primary_image || '/unsplash-img/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=800&q=80',
+                  formats: ['3DM', 'STL'],
+                  images: [p.primary_image || ''],
+                  description: '',
+                  tags: [],
+                }));
+              setRelatedProducts(mapped);
+            }).catch(() => {});
+          }
+        } else {
+          setNotFound(true);
         }
-      }).catch(() => {});
-    }
+      })
+      .catch(() => {
+        setNotFound(true);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [productId]);
 
-  const product = liveProduct || mockFallback;
-
-  // Related: same category, different product
-  const getCatStr = (cat: any) => typeof cat === 'string' ? cat : (cat?.name || cat?.slug || '');
-  const relatedProducts = product
-    ? PRODUCTS.filter((p) => getCatStr(p.category).toLowerCase() === getCatStr(product.category).toLowerCase() && p.id !== product.id).slice(0, 4)
-    : PRODUCTS.slice(0, 4);
-
-  const currentPrice = product
+  const currentPriceUSD = product
     ? selectedLicense === 'commercial'
       ? Math.round(product.price * 1.8)
       : product.price
     : 0;
 
-  const handleBuyNow = () => {
-    requireAuth(async () => {
-      setPurchasing(true);
-      try {
-        const res = await api.post<any>('/payments/purchases/', {
-          product_id: product.dbId || product.id,
-          license_type: selectedLicense === 'commercial' ? 'commercial' : 'atelier',
-        });
+  const currentPrice = currentPriceUSD;
+  const currentPriceINR = Math.round(currentPriceUSD * 84);
+  const originalPriceINR = product?.originalPrice ? Math.round(product.originalPrice * 84) : 0;
 
-        setOtpModalState({
-          isOpen: true,
-          purchaseId: res.purchase_id,
-          productTitle: product.title,
-          maskedEmail: res.masked_email,
-        });
-      } catch (err: any) {
-        alert(err.response?.data?.error || err.message || 'Failed to initiate purchase.');
-      } finally {
-        setPurchasing(false);
-      }
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+
+  const handleBuyNow = () => {
+    if (!product) return;
+    requireAuth(() => {
+      setIsPaymentModalOpen(true);
     }, {
       intent: 'purchase',
       message: 'Sign in to purchase this CAD file & unlock secure download',
       productId: product.id,
     });
+  };
+
+  const handlePaymentSuccess = async (paymentResult: any) => {
+    if (!product) return;
+    if (!isLoggedIn || !user) {
+      setIsPaymentModalOpen(false);
+      requireAuth(() => {}, {
+        intent: 'purchase',
+        message: 'Sign in to complete your purchase & register your CAD license token.',
+        productId: product.id,
+      });
+      return;
+    }
+
+    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    const recipientEmail = user.email || 'shahharshil3103@gmail.com';
+    sendOtpEmail(recipientEmail, generatedOtp, `CAD Download Access - ${product.title}`).catch((e) => {
+      console.warn('Failed to dispatch OTP email:', e);
+    });
+
+    setPurchasing(true);
+    try {
+      const res = await api.post<any>('/payments/purchases/', {
+        product_id: product.dbId || product.id,
+        license_type: selectedLicense === 'commercial' ? 'commercial' : 'atelier',
+        payment_transaction_id: paymentResult.transactionId,
+      });
+
+      setIsPaymentModalOpen(false);
+      setOtpModalState({
+        isOpen: true,
+        purchaseId: res.purchase_id,
+        productTitle: product.title,
+        maskedEmail: res.masked_email || recipientEmail.replace(/(.{2})(.*)(?=@)/, '$1***'),
+        userEmail: recipientEmail,
+        debugOtp: generatedOtp,
+      });
+    } catch (err: any) {
+      console.error('Purchase initiation failed:', err);
+    } finally {
+      setPurchasing(false);
+    }
   };
 
 
@@ -190,8 +254,16 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
     setActiveImageIdx(0);
   }, [productId]);
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0B1330] text-[#F5F1E8] pt-28 pb-32 px-4 sm:px-6 lg:px-8 xl:px-12 max-w-[1600px] mx-auto">
+        <SkeletonShimmer variant="product-detail" />
+      </div>
+    );
+  }
+
   // Product not found state
-  if (!product) {
+  if (!product || notFound) {
     return (
       <div className="min-h-screen bg-[#0B1330] flex items-center justify-center px-4">
         <div className="text-center space-y-6 max-w-md">
@@ -268,8 +340,9 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                     }`}
                   >
                     <img
-                      src={img}
+                      src={getOptimizedImageUrl(img, product.category)}
                       alt={`View ${idx + 1}`}
+                      onError={(e) => handleImgError(e, product.category)}
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover"
                     />
@@ -380,17 +453,17 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
               {/* Price */}
               <div className="flex items-baseline justify-between">
                 <div>
-                  <div className="text-4xl font-serif font-bold text-[#F5E7A3]">
-                    ₹{product.price.toFixed(0)} INR
+                  <div className="text-3xl sm:text-4xl font-serif font-bold text-[#F5E7A3]">
+                    ₹{currentPriceINR.toLocaleString('en-IN')} <span className="text-xs font-sans text-[#C9C2A6] font-normal">INR (${currentPriceUSD} USD)</span>
                   </div>
                 </div>
                 {product.originalPrice && (
                   <div className="text-right">
                     <span className="text-sm text-[#C9C2A6] line-through block">
-                      ₹{product.originalPrice.toFixed(0)}
+                      ₹{originalPriceINR.toLocaleString('en-IN')}
                     </span>
                     <span className="text-[10px] text-emerald-400 uppercase tracking-wider font-semibold">
-                      Save ₹{(product.originalPrice - product.price).toFixed(0)}
+                      Save ₹{(originalPriceINR - currentPriceINR).toLocaleString('en-IN')}
                     </span>
                   </div>
                 )}
@@ -404,7 +477,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                   className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-bold tracking-wider uppercase text-xs flex items-center justify-center gap-2 shadow-[0_8px_32px_rgba(212,175,55,0.35)] hover:shadow-[0_8px_40px_rgba(212,175,55,0.5)] transition-all disabled:opacity-50"
                 >
                   <ShieldCheck className="w-4 h-4 text-zinc-950" />
-                  <span>{purchasing ? 'Initiating Secure Purchase...' : `Buy Now & Verify OTP — ₹${currentPrice.toFixed(0)} INR`}</span>
+                  <span>{purchasing ? 'Initiating Secure Purchase...' : `Buy Now & Verify OTP — ₹${currentPriceINR.toLocaleString('en-IN')} INR`}</span>
                 </button>
 
                 <div className="flex gap-2">
@@ -619,7 +692,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
             {relatedProducts.map((relProd, index) => (
               <StaggerItem key={relProd.id} index={index}>
                 <div
-                  onClick={() => onNavigate('product', relProd.id)}
+                  onClick={() => onNavigate('product-detail', relProd.id)}
                   className="group bg-[#0D183D] border border-[#D4AF37]/15 hover:border-[#D4AF37]/50 rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-[0_10px_30px_rgba(212,175,55,0.15)] flex flex-col h-full"
                 >
                   <div className="aspect-square relative overflow-hidden bg-[#070D22]">
@@ -681,6 +754,24 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
         </div>
       </div>
 
+      {/* Payment Gateway Modal */}
+      <PaymentGatewayModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        title={product.title}
+        subtitle={`${selectedLicense === 'commercial' ? 'Commercial Production License' : 'Standard Atelier License'} • Layered 3DM + STL Meshes`}
+        amount={currentPrice}
+        currency="USD"
+        itemType="ready_cad"
+        orderDetails={{
+          id: product.id,
+          category: typeof product.category === 'string' ? product.category : (product.category as any)?.name,
+          license: selectedLicense,
+          formats: product.formats,
+        }}
+        onPaymentSuccess={handlePaymentSuccess}
+      />
+
       {/* OTP Verification Modal */}
       <OTPVerificationModal
         isOpen={otpModalState.isOpen}
@@ -688,6 +779,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
         purchaseId={otpModalState.purchaseId}
         productTitle={otpModalState.productTitle}
         maskedEmail={otpModalState.maskedEmail}
+        userEmail={otpModalState.userEmail}
+        debugOtp={otpModalState.debugOtp}
         onVerifiedSuccess={() => {
           setOtpModalState(prev => ({ ...prev, isOpen: false }));
           onNavigate('account');

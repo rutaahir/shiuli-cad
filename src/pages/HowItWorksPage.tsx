@@ -1,7 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence, useScroll, useSpring, useTransform } from 'framer-motion';
 import { PageId } from '../types';
-import { FAQS } from '../data/mockData';
+import { api } from '../services/api';
 import { BeforeAfterSlider } from '../components/BeforeAfterSlider';
 import { 
   Sparkles, 
@@ -30,7 +30,16 @@ interface HowItWorksPageProps {
 
 export const HowItWorksPage: React.FC<HowItWorksPageProps> = ({ onNavigate }) => {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [faqs, setFaqs] = useState<{ question: string; answer: string }[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    api.getFaqs().then((data) => {
+      if (Array.isArray(data) && data.length > 0) {
+        setFaqs(data);
+      }
+    }).catch(() => {});
+  }, []);
 
   // Scroll Progress Line for the 4-step journey
   const { scrollYProgress } = useScroll({
@@ -424,7 +433,7 @@ export const HowItWorksPage: React.FC<HowItWorksPageProps> = ({ onNavigate }) =>
           </RevealOnScroll>
 
           <div className="space-y-3">
-            {FAQS.map((faq, index) => {
+            {faqs.map((faq, index) => {
               const isOpen = openFaq === index;
               return (
                 <RevealOnScroll key={index} delay={index * 0.05}>

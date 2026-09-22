@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { PageId, Product, CartItem } from './types';
-import { PRODUCTS } from './data/mockData';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Global Components
@@ -44,6 +43,7 @@ import { PricingPage } from './pages/PricingPage';
 
 import { MessageSquare, Phone, CheckCircle2, X } from 'lucide-react';
 
+const DEFAULT_PRODUCT_ID = 'scs-ring-01';
 
 // URL Routing Helper
 function getInitialRouteState() {
@@ -56,7 +56,7 @@ function getInitialRouteState() {
       page: 'admin' as PageId,
       tab,
       category: 'all',
-      productId: PRODUCTS[0]?.id || 'ring-01',
+      productId: DEFAULT_PRODUCT_ID,
       customProductId: undefined,
       serviceSlug: undefined,
     };
@@ -67,7 +67,7 @@ function getInitialRouteState() {
       page: 'staff-portal' as PageId,
       tab,
       category: 'all',
-      productId: PRODUCTS[0]?.id || 'ring-01',
+      productId: DEFAULT_PRODUCT_ID,
       customProductId: undefined,
       serviceSlug: undefined,
     };
@@ -78,7 +78,7 @@ function getInitialRouteState() {
       page: 'collections' as PageId,
       tab: undefined,
       category: searchParams.get('category') || 'all',
-      productId: PRODUCTS[0]?.id || 'ring-01',
+      productId: DEFAULT_PRODUCT_ID,
       customProductId: undefined,
       serviceSlug: undefined,
     };
@@ -90,7 +90,7 @@ function getInitialRouteState() {
       page: 'product-detail' as PageId,
       tab: undefined,
       category: 'all',
-      productId: pId || PRODUCTS[0]?.id || 'ring-01',
+      productId: pId || DEFAULT_PRODUCT_ID,
       customProductId: undefined,
       serviceSlug: undefined,
     };
@@ -101,26 +101,26 @@ function getInitialRouteState() {
       page: 'custom-design' as PageId,
       tab: undefined,
       category: 'all',
-      productId: PRODUCTS[0]?.id || 'ring-01',
+      productId: DEFAULT_PRODUCT_ID,
       customProductId: searchParams.get('product') || undefined,
       serviceSlug: undefined,
     };
   }
 
   if (path === '/file-editing') {
-    return { page: 'file-editing' as PageId, tab: undefined, category: 'all', productId: PRODUCTS[0]?.id || 'ring-01', customProductId: undefined, serviceSlug: undefined };
+    return { page: 'file-editing' as PageId, tab: undefined, category: 'all', productId: DEFAULT_PRODUCT_ID, customProductId: undefined, serviceSlug: undefined };
   }
 
   if (path === '/ai-jewellery') {
-    return { page: 'ai-jewellery' as PageId, tab: undefined, category: 'all', productId: PRODUCTS[0]?.id || 'ring-01', customProductId: undefined, serviceSlug: undefined };
+    return { page: 'ai-jewellery' as PageId, tab: undefined, category: 'all', productId: DEFAULT_PRODUCT_ID, customProductId: undefined, serviceSlug: undefined };
   }
 
   if (path === '/portfolio') {
-    return { page: 'portfolio' as PageId, tab: undefined, category: 'all', productId: PRODUCTS[0]?.id || 'ring-01', customProductId: undefined, serviceSlug: undefined };
+    return { page: 'portfolio' as PageId, tab: undefined, category: 'all', productId: DEFAULT_PRODUCT_ID, customProductId: undefined, serviceSlug: undefined };
   }
 
   if (path === '/pricing') {
-    return { page: 'pricing' as PageId, tab: undefined, category: 'all', productId: PRODUCTS[0]?.id || 'ring-01', customProductId: undefined, serviceSlug: undefined };
+    return { page: 'pricing' as PageId, tab: undefined, category: 'all', productId: DEFAULT_PRODUCT_ID, customProductId: undefined, serviceSlug: undefined };
   }
 
   if (path === '/cad-services' || path === '/cad-service' || path.startsWith('/cad-services/') || path.startsWith('/service/')) {
@@ -134,28 +134,28 @@ function getInitialRouteState() {
       page: 'cad-service' as PageId,
       tab: undefined,
       category: 'all',
-      productId: PRODUCTS[0]?.id || 'ring-01',
+      productId: DEFAULT_PRODUCT_ID,
       customProductId: undefined,
       serviceSlug: slug,
     };
   }
 
-  if (path === '/login') return { page: 'login' as PageId, tab: undefined, category: 'all', productId: PRODUCTS[0]?.id || 'ring-01', customProductId: undefined, serviceSlug: undefined };
-  if (path === '/register') return { page: 'register' as PageId, tab: undefined, category: 'all', productId: PRODUCTS[0]?.id || 'ring-01', customProductId: undefined, serviceSlug: undefined };
-  if (path === '/forgot-password') return { page: 'forgot-password' as PageId, tab: undefined, category: 'all', productId: PRODUCTS[0]?.id || 'ring-01', customProductId: undefined, serviceSlug: undefined };
-  if (path === '/how-it-works') return { page: 'how-it-works' as PageId, tab: undefined, category: 'all', productId: PRODUCTS[0]?.id || 'ring-01', customProductId: undefined, serviceSlug: undefined };
-  if (path === '/gallery') return { page: 'gallery' as PageId, tab: undefined, category: 'all', productId: PRODUCTS[0]?.id || 'ring-01', customProductId: undefined, serviceSlug: undefined };
-  if (path === '/about') return { page: 'about' as PageId, tab: undefined, category: 'all', productId: PRODUCTS[0]?.id || 'ring-01', customProductId: undefined, serviceSlug: undefined };
-  if (path === '/blog') return { page: 'blog' as PageId, tab: undefined, category: 'all', productId: PRODUCTS[0]?.id || 'ring-01', customProductId: undefined, serviceSlug: undefined };
-  if (path === '/contact') return { page: 'contact' as PageId, tab: undefined, category: 'all', productId: PRODUCTS[0]?.id || 'ring-01', customProductId: undefined, serviceSlug: undefined };
-  if (path.startsWith('/download/')) return { page: 'secure-download' as PageId, tab: undefined, category: 'all', productId: PRODUCTS[0]?.id || 'ring-01', customProductId: undefined, serviceSlug: undefined };
-  if (path === '/account') return { page: 'account' as PageId, tab: undefined, category: 'all', productId: PRODUCTS[0]?.id || 'ring-01', customProductId: undefined, serviceSlug: undefined };
+  if (path === '/login') return { page: 'login' as PageId, tab: undefined, category: 'all', productId: DEFAULT_PRODUCT_ID, customProductId: undefined, serviceSlug: undefined };
+  if (path === '/register') return { page: 'register' as PageId, tab: undefined, category: 'all', productId: DEFAULT_PRODUCT_ID, customProductId: undefined, serviceSlug: undefined };
+  if (path === '/forgot-password') return { page: 'forgot-password' as PageId, tab: undefined, category: 'all', productId: DEFAULT_PRODUCT_ID, customProductId: undefined, serviceSlug: undefined };
+  if (path === '/how-it-works') return { page: 'how-it-works' as PageId, tab: undefined, category: 'all', productId: DEFAULT_PRODUCT_ID, customProductId: undefined, serviceSlug: undefined };
+  if (path === '/gallery') return { page: 'gallery' as PageId, tab: undefined, category: 'all', productId: DEFAULT_PRODUCT_ID, customProductId: undefined, serviceSlug: undefined };
+  if (path === '/about') return { page: 'about' as PageId, tab: undefined, category: 'all', productId: DEFAULT_PRODUCT_ID, customProductId: undefined, serviceSlug: undefined };
+  if (path === '/blog') return { page: 'blog' as PageId, tab: undefined, category: 'all', productId: DEFAULT_PRODUCT_ID, customProductId: undefined, serviceSlug: undefined };
+  if (path === '/contact') return { page: 'contact' as PageId, tab: undefined, category: 'all', productId: DEFAULT_PRODUCT_ID, customProductId: undefined, serviceSlug: undefined };
+  if (path.startsWith('/download/')) return { page: 'secure-download' as PageId, tab: undefined, category: 'all', productId: DEFAULT_PRODUCT_ID, customProductId: undefined, serviceSlug: undefined };
+  if (path === '/account') return { page: 'account' as PageId, tab: undefined, category: 'all', productId: DEFAULT_PRODUCT_ID, customProductId: undefined, serviceSlug: undefined };
 
   return {
     page: 'home' as PageId,
     tab: undefined,
     category: 'all',
-    productId: PRODUCTS[0]?.id || 'ring-01',
+    productId: DEFAULT_PRODUCT_ID,
     customProductId: undefined,
     serviceSlug: undefined,
   };
@@ -200,7 +200,7 @@ function MainApp() {
       if (storedWishlist) {
         try { setWishlistIds(JSON.parse(storedWishlist)); } catch {}
       } else {
-        setWishlistIds([PRODUCTS[0].id, PRODUCTS[2].id]);
+        setWishlistIds([]);
       }
 
       const storedCart = localStorage.getItem(`shiuli_cart_${user.id}`);
@@ -319,45 +319,35 @@ function MainApp() {
     maskedEmail: '',
   });
 
-  // Auth-Gated Cart / Direct ADD Purchase Operations with OTP & Email
+  // Auth-Gated Shopping Bag Operations
   const handleAddToCart = (product: Product, license: 'standard' | 'commercial' = 'standard') => {
     requireAuth(
-      async () => {
-        try {
-          const res = await api.post<any>('/payments/purchases/', {
-            product_id: product.dbId || product.id,
-            license_type: 'atelier',
-          });
-
-          const userEmail = user?.email || 'socialbuzz31@gmail.com';
-          const otpCode = res.debug_otp || Math.floor(100000 + Math.random() * 900000).toString();
-          
-          sendOtpEmail(userEmail, otpCode, `CAD Design Access - ${product.title}`).catch(() => {});
-
-          setGlobalOtpModalState({
-            isOpen: true,
-            purchaseId: res.purchase_id || Math.floor(Math.random() * 90000),
-            productTitle: product.title,
-            maskedEmail: res.masked_email || userEmail.replace(/(.{2})(.*)(?=@)/, '$1***'),
-          });
-        } catch (err: any) {
-          const mockPurchaseId = Math.floor(Math.random() * 90000);
-          const userEmail = user?.email || 'socialbuzz31@gmail.com';
-          const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-          
-          sendOtpEmail(userEmail, otpCode, `CAD Design Access - ${product.title}`).catch(() => {});
-
-          setGlobalOtpModalState({
-            isOpen: true,
-            purchaseId: mockPurchaseId,
-            productTitle: product.title,
-            maskedEmail: userEmail.replace(/(.{2})(.*)(?=@)/, '$1***'),
-          });
-        }
+      () => {
+        setCartItems((prev) => {
+          const existingIndex = prev.findIndex(
+            (item) => item.product.id === product.id && item.license === license
+          );
+          if (existingIndex > -1) {
+            const updated = [...prev];
+            updated[existingIndex].quantity += 1;
+            return updated;
+          }
+          return [
+            ...prev,
+            {
+              product,
+              license,
+              quantity: 1,
+              price: license === 'commercial' ? Math.round(product.price * 1.8) : product.price,
+            },
+          ];
+        });
+        showToast(`Added "${product.title}" to your CAD File Bag!`);
+        setCartOpen(true);
       },
       {
         intent: 'purchase',
-        message: 'Sign in to purchase this CAD file & unlock secure download',
+        message: 'Sign in to add items to your CAD File Bag',
         productId: product.id,
       }
     );

@@ -33,8 +33,9 @@ class AccountOTP(models.Model):
     class OTPType(models.TextChoices):
         EMAIL_CHANGE = "email_change", "Email Change"
         PASSWORD_RESET = "password_reset", "Password Reset"
+        REGISTRATION = "registration", "Registration"
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="account_otps")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="account_otps", null=True, blank=True)
     otp_type = models.CharField(max_length=20, choices=OTPType.choices)
     target_value = models.CharField(max_length=255, blank=True)
     otp_hash = models.CharField(max_length=255)
@@ -44,5 +45,6 @@ class AccountOTP(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"AccountOTP ({self.otp_type}) for {self.user.username}"
+        username = self.user.username if self.user else self.target_value
+        return f"AccountOTP ({self.otp_type}) for {username}"
 

@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     'apps.file_edits',
     'apps.ai_jewellery',
     'apps.portfolio',
+    'apps.blog',
 ]
 
 MIDDLEWARE = [

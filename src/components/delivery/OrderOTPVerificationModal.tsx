@@ -127,7 +127,8 @@ export const OrderOTPVerificationModal: React.FC<OrderOTPVerificationModalProps>
         }
       }, 4000);
     } catch (err: any) {
-      setError(err?.message || err?.response?.data?.error || 'Invalid or expired OTP. Please try again.');
+      const msg = err.data?.error || err.data?.detail || (err.message && !err.message.includes('Server Error') && !err.message.includes('500') ? err.message : 'Invalid or expired OTP. Please try again.');
+      setError(msg);
     } finally {
       setLoading(false);
     }

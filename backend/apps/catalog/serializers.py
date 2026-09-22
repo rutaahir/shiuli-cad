@@ -5,10 +5,20 @@ class CategorySerializer(serializers.ModelSerializer):
     subcategories = serializers.SerializerMethodField()
     product_count = serializers.SerializerMethodField()
     parent_name = serializers.CharField(source='parent.name', read_only=True)
+    image_display = serializers.SerializerMethodField()
 
     class Meta:
         model = Category
-        fields = ['id', 'name', 'slug', 'parent', 'parent_name', 'display_order', 'subcategories', 'product_count']
+        fields = [
+            'id', 'name', 'slug', 'tagline', 'image', 'image_url', 'image_display',
+            'parent', 'parent_name', 'display_order', 'subcategories', 'product_count'
+        ]
+
+    def get_image_display(self, obj):
+        if obj.image:
+            request = self.context.get('request')
+            return request.build_absolute_uri(obj.image.url) if request else obj.image.url
+        return obj.image_url or ''
 
     def get_subcategories(self, obj):
         if obj.subcategories.exists():
@@ -39,7 +49,7 @@ class ProductImageSerializer(serializers.ModelSerializer):
             if request:
                 return request.build_absolute_uri(obj.image.url)
             return obj.image.url
-        return None
+        return obj.image_url or None
 
 class ProductFileSerializer(serializers.ModelSerializer):
     file_url = serializers.SerializerMethodField()
@@ -65,16 +75,18 @@ class ProductListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'slug', 'category', 'category_name',
             'price', 'compare_at_price', 'metal_weight_grams', 'stone_count',
-            'status', 'is_bestseller', 'is_new', 'primary_image', 'created_at'
+            'status', 'is_bestseller', 'is_new', 'is_featured', 'primary_image', 'created_at'
         ]
 
     def get_primary_image(self, obj):
         primary = obj.images.filter(is_primary=True).first() or obj.images.first()
-        if primary and primary.image:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(primary.image.url)
-            return primary.image.url
+        if primary:
+            if primary.image:
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(primary.image.url)
+                return primary.image.url
+            return primary.image_url
         return None
 
 class ProductDetailSerializer(serializers.ModelSerializer):
@@ -92,7 +104,8 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'atelier_license_desc', 'commercial_license_desc',
             'description', 'metal_weight_grams',
             'stone_count', 'status', 'rejection_reason', 'is_bestseller',
-            'is_new', 'images', 'files', 'has_purchased', 'created_at', 'approved_at'
+            'is_new', 'is_featured', 'casting_tips', 'specs', 'formats_available',
+            'images', 'files', 'has_purchased', 'created_at', 'approved_at'
         ]
 
     def get_has_purchased(self, obj):

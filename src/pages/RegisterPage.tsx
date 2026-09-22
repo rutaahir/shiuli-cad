@@ -1,10 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrandLogo } from '../components/BrandLogo';
 import { FloatingLabelInput } from '../components/FloatingLabelInput';
-import { User, Mail, Phone, Lock, ArrowRight, Check, ShieldCheck, Sparkles, AlertCircle } from 'lucide-react';
+import { User, Mail, Phone, Lock, ArrowRight, ArrowLeft, Check, ShieldCheck, Sparkles, AlertCircle, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { PageId } from '../types';
+import {
+  validateFullName,
+  validateEmail,
+  validatePhoneNumber,
+  validatePassword,
+  validateConfirmPassword,
+  getPasswordStrength,
+  STRENGTH_CONFIG,
+} from '../utils/validationHelper';
 
 interface RegisterPageProps {
   onNavigate: (page: PageId, extraId?: string) => void;
@@ -12,7 +21,7 @@ interface RegisterPageProps {
 }
 
 export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onSuccess }) => {
-  const { register, executePendingIntent, pendingIntent } = useAuth();
+  const { register, sendRegistrationOtp, verifyRegistrationOtp, executePendingIntent, pendingIntent } = useAuth();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -21,88 +30,201 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onSucces
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agreedTerms, setAgreedTerms] = useState(false);
 
+  // OTP State
+  const [regStep, setRegStep] = useState<'form' | 'otp'>('form');
+  const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
+  const [otpTimer, setOtpTimer] = useState<number>(60);
+  const [isResending, setIsResending] = useState<boolean>(false);
+  const [debugOtp, setDebugOtp] = useState<string | null>(null);
+  const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [shakeKey, setShakeKey] = useState(0);
   const [showSuccessSeal, setShowSuccessSeal] = useState(false);
 
-  // Compute password strength score (0 to 4)
-  const getPasswordStrength = (pass: string) => {
-    if (!pass) return 0;
-    let score = 0;
-    if (pass.length >= 6) score += 1;
-    if (pass.length >= 10) score += 1;
-    if (/[A-Z]/.test(pass) && /[0-9]/.test(pass)) score += 1;
-    if (/[^A-Za-z0-9]/.test(pass)) score += 1;
-    return score;
+  const validateField = (field: string, val: string): string => {
+    switch (field) {
+      case 'name':
+        return validateFullName(val).error;
+      case 'email':
+        return validateEmail(val).error;
+      case 'phone':
+        return validatePhoneNumber(val, false).error;
+      case 'password':
+        return validatePassword(val).error;
+      case 'confirmPassword':
+        return validateConfirmPassword(val, password).error;
+      default:
+        return '';
+    }
+  };
+
+  const handleBlur = (field: string, val: string) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    const err = validateField(field, val);
+    setFieldErrors((prev) => ({ ...prev, [field]: err }));
+  };
+
+  const handleChange = (field: string, val: string, setter: (v: string) => void) => {
+    setter(val);
+    if (touched[field] || fieldErrors[field]) {
+      const err = validateField(field, val);
+      setFieldErrors((prev) => ({ ...prev, [field]: err }));
+    }
+  };
+
+  // OTP Countdown timer
+  useEffect(() => {
+    let interval: any = null;
+    if (regStep === 'otp' && otpTimer > 0) {
+      interval = setInterval(() => {
+        setOtpTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [regStep, otpTimer]);
+
+  const handleOtpDigitChange = (index: number, value: string) => {
+    if (value.length > 1) {
+      const cleaned = value.replace(/[^0-9]/g, '').slice(0, 6);
+      if (cleaned.length > 0) {
+        const newDigits = [...otpDigits];
+        for (let i = 0; i < cleaned.length; i++) {
+          if (index + i < 6) newDigits[index + i] = cleaned[i];
+        }
+        setOtpDigits(newDigits);
+        const nextFocus = Math.min(index + cleaned.length, 5);
+        otpInputRefs.current[nextFocus]?.focus();
+      }
+      return;
+    }
+
+    const digit = value.replace(/[^0-9]/g, '');
+    const newDigits = [...otpDigits];
+    newDigits[index] = digit;
+    setOtpDigits(newDigits);
+
+    if (digit && index < 5) {
+      otpInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
+      otpInputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (otpTimer > 0 || isResending) return;
+    setIsResending(true);
+    setErrorMessage(null);
+    try {
+      const res = await sendRegistrationOtp(email.trim(), name.trim());
+      setOtpTimer(60);
+      if (res?.debug_otp) setDebugOtp(res.debug_otp);
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Failed to resend verification code.');
+    } finally {
+      setIsResending(false);
+    }
   };
 
   const strengthScore = getPasswordStrength(password);
-  const strengthConfig = [
-    { label: '', color: 'bg-transparent', text: '' },
-    { label: 'Weak', color: 'bg-rose-500', text: 'text-rose-400' },
-    { label: 'Fair', color: 'bg-amber-500', text: 'text-amber-400' },
-    { label: 'Strong', color: 'bg-emerald-500', text: 'text-emerald-400' },
-    { label: 'Royal Standard', color: 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3]', text: 'text-[#F5E7A3]' },
-  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setFieldErrors({});
 
-    const errors: Record<string, string> = {};
+    if (regStep === 'form') {
+      const errors: Record<string, string> = {
+        name: validateFullName(name).error,
+        email: validateEmail(email).error,
+        phone: validatePhoneNumber(phone, false).error,
+        password: validatePassword(password).error,
+        confirmPassword: validateConfirmPassword(confirmPassword, password).error,
+      };
+      if (!agreedTerms) {
+        errors.terms = 'You must accept the Terms of Service & Privacy Policy.';
+      }
 
-    if (!name.trim()) errors.name = 'Full name is required';
-    if (!email.trim()) errors.email = 'Email address is required';
-    if (!password) errors.password = 'Password is required';
-    else if (password.length < 6) errors.password = 'Password must be at least 6 characters';
+      const activeErrors = Object.fromEntries(
+        Object.entries(errors).filter(([_, v]) => Boolean(v))
+      );
 
-    if (password !== confirmPassword) {
-      errors.confirmPassword = 'Passwords do not match';
-    }
-    if (!agreedTerms) {
-      errors.terms = 'You must accept the Terms of Service';
-    }
+      if (Object.keys(activeErrors).length > 0) {
+        setFieldErrors(activeErrors);
+        setTouched({
+          name: true,
+          email: true,
+          phone: true,
+          password: true,
+          confirmPassword: true,
+          terms: true,
+        });
+        setShakeKey((k) => k + 1);
+        setErrorMessage('Please review and correct the highlighted fields.');
+        return;
+      }
 
-    if (Object.keys(errors).length > 0) {
-      setFieldErrors(errors);
-      return;
-    }
+      setIsLoading(true);
 
-    setIsLoading(true);
+      try {
+        const otpRes = await sendRegistrationOtp(email.trim(), name.trim());
+        setIsLoading(false);
+        setRegStep('otp');
+        setOtpTimer(60);
+        setOtpDigits(['', '', '', '', '', '']);
+        if (otpRes?.debug_otp) setDebugOtp(otpRes.debug_otp);
+        setTimeout(() => {
+          otpInputRefs.current[0]?.focus();
+        }, 150);
+      } catch (err: any) {
+        setIsLoading(false);
+        const msg = err?.message || err?.detail || 'Failed to dispatch verification code. Please check your email.';
+        setErrorMessage(msg);
+      }
+    } else {
+      // Step 2: Verify OTP and finalize
+      const fullCode = otpDigits.join('').trim();
+      if (fullCode.length !== 6) {
+        setErrorMessage('Please enter the complete 6-digit verification code.');
+        return;
+      }
 
-    try {
-      await register({
-        name,
-        email,
-        password,
-        phone_number: phone,
-      });
+      setIsLoading(true);
 
-      setIsLoading(false);
-      setShowSuccessSeal(true);
+      try {
+        await verifyRegistrationOtp({
+          email: email.trim(),
+          code: fullCode,
+          name: name.trim(),
+          password,
+          phone_number: phone.trim(),
+        });
 
-      // Brief wax seal ceremony animation (~600ms) then execute intent or navigate
-      setTimeout(async () => {
-        if (pendingIntent) {
-          await executePendingIntent();
-        } else if (onSuccess) {
-          onSuccess();
-        } else {
-          onNavigate('account');
-        }
-      }, 700);
-    } catch (err: any) {
-      setIsLoading(false);
-      const msg = err?.message || 'Registration failed. Please check your information.';
-      setErrorMessage(msg);
-      if (err?.fieldErrors) {
-        const map: Record<string, string> = {};
-        for (const [k, v] of Object.entries(err.fieldErrors)) {
-          map[k] = Array.isArray(v) ? (v[0] as string) : String(v);
-        }
-        setFieldErrors(map);
+        setIsLoading(false);
+        setShowSuccessSeal(true);
+
+        setTimeout(async () => {
+          if (pendingIntent) {
+            await executePendingIntent();
+          } else if (onSuccess) {
+            onSuccess();
+          } else {
+            onNavigate('account');
+          }
+        }, 700);
+      } catch (err: any) {
+        setIsLoading(false);
+        const msg = err?.message || err?.detail || 'Verification code invalid or expired.';
+        setErrorMessage(msg);
       }
     }
   };
@@ -170,10 +292,12 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onSucces
           {/* Header */}
           <div className="space-y-1.5">
             <h1 className="font-serif text-3xl sm:text-4xl text-[#FAF8F3] tracking-wide">
-              Join the Studio
+              {regStep === 'otp' ? 'Verify Your Email' : 'Join the Studio'}
             </h1>
             <p className="text-xs text-[#C9C2A6] font-light leading-relaxed">
-              Create your client account to save designs, track custom orders, and download CAD assets.
+              {regStep === 'otp'
+                ? `Enter the 6-digit verification code sent to ${email}`
+                : 'Create your client account to save designs, track custom orders, and download CAD assets.'}
             </p>
           </div>
 
@@ -185,81 +309,180 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onSucces
             </div>
           )}
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <FloatingLabelInput
-              label="Full Name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              icon={<User className="w-4 h-4" />}
-              error={fieldErrors.name}
-              required
-            />
+          {regStep === 'otp' ? (
+            /* STEP 2: REGISTRATION OTP VIEW */
+            <div className="space-y-6">
+              <div className="flex justify-center my-2">
+                <div className="w-14 h-14 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37]">
+                  <ShieldCheck className="w-7 h-7" />
+                </div>
+              </div>
 
-            <FloatingLabelInput
-              label="Email Address"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              icon={<Mail className="w-4 h-4" />}
-              error={fieldErrors.email}
-              required
-            />
+              {/* 6 Individual Digit Boxes */}
+              <div className="flex justify-center gap-2 sm:gap-3">
+                {otpDigits.map((digit, index) => (
+                  <input
+                    key={index}
+                    ref={(el) => (otpInputRefs.current[index] = el)}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpDigitChange(index, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                    className="w-11 h-13 sm:w-12 sm:h-14 text-center text-xl sm:text-2xl font-mono font-bold bg-[#060D22] border-2 border-[#D4AF37]/40 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/30 rounded-xl text-[#FAF8F3] outline-none transition-all shadow-inner"
+                  />
+                ))}
+              </div>
 
-            <FloatingLabelInput
-              label="Phone Number (Optional)"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              icon={<Phone className="w-4 h-4" />}
-              error={fieldErrors.phone}
-            />
+              {/* Debug OTP Chip for testing */}
+              {debugOtp && (
+                <div className="text-center">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 font-mono text-[11px]">
+                    <Sparkles className="w-3 h-3" /> Auto-Test Code: <strong>{debugOtp}</strong>
+                  </span>
+                </div>
+              )}
 
-            {/* Password Field + Strength Indicator */}
-            <div className="space-y-1.5">
+              {/* Resend OTP + Timer */}
+              <div className="flex items-center justify-between text-xs text-[#C9C2A6]">
+                <span>Didn't receive code?</span>
+                {otpTimer > 0 ? (
+                  <span className="font-mono text-[#D4AF37] font-medium">
+                    Resend in {otpTimer}s
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={isResending}
+                    className="text-[#F5E7A3] font-semibold hover:text-[#D4AF37] underline transition-colors disabled:opacity-50 inline-flex items-center gap-1"
+                  >
+                    {isResending && <RefreshCw className="w-3 h-3 animate-spin" />}
+                    Resend Code
+                  </button>
+                )}
+              </div>
+
+              {/* Submit & Back Buttons */}
+              <div className="space-y-2 pt-2">
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isLoading || otpDigits.join('').length !== 6}
+                  className="btn-gold-luxury w-full py-4 rounded-xl font-bold tracking-wider uppercase text-xs flex items-center justify-center gap-2 shadow-lg disabled:opacity-50 cursor-pointer"
+                >
+                  {isLoading ? (
+                    <span className="w-4 h-4 border-2 border-[#0B1330] border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 text-[#0B1330]" />
+                      <span>Verify &amp; Complete Registration</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRegStep('form');
+                    setErrorMessage(null);
+                  }}
+                  className="w-full py-2.5 text-xs text-[#C9C2A6] hover:text-[#FAF8F3] transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Edit Registration Details</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* STEP 1: FORM */
+            <form
+              key={shakeKey}
+              onSubmit={handleSubmit}
+              noValidate
+              className={`space-y-4 ${shakeKey > 0 ? 'animate-shake' : ''}`}
+            >
               <FloatingLabelInput
-                label="Password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                icon={<Lock className="w-4 h-4" />}
-                error={fieldErrors.password}
+                label="Full Name"
+                type="text"
+                value={name}
+                onChange={(e) => handleChange('name', e.target.value, setName)}
+                onBlur={() => handleBlur('name', name)}
+                icon={<User className="w-4 h-4" />}
+                error={touched.name ? fieldErrors.name : undefined}
                 required
               />
 
-              {/* Strength Indicator Bar */}
-              {password && (
-                <div className="space-y-1 pt-1">
-                  <div className="flex h-1.5 w-full bg-black/40 rounded-full overflow-hidden gap-1">
-                    {[1, 2, 3, 4].map((step) => (
-                      <div
-                        key={step}
-                        className={`flex-1 transition-all duration-300 ${
-                          strengthScore >= step ? strengthConfig[strengthScore].color : 'bg-white/10'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <div className="flex justify-between items-center text-[10px]">
-                    <span className="text-[#C9C2A6]/60">Password Strength:</span>
-                    <span className={`font-semibold ${strengthConfig[strengthScore].text}`}>
-                      {strengthConfig[strengthScore].label}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
+              <FloatingLabelInput
+                label="Email Address"
+                type="email"
+                value={email}
+                onChange={(e) => handleChange('email', e.target.value, setEmail)}
+                onBlur={() => handleBlur('email', email)}
+                icon={<Mail className="w-4 h-4" />}
+                error={touched.email ? fieldErrors.email : undefined}
+                required
+              />
 
-            <FloatingLabelInput
-              label="Confirm Password"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              icon={<Lock className="w-4 h-4" />}
-              error={fieldErrors.confirmPassword}
-              required
-            />
+              <FloatingLabelInput
+                label="Phone Number (Optional)"
+                type="tel"
+                value={phone}
+                onChange={(e) => handleChange('phone', e.target.value, setPhone)}
+                onBlur={() => handleBlur('phone', phone)}
+                icon={<Phone className="w-4 h-4" />}
+                error={touched.phone ? fieldErrors.phone : undefined}
+                placeholder="+91 98765 43210"
+              />
+
+              {/* Password Field + Strength Indicator */}
+              <div className="space-y-1.5">
+                <FloatingLabelInput
+                  label="Password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => handleChange('password', e.target.value, setPassword)}
+                  onBlur={() => handleBlur('password', password)}
+                  icon={<Lock className="w-4 h-4" />}
+                  error={touched.password ? fieldErrors.password : undefined}
+                  required
+                />
+
+                {/* Strength Indicator Bar */}
+                {password && (
+                  <div className="space-y-1 pt-1">
+                    <div className="flex h-1.5 w-full bg-black/40 rounded-full overflow-hidden gap-1">
+                      {[1, 2, 3, 4].map((step) => (
+                        <div
+                          key={step}
+                          className={`flex-1 transition-all duration-300 ${
+                            strengthScore >= step ? STRENGTH_CONFIG[strengthScore].color : 'bg-white/10'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex justify-between items-center text-[10px]">
+                      <span className="text-[#C9C2A6]/60">Password Strength:</span>
+                      <span className={`font-semibold ${STRENGTH_CONFIG[strengthScore].text}`}>
+                        {STRENGTH_CONFIG[strengthScore].label}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <FloatingLabelInput
+                label="Confirm Password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => handleChange('confirmPassword', e.target.value, setConfirmPassword)}
+                onBlur={() => handleBlur('confirmPassword', confirmPassword)}
+                icon={<Lock className="w-4 h-4" />}
+                error={touched.confirmPassword ? fieldErrors.confirmPassword : undefined}
+                required
+              />
 
             {/* Terms Checkbox */}
             <div className="pt-1">
@@ -299,6 +522,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onSucces
               )}
             </button>
           </form>
+        )}
 
           {/* Already have account */}
           <div className="text-center pt-2 border-t border-white/5">

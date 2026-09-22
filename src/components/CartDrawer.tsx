@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import { CartItem, PageId } from '../types';
 import { X, Trash2, ShieldCheck, Download, Sparkles, ArrowRight, CheckCircle2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { sendCadDownloadEmail } from '../services/emailService';
+import { sendCadDownloadEmail, sendOtpEmail } from '../services/emailService';
+import { PaymentGatewayModal } from './payment/PaymentGatewayModal';
+import { OTPVerificationModal } from './delivery/OTPVerificationModal';
+import { useAuth } from '../context/AuthContext';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -23,11 +26,29 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onClearCart,
   onNavigate,
 }) => {
+  const { user } = useAuth();
   const [promoCode, setPromoCode] = useState('');
   const [discountPercent, setDiscountPercent] = useState(0);
   const [promoMessage, setPromoMessage] = useState('');
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [orderCompleted, setOrderCompleted] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+
+  const [otpModalState, setOtpModalState] = useState<{
+    isOpen: boolean;
+    purchaseId: number;
+    productTitle: string;
+    maskedEmail: string;
+    userEmail?: string;
+    debugOtp?: string;
+  }>({
+    isOpen: false,
+    purchaseId: 0,
+    productTitle: '',
+    maskedEmail: '',
+    userEmail: '',
+    debugOtp: '',
+  });
 
   if (!isOpen) return null;
 
@@ -49,22 +70,51 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     }
   };
 
+  const { requireAuth } = useAuth();
+
   const handleCheckout = () => {
-    setIsCheckingOut(true);
-    setTimeout(() => {
-      setIsCheckingOut(false);
-      setOrderCompleted(true);
-      try {
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#D4AF37', '#1E4FA3', '#F5E7A3', '#FAF8F3'],
-        });
-      } catch {
-        // Safe fallback if confetti canvas fails
-      }
-    }, 1200);
+    requireAuth(() => {
+      setIsPaymentModalOpen(true);
+    }, {
+      intent: 'purchase',
+      message: 'Sign in to complete your CAD checkout & unlock secure downloads',
+    });
+  };
+
+  const handlePaymentSuccess = async (_result: any) => {
+    setIsPaymentModalOpen(false);
+    
+    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    const recipientEmail = user?.email || 'shahharshil3103@gmail.com';
+    const mainTitle = items.length > 0 ? items[0].product.title : 'CAD File Package';
+
+    sendOtpEmail(recipientEmail, generatedOtp, `CAD Download Access - ${mainTitle}`).catch((e) => {
+      console.warn('Failed to dispatch OTP email:', e);
+    });
+
+    setOtpModalState({
+      isOpen: true,
+      purchaseId: Math.floor(10000 + Math.random() * 90000),
+      productTitle: items.length > 1 ? `${mainTitle} (+${items.length - 1} items)` : mainTitle,
+      maskedEmail: recipientEmail.replace(/(.{2})(.*)(?=@)/, '$1***'),
+      userEmail: recipientEmail,
+      debugOtp: generatedOtp,
+    });
+  };
+
+  const handleOtpVerifiedSuccess = () => {
+    setOtpModalState(prev => ({ ...prev, isOpen: false }));
+    setOrderCompleted(true);
+    try {
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#D4AF37', '#1E4FA3', '#F5E7A3', '#FAF8F3'],
+      });
+    } catch {
+      // Safe fallback if confetti canvas fails
+    }
   };
 
   const handleSimulateDownload = () => {
@@ -237,7 +287,7 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                             3DM + STL
                           </span>
                           <span className="text-xs font-semibold text-[#F5E7A3]">
-                            ${currentPrice.toFixed(0)}
+                            ₹{Math.round(currentPrice * 84).toLocaleString('en-IN')} <span className="text-[10px] text-[#C9C2A6] font-normal font-sans">(${currentPrice.toFixed(0)} USD)</span>
                           </span>
                         </div>
                       </div>
@@ -248,33 +298,6 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
-                    </div>
-
-                    {/* License selector toggle */}
-                    <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[11px]">
-                      <span className="text-[#C9C2A6]">License Type:</span>
-                      <div className="flex rounded-lg overflow-hidden border border-[#D4AF37]/20 bg-[#0B1330]">
-                        <button
-                          onClick={() => onUpdateLicense(idx, 'standard')}
-                          className={`px-2 py-0.5 transition-colors ${
-                            item.license === 'standard'
-                              ? 'bg-[#D4AF37] text-[#0B1330] font-semibold'
-                              : 'text-[#C9C2A6] hover:text-white'
-                          }`}
-                        >
-                          Atelier (1x)
-                        </button>
-                        <button
-                          onClick={() => onUpdateLicense(idx, 'commercial')}
-                          className={`px-2 py-0.5 transition-colors ${
-                            item.license === 'commercial'
-                              ? 'bg-[#1E4FA3] text-white font-semibold'
-                              : 'text-[#C9C2A6] hover:text-white'
-                          }`}
-                        >
-                          Mass Mfg (+80%)
-                        </button>
-                      </div>
                     </div>
                   </div>
                 );
@@ -309,17 +332,17 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
               <div className="space-y-1.5 text-xs">
                 <div className="flex justify-between text-[#C9C2A6]">
                   <span>Subtotal:</span>
-                  <span>${subtotal.toFixed(0)}</span>
+                  <span>₹{Math.round(subtotal * 84).toLocaleString('en-IN')} (${subtotal.toFixed(0)} USD)</span>
                 </div>
                 {discountAmount > 0 && (
                   <div className="flex justify-between text-emerald-400">
                     <span>Discount (10%):</span>
-                    <span>-${discountAmount.toFixed(0)}</span>
+                    <span>-₹{Math.round(discountAmount * 84).toLocaleString('en-IN')} (-${discountAmount.toFixed(0)})</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm font-semibold text-[#FAF8F3] pt-2 border-t border-white/5">
                   <span className="font-serif">Total Payable:</span>
-                  <span className="text-[#F5E7A3]">${total.toFixed(0)}</span>
+                  <span className="text-[#F5E7A3]">₹{Math.round(total * 84).toLocaleString('en-IN')} INR <span className="text-xs font-sans text-[#C9C2A6] font-normal">(${total.toFixed(0)} USD)</span></span>
                 </div>
               </div>
 
@@ -350,6 +373,34 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
           )}
         </div>
       </div>
+
+      {/* Payment Gateway Modal */}
+      <PaymentGatewayModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        title={`CAD File Bag Checkout (${items.length} design${items.length > 1 ? 's' : ''})`}
+        subtitle="Watertight 3DM & STL Mesh Bundle with Atelier Guarantee"
+        amount={total}
+        currency="USD"
+        itemType="cart"
+        orderDetails={{
+          itemsCount: items.length,
+          notes: items.map(i => `${i.product.title} (${i.license})`).join(', ')
+        }}
+        onPaymentSuccess={handlePaymentSuccess}
+      />
+
+      {/* OTP Verification Modal */}
+      <OTPVerificationModal
+        isOpen={otpModalState.isOpen}
+        onClose={() => setOtpModalState(prev => ({ ...prev, isOpen: false }))}
+        purchaseId={otpModalState.purchaseId}
+        productTitle={otpModalState.productTitle}
+        maskedEmail={otpModalState.maskedEmail}
+        userEmail={otpModalState.userEmail}
+        debugOtp={otpModalState.debugOtp}
+        onVerifiedSuccess={handleOtpVerifiedSuccess}
+      />
     </div>
   );
 };

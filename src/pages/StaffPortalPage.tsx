@@ -13,15 +13,6 @@ import {
 import { appStore } from '../services/store';
 import { api } from '../services/api';
 
-import {
-  CURRENT_STAFF_MEMBER,
-  INITIAL_AVAILABLE_JOBS,
-  INITIAL_STAFF_ACTIVE_JOBS,
-  INITIAL_STAFF_SUBMISSIONS,
-  INITIAL_STAFF_EARNINGS,
-  STAFF_NOTIFICATIONS,
-} from '../data/staffMockData';
-
 import { StaffLayout } from '../components/staff/StaffLayout';
 import { WaxSealStamp } from '../components/staff/WaxSealStamp';
 
@@ -33,6 +24,22 @@ import { StaffHistoryTab } from '../components/staff/StaffHistoryTab';
 import { StaffEarningsTab } from '../components/staff/StaffEarningsTab';
 import { StaffProfileTab } from '../components/staff/StaffProfileTab';
 import { StaffNotificationsTab } from '../components/staff/StaffNotificationsTab';
+
+const DEFAULT_STAFF_FALLBACK: StaffMember = {
+  id: 'STF-102',
+  name: 'Harshil Shah',
+  email: 'shahharshil3103@gmail.com',
+  phone: '+91 95747 87098',
+  avatar: '/unsplash-img/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
+  role: 'Master CAD Modeler & Gemologist',
+  status: 'active',
+  maxJobLimit: 5,
+  currentLoad: 0,
+  jobsCompleted: 42,
+  rating: 4.96,
+  totalEarnings: 3850,
+  activeJobs: [],
+};
 
 interface StaffPortalPageProps {
   onBackToMain: () => void;
@@ -75,7 +82,7 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
             name: fullName || 'Harshil Shah',
             email: u.email || 'shahharshil313@gmail.com',
             phone: u.phone_number || '+91 98201 44829',
-            avatar: u.profile_photo || CURRENT_STAFF_MEMBER.avatar,
+            avatar: u.profile_photo || DEFAULT_STAFF_FALLBACK.avatar,
             role: u.staff_profile?.specialty_tags || 'MatrixGold Specialist',
             status: u.is_active_staff !== false ? 'active' : 'inactive',
             maxJobLimit: u.staff_profile?.max_concurrent_jobs || 3,
@@ -90,13 +97,13 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
         console.warn('Failed to parse shiuli_user:', e);
       }
     }
-    return CURRENT_STAFF_MEMBER;
+    return DEFAULT_STAFF_FALLBACK;
   });
   const [availableJobs, setAvailableJobs] = useState<AvailableJob[]>([]);
   const [activeJobs, setActiveJobs] = useState<StaffActiveJob[]>(() => appStore.getActiveJobs());
   const [submissions, setSubmissions] = useState<StaffSubmission[]>(() => appStore.getSubmissions());
   const [earnings, setEarnings] = useState<StaffEarningsRecord[]>([]);
-  const [notifications, setNotifications] = useState<AdminNotification[]>(STAFF_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<AdminNotification[]>([]);
 
   // Wax-Seal Animation Overlay state
   const [waxSeal, setWaxSeal] = useState<WaxSealState>({

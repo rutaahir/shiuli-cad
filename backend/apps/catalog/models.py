@@ -6,6 +6,9 @@ class Category(models.Model):
     name = models.CharField(max_length=100)
     slug = models.SlugField(unique=True)
     parent = models.ForeignKey('self', null=True, blank=True, related_name='subcategories', on_delete=models.CASCADE)
+    image = models.ImageField(upload_to="categories/", null=True, blank=True)
+    image_url = models.URLField(max_length=500, blank=True, null=True)
+    tagline = models.CharField(max_length=255, blank=True)
     display_order = models.PositiveIntegerField(default=0)
 
     class Meta:
@@ -63,6 +66,10 @@ class Product(models.Model):
     rejection_reason = models.TextField(blank=True)
     is_bestseller = models.BooleanField(default=False)
     is_new = models.BooleanField(default=True)
+    is_featured = models.BooleanField(default=False)
+    casting_tips = models.TextField(blank=True)
+    specs = models.JSONField(default=dict, blank=True)
+    formats_available = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     approved_at = models.DateTimeField(null=True, blank=True)
 
@@ -83,7 +90,8 @@ class Product(models.Model):
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, related_name="images", on_delete=models.CASCADE)
-    image = models.ImageField(upload_to="products/images/")
+    image = models.ImageField(upload_to="products/images/", blank=True, null=True)
+    image_url = models.URLField(max_length=500, blank=True, null=True)
     is_primary = models.BooleanField(default=False)
     display_order = models.PositiveIntegerField(default=0)
 

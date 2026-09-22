@@ -5,7 +5,6 @@
  */
 
 import { api } from './api';
-import { PRODUCTS } from '../data/mockData';
 
 // ─── Raw backend shapes ─────────────────────────────────────────────────────
 
@@ -51,102 +50,23 @@ export interface CatalogState {
   products: BackendProduct[];
   styles: BackendStyle[];
   isLoading: boolean;
+  isError: boolean;
+  errorMessage: string | null;
   lastFetchedAt: number | null;
 }
 
 // ─── Store implementation ───────────────────────────────────────────────────
 
-export const DEFAULT_CATEGORIES: BackendCategory[] = [
-  {
-    id: 1,
-    name: 'Rings',
-    slug: 'rings',
-    parent: null,
-    parent_name: null,
-    display_order: 1,
-    product_count: 12,
-    subcategories: [
-      { id: 2, name: 'Solitaire Rings', slug: 'solitaire-rings', parent: 1, parent_name: 'Rings', display_order: 1, product_count: 5, subcategories: [] },
-      { id: 3, name: 'Band Rings', slug: 'band-rings', parent: 1, parent_name: 'Rings', display_order: 2, product_count: 4, subcategories: [] },
-      { id: 12, name: 'Cocktail Rings', slug: 'cocktail-rings', parent: 1, parent_name: 'Rings', display_order: 3, product_count: 3, subcategories: [] },
-    ],
-  },
-  {
-    id: 4,
-    name: 'Necklaces',
-    slug: 'necklaces',
-    parent: null,
-    parent_name: null,
-    display_order: 2,
-    product_count: 8,
-    subcategories: [
-      { id: 5, name: 'Pendants', slug: 'pendants', parent: 4, parent_name: 'Necklaces', display_order: 1, product_count: 4, subcategories: [] },
-      { id: 13, name: 'Chokers & Bridal Sets', slug: 'chokers-bridal', parent: 4, parent_name: 'Necklaces', display_order: 2, product_count: 4, subcategories: [] },
-    ],
-  },
-  {
-    id: 6,
-    name: 'Earrings',
-    slug: 'earrings',
-    parent: null,
-    parent_name: null,
-    display_order: 3,
-    product_count: 10,
-    subcategories: [
-      { id: 14, name: 'Studs & Solitaires', slug: 'studs-solitaires', parent: 6, parent_name: 'Earrings', display_order: 1, product_count: 6, subcategories: [] },
-      { id: 15, name: 'Jhumkas & Dangles', slug: 'jhumkas-dangles', parent: 6, parent_name: 'Earrings', display_order: 2, product_count: 4, subcategories: [] },
-    ],
-  },
-  {
-    id: 7,
-    name: 'Bracelets & Bangles',
-    slug: 'bracelets-bangles',
-    parent: null,
-    parent_name: null,
-    display_order: 4,
-    product_count: 6,
-    subcategories: [
-      { id: 18, name: 'Kadas & Cuffs', slug: 'kadas-cuffs', parent: 7, parent_name: 'Bracelets & Bangles', display_order: 1, product_count: 3, subcategories: [] },
-    ],
-  },
-];
-
-export const DEFAULT_PRODUCTS: BackendProduct[] = PRODUCTS.map((p, i) => {
-  const cSlug = (p.category || '').toLowerCase();
-  let parentSlug = 'rings';
-  if (cSlug.includes('earring')) parentSlug = 'earrings';
-  else if (cSlug.includes('pendant') || cSlug.includes('necklace')) parentSlug = 'necklaces';
-  else if (cSlug.includes('bracelet') || cSlug.includes('bangle')) parentSlug = 'bracelets-bangles';
-
-  return {
-    id: i + 1,
-    title: p.title,
-    slug: p.id,
-    category: i + 1,
-    category_name: (p as any).categoryName || p.category,
-    category_slug: cSlug,
-    parent_slug: parentSlug,
-    price: p.price,
-    compare_at_price: p.originalPrice || null,
-    description: p.description || '',
-    metal_weight_grams: 4.5,
-    stone_count: 1,
-    is_bestseller: p.isBestseller || false,
-    is_new: p.isNew || false,
-    status: 'published',
-    primary_image: p.primaryImage || (p.images && p.images[0]) || null,
-    created_at: new Date().toISOString(),
-  };
-});
-
 type Listener = (state: CatalogState) => void;
 
 let state: CatalogState = {
-  categories: DEFAULT_CATEGORIES,
-  allCategories: flattenCategories(DEFAULT_CATEGORIES),
-  products: DEFAULT_PRODUCTS,
+  categories: [],
+  allCategories: [],
+  products: [],
   styles: [],
-  isLoading: false,
+  isLoading: true,
+  isError: false,
+  errorMessage: null,
   lastFetchedAt: null,
 };
 
@@ -237,31 +157,26 @@ export async function fetchCatalog(force = false): Promise<void> {
         ? prodsRaw
         : [];
 
-      const finalCats = (cats && cats.length > 0) ? cats : DEFAULT_CATEGORIES;
-      const flat = flattenCategories(finalCats);
+      const flat = flattenCategories(cats);
       const products = enrichProducts(rawProds, flat);
-      const finalProducts = (products && products.length > 0) ? products : DEFAULT_PRODUCTS;
 
       state = {
-        categories: finalCats,
+        categories: cats,
         allCategories: flat,
-        products: finalProducts,
+        products,
         styles,
         isLoading: false,
+        isError: false,
+        errorMessage: null,
         lastFetchedAt: Date.now(),
       };
-    } catch (err) {
+    } catch (err: any) {
       console.error('[catalogStore] fetch failed:', err);
-      const finalCats = state.categories.length > 0 ? state.categories : DEFAULT_CATEGORIES;
-      const flat = flattenCategories(finalCats);
-      const finalProducts = state.products.length > 0 ? state.products : DEFAULT_PRODUCTS;
       state = {
-        categories: finalCats,
-        allCategories: flat,
-        products: finalProducts,
-        styles: state.styles,
+        ...state,
         isLoading: false,
-        lastFetchedAt: Date.now(),
+        isError: true,
+        errorMessage: err?.message || 'Failed to connect to catalog API',
       };
     } finally {
       fetchPromise = null;

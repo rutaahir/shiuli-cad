@@ -10,21 +10,6 @@ import {
   ActivityLogItem,
 } from '../types';
 
-import { PRODUCTS } from '../data/mockData';
-import {
-  INITIAL_STAFF_MEMBERS,
-  INITIAL_DESIGN_APPROVALS,
-  INITIAL_CUSTOM_NEGOTIATIONS,
-  INITIAL_ADMIN_NOTIFICATIONS,
-  INITIAL_ACTIVITY_LOGS,
-} from '../data/adminMockData';
-
-import {
-  INITIAL_AVAILABLE_JOBS,
-  INITIAL_STAFF_ACTIVE_JOBS,
-  INITIAL_STAFF_SUBMISSIONS,
-} from '../data/staffMockData';
-
 // Storage Keys
 const KEYS = {
   PRODUCTS: 'shiuli_store_products',
@@ -60,7 +45,7 @@ function setStored<T>(key: string, value: T): void {
 export const appStore = {
   // Products
   getProducts(): Product[] {
-    return getStored<Product[]>(KEYS.PRODUCTS, PRODUCTS);
+    return getStored<Product[]>(KEYS.PRODUCTS, []);
   },
   saveProducts(products: Product[]) {
     setStored(KEYS.PRODUCTS, products);
@@ -74,7 +59,7 @@ export const appStore = {
 
   // Staff Members
   getStaffList(): StaffMember[] {
-    return getStored<StaffMember[]>(KEYS.STAFF_LIST, INITIAL_STAFF_MEMBERS);
+    return getStored<StaffMember[]>(KEYS.STAFF_LIST, []);
   },
   saveStaffList(staff: StaffMember[]) {
     setStored(KEYS.STAFF_LIST, staff);
@@ -103,7 +88,7 @@ export const appStore = {
 
   // Design Approvals
   getApprovals(): DesignApproval[] {
-    return getStored<DesignApproval[]>(KEYS.APPROVALS, INITIAL_DESIGN_APPROVALS);
+    return getStored<DesignApproval[]>(KEYS.APPROVALS, []);
   },
   saveApprovals(approvals: DesignApproval[]) {
     setStored(KEYS.APPROVALS, approvals);
@@ -111,7 +96,7 @@ export const appStore = {
 
   // Custom Requests & Negotiations
   getCustomRequests(): CustomNegotiation[] {
-    return getStored<CustomNegotiation[]>(KEYS.CUSTOM_REQUESTS, INITIAL_CUSTOM_NEGOTIATIONS);
+    return getStored<CustomNegotiation[]>(KEYS.CUSTOM_REQUESTS, []);
   },
   saveCustomRequests(requests: CustomNegotiation[]) {
     setStored(KEYS.CUSTOM_REQUESTS, requests);
@@ -124,14 +109,14 @@ export const appStore = {
 
   // Job Pool & Active Jobs
   getAvailableJobs(): AvailableJob[] {
-    return getStored<AvailableJob[]>(KEYS.AVAILABLE_JOBS, INITIAL_AVAILABLE_JOBS);
+    return getStored<AvailableJob[]>(KEYS.AVAILABLE_JOBS, []);
   },
   saveAvailableJobs(jobs: AvailableJob[]) {
     setStored(KEYS.AVAILABLE_JOBS, jobs);
   },
 
   getActiveJobs(): StaffActiveJob[] {
-    return getStored<StaffActiveJob[]>(KEYS.ACTIVE_JOBS, INITIAL_STAFF_ACTIVE_JOBS);
+    return getStored<StaffActiveJob[]>(KEYS.ACTIVE_JOBS, []);
   },
   saveActiveJobs(jobs: StaffActiveJob[]) {
     setStored(KEYS.ACTIVE_JOBS, jobs);
@@ -139,7 +124,7 @@ export const appStore = {
 
   // Submissions
   getSubmissions(): StaffSubmission[] {
-    return getStored<StaffSubmission[]>(KEYS.SUBMISSIONS, INITIAL_STAFF_SUBMISSIONS);
+    return getStored<StaffSubmission[]>(KEYS.SUBMISSIONS, []);
   },
   saveSubmissions(subs: StaffSubmission[]) {
     setStored(KEYS.SUBMISSIONS, subs);
@@ -147,7 +132,7 @@ export const appStore = {
 
   // Notifications
   getNotifications(): AdminNotification[] {
-    return getStored<AdminNotification[]>(KEYS.NOTIFICATIONS, INITIAL_ADMIN_NOTIFICATIONS);
+    return getStored<AdminNotification[]>(KEYS.NOTIFICATIONS, []);
   },
   saveNotifications(notes: AdminNotification[]) {
     setStored(KEYS.NOTIFICATIONS, notes);
@@ -155,7 +140,7 @@ export const appStore = {
 
   // Activity Logs
   getActivityLogs(): ActivityLogItem[] {
-    return getStored<ActivityLogItem[]>(KEYS.ACTIVITY_LOGS, INITIAL_ACTIVITY_LOGS);
+    return getStored<ActivityLogItem[]>(KEYS.ACTIVITY_LOGS, []);
   },
   saveActivityLogs(logs: ActivityLogItem[]) {
     setStored(KEYS.ACTIVITY_LOGS, logs);

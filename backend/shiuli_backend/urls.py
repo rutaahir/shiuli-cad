@@ -5,6 +5,7 @@ from django.conf.urls.static import static
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 from apps.payments.views_purchases import download_cad_file
+import apps.services.views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -29,9 +30,18 @@ urlpatterns = [
     path('api/notifications/', include('apps.notifications.urls')),
     path('api/contact/', include('apps.notifications.urls_contact')),
     path('api/services/', include('apps.services.urls')),
+    path('api/testimonials/', include([
+        path('', apps.services.views.TestimonialViewSet.as_view({'get': 'list', 'post': 'create'})),
+        path('<int:pk>/', apps.services.views.TestimonialViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'})),
+    ])),
+    path('api/faqs/', include([
+        path('', apps.services.views.FAQViewSet.as_view({'get': 'list', 'post': 'create'})),
+        path('<int:pk>/', apps.services.views.FAQViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'})),
+    ])),
     path('api/file-edits/', include('apps.file_edits.urls')),
     path('api/ai-jewellery/', include('apps.ai_jewellery.urls')),
     path('api/portfolio/', include('apps.portfolio.urls')),
+    path('api/blog/', include('apps.blog.urls')),
     path('api/analytics/', include('apps.core.urls_analytics')),
 ]
 

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageId, BlogPost } from '../types';
-import { BLOG_POSTS } from '../data/mockData';
-import { Sparkles, Calendar, Clock, ArrowRight, X, User } from 'lucide-react';
+import { api } from '../services/api';
+import { Sparkles, Calendar, Clock, ArrowRight, X, User, Loader2 } from 'lucide-react';
 import { RevealOnScroll } from '../components/motion/RevealOnScroll';
 import { StaggerGrid, StaggerItem } from '../components/motion/StaggerGrid';
 import { LazyImage } from '../components/motion/LazyImage';
@@ -11,14 +11,45 @@ interface BlogPageProps {
 }
 
 export const BlogPage: React.FC<BlogPageProps> = ({ onNavigate }) => {
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+
+  useEffect(() => {
+    setLoading(true);
+    api.getBlogPosts()
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setPosts(data);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch blog posts:', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+
+  const handleOpenPost = (postSummary: BlogPost) => {
+    setSelectedPost(postSummary);
+    if (postSummary.slug) {
+      api.getBlogPost(postSummary.slug)
+        .then((fullPost) => {
+          if (fullPost && fullPost.title) {
+            setSelectedPost(fullPost);
+          }
+        })
+        .catch(() => {});
+    }
+  };
 
   const categories = ['all', 'Casting & Metallurgy', 'MatrixGold & Rhino 3D', '3D Printing Resins'];
 
   const filteredPosts = selectedCategory === 'all'
-    ? BLOG_POSTS
-    : BLOG_POSTS.filter((p) => (p.category || '').toLowerCase().includes(selectedCategory.toLowerCase()));
+    ? posts
+    : posts.filter((p) => (p.category || '').toLowerCase().includes(selectedCategory.toLowerCase()));
 
   return (
     <div className="min-h-screen bg-[#0B1330] text-[#F5F1E8] pt-28 pb-20 px-4 sm:px-8 lg:px-12">
@@ -57,15 +88,21 @@ export const BlogPage: React.FC<BlogPageProps> = ({ onNavigate }) => {
         </RevealOnScroll>
 
         {/* Blog Post Grid */}
-        <StaggerGrid className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {filteredPosts.map((post, index) => {
-            const displayImage = post.coverImage || post.image;
-            return (
-              <StaggerItem key={post.id} index={index}>
-                <article
-                  onClick={() => setSelectedPost(post)}
-                  className="group rounded-2xl bg-[#080E24] border border-[#D4AF37]/20 overflow-hidden cursor-pointer shadow-xl hover:border-[#D4AF37] transition-all flex flex-col justify-between h-full"
-                >
+        {loading ? (
+          <div className="py-20 flex flex-col items-center justify-center space-y-4">
+            <Loader2 className="w-8 h-8 text-[#D4AF37] animate-spin" />
+            <p className="text-xs text-[#C9C2A6]">Loading CAD guides & articles…</p>
+          </div>
+        ) : (
+          <StaggerGrid className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {filteredPosts.map((post, index) => {
+              const displayImage = post.coverImage || post.image;
+              return (
+                <StaggerItem key={post.id} index={index}>
+                  <article
+                    onClick={() => handleOpenPost(post)}
+                    className="group rounded-2xl bg-[#080E24] border border-[#D4AF37]/20 overflow-hidden cursor-pointer shadow-xl hover:border-[#D4AF37] transition-all flex flex-col justify-between h-full"
+                  >
                   <div className="relative aspect-[16/10] overflow-hidden bg-[#070D22]">
                     <LazyImage
                       src={displayImage}
@@ -111,6 +148,7 @@ export const BlogPage: React.FC<BlogPageProps> = ({ onNavigate }) => {
             );
           })}
         </StaggerGrid>
+        )}
 
         {/* Modal Reader */}
         {selectedPost && (

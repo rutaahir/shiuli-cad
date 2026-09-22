@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 
 import { sendContactFormEmail } from '../services/emailService';
+import { validateFullName, validateEmail, validatePhoneNumber } from '../utils/validationHelper';
 
 interface ContactPageProps {
   onNavigate?: (page: PageId) => void;
@@ -89,25 +90,53 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
     }
   }, [user]);
 
+  // Comprehensive Single-field validator using enterprise validation rules
+  const validateSingleField = (fieldName: string, val: string): string => {
+    switch (fieldName) {
+      case 'name': {
+        const result = validateFullName(val);
+        return result.isValid ? '' : (result.error || '');
+      }
+      case 'email': {
+        const result = validateEmail(val);
+        return result.isValid ? '' : (result.error || '');
+      }
+      case 'phone': {
+        const result = validatePhoneNumber(val, false);
+        return result.isValid ? '' : (result.error || '');
+      }
+      case 'subject': {
+        if (!val.trim()) return 'Please select an inquiry topic';
+        return '';
+      }
+      case 'message': {
+        const trimmed = val.trim();
+        if (!trimmed) return 'Message is required';
+        if (trimmed.length < 20) {
+          return `Please provide more project details (minimum 20 characters, currently ${trimmed.length})`;
+        }
+        if (trimmed.length > 1000) {
+          return 'Message cannot exceed 1,000 characters';
+        }
+        return '';
+      }
+      default:
+        return '';
+    }
+  };
+
   // Client-side Validation
   const validateForm = () => {
     const newErrors: { name?: string; email?: string; message?: string } = {};
 
-    if (!name.trim()) {
-      newErrors.name = 'Full Name is required';
-    }
+    const nameErr = validateSingleField('name', name);
+    if (nameErr) newErrors.name = nameErr;
 
-    if (!email.trim()) {
-      newErrors.email = 'Email Address is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      newErrors.email = 'Please enter a valid email address';
-    }
+    const emailErr = validateSingleField('email', email);
+    if (emailErr) newErrors.email = emailErr;
 
-    if (!message.trim()) {
-      newErrors.message = 'Message is required';
-    } else if (message.trim().length < 10) {
-      newErrors.message = 'Message must be at least 10 characters long';
-    }
+    const messageErr = validateSingleField('message', message);
+    if (messageErr) newErrors.message = messageErr;
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;

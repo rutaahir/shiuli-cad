@@ -1,40 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ImageOff } from 'lucide-react';
+import { getOptimizedImageUrl, getCategoryFallbackImage } from '../../utils/imageHelper';
 
 interface LazyImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   src: string;
   alt: string;
+  category?: string;
   aspectRatio?: string;
   className?: string;
   containerClassName?: string;
   fallbackSrc?: string;
 }
 
-const GLOBAL_FALLBACK =
-  'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=800&q=80';
-
 export const LazyImage: React.FC<LazyImageProps> = ({
   src,
   alt,
+  category,
   aspectRatio,
   className = '',
   containerClassName = '',
   fallbackSrc,
   ...props
 }) => {
+  const normalizedInitial = getOptimizedImageUrl(src, category);
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [hasError, setHasError] = useState<boolean>(false);
-  const [imgSrc, setImgSrc] = useState<string>(src);
+  const [imgSrc, setImgSrc] = useState<string>(normalizedInitial);
   const prefersReducedMotion = useReducedMotion();
 
+  useEffect(() => {
+    const nextUrl = getOptimizedImageUrl(src, category);
+    setImgSrc(nextUrl);
+    setHasError(false);
+    setIsLoaded(false);
+  }, [src, category]);
+
   const handleError = () => {
-    // Try the fallbackSrc first, then the global fallback
-    const next = fallbackSrc || GLOBAL_FALLBACK;
-    if (imgSrc !== next) {
-      setImgSrc(next);
+    const nextFallback = fallbackSrc || getCategoryFallbackImage(category);
+    if (imgSrc !== nextFallback) {
+      setImgSrc(nextFallback);
     } else {
-      // Both failed — show the icon placeholder
       setHasError(true);
       setIsLoaded(true);
     }
@@ -56,7 +62,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
       {hasError && (
         <div className="absolute inset-0 bg-[#080E24] flex flex-col items-center justify-center gap-2">
           <ImageOff className="w-8 h-8 text-[#D4AF37]/30" />
-          <span className="text-[10px] text-[#C9C2A6]/50 font-mono uppercase tracking-wider">No Image</span>
+          <span className="text-[10px] text-[#C9C2A6]/50 font-mono uppercase tracking-wider">CAD Asset</span>
         </div>
       )}
 
@@ -80,3 +86,4 @@ export const LazyImage: React.FC<LazyImageProps> = ({
     </div>
   );
 };
+

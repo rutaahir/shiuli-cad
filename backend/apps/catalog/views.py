@@ -142,6 +142,10 @@ class ProductViewSet(viewsets.ModelViewSet):
             if is_new:
                 queryset = queryset.filter(is_new=is_new.lower() == 'true')
 
+            featured = self.request.query_params.get('featured') or self.request.query_params.get('is_featured')
+            if featured:
+                queryset = queryset.filter(is_featured=featured.lower() == 'true')
+
         return queryset.order_by('-created_at')
 
     def get_serializer_class(self):

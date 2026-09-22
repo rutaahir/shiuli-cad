@@ -27,6 +27,8 @@ interface AuthContextType {
   isLoading: boolean;
   login: (username: string, password: string) => Promise<any>;
   register: (fields: { name: string; email: string; password: string; phone_number?: string }) => Promise<any>;
+  sendRegistrationOtp: (email: string, name?: string) => Promise<any>;
+  verifyRegistrationOtp: (fields: { email: string; code: string; name: string; password: string; phone_number?: string }) => Promise<any>;
   logout: () => Promise<void>;
   updateUser: (updatedUser: UserProfile) => void;
   refreshUser: () => Promise<UserProfile | null>;
@@ -134,6 +136,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return data;
   };
 
+  const sendRegistrationOtp = async (email: string, name?: string) => {
+    return await api.sendRegistrationOtp(email, name);
+  };
+
+  const verifyRegistrationOtp = async (fields: {
+    email: string;
+    code: string;
+    name: string;
+    password: string;
+    phone_number?: string;
+  }) => {
+    const data = await api.verifyRegistrationOtp(fields);
+    setUser(data.user);
+    setIsLoggedIn(true);
+    return data;
+  };
+
   const logout = async () => {
     await api.logout();
     setUser(null);
@@ -210,6 +229,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         login,
         register,
+        sendRegistrationOtp,
+        verifyRegistrationOtp,
         logout,
         updateUser,
         refreshUser,

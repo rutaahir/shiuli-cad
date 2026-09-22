@@ -55,12 +55,27 @@ class PortfolioItemSerializer(serializers.ModelSerializer):
     gallery_images = PortfolioImageSerializer(many=True, read_only=True)
     category_name = serializers.CharField(source='category.name', read_only=True)
     primary_image = HybridImageField(required=False, allow_null=True)
+    sketch_image = HybridImageField(required=False, allow_null=True)
+    image = serializers.SerializerMethodField()
+    sketchImage = serializers.SerializerMethodField()
 
     class Meta:
         model = PortfolioItem
         fields = [
             'id', 'title', 'category', 'category_name', 'category_slug',
-            'is_ai_project', 'is_custom_project', 'primary_image',
+            'is_ai_project', 'is_custom_project', 'primary_image', 'primary_image_url',
+            'sketch_image', 'sketch_image_url', 'image', 'sketchImage', 'specs', 'tags',
             'gallery_images', 'description', 'completed_date', 'is_featured',
             'is_published', 'display_order', 'source_order', 'created_at'
         ]
+
+    def get_image(self, obj):
+        if obj.primary_image:
+            return str(obj.primary_image)
+        return obj.primary_image_url or ''
+
+    def get_sketchImage(self, obj):
+        if obj.sketch_image:
+            return str(obj.sketch_image)
+        return obj.sketch_image_url or ''
+

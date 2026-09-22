@@ -16,7 +16,7 @@ import {
 import { RevealOnScroll } from '../components/motion/RevealOnScroll';
 import { StaggerGrid, StaggerItem } from '../components/motion/StaggerGrid';
 import { LazyImage } from '../components/motion/LazyImage';
-import { useCatalog, toProductShape } from '../hooks/useCatalog';
+import { useCatalog, toProductShape, fetchCatalog } from '../hooks/useCatalog';
 
 interface CollectionsPageProps {
   initialCategory?: string;
@@ -37,7 +37,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
   onToggleWishlist,
   wishlistIds,
 }) => {
-  const { categories, allCategories, products, styles, isLoading } = useCatalog();
+  const { categories, allCategories, products, styles, isLoading, isError } = useCatalog();
 
   const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [selectedSlug, setSelectedSlug] = useState<string>(initialCategory);
@@ -358,6 +358,27 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
           </div>
         </RevealOnScroll>
 
+        {/* Offline / Connection Error Banner */}
+        {isError && (
+          <div className="p-4 rounded-2xl bg-[#2A1515] border border-red-500/40 text-[#FAF8F3] flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+            <div className="flex items-center gap-3">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-400 animate-ping" />
+              <span className="text-xs font-medium text-red-200">
+                {products.length > 0
+                  ? 'Showing cached catalog — live connection unavailable.'
+                  : 'Unable to connect to live catalogue server. Please verify backend service.'}
+              </span>
+            </div>
+            <button
+              onClick={() => fetchCatalog(true)}
+              className="px-4 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-xs font-semibold text-red-100 flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Retry Connection
+            </button>
+          </div>
+        )}
+
         {/* Search & Sort Bar */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-[#080E24] border border-[#D4AF37]/20">
           {/* Search Input */}
@@ -515,21 +536,19 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                           </div>
                           <div className="flex items-center justify-between pt-2">
                             <div>
-                              <span className="text-xl font-serif font-bold text-[#F5E7A3]">
-                                ${product.price}
+                              <span className="text-lg font-serif font-bold text-[#F5E7A3] block">
+                                ₹{Math.round(product.price * 84).toLocaleString('en-IN')}
                               </span>
-                              {product.originalPrice && (
-                                <span className="text-xs text-[#C9C2A6] line-through ml-1.5">
-                                  ${product.originalPrice}
-                                </span>
-                              )}
+                              <span className="text-[10px] text-[#C9C2A6] block font-sans">
+                                (${product.price} USD)
+                              </span>
                             </div>
                             <button
                               onClick={(e) => { e.stopPropagation(); onAddToCart(product, 'standard'); }}
-                              className="btn-gold-luxury px-3.5 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider flex items-center gap-1"
+                              className="btn-gold-luxury px-3 py-1.5 rounded-lg text-[11px] font-semibold uppercase tracking-wider flex items-center gap-1 shadow-md"
                             >
-                              <ShoppingBag className="w-3 h-3 text-[#0B1330]" />
-                              <span>Add</span>
+                              <ShoppingBag className="w-3.5 h-3.5 text-[#0B1330]" />
+                              <span>Add to Bag</span>
                             </button>
                           </div>
                         </div>
