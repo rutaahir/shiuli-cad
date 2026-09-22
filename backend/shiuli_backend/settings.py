@@ -19,11 +19,18 @@ try:
 except Exception:
     pass
 
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-shiuli-cad-studio-secret-key-2026-production-ready')
+PRODUCTION = config('PRODUCTION', default=False, cast=bool)
 
-DEBUG = config('DEBUG', default=True, cast=bool)
+SECRET_KEY = config('SECRET_KEY', default=('django-insecure-dev-secret-key-change-in-prod' if not PRODUCTION else None))
+if not SECRET_KEY:
+    raise ValueError("SECRET_KEY environment variable is required in production.")
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*').split(',')
+DEBUG = config('DEBUG', default=(not PRODUCTION), cast=bool)
+
+if PRODUCTION:
+    ALLOWED_HOSTS = [h.strip() for h in config('ALLOWED_HOSTS', default='shiulicad.com,www.shiulicad.com').split(',') if h.strip()]
+else:
+    ALLOWED_HOSTS = [h.strip() for h in config('ALLOWED_HOSTS', default='*').split(',') if h.strip()]
 
 # Custom User Model
 AUTH_USER_MODEL = 'accounts.User'
@@ -134,9 +141,22 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800
 FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800
 
-# CORS settings
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
+# CORS & Security settings
+if PRODUCTION:
+    CORS_ALLOW_ALL_ORIGINS = False
+    CORS_ALLOWED_ORIGINS = [o.strip() for o in config('CORS_ALLOWED_ORIGINS', default='https://shiulicad.com').split(',') if o.strip()]
+    CSRF_TRUSTED_ORIGINS = [t.strip() for t in config('CSRF_TRUSTED_ORIGINS', default='https://shiulicad.com').split(',') if t.strip()]
+    CORS_ALLOW_CREDENTIALS = True
+    SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=True, cast=bool)
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=31536000, cast=int)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+else:
+    CORS_ALLOW_ALL_ORIGINS = True
+    CORS_ALLOW_CREDENTIALS = True
+    SECURE_SSL_REDIRECT = False
 
 # Django REST Framework Settings
 REST_FRAMEWORK = {
@@ -147,6 +167,18 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    'DEFAULT_THROTTLE_CLASSES': (
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+        'rest_framework.throttling.ScopedRateThrottle',
+    ),
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': config('THROTTLE_ANON_RATE', default='100/day'),
+        'user': config('THROTTLE_USER_RATE', default='1000/day'),
+        'auth_login': config('THROTTLE_AUTH_LOGIN', default='10/minute'),
+        'auth_otp': config('THROTTLE_AUTH_OTP', default='5/minute'),
+        'password_reset': config('THROTTLE_PASSWORD_RESET', default='5/hour'),
+    },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
@@ -189,12 +221,17 @@ else:
         },
     }
 
-# Email Configuration (Real Gmail SMTP Transactional Email Service)
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='socialbuzz31@gmail.com').strip()
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='xwdnospocqnkotvl').strip().replace(' ', '')
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='Shiuli CAD Studio <socialbuzz31@gmail.com>')
+# Razorpay Payment Gateway Configuration
+RAZORPAY_KEY_ID = config('RAZORPAY_KEY_ID', default='')
+RAZORPAY_KEY_SECRET = config('RAZORPAY_KEY_SECRET', default='')
+
+# Email Configuration (Real Gmail / SMTP Transactional Email Service)
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='').strip()
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='').strip().replace(' ', '')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='Shiuli CAD Studio <noreply@shiulicad.com>')
+
 

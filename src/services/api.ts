@@ -228,26 +228,7 @@ class ApiClient {
             headers,
           });
         } catch {
-          // If refresh token failed, check if this is an admin/staff request and recover admin session
-          const userStr = localStorage.getItem('shiuli_user');
-          let user: any = null;
-          try { user = userStr ? JSON.parse(userStr) : null; } catch {}
-          const isStaffOrAdmin = user && (user.role === 'admin' || user.role === 'staff' || user.is_staff || user.is_superuser);
-
-          if (isStaffOrAdmin || endpoint.includes('/analytics/') || endpoint.includes('/staff/') || endpoint.includes('/settlements/')) {
-            try {
-              await this.login('admin@shiuli.com', 'admin123');
-              headers = this.getHeaders(options.headers as Record<string, string>, isFormData);
-              response = await fetch(url, {
-                ...options,
-                headers,
-              });
-            } catch {
-              this.clearSession();
-            }
-          } else {
-            this.clearSession();
-          }
+          this.clearSession();
         }
       }
 
@@ -284,47 +265,22 @@ class ApiClient {
   // Auth Endpoints
 
   async login(username: string, password: string) {
-    try {
-      const data = await this.request<{
-        access: string;
-        refresh: string;
-        role: string;
-        user: any;
-      }>('/auth/login/', {
-        method: 'POST',
-        body: JSON.stringify({ username, password }),
-      });
+    const data = await this.request<{
+      access: string;
+      refresh: string;
+      role: string;
+      user: any;
+    }>('/auth/login/', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    });
 
-      if (data.access) {
-        localStorage.setItem('shiuli_access_token', data.access);
-        localStorage.setItem('shiuli_refresh_token', data.refresh);
-        localStorage.setItem('shiuli_user', JSON.stringify(data.user));
-      }
-      return data;
-    } catch (err: any) {
-      // Fallback for demo or client login if account is not registered yet or server returns error
-      console.warn('[api.login] API login failed, using client fallback session:', err?.message);
-      const isStaffOrAdmin = username.includes('admin') || username.includes('staff') || username === 'shahharshil313@gmail.com';
-      const role = isStaffOrAdmin ? (username.includes('admin') ? 'admin' : 'staff') : 'client';
-      const mockUser = {
-        id: 'user_' + Date.now(),
-        email: username,
-        name: username.split('@')[0],
-        role: role,
-        first_name: username.split('@')[0],
-        last_name: '',
-      };
-      const mockData = {
-        access: 'mock_access_token_' + Date.now(),
-        refresh: 'mock_refresh_token_' + Date.now(),
-        role: role,
-        user: mockUser,
-      };
-      localStorage.setItem('shiuli_access_token', mockData.access);
-      localStorage.setItem('shiuli_refresh_token', mockData.refresh);
-      localStorage.setItem('shiuli_user', JSON.stringify(mockUser));
-      return mockData;
+    if (data?.access) {
+      localStorage.setItem('shiuli_access_token', data.access);
+      localStorage.setItem('shiuli_refresh_token', data.refresh);
+      localStorage.setItem('shiuli_user', JSON.stringify(data.user));
     }
+    return data;
   }
 
   async registerClient(fields: {
@@ -353,6 +309,65 @@ class ApiClient {
     // Auto-login after successful registration
     const loginData = await this.login(fields.email, fields.password);
     return loginData;
+  }
+
+  async sendRegistrationOtp(email: string, name?: string) {
+    try {
+      const res = await this.request<any>('/auth/register/send-otp/', {
+        method: 'POST',
+        body: JSON.stringify({ email, name }),
+      });
+      return res;
+    } catch (err: any) {
+      console.warn('[sendRegistrationOtp] Backend offline, falling back to Vite Gmail SMTP plugin:', err?.message);
+      const fallbackOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      sessionStorage.setItem(`shiuli_reg_otp_${email.toLowerCase().trim()}`, fallbackOtp);
+
+      await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: email,
+          subject: 'Verify Your Email Address - Shiuli CAD Studio Registration',
+          html: `
+            <div style="font-family: sans-serif; background: #060B1E; color: #FAF8F3; padding: 32px; border-radius: 12px;">
+              <h2 style="color: #D4AF37;">Shiuli CAD Studio — Registration Verification</h2>
+              <p>Welcome, ${name || 'Client'}. Use the 6-digit verification code below to complete your registration:</p>
+              <div style="font-size: 28px; font-weight: bold; letter-spacing: 6px; color: #F5E7A3; background: #0B1330; padding: 16px; border-radius: 8px; text-align: center; margin: 24px 0; border: 1px solid #D4AF37;">
+                ${fallbackOtp}
+              </div>
+              <p style="font-size: 12px; color: #C9C2A6;">This code expires in 10 minutes.</p>
+            </div>
+          `,
+        }),
+      }).catch((e) => console.warn('Vite mailer notice:', e));
+
+      return {
+        message: `Verification code dispatched to ${email}.`,
+        email,
+        expires_in_seconds: 600,
+        debug_otp: fallbackOtp,
+      };
+    }
+  }
+
+  async verifyRegistrationOtp(fields: {
+    email: string;
+    code: string;
+    name: string;
+    password: string;
+    phone_number?: string;
+  }) {
+    const res = await this.request<any>('/auth/register/verify-otp/', {
+      method: 'POST',
+      body: JSON.stringify(fields),
+    });
+    if (res?.access) {
+      localStorage.setItem('shiuli_access_token', res.access);
+      localStorage.setItem('shiuli_refresh_token', res.refresh);
+      localStorage.setItem('shiuli_user', JSON.stringify(res.user));
+    }
+    return res;
   }
 
   async logout() {
@@ -405,23 +420,15 @@ class ApiClient {
     const isStaffOrAdmin = user && (user.role === 'admin' || user.role === 'staff' || user.is_staff || user.is_superuser);
 
     if (!token || !isStaffOrAdmin) {
-      try {
-        await this.login('admin@shiuli.com', 'admin123');
-        return;
-      } catch (e) {
-        console.warn('Auto admin authentication fallback skipped:', e);
-      }
+      throw new Error('Administrator or Staff authentication required.');
     }
 
     // Verify stored token is valid against backend
     try {
       await this.request('/auth/me/');
     } catch (err: any) {
-      try {
-        await this.login('admin@shiuli.com', 'admin123');
-      } catch (loginErr) {
-        console.warn('Admin token re-authentication failed:', loginErr);
-      }
+      this.clearSession();
+      throw new Error('Admin session expired or invalid. Please log in again.');
     }
   }
 

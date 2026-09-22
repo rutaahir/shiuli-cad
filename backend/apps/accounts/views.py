@@ -7,6 +7,7 @@ from django.core.mail import send_mail
 from rest_framework import generics, status, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
@@ -35,9 +36,176 @@ class RegisterView(generics.CreateAPIView):
     permission_classes = [permissions.AllowAny]
 
 
+class SendRegistrationOTPView(APIView):
+    """Generates and emails a 6-digit verification code to prospective client during registration."""
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth_otp'
+
+    def post(self, request):
+        email = str(request.data.get("email", "")).strip().lower()
+        name = str(request.data.get("name", "")).strip()
+
+        if not email or '@' not in email:
+            return Response({"error": "A valid email address is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if email is already registered
+        if User.objects.filter(email__iexact=email).exists():
+            return Response(
+                {"error": "An account with this email address already exists. Please log in instead."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        now = timezone.now()
+        otp_code = generate_6digit_otp()
+        otp_hash = make_password(otp_code)
+        expires_at = now + timedelta(minutes=10)
+
+        # Purge previous unverified registration OTPs for this email
+        AccountOTP.objects.filter(
+            target_value=email,
+            otp_type=AccountOTP.OTPType.REGISTRATION,
+            is_verified=False
+        ).delete()
+
+        AccountOTP.objects.create(
+            user=None,
+            otp_type=AccountOTP.OTPType.REGISTRATION,
+            target_value=email,
+            otp_hash=otp_hash,
+            expires_at=expires_at,
+            attempts=0,
+            is_verified=False
+        )
+
+        # Print OTP in terminal for instant dev verification
+        print("\n" + "=" * 70)
+        print(f"✨ [TERMINAL OTP DEBUG LOG] REGISTRATION VERIFICATION")
+        print(f"   Name:       {name or 'Prospective Client'}")
+        print(f"   Email:      {email}")
+        print(f"   VERIFICATION CODE (OTP): >>> {otp_code} <<<")
+        print("=" * 70 + "\n")
+
+        try:
+            send_mail(
+                subject="Verify Your Email Address - Shiuli CAD Studio Registration",
+                message=(
+                    f"Hello {name or 'Valued Client'},\n\n"
+                    f"Welcome to Shiuli CAD Studio. To complete your registration and secure your wholesale atelier access, please enter the following verification code:\n\n"
+                    f"Your 6-Digit Email Verification Code: {otp_code}\n\n"
+                    f"This code will expire in 10 minutes.\n\n"
+                    f"If you did not initiate this registration, please disregard this message.\n\n"
+                    f"Warm regards,\nShiuli CAD Studio Security Team"
+                ),
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com'),
+                recipient_list=[email],
+                fail_silently=True
+            )
+        except Exception as e:
+            print(f"[EMAIL SERVICE WARNING] Failed to dispatch registration OTP email: {e}")
+
+        return Response({
+            "message": f"Verification code sent to {email}. Enter code to complete registration.",
+            "email": email,
+            "expires_in_seconds": 600,
+            "debug_otp": otp_code if getattr(settings, 'DEBUG', True) else None
+        }, status=status.HTTP_200_OK)
+
+
+class VerifyRegistrationOTPView(APIView):
+    """Verifies registration OTP and completes client account creation."""
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth_otp'
+
+    def post(self, request):
+        email = str(request.data.get("email", "")).strip().lower()
+        code = str(request.data.get("code", "")).strip()
+        name = str(request.data.get("name", "")).strip()
+        password = str(request.data.get("password", "")).strip()
+        phone = str(request.data.get("phone_number", "")).strip()
+
+        if not email or not code:
+            return Response({"error": "Email address and 6-digit verification code are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not password or len(password) < 6:
+            return Response({"error": "Password must be at least 6 characters long."}, status=status.HTTP_400_BAD_REQUEST)
+
+        now = timezone.now()
+        otp_obj = AccountOTP.objects.filter(
+            target_value=email,
+            otp_type=AccountOTP.OTPType.REGISTRATION,
+            is_verified=False
+        ).order_by('-created_at').first()
+
+        if not otp_obj:
+            return Response({"error": "No active registration verification request found. Please request a new code."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if otp_obj.expires_at < now:
+            return Response({"error": "Verification code has expired. Please request a new code."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if otp_obj.attempts >= 5:
+            return Response({"error": "Too many failed verification attempts. Please request a new code."}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+        if not check_password(code, otp_obj.otp_hash):
+            otp_obj.attempts += 1
+            otp_obj.save(update_fields=['attempts'])
+            remaining = 5 - otp_obj.attempts
+            return Response({"error": f"Invalid verification code. {remaining} attempt(s) remaining."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Mark OTP as verified
+        otp_obj.is_verified = True
+        otp_obj.save(update_fields=['is_verified'])
+
+        # Double check email uniqueness
+        if User.objects.filter(email__iexact=email).exists():
+            return Response({"error": "This email address is already registered."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Generate unique username
+        base_username = email.split('@')[0]
+        username = base_username
+        counter = 1
+        while User.objects.filter(username=username).exists():
+            username = f"{base_username}{counter}"
+            counter += 1
+
+        names = name.split(' ', 1)
+        first_name = names[0]
+        last_name = names[1] if len(names) > 1 else ''
+
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            first_name=first_name,
+            last_name=last_name,
+            phone_number=phone,
+            role=User.Role.CLIENT
+        )
+
+        otp_obj.user = user
+        otp_obj.save(update_fields=['user'])
+
+        # Generate JWT tokens
+        refresh = RefreshToken.for_user(user)
+        refresh['role'] = user.role
+        refresh['email'] = user.email
+        refresh['username'] = user.username
+
+        return Response({
+            "message": "Registration & email verification successful!",
+            "user": UserSerializer(user, context={'request': request}).data,
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+            "role": user.role
+        }, status=status.HTTP_201_CREATED)
+
+
 class CustomTokenObtainPairView(TokenObtainPairView):
     """JWT Login endpoint returning access/refresh tokens and user role."""
     serializer_class = CustomTokenObtainPairSerializer
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth_login'
 
 
 class UserMeView(generics.RetrieveUpdateAPIView):
@@ -60,6 +228,8 @@ class UserMeView(generics.RetrieveUpdateAPIView):
 class RequestEmailChangeOTPView(APIView):
     """Generates and sends 6-digit OTP code to verify changing to a new email address."""
     permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth_otp'
 
     def post(self, request):
         new_email = str(request.data.get("new_email", "")).strip().lower()
@@ -126,6 +296,8 @@ class RequestEmailChangeOTPView(APIView):
 class VerifyEmailChangeOTPView(APIView):
     """Verifies OTP code and updates user email address."""
     permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth_otp'
 
     def post(self, request):
         code = str(request.data.get("code", "")).strip()
@@ -174,6 +346,8 @@ class VerifyEmailChangeOTPView(APIView):
 class RequestPasswordResetOTPView(APIView):
     """Sends 6-digit OTP code to authenticated user's email for password change."""
     permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'password_reset'
 
     def post(self, request):
         user = request.user
@@ -227,6 +401,8 @@ class RequestPasswordResetOTPView(APIView):
 class VerifyPasswordResetOTPView(APIView):
     """Verifies OTP code and resets user password."""
     permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'password_reset'
 
     def post(self, request):
         code = str(request.data.get("code", "")).strip()
@@ -273,6 +449,8 @@ class VerifyPasswordResetOTPView(APIView):
 class RequestPasswordResetEmailView(APIView):
     """Trigger password reset email endpoint."""
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'password_reset'
 
     def post(self, request):
         email = request.data.get("email")

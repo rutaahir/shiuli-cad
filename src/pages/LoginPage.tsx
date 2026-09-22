@@ -253,38 +253,31 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
             </p>
           </div>
 
-          {/* Quick Demo Login Shortcuts */}
-          <div className="pt-4 border-t border-white/5 space-y-2">
-            <div className="text-[10px] uppercase tracking-widest text-[#C9C2A6]/50 text-center font-mono">
-              Quick Backend Demo Logins
-            </div>
-            <div className="flex flex-wrap gap-2 justify-center">
-              <button
-                type="button"
-                onClick={() => handleQuickDemo('admin', 'admin123', 'admin')}
-                className="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] hover:bg-amber-500/20 flex items-center gap-1"
-              >
-                <KeyRound className="w-3 h-3" />
-                Super Admin
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickDemo('designer_rahul', 'designer123', 'staff')}
-                className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[11px] hover:bg-emerald-500/20 flex items-center gap-1"
-              >
-                <KeyRound className="w-3 h-3" />
-                CAD Modeller
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickDemo('client_laurent', 'client123', 'client')}
-                className="px-2.5 py-1 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-300 text-[11px] hover:bg-blue-500/20 flex items-center gap-1"
-              >
-                <Sparkles className="w-3 h-3" />
-                Client Atelier
-              </button>
-            </div>
-          </div>
+            {(import.meta as any).env?.DEV && (
+              <div className="pt-4 border-t border-white/5 space-y-2">
+                <div className="text-[10px] uppercase tracking-widest text-[#C9C2A6]/50 text-center font-mono">
+                  Quick Dev Fill (Dev Only)
+                </div>
+                <div className="flex flex-wrap gap-2 justify-center">
+                  <button
+                    type="button"
+                    onClick={() => { setEmail('admin@shiuli.com'); setPassword(''); }}
+                    className="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] hover:bg-amber-500/20 flex items-center gap-1"
+                  >
+                    <KeyRound className="w-3 h-3" />
+                    Admin Email
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setEmail('shahharshil313@gmail.com'); setPassword(''); }}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[11px] hover:bg-emerald-500/20 flex items-center gap-1"
+                  >
+                    <KeyRound className="w-3 h-3" />
+                    Staff Email
+                  </button>
+                </div>
+              </div>
+            )}
         </motion.div>
       </div>
     </div>
