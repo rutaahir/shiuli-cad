@@ -94,7 +94,7 @@ export const StaffLayout: React.FC<StaffLayoutProps> = ({
     },
     {
       id: 'my-designs',
-      label: 'My CAD Submissions',
+      label: 'Products & Catalog',
       icon: <Palette className="w-4 h-4" />,
     },
     {

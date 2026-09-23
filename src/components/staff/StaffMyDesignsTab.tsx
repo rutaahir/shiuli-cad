@@ -1,497 +1,344 @@
 import React, { useState, useEffect } from 'react';
 import { StaffSubmission } from '../../types';
-import { Upload, Sparkles, Clock, Plus, Award, Loader2, AlertCircle, ImageIcon, Check, Trash2 } from 'lucide-react';
+import {
+  Sparkles,
+  Plus,
+  Trash2,
+  Edit2,
+  Search,
+  Filter,
+  CheckCircle2,
+  Layers,
+  ExternalLink,
+  Loader2,
+  Eye,
+  Check
+} from 'lucide-react';
 import { api } from '../../services/api';
+import { ProductModal, CategoryItem, DesignStyleItem } from '../common/ProductModal';
 
 interface StaffMyDesignsTabProps {
-  submissions: StaffSubmission[];
-  onUploadDesign: (newSub: StaffSubmission) => void;
+  submissions?: StaffSubmission[];
+  onUploadDesign?: (newSub: StaffSubmission) => void;
 }
 
-export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = ({
-  submissions,
-  onUploadDesign,
-}) => {
-  const [filter, setFilter] = useState<'all' | 'approved' | 'pending' | 'rejected'>('all');
-  const [showModal, setShowModal] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [apiSubmissions, setApiSubmissions] = useState<(StaffSubmission & { slug?: string })[]>([]);
-  const [categoriesList, setCategoriesList] = useState<Array<{ id: number; name: string }>>([]);
-
-  // Form State
-  const [title, setTitle] = useState('');
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number>(1);
-  const [suggestedPrice, setSuggestedPrice] = useState('25000');
-  const [metalWeight, setMetalWeight] = useState('14.5');
-  const [diamondCount, setDiamondCount] = useState('36');
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
+export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
+  const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [designStyles, setDesignStyles] = useState<DesignStyleItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'pending'>('all');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-  // Fetch Categories and Catalog Submissions from API
-  const fetchCatalogSubmissions = async () => {
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 4000);
+  };
+
+  const loadData = async () => {
     setLoading(true);
     try {
       // 1. Fetch categories
-      const catRes = await api.getCategories(true);
-      if (Array.isArray(catRes) && catRes.length > 0) {
-        setCategoriesList(catRes);
-        setSelectedCategoryId(catRes[0].id);
+      const catRes = await api.getCategories();
+      if (Array.isArray(catRes)) {
+        setCategories(catRes);
       }
 
-      const combinedSubmissions: (StaffSubmission & { slug?: string; isBespoke?: boolean })[] = [];
-
-      // 2. Fetch catalog store products (original CAD submissions)
-      try {
-        const res = await api.getProducts();
-        const resultsArray = Array.isArray(res) ? res : res?.results || [];
-        resultsArray.forEach((p: any) => {
-          combinedSubmissions.push({
-            id: p.slug || `SUB-${p.id}`,
-            slug: p.slug,
-            title: p.title,
-            category: p.category_name || p.category?.name || 'Jewellery Design',
-            submittedAt: p.created_at ? new Date(p.created_at).toISOString().split('T')[0] : 'Recently',
-            thumbnail: p.primary_image || p.images?.[0]?.image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&q=80&w=600',
-            suggestedPrice: parseFloat(p.price || '0'),
-            status: p.status === 'approved' ? 'approved' : p.status === 'rejected' ? 'rejected' : 'pending',
-            fileFormats: ['3DM', 'STL', 'Render'],
-            specs: {
-              metalWeight18k: p.metal_weight_grams ? `${p.metal_weight_grams}g` : (p.specs?.metal_weight_18k || '14.5g'),
-              diamondCount: p.stone_count || p.specs?.diamond_count || 36,
-              dimensions: p.specs?.dimensions || 'Standard',
-            },
-            isBespoke: false,
-          });
-        });
-      } catch (prodErr) {
-        console.warn('Could not fetch catalog products from API:', prodErr);
+      // 2. Fetch design styles
+      const stylesRes = await api.getDesignStyles();
+      if (Array.isArray(stylesRes)) {
+        setDesignStyles(stylesRes);
       }
 
-      // Always update state (even if empty, so 0 items shows 0 items with NO dummy fallback)
-      setApiSubmissions(combinedSubmissions);
-    } catch (e) {
-      console.warn('Could not fetch submissions from API:', e);
-      setApiSubmissions([]);
+      // 3. Fetch products
+      const prodRes = await api.getProducts();
+      const resultsArray = Array.isArray(prodRes) ? prodRes : prodRes?.results || [];
+      setProducts(resultsArray);
+    } catch (err: any) {
+      console.warn('Failed to fetch catalog data:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    // Clear any stale local storage mock data on mount
-    try {
-      localStorage.removeItem('shiuli_staff_submissions');
-    } catch {}
-    fetchCatalogSubmissions();
+    loadData();
   }, []);
 
-  const displayList = apiSubmissions;
+  const handleOpenAdd = () => {
+    setEditingProduct(null);
+    setIsModalOpen(true);
+  };
 
-  const handleDeleteSubmission = async (slugOrId: string) => {
-    if (!confirm('Are you sure you want to permanently delete this CAD submission?')) return;
+  const handleOpenEdit = async (prod: any) => {
     try {
-      await api.deleteProduct(slugOrId);
-      setToastMsg('Submission deleted successfully');
-      fetchCatalogSubmissions();
-    } catch (err: any) {
-      console.error('Failed to delete submission:', err);
-      alert(err?.message || 'Failed to delete submission');
+      // Fetch full details if needed
+      const fullProd = await api.getProductBySlug(prod.slug).catch(() => prod);
+      setEditingProduct(fullProd || prod);
+      setIsModalOpen(true);
+    } catch {
+      setEditingProduct(prod);
+      setIsModalOpen(true);
     }
   };
 
-  const handleClearAllSubmissions = async () => {
-    if (!confirm('Are you sure you want to remove ALL submissions and start completely fresh?')) return;
-    setLoading(true);
+  const handleDeleteProduct = async (prod: any) => {
+    if (!window.confirm(`Are you sure you want to permanently delete "${prod.title}"?`)) return;
     try {
-      for (const item of apiSubmissions) {
-        const slug = item.slug || item.id;
-        try {
-          await api.deleteProduct(slug);
-        } catch (e) {
-          console.warn('Delete item notice:', e);
-        }
-      }
-      setToastMsg('All submissions removed successfully. You can now start fresh.');
-      fetchCatalogSubmissions();
+      await api.deleteProduct(prod.slug);
+      showToast(`Product "${prod.title}" deleted.`);
+      loadData();
     } catch (err: any) {
-      console.error('Clear all error:', err);
-      alert(err?.message || 'Failed to clear all submissions');
-    } finally {
-      setLoading(false);
+      console.error('Delete error:', err);
+      alert(err.message || 'Failed to delete product.');
     }
   };
 
-  const filtered = displayList.filter((s) => {
-    if (filter === 'all') return true;
-    return s.status === filter;
+  const handleModalSuccess = (savedProduct: any, mode: 'create' | 'edit') => {
+    showToast(
+      mode === 'create'
+        ? `Product "${savedProduct?.title || 'Design'}" published live to public store!`
+        : `Product "${savedProduct?.title || 'Design'}" updated successfully!`
+    );
+    loadData();
+  };
+
+  const filteredProducts = products.filter((prod) => {
+    const matchesSearch =
+      prod.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (prod.category_name && prod.category_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      prod.slug.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesStatus =
+      statusFilter === 'all'
+        ? true
+        : statusFilter === 'approved'
+        ? prod.status === 'approved'
+        : prod.status !== 'approved';
+
+    return matchesSearch && matchesStatus;
   });
-
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      const url = URL.createObjectURL(file);
-      setImagePreviewUrl(url);
-    }
-  };
-
-  const handleSubmitNew = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title) return;
-
-    setUploading(true);
-    setToastMsg(null);
-    try {
-      // 1. Create product row in Django DB
-      const newProd = await api.createProduct({
-        title,
-        category: selectedCategoryId,
-        price: parseFloat(suggestedPrice) || 25000,
-        description: `Original CAD design submission by craftsman. Metal Weight: ${metalWeight}g, Diamonds: ${diamondCount} Pcs.`,
-        metal_weight_grams: parseFloat(metalWeight) || 14.5,
-        stone_count: parseInt(diamondCount) || 36,
-      });
-
-      // 2. Upload primary image thumbnail if selected
-      if (imageFile && newProd?.slug) {
-        try {
-          await api.uploadProductImage(newProd.slug, imageFile, true);
-        } catch (imgErr) {
-          console.warn('Image upload error:', imgErr);
-        }
-      }
-
-      setToastMsg(`Design "${title}" successfully submitted to Super Admin review queue!`);
-      setTimeout(() => setToastMsg(null), 4000);
-      await fetchCatalogSubmissions();
-    } catch (err: any) {
-      console.warn('Product submission API fallback:', err);
-      const categoryObj = categoriesList.find((c) => c.id === selectedCategoryId);
-      const fallbackSub: StaffSubmission = {
-        id: `SUB-${Date.now().toString().slice(-4)}`,
-        title,
-        category: categoryObj?.name || 'Jewellery Design',
-        submittedAt: new Date().toISOString().split('T')[0],
-        thumbnail: imagePreviewUrl || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&q=80&w=600',
-        suggestedPrice: parseFloat(suggestedPrice) || 25000,
-        status: 'pending',
-        fileFormats: ['3DM', 'STL', 'Render'],
-        specs: {
-          metalWeight18k: `${metalWeight}g`,
-          diamondCount: parseInt(diamondCount) || 36,
-          dimensions: 'Standard',
-        },
-      };
-      onUploadDesign(fallbackSub);
-    } finally {
-      setUploading(false);
-      setShowModal(false);
-      setTitle('');
-      setImageFile(null);
-      setImagePreviewUrl(null);
-    }
-  };
 
   return (
     <div className="w-full space-y-6">
+      {/* Toast Banner */}
       {toastMsg && (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2 shadow-sm animate-fadeIn">
-          <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl bg-[#09112B] border border-[#D4AF37] text-white text-xs shadow-2xl animate-in slide-in-from-bottom">
+          <CheckCircle2 className="w-4 h-4 text-[#D4AF37]" />
           <span>{toastMsg}</span>
         </div>
       )}
 
-      {/* Top Banner */}
+      {/* Top Banner Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-[#E5E7EF] shadow-sm">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-[#09112B] text-[#F5E7A3] text-[10px] font-mono font-bold uppercase tracking-widest">
-              Ready Designs Catalog
+              Live Public Catalog
             </span>
-            <span className="text-xs text-[#6B7280] font-mono">• Craftsman Portfolio</span>
+            <span className="text-xs text-[#6B7280] font-mono">• Staff & Artisan Panel</span>
           </div>
           <h1 className="font-serif text-2xl font-bold text-[#1E2230] tracking-tight">
-            My Independent CAD Submissions
+            Manage Products & Store Catalog
           </h1>
           <p className="text-xs text-[#6B7280] max-w-2xl font-light">
-            Upload original CAD models for inclusion in the public <strong className="text-[#1E2230] font-semibold">Ready Designs Store</strong>. Once approved by Super Admin, you earn royalties on every license download.
+            Add new 3D CAD jewellery models or edit published catalog designs. Newly published items are immediately live for public client downloads.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          {displayList.length > 0 && (
-            <button
-              onClick={handleClearAllSubmissions}
-              className="px-4 py-3 rounded-xl text-xs font-semibold uppercase tracking-wider text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+        <button
+          onClick={handleOpenAdd}
+          className="btn-gold-luxury px-5 py-3 rounded-xl text-xs font-semibold uppercase tracking-wider shadow-md flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5 shrink-0"
+        >
+          <Plus className="w-4 h-4 stroke-[3]" />
+          <span>Add New Product</span>
+        </button>
+      </div>
+
+      {/* Main Container */}
+      <div className="bg-white rounded-2xl border border-[#E5E7EF] shadow-sm overflow-hidden space-y-4">
+        {/* Search & Filter Bar */}
+        <div className="p-4 border-b border-[#E5E7EF] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#FAF9F5]">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B7280]" />
+            <input
+              type="text"
+              placeholder="Search products by title, SKU, or category..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 rounded-xl bg-white border border-[#E5E7EF] text-xs text-[#1E2230] focus:outline-none focus:border-[#C9A227]"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 text-xs">
+            <Filter className="w-3.5 h-3.5 text-[#6B7280]" />
+            <span className="text-[#6B7280] font-mono">Status:</span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="px-3 py-1.5 rounded-xl bg-white border border-[#E5E7EF] text-xs text-[#1E2230] focus:outline-none font-medium"
             >
-              <Trash2 className="w-4 h-4" />
-              <span>Clear All Submissions</span>
-            </button>
-          )}
-
-          <button
-            onClick={() => setShowModal(true)}
-            className="btn-gold-luxury px-5 py-3 rounded-xl text-xs font-semibold uppercase tracking-wider shadow-md flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5 shrink-0"
-          >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>Upload Original CAD Design</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Distinction Tip Banner */}
-      <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-100 text-indigo-950 text-xs flex items-center gap-3">
-        <Sparkles className="w-5 h-5 text-indigo-600 shrink-0" />
-        <div>
-          <span className="font-bold">Catalog vs. Bespoke Orders:</span> This page hosts your original independent CAD models for the public store catalog. Client bespoke commissions (e.g., ORD orders) are managed in <strong className="text-indigo-900 font-semibold">My Workbench</strong> and archived under <strong className="text-indigo-900 font-semibold">Commissions Log</strong> once approved.
-        </div>
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-2 border-b border-[#E5E7EF] pb-3">
-        {(['all', 'approved', 'pending', 'rejected'] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setFilter(tab)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold capitalize transition-all ${
-              filter === tab
-                ? 'bg-[#09112B] text-[#F5E7A3] border border-[#D4AF37] shadow-sm'
-                : 'text-[#6B7280] hover:bg-white hover:text-[#1E2230]'
-            }`}
-          >
-            {tab} Submissions ({tab === 'all' ? displayList.length : displayList.filter((s) => s.status === tab).length})
-          </button>
-        ))}
-      </div>
-
-      {/* Submissions Grid */}
-      {loading ? (
-        <div className="w-full py-16 bg-white rounded-2xl border border-[#E5E7EF] flex flex-col items-center justify-center gap-3">
-          <Loader2 className="w-8 h-8 text-[#C9A227] animate-spin" />
-          <span className="text-xs font-mono text-[#6B7280]">Loading catalog submissions from backend database...</span>
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl bg-white border border-[#E5E7EF] space-y-3">
-          <Sparkles className="w-8 h-8 text-[#C9A227] mx-auto opacity-50" />
-          <h3 className="font-serif text-lg font-bold text-[#1E2230]">No Submissions Found</h3>
-          <p className="text-xs text-[#6B7280]">Upload your original CAD designs to earn royalties upon store approval.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered.map((item) => (
-            <div
-              key={item.id}
-              className="bg-white border-l-4 border-l-[#C9A227] border border-[#E5E7EF] hover:border-[#C9A227] rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between group relative overflow-hidden"
-            >
-              <div className="space-y-3">
-                <div className="relative aspect-video rounded-xl overflow-hidden border border-[#E5E7EF] bg-slate-900">
-                  <img
-                    src={item.thumbnail}
-                    alt={item.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  
-                  <div className="absolute top-2 left-2">
-                    {item.status === 'approved' && (
-                      <span className="px-2.5 py-1 rounded-lg bg-emerald-900/90 text-emerald-200 border border-emerald-400/40 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 backdrop-blur-md">
-                        <Award className="w-3 h-3 text-emerald-300" /> Approved
-                      </span>
-                    )}
-                    {item.status === 'pending' && (
-                      <span className="px-2.5 py-1 rounded-lg bg-[#09112B]/90 text-[#F5E7A3] border border-[#D4AF37]/40 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 backdrop-blur-md">
-                        <Clock className="w-3 h-3 text-[#D4AF37]" /> Admin Review
-                      </span>
-                    )}
-                    {item.status === 'rejected' && (
-                      <span className="px-2.5 py-1 rounded-lg bg-rose-900/90 text-rose-200 border border-rose-400/40 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 backdrop-blur-md">
-                        <AlertCircle className="w-3 h-3 text-rose-300" /> Rejected
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="absolute bottom-2 right-2 px-2.5 py-1 rounded-lg bg-black/80 backdrop-blur-md border border-[#D4AF37]/40 text-[#F5E7A3] font-mono font-bold text-xs">
-                    {item.suggestedPrice > 0 ? `₹${item.suggestedPrice.toLocaleString('en-IN')}` : 'Bespoke Order'}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between text-[10px] text-[#6B7280] font-mono">
-                    <span>{item.category}</span>
-                    <span>Submitted {item.submittedAt}</span>
-                  </div>
-                  <h3 className="font-serif font-bold text-[#1E2230] text-lg mt-1">
-                    {item.title}
-                  </h3>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-[11px] bg-[#F8FAFC] p-3 rounded-xl border border-[#E5E7EF] font-mono text-[#1E2230]">
-                  <div>
-                    <span className="text-[#6B7280] block text-[9px] uppercase font-semibold">18K Weight</span>
-                    {item.specs.metalWeight18k}
-                  </div>
-                  <div>
-                    <span className="text-[#6B7280] block text-[9px] uppercase font-semibold">Diamonds</span>
-                    {item.specs.diamondCount} Pcs
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-[#E5E7EF] flex items-center justify-between text-[10px] text-[#6B7280]">
-                <div className="flex items-center gap-1.5 font-mono">
-                  <span>Formats:</span>
-                  <div className="flex items-center gap-1 font-bold">
-                    {item.fileFormats.map((f) => (
-                      <span key={f} className="px-1.5 py-0.5 rounded bg-slate-100 text-[#1E2230] border border-slate-200">
-                        {f}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteSubmission((item as any).slug || item.id);
-                  }}
-                  className="px-2.5 py-1 rounded-lg text-rose-600 hover:bg-rose-50 border border-rose-200 hover:border-rose-300 font-semibold flex items-center gap-1 text-[11px] transition-all cursor-pointer shadow-xs"
-                  title="Permanently delete this submission"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete</span>
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Upload Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="bg-white border border-[#E5E7EF] rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-4">
-              <div className="flex items-center gap-2">
-                <Upload className="w-5 h-5 text-[#C9A227]" />
-                <h3 className="text-lg font-serif font-bold text-[#1E2230]">
-                  Upload CAD Design to Store
-                </h3>
-              </div>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600">✕</button>
-            </div>
-
-            <form onSubmit={handleSubmitNew} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-[#1E2230] mb-1 font-semibold">Design Title</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Victorian Emerald Filigree Pendant"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-[#E5E7EF] text-[#1E2230] focus:outline-none focus:border-[#C9A227]"
-                />
-              </div>
-
-              {/* Render Preview Image Upload Field */}
-              <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E5E7EF] space-y-2">
-                <label className="block text-[#1E2230] font-semibold">Primary Render Preview Image</label>
-                <div className="flex items-center gap-3">
-                  {imagePreviewUrl ? (
-                    <img src={imagePreviewUrl} alt="Preview" className="w-16 h-16 rounded-xl object-cover border border-[#C9A227] shadow-sm shrink-0" />
-                  ) : (
-                    <div className="w-16 h-16 rounded-xl bg-slate-100 border border-dashed border-slate-300 flex items-center justify-center text-slate-400 shrink-0">
-                      <ImageIcon className="w-6 h-6" />
-                    </div>
-                  )}
-                  <div className="flex-1 space-y-1">
-                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#09112B] text-[#F5E7A3] font-bold text-[11px]">
-                      <Upload className="w-3.5 h-3.5 text-[#C9A227]" />
-                      <span>Select Render Image</span>
-                      <input type="file" accept="image/*" onChange={handleImageFileChange} className="hidden" />
-                    </label>
-                    <p className="text-[10px] text-slate-500">JPG, PNG, WebP up to 10MB</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[#1E2230] mb-1 font-semibold">Category</label>
-                  <select
-                    value={selectedCategoryId}
-                    onChange={(e) => setSelectedCategoryId(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-[#E5E7EF] text-[#1E2230] focus:outline-none focus:border-[#C9A227]"
-                  >
-                    {categoriesList.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[#1E2230] mb-1 font-semibold">Suggested Price (₹)</label>
-                  <input
-                    type="number"
-                    value={suggestedPrice}
-                    onChange={(e) => setSuggestedPrice(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-[#E5E7EF] text-[#1E2230] focus:outline-none focus:border-[#C9A227]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[#1E2230] mb-1 font-semibold">18K Metal Weight (grams)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={metalWeight}
-                    onChange={(e) => setMetalWeight(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-[#E5E7EF] text-[#1E2230] focus:outline-none focus:border-[#C9A227]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[#1E2230] mb-1 font-semibold">Diamond Count (Pcs)</label>
-                  <input
-                    type="number"
-                    value={diamondCount}
-                    onChange={(e) => setDiamondCount(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-[#E5E7EF] text-[#1E2230] focus:outline-none focus:border-[#C9A227]"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#E5E7EF]">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 text-[#1E2230] font-bold hover:bg-slate-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={uploading}
-                  className="btn-gold-luxury px-5 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider shadow-md flex items-center gap-2"
-                >
-                  {uploading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin text-[#0B1330]" />
-                      <span>Saving DB...</span>
-                    </>
-                  ) : (
-                    <span>Submit for Admin Review</span>
-                  )}
-                </button>
-              </div>
-            </form>
+              <option value="all">All Products ({products.length})</option>
+              <option value="approved">Live / Published ({products.filter((p) => p.status === 'approved').length})</option>
+              <option value="pending">Draft / Pending ({products.filter((p) => p.status !== 'approved').length})</option>
+            </select>
           </div>
         </div>
-      )}
+
+        {/* Loading state */}
+        {loading ? (
+          <div className="w-full py-16 flex flex-col items-center justify-center gap-3">
+            <Loader2 className="w-8 h-8 text-[#C9A227] animate-spin" />
+            <span className="text-xs font-mono text-[#6B7280]">Loading live store catalog...</span>
+          </div>
+        ) : (
+          /* Products Table */
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#09112B] text-[#F5E7A3] text-[11px] font-mono uppercase tracking-wider">
+                  <th className="p-4 font-medium">Design & Title</th>
+                  <th className="p-4 font-medium">Category</th>
+                  <th className="p-4 font-medium">Price</th>
+                  <th className="p-4 font-medium">Badges</th>
+                  <th className="p-4 font-medium">Status</th>
+                  <th className="p-4 font-medium text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E5E7EF] text-xs">
+                {filteredProducts.map((prod) => (
+                  <tr key={prod.id || prod.slug} className="hover:bg-slate-50 transition-colors">
+                    {/* Thumbnail & Title */}
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        {prod.primary_image ? (
+                          <img
+                            src={prod.primary_image}
+                            alt={prod.title}
+                            className="w-12 h-12 rounded-xl object-cover border border-[#E5E7EF] shadow-sm"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 font-mono text-[10px]">
+                            NO IMG
+                          </div>
+                        )}
+                        <div>
+                          <div className="font-serif font-bold text-[#1E2230] text-sm">{prod.title}</div>
+                          <div className="text-[10px] text-[#6B7280] font-mono">SKU: {prod.slug}</div>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Category */}
+                    <td className="p-4 font-medium text-[#1E2230]">
+                      <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 font-mono">
+                        {prod.category_name || (typeof prod.category === 'object' ? prod.category?.name : 'Jewellery')}
+                      </span>
+                    </td>
+
+                    {/* Price */}
+                    <td className="p-4 font-mono font-bold text-[#1E2230]">
+                      ${prod.price}
+                      {prod.compare_at_price && (
+                        <span className="text-[10px] text-[#9CA3AF] line-through ml-1.5">
+                          ${prod.compare_at_price}
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Badges */}
+                    <td className="p-4">
+                      <div className="flex items-center gap-1">
+                        {prod.is_bestseller && (
+                          <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-mono font-bold">
+                            BESTSELLER
+                          </span>
+                        )}
+                        {prod.is_new && (
+                          <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-[10px] font-mono font-bold">
+                            NEW
+                          </span>
+                        )}
+                        {prod.is_featured && (
+                          <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-800 text-[10px] font-mono font-bold">
+                            FEATURED
+                          </span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Status */}
+                    <td className="p-4">
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold ${
+                          prod.status === 'approved'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : 'bg-amber-50 text-amber-700 border border-amber-200'
+                        }`}
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            prod.status === 'approved' ? 'bg-emerald-500' : 'bg-amber-500'
+                          }`}
+                        />
+                        {prod.status === 'approved' ? 'Published Live' : 'Draft / In Review'}
+                      </span>
+                    </td>
+
+                    {/* Actions */}
+                    <td className="p-4 text-right space-x-2">
+                      <button
+                        onClick={() => handleOpenEdit(prod)}
+                        className="p-2 rounded-lg text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-colors inline-flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
+                        title="Edit Product Details"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                        <span>Edit</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteProduct(prod)}
+                        className="p-2 rounded-lg text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors inline-flex items-center text-[11px] cursor-pointer"
+                        title="Delete Product"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+
+                {filteredProducts.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="p-12 text-center text-[#6B7280]">
+                      <Sparkles className="w-8 h-8 text-[#C9A227] mx-auto opacity-50 mb-2" />
+                      <div className="font-serif font-bold text-base text-[#1E2230]">No Products Found</div>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Try searching for another term or click "+ Add New Product" to publish a new jewellery CAD design.
+                      </p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Unified Add / Edit Product Stepper Modal */}
+      <ProductModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={handleModalSuccess}
+        product={editingProduct}
+        categories={categories}
+        designStyles={designStyles}
+        onNewStyleCreated={(newStyle) => setDesignStyles((prev) => [...prev, newStyle])}
+      />
     </div>
   );
 };

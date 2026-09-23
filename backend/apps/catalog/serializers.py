@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import serializers
 from .models import Category, DesignStyle, Product, ProductImage, ProductFile
 
@@ -147,29 +148,56 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         return safe_files
 
 
-class ProductCreateSerializer(serializers.ModelSerializer):
+class ProductWriteSerializer(serializers.ModelSerializer):
+    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
+    style_tags = serializers.PrimaryKeyRelatedField(queryset=DesignStyle.objects.all(), many=True, required=False)
+
     class Meta:
         model = Product
         fields = [
             'id', 'slug', 'title', 'category', 'style_tags', 'price', 'compare_at_price',
+            'commercial_price_markup', 'atelier_license_desc', 'commercial_license_desc',
             'description', 'metal_weight_grams', 'stone_count',
-            'is_bestseller', 'is_new'
+            'is_bestseller', 'is_new', 'is_featured', 'casting_tips', 'specs', 'formats_available',
+            'status'
         ]
         read_only_fields = ['id', 'slug']
 
     def create(self, validated_data):
         style_tags = validated_data.pop('style_tags', [])
-        user = self.context['request'].user
-        # Admin-created products go live immediately (status = APPROVED).
-        # Staff-submitted products stay PENDING for the Design Approvals queue.
-        # NOTE: We deliberately check role == 'admin' only — Django's is_staff flag
-        # is unrelated to the custom role system and must NOT be used here.
-        if user.role == 'admin' or user.is_superuser:
+        user = self.context['request'].user if 'request' in self.context else None
+
+        # Both Admin and Staff products go live immediately on the public catalog
+        if user and (getattr(user, 'role', '') in ['admin', 'staff'] or getattr(user, 'is_superuser', False) or getattr(user, 'is_staff', False)):
             validated_data['status'] = Product.Status.APPROVED
+            validated_data['approved_at'] = timezone.now()
         else:
-            validated_data['status'] = Product.Status.PENDING
-        validated_data['uploaded_by'] = user
+            validated_data['status'] = validated_data.get('status', Product.Status.PENDING)
+
+        if user and user.is_authenticated:
+            validated_data['uploaded_by'] = user
+
         product = Product.objects.create(**validated_data)
         if style_tags:
             product.style_tags.set(style_tags)
         return product
+
+    def update(self, instance, validated_data):
+        style_tags = validated_data.pop('style_tags', None)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        user = self.context['request'].user if 'request' in self.context else None
+        if user and (getattr(user, 'role', '') in ['admin', 'staff'] or getattr(user, 'is_superuser', False) or getattr(user, 'is_staff', False)):
+            if not instance.status or instance.status == Product.Status.PENDING:
+                instance.status = Product.Status.APPROVED
+                instance.approved_at = timezone.now()
+
+        instance.save()
+        if style_tags is not None:
+            instance.style_tags.set(style_tags)
+        return instance
+
+
+ProductCreateSerializer = ProductWriteSerializer

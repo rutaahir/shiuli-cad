@@ -630,6 +630,48 @@ class ApiClient {
     }
   }
 
+  async updateProduct(
+    slug: string,
+    productData: {
+      title?: string;
+      category?: number;
+      style_tags?: number[];
+      price?: number;
+      compare_at_price?: number;
+      commercial_price_markup?: number;
+      atelier_license_desc?: string;
+      commercial_license_desc?: string;
+      description?: string;
+      metal_weight_grams?: number;
+      stone_count?: number;
+      is_bestseller?: boolean;
+      is_new?: boolean;
+      is_featured?: boolean;
+      casting_tips?: string;
+      specs?: any;
+      formats_available?: string[];
+      status?: string;
+    }
+  ) {
+    await this.ensureAdminToken();
+    try {
+      return await this.request<any>(`/catalog/products/${slug}/`, {
+        method: 'PATCH',
+        body: JSON.stringify(productData),
+      });
+    } catch (err: any) {
+      if (err.status === 401 || err.status === 403) {
+        localStorage.removeItem('shiuli_access_token');
+        await this.ensureAdminToken();
+        return await this.request<any>(`/catalog/products/${slug}/`, {
+          method: 'PATCH',
+          body: JSON.stringify(productData),
+        });
+      }
+      throw err;
+    }
+  }
+
   async uploadProductImage(
     slug: string,
     file: File,
@@ -643,7 +685,7 @@ class ApiClient {
     formData.append('is_primary', String(isPrimary));
     formData.append('display_order', String(displayOrder));
 
-    let response = await fetch(`http://localhost:8000/api/catalog/products/${slug}/upload-image/`, {
+    let response = await fetch(`${API_BASE_URL}/catalog/products/${slug}/upload-image/`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -655,7 +697,7 @@ class ApiClient {
       localStorage.removeItem('shiuli_access_token');
       await this.ensureAdminToken();
       token = localStorage.getItem('shiuli_access_token');
-      response = await fetch(`http://localhost:8000/api/catalog/products/${slug}/upload-image/`, {
+      response = await fetch(`${API_BASE_URL}/catalog/products/${slug}/upload-image/`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -671,6 +713,13 @@ class ApiClient {
     return response.json();
   }
 
+  async deleteProductImage(slug: string, imageId: number) {
+    await this.ensureAdminToken();
+    return this.request<any>(`/catalog/products/${slug}/delete-image/${imageId}/`, {
+      method: 'DELETE',
+    });
+  }
+
   async uploadProductFile(
     slug: string,
     file: File,
@@ -682,7 +731,7 @@ class ApiClient {
     formData.append('file', file);
     formData.append('file_type', fileType);
 
-    let response = await fetch(`http://localhost:8000/api/catalog/products/${slug}/upload-file/`, {
+    let response = await fetch(`${API_BASE_URL}/catalog/products/${slug}/upload-file/`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -694,7 +743,7 @@ class ApiClient {
       localStorage.removeItem('shiuli_access_token');
       await this.ensureAdminToken();
       token = localStorage.getItem('shiuli_access_token');
-      response = await fetch(`http://localhost:8000/api/catalog/products/${slug}/upload-file/`, {
+      response = await fetch(`${API_BASE_URL}/catalog/products/${slug}/upload-file/`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -708,6 +757,13 @@ class ApiClient {
       throw new Error(errData.error || errData.detail || 'CAD File upload failed.');
     }
     return response.json();
+  }
+
+  async deleteProductFile(slug: string, fileId: number) {
+    await this.ensureAdminToken();
+    return this.request<any>(`/catalog/products/${slug}/delete-file/${fileId}/`, {
+      method: 'DELETE',
+    });
   }
 
   async approveProduct(slug: string) {

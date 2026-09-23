@@ -15,6 +15,7 @@ from .serializers import (
     ProductListSerializer,
     ProductDetailSerializer,
     ProductCreateSerializer,
+    ProductWriteSerializer,
     ProductImageSerializer,
     ProductFileSerializer
 )
@@ -151,13 +152,13 @@ class ProductViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'list':
             return ProductListSerializer
-        elif self.action == 'create':
-            return ProductCreateSerializer
+        elif self.action in ['create', 'update', 'partial_update']:
+            return ProductWriteSerializer
         return ProductDetailSerializer
 
     def perform_create(self, serializer):
         user = self.request.user if self.request.user.is_authenticated else None
-        if user and (getattr(user, 'role', '') == 'admin' or getattr(user, 'is_superuser', False) or getattr(user, 'is_staff', False)):
+        if user and (getattr(user, 'role', '') in ['admin', 'staff'] or getattr(user, 'is_superuser', False) or getattr(user, 'is_staff', False)):
             serializer.save(uploaded_by=user, status=Product.Status.APPROVED, approved_at=timezone.now())
         else:
             serializer.save(uploaded_by=user, status=Product.Status.PENDING)
@@ -238,6 +239,26 @@ class ProductViewSet(viewsets.ModelViewSet):
         )
         serializer = ProductFileSerializer(pf, context={'request': request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['delete'], permission_classes=[IsStaffOrAdmin], url_path='delete-image/(?P<image_id>[^/.]+)')
+    def delete_image(self, request, slug=None, image_id=None):
+        product = self.get_object()
+        try:
+            img = product.images.get(id=image_id)
+            img.delete()
+            return Response({"message": "Image deleted successfully."}, status=status.HTTP_200_OK)
+        except ProductImage.DoesNotExist:
+            return Response({"error": "Image not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=True, methods=['delete'], permission_classes=[IsStaffOrAdmin], url_path='delete-file/(?P<file_id>[^/.]+)')
+    def delete_file(self, request, slug=None, file_id=None):
+        product = self.get_object()
+        try:
+            pf = product.files.get(id=file_id)
+            pf.delete()
+            return Response({"message": "File deleted successfully."}, status=status.HTTP_200_OK)
+        except ProductFile.DoesNotExist:
+            return Response({"error": "File not found."}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated], url_path='download/(?P<file_id>[^/.]+)')
     def download_file(self, request, file_id=None):

@@ -18,13 +18,7 @@ coverage/
 __pycache__/
 *.py[cod]
 *$py.class
-*.sqlite3
-db.sqlite3
-backend/db.sqlite3
-media/
-backend/media/
-protected_media/
-backend/protected_media/
+
 staticfiles/
 backend/staticfiles/
 .venv/

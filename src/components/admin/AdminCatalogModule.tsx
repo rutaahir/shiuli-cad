@@ -23,6 +23,7 @@ import {
   ArrowRight,
   ArrowLeft
 } from 'lucide-react';
+import { ProductModal } from '../common/ProductModal';
 
 interface CategoryItem {
   id: number;
@@ -66,6 +67,10 @@ export const AdminCatalogModule: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Edit Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any | null>(null);
 
   // Stepper Modal State
   const [showProductStepper, setShowProductStepper] = useState<boolean>(false);
@@ -443,8 +448,8 @@ export const AdminCatalogModule: React.FC = () => {
 
           <button
             onClick={() => {
-              setShowProductStepper(true);
-              setCurrentStep(1);
+              setEditingProduct(null);
+              setIsEditModalOpen(true);
             }}
             className="btn-gold-luxury px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 shadow-md"
           >
@@ -569,6 +574,24 @@ export const AdminCatalogModule: React.FC = () => {
                     </td>
 
                     <td className="p-4 text-right space-x-2">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const fullProd = await api.getProductBySlug(prod.slug).catch(() => prod);
+                            setEditingProduct(fullProd || prod);
+                            setIsEditModalOpen(true);
+                          } catch {
+                            setEditingProduct(prod);
+                            setIsEditModalOpen(true);
+                          }
+                        }}
+                        className="p-2 rounded-lg text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-colors inline-flex items-center gap-1 text-[11px] font-semibold"
+                        title="Edit Product"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                        <span>Edit</span>
+                      </button>
+
                       <button
                         onClick={async () => {
                           if (window.confirm(`Delete "${prod.title}"?`)) {
@@ -1267,6 +1290,20 @@ export const AdminCatalogModule: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Edit Product Modal */}
+      <ProductModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onSuccess={(updated) => {
+          showToast(`Product "${updated?.title || 'Design'}" updated.`);
+          loadData();
+        }}
+        product={editingProduct}
+        categories={categories}
+        designStyles={designStyles}
+        onNewStyleCreated={(newStyle) => setDesignStyles((prev) => [...prev, newStyle])}
+      />
     </div>
   );
 };

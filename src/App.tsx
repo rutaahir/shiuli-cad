@@ -3,7 +3,7 @@ import { PageId, Product, CartItem } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Global Components
-import { CustomCursor } from './components/CustomCursor';
+
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { CartDrawer } from './components/CartDrawer';
@@ -413,8 +413,7 @@ function MainApp() {
       {/* First Visit / Hard Refresh Line-Draw Loader */}
       <FirstLoadScreen />
 
-      {/* Luxury Custom Cursor */}
-      <CustomCursor />
+
 
       {/* Global Luxury Background Animations */}
       <BackgroundAnimations />
