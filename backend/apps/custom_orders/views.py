@@ -121,19 +121,28 @@ class CustomRequestViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if not user or not user.is_authenticated:
             return CustomRequest.objects.none()
-        if getattr(user, 'role', None) == 'admin':
-            return CustomRequest.objects.all().order_by('-created_at')
-        # Stage 1: Visible ONLY to client who created it and Admin. NEVER visible to staff.
-        if getattr(user, 'role', None) == 'staff':
-            return CustomRequest.objects.none()
-        
+
+        mode = self.request.query_params.get('request_mode')
+
+        # Admin and Staff (Lead CAD Engineers) can view all custom design requests
+        if getattr(user, 'role', None) in ['admin', 'staff'] or getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False):
+            qs = CustomRequest.objects.all().order_by('-created_at')
+            if mode:
+                qs = qs.filter(request_mode=mode)
+            return qs
+
         # Strictly scope to the logged-in client's own requests
         user_email = (user.email or '').strip()
         if user_email:
-            return CustomRequest.objects.filter(
+            qs = CustomRequest.objects.filter(
                 Q(client=user) | Q(contact_email__iexact=user_email)
             ).order_by('-created_at').distinct()
-        return CustomRequest.objects.filter(client=user).order_by('-created_at')
+        else:
+            qs = CustomRequest.objects.filter(client=user).order_by('-created_at')
+
+        if mode:
+            qs = qs.filter(request_mode=mode)
+        return qs
 
     def perform_create(self, serializer):
         user = self.request.user if (self.request.user and self.request.user.is_authenticated) else None
@@ -232,8 +241,8 @@ class CustomRequestViewSet(viewsets.ModelViewSet):
             "breakdown": breakdown
         })
 
-    # STAGE 2 — ADMIN REVIEWS & SENDS OFFICIAL PRICE QUOTE
-    @action(detail=True, methods=['post'], permission_classes=[IsAdmin], url_path='quote')
+    # STAGE 2 — ADMIN OR STAFF REVIEWS & SENDS OFFICIAL PRICE QUOTE
+    @action(detail=True, methods=['post'], permission_classes=[IsStaffOrAdmin], url_path='quote')
     def send_quote(self, request, pk=None):
         custom_req = self.get_object()
         price = request.data.get('price')
@@ -256,14 +265,14 @@ class CustomRequestViewSet(viewsets.ModelViewSet):
         create_notification(
             recipient=custom_req.client,
             title="Design Quote Ready!",
-            body=f"Admin sent an official quote of ₹{price} for Custom Request #{custom_req.id}.",
+            body=f"Studio sent an official quote of ₹{price} for Custom Request #{custom_req.id}.",
             notification_type="quote_received",
             related_order=None
         )
 
         return Response(CustomRequestSerializer(custom_req, context={'request': request}).data)
 
-    # STAGE 3 — TWO-WAY NEGOTIATION (CLIENT OR ADMIN COUNTER)
+    # STAGE 3 — TWO-WAY NEGOTIATION (CLIENT OR ADMIN/STAFF COUNTER)
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated], url_path='negotiate')
     def negotiate(self, request, pk=None):
         custom_req = self.get_object()
@@ -273,7 +282,7 @@ class CustomRequestViewSet(viewsets.ModelViewSet):
         if not message_text and not counter_price:
             return Response({"error": "Message or counter-offer price is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        sender_type = NegotiationMessage.SenderType.ADMIN if request.user.role == 'admin' else NegotiationMessage.SenderType.CLIENT
+        sender_type = NegotiationMessage.SenderType.ADMIN if getattr(request.user, 'role', None) in ['admin', 'staff'] else NegotiationMessage.SenderType.CLIENT
 
         custom_req.status = CustomRequest.Status.NEGOTIATING
         if counter_price:

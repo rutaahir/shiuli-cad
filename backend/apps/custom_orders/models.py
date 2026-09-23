@@ -92,6 +92,10 @@ class CustomRequest(models.Model):
         QUOTE_ONLY = "quote_only", "Request a Quote"
         PLACE_ORDER = "place_order", "Submit Custom Order"
 
+    class Mode(models.TextChoices):
+        STEP_BY_STEP = "step_by_step", "Step by Step"
+        QUICK = "quick", "Quick Request"
+
     class RingSizeStandard(models.TextChoices):
         US = "us", "US"
         UK = "uk", "UK"
@@ -105,7 +109,12 @@ class CustomRequest(models.Model):
         on_delete=models.CASCADE,
         related_name="custom_requests"
     )
+    request_mode = models.CharField(max_length=20, choices=Mode.choices, default=Mode.STEP_BY_STEP)
+    reference_product = models.ForeignKey(
+        Product, null=True, blank=True, on_delete=models.SET_NULL, related_name="quick_custom_requests"
+    )
     reference_image = models.ImageField(upload_to="custom_requests/references/", null=True, blank=True)
+    voice_recording = models.FileField(upload_to="custom_requests/voice_notes/", null=True, blank=True)
     description = models.TextField(blank=True)
     contact_name = models.CharField(max_length=100, blank=True)
     contact_phone = models.CharField(max_length=20, blank=True)

@@ -151,7 +151,7 @@ function getInitialRouteState() {
   if (path === '/blog') return { page: 'blog' as PageId, tab: undefined, category: 'all', productId: DEFAULT_PRODUCT_ID, customProductId: undefined, serviceSlug: undefined };
   if (path === '/contact') return { page: 'contact' as PageId, tab: undefined, category: 'all', productId: DEFAULT_PRODUCT_ID, customProductId: undefined, serviceSlug: undefined };
   if (path.startsWith('/download/')) return { page: 'secure-download' as PageId, tab: undefined, category: 'all', productId: DEFAULT_PRODUCT_ID, customProductId: undefined, serviceSlug: undefined };
-  if (path === '/account') return { page: 'account' as PageId, tab: undefined, category: 'all', productId: DEFAULT_PRODUCT_ID, customProductId: undefined, serviceSlug: undefined };
+  if (path === '/account' || path === '/dashboard') return { page: 'account' as PageId, tab: undefined, category: 'all', productId: DEFAULT_PRODUCT_ID, customProductId: undefined, serviceSlug: undefined };
 
   return {
     page: 'home' as PageId,
@@ -246,65 +246,66 @@ function MainApp() {
   }, []);
 
   // Handle Navigation with URL PushState
-  const handleNavigate = (page: PageId, extraId?: string, skipPushState?: boolean) => {
+  const handleNavigate = (page: PageId | 'dashboard', extraId?: string, skipPushState?: boolean) => {
+    const targetPage: PageId = (page as string) === 'dashboard' ? 'account' : (page as PageId);
     let url = '/';
 
-    if (page === 'home') {
+    if (targetPage === 'home') {
       url = '/';
-    } else if (page === 'collections') {
+    } else if (targetPage === 'collections') {
       const cat = extraId || selectedCategory || 'all';
       url = cat !== 'all' ? `/collections?category=${encodeURIComponent(cat)}` : '/collections';
       setSelectedCategory(cat);
-    } else if (page === 'product-detail') {
+    } else if (targetPage === 'product-detail') {
       const pId = extraId || selectedProductId;
       url = `/product/${pId}`;
       if (extraId) setSelectedProductId(extraId);
-    } else if (page === 'custom-design') {
+    } else if (targetPage === 'custom-design') {
       url = extraId ? `/custom-design?product=${encodeURIComponent(extraId)}` : '/custom-design';
       if (extraId) setCustomRequestProductId(extraId);
-    } else if (page === 'file-editing') {
+    } else if (targetPage === 'file-editing') {
       url = '/file-editing';
-    } else if (page === 'ai-jewellery') {
+    } else if (targetPage === 'ai-jewellery') {
       url = '/ai-jewellery';
-    } else if (page === 'portfolio') {
+    } else if (targetPage === 'portfolio') {
       url = '/portfolio';
-    } else if (page === 'pricing') {
+    } else if (targetPage === 'pricing') {
       url = '/pricing';
-    } else if (page === 'cad-service') {
+    } else if (targetPage === 'cad-service') {
       const slug = extraId || selectedServiceSlug;
       url = slug ? `/cad-services/${slug}` : '/cad-services';
       setSelectedServiceSlug(slug);
-    } else if (page === 'login') {
+    } else if (targetPage === 'login') {
       url = '/login';
-    } else if (page === 'register') {
+    } else if (targetPage === 'register') {
       url = '/register';
-    } else if (page === 'forgot-password') {
+    } else if (targetPage === 'forgot-password') {
       url = '/forgot-password';
-    } else if (page === 'how-it-works') {
+    } else if (targetPage === 'how-it-works') {
       url = '/how-it-works';
-    } else if (page === 'gallery') {
+    } else if (targetPage === 'gallery') {
       url = '/gallery';
-    } else if (page === 'about') {
+    } else if (targetPage === 'about') {
       url = '/about';
-    } else if (page === 'blog') {
+    } else if (targetPage === 'blog') {
       url = '/blog';
-    } else if (page === 'contact') {
+    } else if (targetPage === 'contact') {
       url = '/contact';
-    } else if (page === 'account') {
+    } else if (targetPage === 'account') {
       url = '/account';
-    } else if (page === 'admin') {
+    } else if (targetPage === 'admin') {
       url = extraId ? `/admin?tab=${encodeURIComponent(extraId)}` : '/admin';
       if (extraId) setInitialSubTab(extraId);
-    } else if (page === 'staff-portal') {
+    } else if (targetPage === 'staff-portal') {
       url = extraId ? `/staff-portal?tab=${encodeURIComponent(extraId)}` : '/staff-portal';
       if (extraId) setInitialSubTab(extraId);
     }
 
     if (!skipPushState && (window.location.pathname + window.location.search) !== url) {
-      window.history.pushState({ page, extraId }, '', url);
+      window.history.pushState({ page: targetPage, extraId }, '', url);
     }
 
-    setCurrentPage(page);
+    setCurrentPage(targetPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -550,7 +551,7 @@ function MainApp() {
           {currentPage === 'account' && (
             <ClientDashboardPage
               onNavigate={handleNavigate}
-              userEmail={user?.email || 'client@shiuli.com'}
+              userEmail={user?.email || localStorage.getItem('shiuli_contact_email') || ''}
               wishlistIds={wishlistIds}
               onRemoveWishlist={handleToggleWishlist}
               onAddToCart={handleAddToCart}

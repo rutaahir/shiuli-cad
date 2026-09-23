@@ -229,6 +229,11 @@ class CustomRequestSerializer(serializers.ModelSerializer):
     delivery_speed_name = serializers.CharField(source='delivery_speed.label', read_only=True)
     reference_image = serializers.SerializerMethodField()
     catalog_references = serializers.SerializerMethodField()
+    voice_recording_url = serializers.SerializerMethodField()
+    reference_product_title = serializers.CharField(source='reference_product.title', read_only=True)
+    reference_product_slug = serializers.CharField(source='reference_product.slug', read_only=True)
+    reference_product_price = serializers.DecimalField(source='reference_product.price', max_digits=10, decimal_places=2, read_only=True)
+    reference_product_image = serializers.SerializerMethodField()
 
     gemstones = CustomRequestGemstoneSerializer(many=True, read_only=True)
     stones = CustomRequestStoneSerializer(many=True, read_only=True)
@@ -249,14 +254,17 @@ class CustomRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomRequest
         fields = [
-            'id', 'client', 'client_name', 'category', 'category_name',
+            'id', 'client', 'client_name', 'request_mode', 'category', 'category_name',
             'aesthetic_style', 'aesthetic_style_name', 'metal_alloy',
             'metal_alloy_name', 'metal_swatch_color', 'gemstone_preference_open',
             'ring_size', 'ring_size_standard', 'target_weight_grams', 'budget_range',
             'needed_by_date', 'is_metal_only', 'engraving_text', 'engraving_font',
             'engraving_placement', 'has_logo', 'logo_file', 'special_instructions',
             'delivery_speed', 'delivery_speed_name', 'submission_intent',
-            'estimated_price_shown', 'timeline', 'reference_image', 'catalog_references', 'description',
+            'estimated_price_shown', 'timeline', 'reference_image', 'catalog_references',
+            'reference_product', 'reference_product_title', 'reference_product_slug',
+            'reference_product_price', 'reference_product_image',
+            'voice_recording', 'voice_recording_url', 'description',
             'contact_name', 'contact_phone', 'contact_email', 'status', 'agreed_price',
             'client_consent_to_feature',
             'gemstones', 'stones', 'selections', 'sketches', 'messages',
@@ -269,6 +277,20 @@ class CustomRequestSerializer(serializers.ModelSerializer):
 
     def get_catalog_references(self, obj):
         return resolve_catalog_references(obj, self.context.get('request'))
+
+    def get_voice_recording_url(self, obj):
+        request = self.context.get('request')
+        if obj.voice_recording:
+            return request.build_absolute_uri(obj.voice_recording.url) if request else obj.voice_recording.url
+        return None
+
+    def get_reference_product_image(self, obj):
+        if obj.reference_product:
+            first_img = obj.reference_product.images.first()
+            if first_img and first_img.image:
+                request = self.context.get('request')
+                return request.build_absolute_uri(first_img.image.url) if request else first_img.image.url
+        return None
 
     def get_order(self, obj):
         if hasattr(obj, 'order') and obj.order:
@@ -302,6 +324,8 @@ class CustomRequestSerializer(serializers.ModelSerializer):
             data['selections_data'] = data['selected_options']
         if data.get('catalog_references') and not data.get('catalog_references_data'):
             data['catalog_references_data'] = data['catalog_references']
+        if data.get('reference_product_id') and not data.get('reference_product'):
+            data['reference_product'] = data['reference_product_id']
 
         # Auto-match category if category is missing or invalid
         if not data.get('category'):
@@ -429,6 +453,11 @@ class OrderCustomRequestSummarySerializer(serializers.ModelSerializer):
     delivery_speed_name = serializers.CharField(source='delivery_speed.label', read_only=True)
     reference_image = serializers.SerializerMethodField()
     catalog_references = serializers.SerializerMethodField()
+    voice_recording_url = serializers.SerializerMethodField()
+    reference_product_title = serializers.CharField(source='reference_product.title', read_only=True)
+    reference_product_slug = serializers.CharField(source='reference_product.slug', read_only=True)
+    reference_product_price = serializers.DecimalField(source='reference_product.price', max_digits=10, decimal_places=2, read_only=True)
+    reference_product_image = serializers.SerializerMethodField()
 
     gemstones = CustomRequestGemstoneSerializer(many=True, read_only=True)
     stones = CustomRequestStoneSerializer(many=True, read_only=True)
@@ -439,14 +468,17 @@ class OrderCustomRequestSummarySerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomRequest
         fields = [
-            'id', 'client', 'client_name', 'category', 'category_name',
+            'id', 'client', 'client_name', 'request_mode', 'category', 'category_name',
             'aesthetic_style', 'aesthetic_style_name', 'metal_alloy',
             'metal_alloy_name', 'metal_swatch_color', 'gemstone_preference_open',
             'ring_size', 'ring_size_standard', 'target_weight_grams', 'budget_range',
             'needed_by_date', 'is_metal_only', 'engraving_text', 'engraving_font',
             'engraving_placement', 'has_logo', 'logo_file', 'special_instructions',
             'delivery_speed', 'delivery_speed_name', 'submission_intent',
-            'estimated_price_shown', 'timeline', 'reference_image', 'catalog_references', 'description',
+            'estimated_price_shown', 'timeline', 'reference_image', 'catalog_references',
+            'reference_product', 'reference_product_title', 'reference_product_slug',
+            'reference_product_price', 'reference_product_image',
+            'voice_recording', 'voice_recording_url', 'description',
             'contact_name', 'contact_phone', 'contact_email', 'status', 'agreed_price',
             'client_consent_to_feature',
             'gemstones', 'stones', 'selections', 'sketches', 'messages', 'created_at'
@@ -457,6 +489,20 @@ class OrderCustomRequestSummarySerializer(serializers.ModelSerializer):
 
     def get_catalog_references(self, obj):
         return resolve_catalog_references(obj, self.context.get('request'))
+
+    def get_voice_recording_url(self, obj):
+        request = self.context.get('request')
+        if obj.voice_recording:
+            return request.build_absolute_uri(obj.voice_recording.url) if request else obj.voice_recording.url
+        return None
+
+    def get_reference_product_image(self, obj):
+        if obj.reference_product:
+            first_img = obj.reference_product.images.first()
+            if first_img and first_img.image:
+                request = self.context.get('request')
+                return request.build_absolute_uri(first_img.image.url) if request else first_img.image.url
+        return None
 
     def get_client_name(self, obj):
         if obj.client:

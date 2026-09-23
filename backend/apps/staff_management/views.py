@@ -6,7 +6,7 @@ from rest_framework.views import APIView
 from apps.accounts.models import User, StaffProfile
 from apps.custom_orders.models import Order
 from apps.custom_orders.serializers import OrderSerializer
-from apps.core.permissions import IsAdmin, IsStaff
+from apps.core.permissions import IsAdmin, IsStaff, IsStaffOrAdmin
 from .models import PlatformSettings
 from .serializers import (
     PlatformSettingsSerializer,
@@ -74,9 +74,9 @@ class StaffViewSet(viewsets.ModelViewSet):
 
 class PlatformSettingsView(APIView):
     def get_permissions(self):
-        if self.request.method == 'GET':
-            return [permissions.IsAuthenticated()]
-        return [IsAdmin()]
+        if self.request.method in permissions.SAFE_METHODS:
+            return [permissions.AllowAny()]
+        return [IsStaffOrAdmin()]
 
     def get(self, request):
         settings_obj = PlatformSettings.load()

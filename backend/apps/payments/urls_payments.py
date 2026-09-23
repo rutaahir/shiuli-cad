@@ -6,7 +6,8 @@ from .views import (
     pay_stage_payment,
     PaymentPlanTemplateViewSet,
     incoming_gateway_logs,
-    razorpay_webhook
+    razorpay_webhook,
+    admin_approve_custom_payment
 )
 from .views_purchases import (
     create_purchase,
@@ -16,7 +17,8 @@ from .views_purchases import (
     verify_otp,
     download_cad_file,
     resend_download_link,
-    list_my_purchases
+    list_my_purchases,
+    admin_approve_purchase
 )
 
 router = DefaultRouter()
@@ -28,10 +30,12 @@ urlpatterns = [
     path('verify/', verify_payment, name='payment-verify'),
     path('webhook/', razorpay_webhook, name='payment-webhook'),
     path('pay-stage/', pay_stage_payment, name='payment-pay-stage'),
+    path('<int:payment_id>/admin-approve/', admin_approve_custom_payment, name='payment-admin-approve'),
     path('purchases/', create_purchase, name='purchase-create'),
     path('purchases/create-order/', create_razorpay_purchase_order, name='purchase-create-order'),
     path('purchases/verify/', verify_razorpay_purchase, name='purchase-verify-payment'),
     path('purchases/mine/', list_my_purchases, name='purchase-mine'),
+    path('purchases/<int:purchase_id>/admin-approve/', admin_approve_purchase, name='purchase-admin-approve'),
     path('purchases/<int:purchase_id>/resend-otp/', resend_otp, name='purchase-resend-otp'),
     path('purchases/<int:purchase_id>/verify-otp/', verify_otp, name='purchase-verify-otp'),
     path('purchases/<int:purchase_id>/resend-download-link/', resend_download_link, name='purchase-resend-download-link'),

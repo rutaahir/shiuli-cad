@@ -8,7 +8,7 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 
-from apps.core.permissions import IsAdmin, IsStaff
+from apps.core.permissions import IsAdmin, IsStaff, IsStaffOrAdmin
 from apps.custom_orders.models import Order
 from .models import Payment, Settlement, PaymentPlanTemplate, OrderPaymentStage
 from .serializers import PaymentSerializer, SettlementSerializer, PaymentPlanTemplateSerializer, OrderPaymentStageSerializer
@@ -163,9 +163,37 @@ def razorpay_webhook(request):
     return Response({"status": "received", "event": event})
 
 
+@api_view(['POST'])
+@permission_classes([IsStaffOrAdmin])
+def admin_approve_custom_payment(request, payment_id):
+    """
+    POST /api/payments/<id>/admin-approve/
+    Admin confirms receipt of a custom order payment (Cash, Cheque, UPI).
+    Marks Payment status as SUCCESS and marks OrderPaymentStage as PAID.
+    """
+    try:
+        payment = Payment.objects.select_related('order', 'payment_stage').get(id=payment_id)
+    except Payment.DoesNotExist:
+        return Response({"error": "Payment record not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    payment.status = Payment.Status.SUCCESS
+    payment.admin_verified_at = timezone.now()
+    payment.admin_verified_by = request.user
+    payment.save(update_fields=['status', 'admin_verified_at', 'admin_verified_by'])
+
+    if payment.payment_stage:
+        payment.payment_stage.status = OrderPaymentStage.Status.PAID
+        payment.payment_stage.paid_at = timezone.now()
+        payment.payment_stage.save(update_fields=['status', 'paid_at'])
+
+    return Response({
+        "message": f"Payment #{payment.id} verified and approved successfully.",
+        "payment_id": payment.id
+    }, status=status.HTTP_200_OK)
+
 
 @api_view(['GET'])
-@permission_classes([IsAdmin])
+@permission_classes([IsStaffOrAdmin])
 def incoming_gateway_logs(request):
     """Returns combined incoming client payment transactions (Payments & Product Purchases) for Financial Gateway Audit."""
     from .models import Purchase
@@ -175,15 +203,25 @@ def incoming_gateway_logs(request):
     payments = Payment.objects.all().select_related('order', 'order__client', 'payment_stage').order_by('-created_at')
     for p in payments:
         client_name = f"{p.order.client.first_name} {p.order.client.last_name}".strip() or p.order.client.username if (p.order and p.order.client) else "Client"
+        client_email = p.order.client.email if (p.order and p.order.client) else ""
         stage_label = p.payment_stage.label if p.payment_stage else p.get_payment_type_display()
+        screenshot_url = request.build_absolute_uri(p.payment_screenshot.url) if p.payment_screenshot else None
         logs.append({
             'id': f"PAY-{p.id}",
+            'payment_id': p.id,
+            'order_id': p.order_id,
             'client': client_name,
+            'client_email': client_email,
             'amount': f"₹{p.amount:,.2f}",
             'amount_raw': float(p.amount),
             'type': stage_label,
             'ref': p.gateway_transaction_id or f"pay_tx_{p.id}",
+            'payment_method': p.payment_method or "upi",
+            'payment_details': p.payment_details or "",
+            'screenshot': screenshot_url,
             'status': p.get_status_display(),
+            'raw_status': p.status,
+            'can_approve': p.status == 'pending',
             'date': p.created_at.strftime('%b %d, %Y, %I:%M %p'),
             'created_at_iso': p.created_at.isoformat()
         })
@@ -192,15 +230,25 @@ def incoming_gateway_logs(request):
     purchases = Purchase.objects.all().select_related('buyer', 'product').order_by('-purchased_at')
     for pur in purchases:
         client_name = f"{pur.buyer.first_name} {pur.buyer.last_name}".strip() or pur.buyer.username if pur.buyer else "Client"
+        client_email = pur.buyer.email if pur.buyer else ""
         item_title = pur.product.title if pur.product else "Ready CAD Design"
+        screenshot_url = request.build_absolute_uri(pur.payment_screenshot.url) if pur.payment_screenshot else None
         logs.append({
             'id': f"PUR-{pur.id}",
+            'purchase_id': pur.id,
             'client': client_name,
+            'client_email': client_email,
+            'item_title': item_title,
             'amount': f"₹{pur.price_paid:,.2f}",
             'amount_raw': float(pur.price_paid),
             'type': f"Store Purchase ({pur.get_license_type_display()})",
             'ref': pur.payment_transaction_id or f"pur_tx_{pur.id}",
+            'payment_method': pur.payment_method or "upi",
+            'payment_details': pur.payment_details or "",
+            'screenshot': screenshot_url,
             'status': pur.get_status_display(),
+            'raw_status': pur.status,
+            'can_approve': pur.status == 'pending',
             'date': pur.purchased_at.strftime('%b %d, %Y, %I:%M %p'),
             'created_at_iso': pur.purchased_at.isoformat()
         })
@@ -226,40 +274,76 @@ class SettlementViewSet(viewsets.ReadOnlyModelViewSet):
                 staff=ord_obj.assigned_staff,
                 defaults={
                     'amount': ord_obj.total_price * Decimal('0.70'),
+                    'amount_paid': Decimal('0.00'),
                     'status': Settlement.Status.PENDING
                 }
             )
 
-        if user.role == 'admin':
+        if getattr(user, 'role', None) in ['admin', 'staff'] or getattr(user, 'is_staff', False):
             return Settlement.objects.all().select_related('staff', 'order').order_by('-id')
-        elif user.role == 'staff':
-            return Settlement.objects.filter(staff=user).select_related('staff', 'order').order_by('-id')
         return Settlement.objects.none()
 
-    @action(detail=False, methods=['post'], permission_classes=[IsAdmin], url_path='process')
+    @action(detail=False, methods=['post'], permission_classes=[IsStaffOrAdmin], url_path='process')
     def process_bulk(self, request):
         return self._do_process(request)
 
-    @action(detail=False, methods=['post'], permission_classes=[IsAdmin], url_path='process-payout')
+    @action(detail=False, methods=['post'], permission_classes=[IsStaffOrAdmin], url_path='process-payout')
     def process_payout(self, request):
         return self._do_process(request)
 
     def _do_process(self, request):
-        settlement_ids = request.data.get('settlement_ids', [])
-        if not isinstance(settlement_ids, list) or not settlement_ids:
-            return Response({"error": "List of 'settlement_ids' is required."}, status=status.HTTP_400_BAD_REQUEST)
+        settlement_ids = request.data.get('settlement_ids') or []
+        settlement_id = request.data.get('settlement_id')
+        if settlement_id and not settlement_ids:
+            settlement_ids = [settlement_id]
 
-        updated_count = Settlement.objects.filter(
-            id__in=settlement_ids,
-            status=Settlement.Status.PENDING
-        ).update(
-            status=Settlement.Status.PROCESSED,
-            processed_at=timezone.now()
-        )
+        if not isinstance(settlement_ids, list) or not settlement_ids:
+            return Response({"error": "Settlement ID or list of 'settlement_ids' is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        payment_method = request.data.get('payment_method', 'bank_transfer')
+        transaction_ref = str(request.data.get('transaction_ref') or '').strip()
+        notes = str(request.data.get('notes') or '').strip()
+        amount_input = request.data.get('amount')
+
+        from decimal import Decimal
+        updated_records = []
+        for s_id in settlement_ids:
+            try:
+                settlement = Settlement.objects.get(id=s_id)
+            except Settlement.DoesNotExist:
+                continue
+
+            current_paid = settlement.amount_paid or Decimal('0.00')
+            total_due = settlement.amount
+
+            if amount_input is not None and len(settlement_ids) == 1:
+                # Custom part payment or full payment for single record
+                pay_amt = Decimal(str(amount_input))
+                new_paid = current_paid + pay_amt
+                if new_paid >= total_due:
+                    settlement.amount_paid = total_due
+                    settlement.status = Settlement.Status.PROCESSED
+                else:
+                    settlement.amount_paid = new_paid
+                    settlement.status = Settlement.Status.PARTIAL
+            else:
+                # Full settlement
+                settlement.amount_paid = total_due
+                settlement.status = Settlement.Status.PROCESSED
+
+            settlement.payment_method = payment_method
+            if transaction_ref:
+                settlement.transaction_ref = transaction_ref
+            if notes:
+                settlement.notes = f"{settlement.notes}\n{notes}".strip() if settlement.notes else notes
+            settlement.processed_at = timezone.now()
+            settlement.save()
+            updated_records.append(settlement)
 
         return Response({
-            "message": f"Successfully processed {updated_count} settlements.",
-            "processed_count": updated_count
+            "message": f"Successfully recorded payment for {len(updated_records)} settlement(s).",
+            "processed_count": len(updated_records),
+            "settlements": SettlementSerializer(updated_records, many=True).data
         })
 
 

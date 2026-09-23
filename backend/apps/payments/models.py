@@ -68,7 +68,14 @@ class Payment(models.Model):
     payment_type = models.CharField(max_length=10, choices=PaymentType.choices, default=PaymentType.STAGE)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     gateway_transaction_id = models.CharField(max_length=100, blank=True)
+    payment_method = models.CharField(max_length=50, blank=True, default="upi")
+    payment_details = models.TextField(blank=True, default="")
+    payment_screenshot = models.FileField(upload_to="payment_proofs/", blank=True, null=True)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    admin_verified_at = models.DateTimeField(null=True, blank=True)
+    admin_verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="verified_payments"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -78,6 +85,7 @@ class Payment(models.Model):
 class Settlement(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
+        PARTIAL = "partial", "Partially Settled"
         PROCESSED = "processed", "Processed"
 
     staff = models.ForeignKey(
@@ -87,11 +95,15 @@ class Settlement(models.Model):
     )
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    payment_method = models.CharField(max_length=50, blank=True, default="bank_transfer")
+    transaction_ref = models.CharField(max_length=120, blank=True, default="")
+    notes = models.TextField(blank=True, default="")
+    status = models.CharField(max_length=15, choices=Status.choices, default=Status.PENDING)
     processed_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
-        return f"Settlement #{self.id} for Staff {self.staff.username} (₹{self.amount})"
+        return f"Settlement #{self.id} for Staff {self.staff.username} (₹{self.amount_paid}/₹{self.amount} - {self.status})"
 
 
 class Purchase(models.Model):
@@ -109,7 +121,14 @@ class Purchase(models.Model):
     license_type = models.CharField(max_length=20, choices=LicenseType.choices, default=LicenseType.ATELIER)
     price_paid = models.DecimalField(max_digits=10, decimal_places=2)
     payment_transaction_id = models.CharField(max_length=100)
+    payment_method = models.CharField(max_length=50, blank=True, default="upi")
+    payment_details = models.TextField(blank=True, default="")
+    payment_screenshot = models.FileField(upload_to="payment_proofs/", blank=True, null=True)
     status = models.CharField(max_length=15, choices=Status.choices, default=Status.PENDING)
+    admin_verified_at = models.DateTimeField(null=True, blank=True)
+    admin_verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="verified_purchases"
+    )
     redelivery_count = models.PositiveIntegerField(default=0)
     otp_generation_count = models.PositiveIntegerField(default=0)
     last_otp_generated_at = models.DateTimeField(null=True, blank=True)

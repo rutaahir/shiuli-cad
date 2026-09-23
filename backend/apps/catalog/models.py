@@ -10,6 +10,12 @@ class Category(models.Model):
     image_url = models.URLField(max_length=500, blank=True, null=True)
     tagline = models.CharField(max_length=255, blank=True)
     display_order = models.PositiveIntegerField(default=0)
+    commission_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=20.00,
+        help_text="Studio commission percentage for this category (e.g. 20.00 for 20%)"
+    )
 
     class Meta:
         verbose_name_plural = 'Categories'
@@ -52,10 +58,37 @@ class Product(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        limit_choices_to={'role': 'staff'}
+        limit_choices_to={'role__in': ['staff', 'admin']}
     )
     price = models.DecimalField(max_digits=10, decimal_places=2)
     compare_at_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    staff_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Staff asking price or net payout"
+    )
+    commission_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=20.00,
+        help_text="Category commission rate percentage applied at listing"
+    )
+    commission_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        help_text="Calculated studio commission in currency"
+    )
+    agreed_terms = models.BooleanField(
+        default=False,
+        help_text="Staff agreed to commission and watertight CAD terms"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Whether this product is active and visible in catalog"
+    )
     commercial_price_markup = models.DecimalField(max_digits=5, decimal_places=2, default=80.00, help_text="Percentage markup for Commercial Mass license (e.g. 80.00 for +80%)")
     atelier_license_desc = models.TextField(default="Workshop & bespoke client casts", help_text="Short description of Atelier License")
     commercial_license_desc = models.TextField(default="Global factory manufacturing & mass production", help_text="Short description of Commercial Mass License")

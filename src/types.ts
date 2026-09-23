@@ -190,20 +190,30 @@ export interface CustomNegotiation {
   currentQuote?: number;
   messages: NegotiationMessage[];
   createdAt: string;
+  request_mode?: 'quick' | 'step_by_step' | string;
+  voice_recording_url?: string;
+  referenceProduct?: any;
+  order?: any;
 }
 
 export interface SettlementRecord {
   id: string;
-  staffId: string;
+  staffId?: string;
   staffName: string;
-  orderId: string;
+  staffRole?: string;
+  orderId?: string;
   orderNumber: string;
   designTitle: string;
   completedDate: string;
+  completedAt?: string;
   payoutAmount: number;
-  status: 'unpaid' | 'settled';
-  settledAt?: string;
+  amountPaid?: number;
+  balanceDue?: number;
+  paymentMethod?: 'cash' | 'upi' | 'bank_transfer' | 'online' | 'cheque' | string;
   transactionRef?: string;
+  notes?: string;
+  status: 'unpaid' | 'partial' | 'settled';
+  settledAt?: string;
 }
 
 export interface AdminNotification {

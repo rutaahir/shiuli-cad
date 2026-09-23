@@ -34,6 +34,7 @@ interface CategoryItem {
   display_order: number;
   subcategories: CategoryItem[];
   product_count: number;
+  commission_percentage?: number | string;
 }
 
 interface DesignStyleItem {
@@ -49,6 +50,10 @@ interface BackendProduct {
   category_name?: string;
   price: string | number;
   compare_at_price?: string | number;
+  staff_price?: string | number;
+  commission_rate?: string | number;
+  is_active?: boolean;
+  uploaded_by_name?: string;
   metal_weight_grams?: string | number;
   stone_count?: number;
   status: 'approved' | 'pending' | 'rejected';
@@ -110,7 +115,12 @@ export const AdminCatalogModule: React.FC = () => {
   const [newCatName, setNewCatName] = useState('');
   const [newCatSlug, setNewCatSlug] = useState('');
   const [newCatDisplayOrder, setNewCatDisplayOrder] = useState<number>(0);
+  const [newCatCommission, setNewCatCommission] = useState<string>('20.00');
   const [catSubmitError, setCatSubmitError] = useState<string | null>(null);
+
+  // Dynamic Category Commission Quick-Edit State
+  const [editingCatCommissionId, setEditingCatCommissionId] = useState<number | null>(null);
+  const [editCommissionVal, setEditCommissionVal] = useState<string>('20');
 
   const [addingSubCatParentId, setAddingSubCatParentId] = useState<number | null>(null);
   const [newSubCatName, setNewSubCatName] = useState('');
@@ -122,6 +132,37 @@ export const AdminCatalogModule: React.FC = () => {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  const handleUpdateCategoryCommission = async (catId: number, newRate: number) => {
+    if (isNaN(newRate) || newRate < 0 || newRate > 100) {
+      alert('Please enter a valid commission percentage between 0 and 100.');
+      return;
+    }
+    try {
+      await api.updateCategory(catId, { commission_percentage: newRate });
+      showToast(`Category commission updated to ${newRate}%.`);
+      setEditingCatCommissionId(null);
+      loadData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to update commission.');
+    }
+  };
+
+  const handleToggleProductActive = async (prod: BackendProduct) => {
+    try {
+      const res = await api.toggleProductActive(prod.slug);
+      showToast(
+        res.is_active
+          ? `Product "${prod.title}" is now ACTIVE & live on store.`
+          : `Product "${prod.title}" is now DISABLED & hidden from store.`
+      );
+      setProducts((prev) =>
+        prev.map((p) => (p.slug === prod.slug ? { ...p, is_active: res.is_active } : p))
+      );
+    } catch (err: any) {
+      alert(err.message || 'Failed to toggle product status.');
+    }
   };
 
   // Load Catalog Data from Backend
@@ -174,12 +215,14 @@ export const AdminCatalogModule: React.FC = () => {
         slug: newCatSlug || undefined,
         parent: null,
         display_order: Number(newCatDisplayOrder),
+        commission_percentage: Number(newCatCommission) || 20,
       });
       showToast(`Category "${created.name}" created successfully!`);
       setShowAddCategoryDrawer(false);
       setNewCatName('');
       setNewCatSlug('');
       setNewCatDisplayOrder(0);
+      setNewCatCommission('20.00');
       loadData();
     } catch (err: any) {
       setCatSubmitError(err.message || 'Failed to create category.');
@@ -496,9 +539,9 @@ export const AdminCatalogModule: React.FC = () => {
               <thead>
                 <tr className="bg-[#09112B] text-[#F5E7A3] text-[11px] font-mono uppercase tracking-wider">
                   <th className="p-4 font-medium">Design & Title</th>
-                  <th className="p-4 font-medium">Category</th>
-                  <th className="p-4 font-medium">Price</th>
-                  <th className="p-4 font-medium">Badges</th>
+                  <th className="p-4 font-medium">Category & Designer</th>
+                  <th className="p-4 font-medium">Pricing</th>
+                  <th className="p-4 font-medium">Store Visibility</th>
                   <th className="p-4 font-medium">Status</th>
                   <th className="p-4 font-medium text-right">Actions</th>
                 </tr>
@@ -527,33 +570,47 @@ export const AdminCatalogModule: React.FC = () => {
                     </td>
 
                     <td className="p-4 font-medium text-[#1E2230]">
-                      <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 font-mono">
-                        {prod.category_name || 'Uncategorized'}
-                      </span>
+                      <div className="space-y-1">
+                        <span className="px-2.5 py-0.5 rounded-lg bg-slate-100 border border-slate-200 font-mono text-[11px] inline-block">
+                          {prod.category_name || 'Uncategorized'}
+                        </span>
+                        <div className="text-[10px] text-slate-500 font-mono">
+                          By: <strong className="text-slate-700">{prod.uploaded_by_name || 'Admin'}</strong>
+                        </div>
+                      </div>
                     </td>
 
                     <td className="p-4 font-mono font-bold text-[#1E2230]">
-                      ${prod.price}
-                      {prod.compare_at_price && (
-                        <span className="text-[10px] text-[#9CA3AF] line-through ml-1.5">
-                          ${prod.compare_at_price}
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="p-4">
-                      <div className="flex items-center gap-1">
-                        {prod.is_bestseller && (
-                          <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-mono font-bold">
-                            BESTSELLER
-                          </span>
-                        )}
-                        {prod.is_new && (
-                          <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-[10px] font-mono font-bold">
-                            NEW
+                      <div>
+                        ${prod.price}
+                        {prod.compare_at_price && (
+                          <span className="text-[10px] text-[#9CA3AF] line-through ml-1.5">
+                            ${prod.compare_at_price}
                           </span>
                         )}
                       </div>
+                      {prod.staff_price != null && (
+                        <div className="text-[10px] text-emerald-700 font-semibold font-mono">
+                          Staff: ${prod.staff_price} ({100 - (Number(prod.commission_rate) || 20)}%)
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Store Visibility Toggle */}
+                    <td className="p-4">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleProductActive(prod)}
+                        className={`px-3 py-1 rounded-full text-[11px] font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                          prod.is_active !== false
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200'
+                            : 'bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-200'
+                        }`}
+                        title={prod.is_active !== false ? 'Click to Disable / Hide from store' : 'Click to Enable / Show on store'}
+                      >
+                        <span className={`w-2 h-2 rounded-full ${prod.is_active !== false ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                        <span>{prod.is_active !== false ? 'Active' : 'Disabled'}</span>
+                      </button>
                     </td>
 
                     <td className="p-4">
@@ -662,6 +719,53 @@ export const AdminCatalogModule: React.FC = () => {
                     <span className="px-2.5 py-0.5 rounded-full bg-[#09112B] text-[#F5E7A3] text-[10px] font-mono">
                       {cat.product_count} Products
                     </span>
+
+                    {/* Category Commission Badge & Inline Editor */}
+                    {editingCatCommissionId === cat.id ? (
+                      <div className="flex items-center gap-1 bg-white border border-[#C9A227] px-2 py-0.5 rounded-lg shadow-xs">
+                        <span className="text-[10px] text-slate-500 font-mono">Commission:</span>
+                        <input
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          max="100"
+                          value={editCommissionVal}
+                          onChange={(e) => setEditCommissionVal(e.target.value)}
+                          className="w-14 px-1 py-0.5 text-xs font-mono font-bold border border-slate-300 rounded focus:outline-none"
+                          autoFocus
+                        />
+                        <span className="font-mono text-xs">%</span>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateCategoryCommission(cat.id, Number(editCommissionVal))}
+                          className="px-2 py-0.5 bg-[#09112B] text-[#F5E7A3] text-[10px] font-bold rounded cursor-pointer hover:bg-black"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingCatCommissionId(null)}
+                          className="text-slate-400 hover:text-slate-700 text-xs px-0.5 cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-[10px] font-mono font-bold shadow-xs">
+                        <span>Commission: {cat.commission_percentage != null ? cat.commission_percentage : '20'}%</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingCatCommissionId(cat.id);
+                            setEditCommissionVal(String(cat.commission_percentage != null ? cat.commission_percentage : '20'));
+                          }}
+                          className="p-0.5 text-amber-700 hover:text-amber-950 rounded cursor-pointer"
+                          title="Click to edit category commission percentage"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -789,6 +893,24 @@ export const AdminCatalogModule: React.FC = () => {
                   onChange={(e) => setNewCatDisplayOrder(Number(e.target.value))}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] focus:outline-none focus:border-[#C9A227]"
                 />
+              </div>
+
+              <div>
+                <label className="font-semibold text-[#1E2230] block mb-1">Platform Commission Rate (%) *</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  max="100"
+                  required
+                  value={newCatCommission}
+                  onChange={(e) => setNewCatCommission(e.target.value)}
+                  placeholder="e.g. 20.00"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] font-mono font-bold focus:outline-none focus:border-[#C9A227]"
+                />
+                <span className="text-[10px] text-slate-500 mt-1 block">
+                  Deducted dynamically from staff uploads in this category (e.g. Rings: 20%, Necklaces: 25%).
+                </span>
               </div>
 
               <div className="pt-4 flex justify-end gap-2 border-t border-[#E5E7EF]">

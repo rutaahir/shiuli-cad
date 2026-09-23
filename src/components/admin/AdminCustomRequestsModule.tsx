@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
+import { appStore } from '../../services/store';
 import {
   MessageSquare,
   CheckCircle2,
@@ -29,12 +30,17 @@ import {
   Info,
   Sliders,
   CheckSquare,
-  ShieldCheck
+  ShieldCheck,
+  Volume2,
+  Mic,
+  ShoppingBag,
+  ExternalLink
 } from 'lucide-react';
 
 interface CustomRequestItem {
   id: number;
   client_name: string;
+  request_mode?: 'step_by_step' | 'quick' | string;
   category?: number;
   category_name?: string;
   aesthetic_style_name?: string;
@@ -67,6 +73,15 @@ interface CustomRequestItem {
   logo_file?: string;
   delivery_speed_name?: string;
   client_consent_to_feature?: boolean;
+
+  // Quick Request Details
+  voice_recording?: string;
+  voice_recording_url?: string;
+  reference_product?: number;
+  reference_product_title?: string;
+  reference_product_slug?: string;
+  reference_product_price?: string | number;
+  reference_product_image?: string;
 
   // Rich relations
   gemstones?: Array<{ stone_type: string; cut_type: string; carat_size?: string; quantity: number }>;
@@ -108,6 +123,7 @@ export const AdminCustomRequestsModule: React.FC = () => {
   const [textMessageInput, setTextMessageInput] = useState<string>('');
   const [isSending, setIsSending] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'new' | 'negotiating' | 'agreed'>('all');
+  const [modeTab, setModeTab] = useState<'all' | 'quick' | 'step_by_step'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [mobileViewDetail, setMobileViewDetail] = useState(false);
@@ -116,20 +132,60 @@ export const AdminCustomRequestsModule: React.FC = () => {
     setLoading(true);
     try {
       await api.ensureAdminToken();
-      const res = await api.request<any>('/custom-requests/');
-      const ensureArray = <T,>(r: any): T[] => {
-        if (Array.isArray(r)) return r;
-        if (r && Array.isArray(r.results)) return r.results;
-        if (r && Array.isArray(r.data)) return r.data;
-        return [];
-      };
-      const list = ensureArray<CustomRequestItem>(res);
-      setRequests(list);
-      if (list.length > 0 && (!selectedReqId || !list.some((r) => r.id === selectedReqId))) {
-        setSelectedReqId(list[0].id);
+      let dbRequests: CustomRequestItem[] = [];
+      try {
+        const res = await api.request<any>('/custom-requests/');
+        const ensureArray = <T,>(r: any): T[] => {
+          if (Array.isArray(r)) return r;
+          if (r && Array.isArray(r.results)) return r.results;
+          if (r && Array.isArray(r.data)) return r.data;
+          return [];
+        };
+        dbRequests = ensureArray<CustomRequestItem>(res);
+      } catch (backendErr) {
+        console.warn('Backend custom requests fetch notice:', backendErr);
+      }
+
+      // Also merge any local session custom requests so nothing is missed
+      const localRequests = appStore.getCustomRequests() || [];
+      const combined: CustomRequestItem[] = [...dbRequests];
+
+      localRequests.forEach((loc: any) => {
+        if (!combined.some((c: any) => String(c.id) === String(loc.id))) {
+          const numId = typeof loc.id === 'number' ? loc.id : parseInt(String(loc.id).replace(/\D/g, '') || String(Date.now()).slice(-4), 10);
+          combined.push({
+            id: numId,
+            client_name: loc.clientName || 'Client',
+            contact_name: loc.clientName || 'Client',
+            contact_email: loc.clientEmail || '',
+            contact_phone: loc.clientPhone || '',
+            request_mode: loc.request_mode || 'quick',
+            category_name: loc.jewelleryType || 'Custom Jewellery',
+            aesthetic_style_name: loc.metalPreference || 'Luxury Style',
+            metal_alloy_name: loc.metalPreference || 'Custom Gold',
+            estimated_price_shown: parseFloat(String(loc.currentQuote || loc.targetBudget || '0').replace(/[^0-9.]/g, '')) || 0,
+            status: loc.status || 'new',
+            description: loc.description || 'Bespoke CAD Design Brief',
+            reference_image: loc.referenceImage || loc.reference_image,
+            voice_recording_url: loc.voice_recording_url || '',
+            created_at: loc.createdAt || new Date().toISOString(),
+            messages: (loc.messages || []).map((m: any, idx: number) => ({
+              id: idx + 1,
+              sender_type: m.sender || 'client',
+              message: m.text || '',
+              offered_price: m.priceOffer,
+              created_at: m.timestamp || new Date().toISOString()
+            })),
+          });
+        }
+      });
+
+      setRequests(combined);
+      if (combined.length > 0 && (!selectedReqId || !combined.some((r) => r.id === selectedReqId))) {
+        setSelectedReqId(combined[0].id);
       }
     } catch (err) {
-      console.warn('Error fetching custom requests from backend:', err);
+      console.warn('Error fetching custom requests:', err);
     } finally {
       setLoading(false);
     }
@@ -152,16 +208,25 @@ export const AdminCustomRequestsModule: React.FC = () => {
         ? req.status === 'negotiating' || req.status === 'quoted'
         : req.status === 'agreed' || req.status === 'in_progress';
 
+    const matchesMode =
+      modeTab === 'all'
+        ? true
+        : modeTab === 'quick'
+        ? req.request_mode === 'quick'
+        : req.request_mode !== 'quick';
+
     const query = searchQuery.toLowerCase();
     const nameMatch = (req.contact_name || req.client_name || '').toLowerCase().includes(query);
     const catMatch = (req.category_name || '').toLowerCase().includes(query);
     const idMatch = `req-${req.id}`.includes(query) || `#${req.id}`.includes(query);
 
-    return matchesTab && (nameMatch || catMatch || idMatch);
+    return matchesTab && matchesMode && (nameMatch || catMatch || idMatch);
   });
 
   // Executive Stats
   const totalCount = requests.length;
+  const quickCount = requests.filter((r) => r.request_mode === 'quick').length;
+  const stepByStepCount = requests.filter((r) => r.request_mode !== 'quick').length;
   const newCount = requests.filter((r) => r.status === 'new').length;
   const negotiatingCount = requests.filter((r) => r.status === 'negotiating' || r.status === 'quoted').length;
   const agreedCount = requests.filter((r) => r.status === 'agreed' || r.status === 'in_progress').length;
@@ -269,13 +334,47 @@ export const AdminCustomRequestsModule: React.FC = () => {
 
         {/* Action controls: Filter tabs + Search + Refresh */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Filter Tabs */}
+          {/* TWO MAIN MODE TABS: QUICK vs STEP-BY-STEP */}
+          <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-[11px] font-bold">
+            <button
+              onClick={() => setModeTab('all')}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                modeTab === 'all' ? 'bg-[#09112B] text-white shadow-xs font-bold' : 'text-[#6B7280] hover:text-[#1E2230]'
+              }`}
+            >
+              All ({totalCount})
+            </button>
+            <button
+              onClick={() => setModeTab('quick')}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                modeTab === 'quick' ? 'bg-[#D4AF37] text-[#09112B] shadow-xs font-bold' : 'text-[#6B7280] hover:text-[#1E2230]'
+              }`}
+            >
+              <span>⚡ Quick</span>
+              <span className={`text-[10px] px-1 rounded ${modeTab === 'quick' ? 'bg-black/15 font-extrabold' : 'bg-slate-200'}`}>
+                {quickCount}
+              </span>
+            </button>
+            <button
+              onClick={() => setModeTab('step_by_step')}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                modeTab === 'step_by_step' ? 'bg-[#1E4FA3] text-white shadow-xs font-bold' : 'text-[#6B7280] hover:text-[#1E2230]'
+              }`}
+            >
+              <span>📐 Step-by-Step</span>
+              <span className={`text-[10px] px-1 rounded ${modeTab === 'step_by_step' ? 'bg-white/20 font-extrabold' : 'bg-slate-200'}`}>
+                {stepByStepCount}
+              </span>
+            </button>
+          </div>
+
+          {/* Status Filter Tabs */}
           <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-[11px] font-bold">
             {(['all', 'new', 'negotiating', 'agreed'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-2.5 py-1 rounded-lg capitalize transition-all cursor-pointer ${
+                className={`px-2 py-1 rounded-lg capitalize transition-all cursor-pointer ${
                   activeTab === tab ? 'bg-white text-[#09112B] shadow-xs font-bold' : 'text-[#6B7280] hover:text-[#1E2230]'
                 }`}
               >
@@ -363,6 +462,15 @@ export const AdminCustomRequestsModule: React.FC = () => {
                     <div className="flex items-center justify-between text-xs mb-1">
                       <div className="flex items-center gap-1.5 font-mono font-bold text-[10px]">
                         <span className="text-[#09112B]">REQ #{req.id}</span>
+                        {req.request_mode === 'quick' ? (
+                          <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 border border-amber-300 text-[9px] font-bold flex items-center gap-0.5">
+                            ⚡ Quick
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.2 rounded bg-blue-50 text-blue-800 border border-blue-200 text-[9px] font-bold flex items-center gap-0.5">
+                            📐 Step
+                          </span>
+                        )}
                         {req.metal_swatch_color && (
                           <div
                             className="w-2 h-2 rounded-full border border-black/20"
@@ -428,8 +536,17 @@ export const AdminCustomRequestsModule: React.FC = () => {
                     <span className="px-2 py-0.5 rounded bg-[#C9A227] text-white font-mono font-extrabold text-[10px]">
                       REQ #{activeReq.id}
                     </span>
+                    {activeReq.request_mode === 'quick' ? (
+                      <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-[#C9A227]" /> ⚡ Quick Custom Request
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-bold flex items-center gap-1">
+                        <Layers className="w-3 h-3 text-blue-600" /> 📐 Step-by-Step 3D CAD Studio
+                      </span>
+                    )}
                     <h2 className="font-serif text-lg font-bold text-[#1E2230]">
-                      {activeReq.category_name || 'Bespoke CAD Request'}
+                      {activeReq.category_name || (activeReq.request_mode === 'quick' ? 'Quick Bespoke Brief' : 'Bespoke CAD Request')}
                     </h2>
                     {activeReq.submission_intent === 'place_order' ? (
                       <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold flex items-center gap-1">
@@ -708,7 +825,7 @@ export const AdminCustomRequestsModule: React.FC = () => {
                 </div>
               </div>
 
-              {/* 5. CLIENT WRITTEN BRIEF, REFERENCES & SKETCHES */}
+              {/* 5. CLIENT WRITTEN BRIEF, REFERENCES, VOICE NOTE & SKETCHES */}
               <div className="bg-slate-50 border border-[#E5E7EF] p-4 rounded-xl space-y-3">
                 <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-2">
                   <div className="flex items-center gap-2 font-bold text-[#1E2230] uppercase text-xs tracking-wider">
@@ -719,6 +836,85 @@ export const AdminCustomRequestsModule: React.FC = () => {
                     <span className="text-slate-400 font-mono text-[10px]">{activeReq.sketches.length} Artwork Attachment(s)</span>
                   )}
                 </div>
+
+                {/* Voice Note Recording Player (if provided by client) */}
+                {(activeReq.voice_recording_url || activeReq.voice_recording) && (
+                  <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs font-bold text-amber-950">
+                        <Volume2 className="w-4 h-4 text-amber-600" />
+                        <span>Client Live Voice Note / Audio Instructions</span>
+                      </div>
+                      <a
+                        href={activeReq.voice_recording_url || activeReq.voice_recording}
+                        download
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] font-mono font-bold text-amber-800 hover:text-amber-950 flex items-center gap-1 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-300 transition-colors"
+                      >
+                        <Download className="w-3 h-3" /> Download Audio
+                      </a>
+                    </div>
+                    <audio
+                      controls
+                      src={activeReq.voice_recording_url || activeReq.voice_recording}
+                      className="w-full h-9 rounded-lg"
+                    />
+                  </div>
+                )}
+
+                {/* Chosen Catalog Reference Product (if selected in quick brief) */}
+                {(activeReq.reference_product || activeReq.reference_product_title) && (
+                  <div className="p-3.5 rounded-xl bg-slate-50 border border-[#E5E7EF] space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono text-[#6B7280] uppercase font-bold flex items-center gap-1.5">
+                        <ShoppingBag className="w-3.5 h-3.5 text-[#C9A227]" />
+                        Catalog Reference Design Selected By Client
+                      </span>
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                        Similar Design Wanted
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-[#E5E7EF]">
+                      {activeReq.reference_product_image ? (
+                        <img
+                          src={activeReq.reference_product_image}
+                          alt={activeReq.reference_product_title || 'Reference Product'}
+                          onClick={() => activeReq.reference_product_image && setLightboxImage(activeReq.reference_product_image)}
+                          className="w-14 h-14 rounded-lg object-cover border border-slate-100 shrink-0 cursor-pointer hover:opacity-90"
+                        />
+                      ) : (
+                        <div className="w-14 h-14 rounded-lg bg-slate-100 flex items-center justify-center text-xs font-mono text-slate-500 shrink-0">
+                          CAD
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[10px] font-mono text-[#C9A227] font-bold block">
+                          REF PRODUCT #{activeReq.reference_product}
+                        </span>
+                        <h4 className="font-bold text-xs text-[#1E2230] truncate">
+                          {activeReq.reference_product_title || 'Catalog Product'}
+                        </h4>
+                        {activeReq.reference_product_price && (
+                          <span className="text-xs font-mono font-bold text-slate-700 block mt-0.5">
+                            Listed Store Price: ₹{Number(activeReq.reference_product_price).toLocaleString('en-IN')}
+                          </span>
+                        )}
+                      </div>
+                      {activeReq.reference_product_slug && (
+                        <a
+                          href={`/product/${activeReq.reference_product_slug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center gap-1 shrink-0 transition-colors"
+                        >
+                          <span>View Product</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Written Notes */}
                 <div className="bg-white p-3 rounded-lg border border-[#E5E7EF] space-y-2 text-xs">

@@ -1,14 +1,17 @@
 import secrets
+import base64
 from datetime import timedelta
 from django.utils import timezone
 from django.conf import settings
 from django.contrib.auth.hashers import make_password, check_password
+from django.core.files.base import ContentFile
 from django.core.mail import send_mail
 from django.http import FileResponse
 from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
+from apps.core.permissions import IsStaffOrAdmin
 from apps.catalog.models import Product, ProductFile
 from .models import Purchase, DownloadOTP, DownloadToken
 
@@ -251,12 +254,16 @@ def verify_razorpay_purchase(request):
 def create_purchase(request):
     """
     POST /api/purchases/
-    Creates a Purchase record after payment gateway success.
-    Triggers 6-digit OTP generation and emails it to buyer's registered account email ONLY.
+    Creates a Purchase record for a CAD product.
+    Supports dynamic UPI and Cash/Check offline payments with screenshot & details proof.
+    Requests requiring admin verification are held in PENDING status until approved by Studio Admin.
     """
     product_id = request.data.get('product_id')
     license_type = request.data.get('license_type', 'atelier')
-    payment_transaction_id = request.data.get('payment_transaction_id', f"TXN-{secrets.token_hex(8).upper()}")
+    payment_transaction_id = request.data.get('payment_transaction_id') or f"TXN-{secrets.token_hex(6).upper()}"
+    payment_method = request.data.get('payment_method', 'upi')
+    payment_details = str(request.data.get('payment_details') or '').strip()
+    auto_confirm = request.data.get('auto_confirm', False)
 
     if not product_id:
         return Response({"error": "product_id is required."}, status=status.HTTP_400_BAD_REQUEST)
@@ -275,7 +282,6 @@ def create_purchase(request):
 
     product = product_obj
 
-
     # Calculate price based on license
     if license_type == 'commercial':
         markup_pct = float(product.commercial_price_markup or 80.0)
@@ -285,18 +291,67 @@ def create_purchase(request):
 
     now = timezone.now()
 
-    purchase = Purchase.objects.create(
+    # User submitted offline/UPI/cash proof needs admin collection confirmation
+    is_pending = not auto_confirm
+
+    purchase = Purchase(
         buyer=request.user,
         product=product,
         license_type=license_type,
         price_paid=price_paid,
         payment_transaction_id=payment_transaction_id,
-        status=Purchase.Status.PAID,
-        otp_generation_count=1,
-        last_otp_generated_at=now
+        payment_method=payment_method,
+        payment_details=payment_details,
+        status=Purchase.Status.PENDING if is_pending else Purchase.Status.PAID,
+        otp_generation_count=0 if is_pending else 1,
+        last_otp_generated_at=None if is_pending else now
     )
 
-    # Generate 6-digit OTP code & store hashed
+    # Process Screenshot file (either multipart File or base64 data URI)
+    screenshot_file = request.FILES.get('payment_screenshot')
+    screenshot_data = request.data.get('payment_screenshot')
+    if not screenshot_file and isinstance(screenshot_data, str) and screenshot_data.startswith('data:image'):
+        try:
+            format_part, imgstr = screenshot_data.split(';base64,')
+            ext = format_part.split('/')[-1]
+            if ext == 'jpeg':
+                ext = 'jpg'
+            file_name = f"proof_pur_{request.user.id}_{secrets.token_hex(4)}.{ext}"
+            screenshot_file = ContentFile(base64.b64decode(imgstr), name=file_name)
+        except Exception as e:
+            print(f"[SCREENSHOT DECODE WARNING] {e}")
+
+    if screenshot_file:
+        purchase.payment_screenshot = screenshot_file
+
+    purchase.save()
+
+    masked_email = mask_email(request.user.email)
+
+    if is_pending:
+        # Do not generate OTP yet; wait for Admin to confirm payment collection
+        print("\n" + "=" * 70)
+        print(f"[PENDING PAYMENT PROOF SUBMITTED]")
+        print(f"   Purchase ID: #{purchase.id}")
+        print(f"   Product:     {product.title}")
+        print(f"   Buyer:       {request.user.email}")
+        print(f"   Method:      {payment_method.upper()}")
+        print(f"   Txn Ref:     {payment_transaction_id}")
+        print(f"   Details:     {payment_details}")
+        print("=" * 70 + "\n")
+
+        return Response({
+            "message": "Payment proof submitted! Atelier accounts team will verify collection and enable your secure download shortly.",
+            "purchase_id": purchase.id,
+            "product_title": product.title,
+            "status": "pending",
+            "payment_transaction_id": purchase.payment_transaction_id,
+            "payment_method": payment_method,
+            "is_pending_verification": True,
+            "masked_email": masked_email
+        }, status=status.HTTP_201_CREATED)
+
+    # If auto-confirmed (e.g. verified gateway), generate OTP immediately
     otp_code = generate_6digit_otp()
     otp_hash = make_password(otp_code)
     expires_at = now + timedelta(minutes=10)
@@ -318,7 +373,6 @@ def create_purchase(request):
     print(f"   VERIFICATION CODE (OTP): >>> {otp_code} <<<")
     print("=" * 70 + "\n")
 
-    masked_email = mask_email(request.user.email)
     try:
         send_mail(
             subject=f"Verify Your Email to Unlock Your CAD Download - Purchase #{purchase.id}",
@@ -342,8 +396,82 @@ def create_purchase(request):
         "purchase_id": purchase.id,
         "product_title": product.title,
         "masked_email": masked_email,
-        "expires_in_seconds": 600
+        "expires_in_seconds": 600,
+        "status": "paid"
     }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([IsStaffOrAdmin])
+def admin_approve_purchase(request, purchase_id):
+    """
+    POST /api/purchases/{id}/admin-approve/
+    Admin confirms payment collection. Marks purchase as PAID and dispatches 6-digit verification OTP to buyer.
+    """
+    try:
+        purchase = Purchase.objects.select_related('buyer', 'product').get(id=purchase_id)
+    except Purchase.DoesNotExist:
+        return Response({"error": "Purchase record not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    now = timezone.now()
+    purchase.status = Purchase.Status.PAID
+    purchase.admin_verified_at = now
+    purchase.admin_verified_by = request.user
+    purchase.otp_generation_count = 1
+    purchase.last_otp_generated_at = now
+    purchase.save(update_fields=['status', 'admin_verified_at', 'admin_verified_by', 'otp_generation_count', 'last_otp_generated_at'])
+
+    # Generate 6-digit OTP code & store hashed
+    otp_code = generate_6digit_otp()
+    otp_hash = make_password(otp_code)
+    expires_at = now + timedelta(minutes=10)
+
+    DownloadOTP.objects.filter(purchase=purchase, is_verified=False).delete()
+    DownloadOTP.objects.create(
+        purchase=purchase,
+        otp_hash=otp_hash,
+        expires_at=expires_at,
+        attempts=0,
+        is_verified=False
+    )
+
+    masked_email = mask_email(purchase.buyer.email)
+
+    # Dev terminal log
+    print("\n" + "=" * 70)
+    print(f"[ADMIN CONFIRMED PAYMENT - DOWNLOAD ENABLED]")
+    print(f"   Purchase ID: #{purchase.id}")
+    print(f"   Product:     {purchase.product.title}")
+    print(f"   Buyer Email: {purchase.buyer.email}")
+    print(f"   VERIFICATION CODE (OTP): >>> {otp_code} <<<")
+    print("=" * 70 + "\n")
+
+    try:
+        send_mail(
+            subject=f"Payment Verified! Your CAD Download is Ready - Purchase #{purchase.id}",
+            message=(
+                f"Hello {purchase.buyer.get_full_name() or purchase.buyer.username},\n\n"
+                f"Your payment of ₹{purchase.price_paid:,.2f} for '{purchase.product.title}' ({purchase.get_license_type_display()}) has been verified and confirmed by Shiuli CAD Studio.\n\n"
+                f"Your 6-digit email verification code is: {otp_code}\n\n"
+                f"Enter this code on the website to unlock your single-use secure download link. This code expires in 10 minutes.\n\n"
+                f"Thank you for choosing Shiuli CAD Studio!\n"
+                f"Shiuli CAD Studio Atelier Accounts Team"
+            ),
+            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com'),
+            recipient_list=[purchase.buyer.email],
+            fail_silently=True
+        )
+    except Exception as e:
+        print(f"[EMAIL SERVICE WARNING] Failed to dispatch admin approval email: {e}")
+
+    return Response({
+        "message": f"Payment verified! Download enabled for {masked_email}. 6-digit verification code has been dispatched.",
+        "purchase_id": purchase.id,
+        "product_title": purchase.product.title,
+        "status": "paid",
+        "masked_email": masked_email,
+        "debug_otp": otp_code if getattr(settings, 'DEBUG', False) else None
+    }, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
@@ -838,7 +966,12 @@ def list_my_purchases(request):
             "license_type_display": p.get_license_type_display(),
             "price_paid": str(p.price_paid),
             "payment_transaction_id": p.payment_transaction_id,
+            "payment_method": p.payment_method or "upi",
+            "payment_details": p.payment_details or "",
+            "payment_screenshot": request.build_absolute_uri(p.payment_screenshot.url) if p.payment_screenshot else None,
             "status": p.status,
+            "can_download": p.status == Purchase.Status.PAID,
+            "admin_verified_at": p.admin_verified_at,
             "redelivery_count": p.redelivery_count,
             "max_redeliveries": 3,
             "purchased_at": p.purchased_at,

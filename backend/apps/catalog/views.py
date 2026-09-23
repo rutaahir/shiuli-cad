@@ -88,7 +88,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
             return [permissions.AllowAny()]
-        elif self.action in ['create', 'upload_image', 'upload_file']:
+        elif self.action in ['create', 'upload_image', 'upload_file', 'toggle_active']:
             return [IsStaffOrAdmin()]
         elif self.action in ['pending', 'approve', 'reject']:
             return [IsAdmin()]
@@ -100,15 +100,26 @@ class ProductViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = Product.objects.all().select_related('category', 'uploaded_by').prefetch_related('images', 'style_tags', 'files')
 
-        # Public list only shows APPROVED products unless admin, or staff looking at their uploads
+        scope = self.request.query_params.get('scope')
+
+        # Staff requesting their own products in Staff Portal
+        if scope == 'mine' and user.is_authenticated:
+            return queryset.filter(uploaded_by=user).order_by('-created_at')
+
+        # When staff is mutating (updating/deleting/toggling/uploading media), restrict to their own products
+        if user.is_authenticated and getattr(user, 'role', '') == 'staff' and self.action in [
+            'update', 'partial_update', 'destroy', 'upload_image', 'upload_file', 'delete_image', 'delete_file', 'toggle_active'
+        ]:
+            return queryset.filter(uploaded_by=user).order_by('-created_at')
+
+        # Public list only shows APPROVED and ACTIVE products unless admin
         if self.action == 'list':
             status_param = self.request.query_params.get('status')
             if status_param:
                 queryset = queryset.filter(status__iexact=status_param)
-            elif not user.is_authenticated or user.role == 'client':
-                queryset = queryset.filter(status=Product.Status.APPROVED)
-            elif user.role == 'staff':
-                queryset = queryset.filter(Q(status=Product.Status.APPROVED) | Q(uploaded_by=user))
+            elif not user.is_authenticated or user.role == 'client' or (user.role == 'staff' and scope != 'mine'):
+                # Customers and public storefront browse active approved products
+                queryset = queryset.filter(status=Product.Status.APPROVED, is_active=True)
 
             # Filters
             category_slug = self.request.query_params.get('category')
@@ -148,6 +159,25 @@ class ProductViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(is_featured=featured.lower() == 'true')
 
         return queryset.order_by('-created_at')
+
+    @action(detail=True, methods=['post'], permission_classes=[IsStaffOrAdmin], url_path='toggle-active')
+    def toggle_active(self, request, slug=None):
+        product = self.get_object()
+        user = request.user
+        if getattr(user, 'role', '') == 'staff' and product.uploaded_by != user:
+            return Response(
+                {"detail": "You can only enable or disable your own products."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        product.is_active = not product.is_active
+        product.save(update_fields=['is_active'])
+        return Response({
+            "id": product.id,
+            "slug": product.slug,
+            "title": product.title,
+            "is_active": product.is_active,
+            "message": f"Product is now {'Active & Published' if product.is_active else 'Disabled & Hidden'}."
+        })
 
     def get_serializer_class(self):
         if self.action == 'list':

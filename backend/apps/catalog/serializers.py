@@ -12,7 +12,7 @@ class CategorySerializer(serializers.ModelSerializer):
         model = Category
         fields = [
             'id', 'name', 'slug', 'tagline', 'image', 'image_url', 'image_display',
-            'parent', 'parent_name', 'display_order', 'subcategories', 'product_count'
+            'parent', 'parent_name', 'display_order', 'commission_percentage', 'subcategories', 'product_count'
         ]
 
     def get_image_display(self, obj):
@@ -70,14 +70,23 @@ class ProductFileSerializer(serializers.ModelSerializer):
 class ProductListSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
     primary_image = serializers.SerializerMethodField()
+    uploaded_by_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
         fields = [
             'id', 'title', 'slug', 'category', 'category_name',
-            'price', 'compare_at_price', 'metal_weight_grams', 'stone_count',
+            'price', 'compare_at_price', 'staff_price', 'commission_rate', 'commission_amount',
+            'is_active', 'agreed_terms', 'uploaded_by', 'uploaded_by_name',
+            'metal_weight_grams', 'stone_count',
             'status', 'is_bestseller', 'is_new', 'is_featured', 'primary_image', 'created_at'
         ]
+
+    def get_uploaded_by_name(self, obj):
+        if obj.uploaded_by:
+            name = f"{obj.uploaded_by.first_name} {obj.uploaded_by.last_name}".strip()
+            return name or obj.uploaded_by.username
+        return "Studio Atelier"
 
     def get_primary_image(self, obj):
         primary = obj.images.filter(is_primary=True).first() or obj.images.first()
@@ -101,7 +110,9 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         model = Product
         fields = [
             'id', 'title', 'slug', 'category', 'style_tags', 'uploaded_by',
-            'price', 'compare_at_price', 'commercial_price_markup',
+            'price', 'compare_at_price', 'staff_price', 'commission_rate', 'commission_amount',
+            'is_active', 'agreed_terms',
+            'commercial_price_markup',
             'atelier_license_desc', 'commercial_license_desc',
             'description', 'metal_weight_grams',
             'stone_count', 'status', 'rejection_reason', 'is_bestseller',
@@ -156,6 +167,7 @@ class ProductWriteSerializer(serializers.ModelSerializer):
         model = Product
         fields = [
             'id', 'slug', 'title', 'category', 'style_tags', 'price', 'compare_at_price',
+            'staff_price', 'commission_rate', 'commission_amount', 'agreed_terms', 'is_active',
             'commercial_price_markup', 'atelier_license_desc', 'commercial_license_desc',
             'description', 'metal_weight_grams', 'stone_count',
             'is_bestseller', 'is_new', 'is_featured', 'casting_tips', 'specs', 'formats_available',
@@ -166,6 +178,10 @@ class ProductWriteSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         style_tags = validated_data.pop('style_tags', [])
         user = self.context['request'].user if 'request' in self.context else None
+
+        category = validated_data.get('category')
+        if category and not validated_data.get('commission_rate'):
+            validated_data['commission_rate'] = getattr(category, 'commission_percentage', 20.00)
 
         # Both Admin and Staff products go live immediately on the public catalog
         if user and (getattr(user, 'role', '') in ['admin', 'staff'] or getattr(user, 'is_superuser', False) or getattr(user, 'is_staff', False)):

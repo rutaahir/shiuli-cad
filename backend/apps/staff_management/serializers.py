@@ -6,7 +6,11 @@ from .models import PlatformSettings
 class PlatformSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = PlatformSettings
-        fields = ['id', 'studio_name', 'timezone', 'default_max_job_limit', 'assignment_mode', 'auto_escalation_minutes', 'advance_payment_percentage']
+        fields = [
+            'id', 'studio_name', 'timezone', 'default_max_job_limit',
+            'assignment_mode', 'auto_escalation_minutes', 'advance_payment_percentage',
+            'studio_upi_id', 'studio_qr_code', 'studio_qr_code_url', 'cash_check_instructions'
+        ]
 
 
 class StaffListSerializer(serializers.ModelSerializer):

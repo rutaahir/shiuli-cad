@@ -44,7 +44,11 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCcw,
-  Package
+  Package,
+  Zap,
+  Mic,
+  Volume2,
+  Image as ImageIcon
 } from 'lucide-react';
 import { RevealOnScroll } from '../components/motion/RevealOnScroll';
 
@@ -144,11 +148,14 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
         console.warn('Backend custom requests fetch error:', err);
       }
 
-      // Strictly filter to ensure requests belong to the current authenticated user
-      const currentUserEmail = (user?.email || userEmail || '').toLowerCase().trim();
+      // Strictly filter to ensure requests belong to the current authenticated user or last submitted brief
+      const storedLastReqId = localStorage.getItem('shiuli_last_submitted_req_id');
+      const storedContactEmail = (localStorage.getItem('shiuli_contact_email') || '').toLowerCase().trim();
+      const currentUserEmail = (user?.email || userEmail || storedContactEmail || '').toLowerCase().trim();
       const currentUserId = user?.id;
 
       const userDbRequests = dbRequests.filter((req: any) => {
+        if (storedLastReqId && String(req.id) === String(storedLastReqId)) return true;
         if (!currentUserEmail && !currentUserId) return true;
         const matchesId = currentUserId && (String(req.client) === String(currentUserId) || String(req.client?.id) === String(currentUserId));
         const contactEmail = (req.contact_email || '').toLowerCase().trim();
@@ -157,7 +164,8 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
           contactEmail === currentUserEmail ||
           clientEmailVal === currentUserEmail ||
           (contactEmail && currentUserEmail.startsWith(contactEmail.split('@')[0])) ||
-          (clientEmailVal && currentUserEmail.startsWith(clientEmailVal.split('@')[0]))
+          (clientEmailVal && currentUserEmail.startsWith(clientEmailVal.split('@')[0])) ||
+          (contactEmail && contactEmail.startsWith(currentUserEmail.split('@')[0]))
         );
         const matchesUsername = user?.username && (
           req.client_name === user.username || 
@@ -169,15 +177,17 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
 
       // Strictly filter local requests so user requests are accurately retrieved
       const localRequests = (appStore.getCustomRequests() || []).filter((loc: any) => {
+        if (storedLastReqId && String(loc.id) === String(storedLastReqId)) return true;
         if (!currentUserEmail && !currentUserId) return true;
         const locEmail = (loc.clientEmail || loc.client_email || loc.contact_email || loc.email || '').toLowerCase().trim();
+        if (!locEmail) return true;
         const matchesEmail = currentUserEmail && (
-          !locEmail ||
           locEmail === currentUserEmail ||
-          (locEmail && currentUserEmail.startsWith(locEmail.split('@')[0]))
+          (locEmail && currentUserEmail.startsWith(locEmail.split('@')[0])) ||
+          (currentUserEmail && locEmail.startsWith(currentUserEmail.split('@')[0]))
         );
         const matchesId = currentUserId && String(loc.clientId) === String(currentUserId);
-        return matchesEmail || matchesId || !locEmail;
+        return matchesEmail || matchesId;
       });
 
       const combined = [...userDbRequests];
@@ -186,13 +196,15 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
         if (!combined.some((c: any) => String(c.id) === String(loc.id))) {
           combined.push({
             id: loc.id,
+            request_mode: loc.request_mode || 'quick',
             category_name: loc.jewelleryType || 'Custom Jewellery',
             aesthetic_style_name: loc.metalPreference || 'Luxury Style',
             metal_alloy_name: loc.metalPreference || 'Custom Gold',
             estimated_price_shown: parseFloat(String(loc.currentQuote || loc.targetBudget || '0').replace(/[^0-9.]/g, '')),
             status: loc.status || 'new',
             description: loc.description || 'Bespoke CAD Design Brief',
-            reference_image: loc.referenceImage,
+            reference_image: loc.referenceImage || loc.reference_image,
+            voice_recording_url: loc.voice_recording_url || '',
             created_at: loc.createdAt || 'Just now',
             messages: loc.messages || [],
             order: loc.order || null,
@@ -598,6 +610,13 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                               ? 'Official Quote Received'
                               : 'Submitted • In Review'}
                           </span>
+
+                          {req.request_mode === 'quick' && (
+                            <span className="px-3 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider bg-amber-500/20 border border-amber-400/40 text-amber-300 flex items-center gap-1.5 shadow-sm">
+                              <Zap className="w-3.5 h-3.5 text-amber-400" />
+                              Quick Request
+                            </span>
+                          )}
                         </div>
 
                         {(() => {
@@ -1038,6 +1057,42 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                           className="w-16 h-16 rounded-xl object-cover border border-white/20 hover:border-[#D4AF37] cursor-pointer"
                                         />
                                       ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Uploaded Reference Photo (from Quick Request or direct upload) */}
+                                {req.reference_image && (!req.sketches || !req.sketches.some((s: any) => (s.image_url || s.image) === req.reference_image)) && (
+                                  <div className="space-y-1.5">
+                                    <span className="text-[10px] font-mono text-[#D4AF37] uppercase font-bold flex items-center gap-1.5">
+                                      <ImageIcon className="w-3.5 h-3.5 text-[#D4AF37]" /> Uploaded Reference / Inspiration Photo
+                                    </span>
+                                    <div className="flex gap-2">
+                                      <img
+                                        src={req.reference_image}
+                                        alt="Reference Photo"
+                                        onClick={() => setSelectedSketchUrl(req.reference_image)}
+                                        className="w-20 h-20 rounded-xl object-cover border border-[#D4AF37]/50 hover:border-[#D4AF37] cursor-pointer shadow-md transition-all hover:scale-105"
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Voice Note Requisition Player */}
+                                {(req.voice_recording_url || req.voice_recording) && (
+                                  <div className="p-3.5 rounded-xl bg-[#060B1E] border border-[#D4AF37]/35 space-y-2">
+                                    <span className="text-[10px] font-mono text-[#D4AF37] uppercase font-bold flex items-center gap-1.5">
+                                      <Mic className="w-3.5 h-3.5 text-[#D4AF37]" /> Voice Note Requisition Attached
+                                    </span>
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-8 h-8 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37]/40 flex items-center justify-center shrink-0">
+                                        <Volume2 className="w-4 h-4 text-[#D4AF37]" />
+                                      </div>
+                                      <audio
+                                        controls
+                                        src={req.voice_recording_url || req.voice_recording}
+                                        className="w-full h-8 rounded-lg accent-[#D4AF37]"
+                                      />
                                     </div>
                                   </div>
                                 )}
@@ -1674,7 +1729,24 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                     <div key={p.id} className="p-6 rounded-3xl bg-[#09112B] border border-[#D4AF37]/30 space-y-5 shadow-xl relative overflow-hidden">
                       <div className="flex justify-between items-start">
                         <div>
-                          <span className="text-[10px] font-mono text-[#D4AF37] block">PURCHASE #{p.id}</span>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] font-mono text-[#D4AF37]">PURCHASE #{p.id}</span>
+                            {p.status === 'pending' ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 inline-flex items-center gap-1">
+                                <Clock className="w-2.5 h-2.5 animate-pulse" />
+                                Awaiting Admin Verification
+                              </span>
+                            ) : p.status === 'paid' ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 inline-flex items-center gap-1">
+                                <CheckCircle2 className="w-2.5 h-2.5" />
+                                Payment Verified & Enabled
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                                {p.status}
+                              </span>
+                            )}
+                          </div>
                           <h4 className="font-serif text-lg font-bold text-[#FAF8F3]">{p.product_title}</h4>
                           <span className="text-xs text-[#F5E7A3] font-semibold">{p.license_type_display}</span>
                         </div>
@@ -1683,70 +1755,132 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                         </span>
                       </div>
 
-                      {/* Step Indicator Bar: Paid -> Verified -> Downloaded */}
-                      <div className="p-3 rounded-2xl bg-[#070D22] border border-white/10 space-y-2">
-                        <div className="text-[11px] font-mono text-[#C9C2A6] flex justify-between">
-                          <span>Delivery Trail</span>
-                          <span className="text-amber-300 font-bold">
-                            {p.is_downloaded ? 'Downloaded' : p.is_otp_verified ? 'OTP Verified' : 'Paid'}
-                          </span>
+                      {p.payment_method && (
+                        <div className="p-2.5 rounded-xl bg-amber-500/5 border border-amber-500/20 text-[11px] font-mono flex items-center justify-between text-[#C9C2A6]">
+                          <span>Method: <strong className="text-amber-300 uppercase">{p.payment_method === 'cash_check' ? 'Cash / Check' : 'UPI / QR'}</strong></span>
+                          {p.created_at && <span>{new Date(p.created_at).toLocaleDateString()}</span>}
                         </div>
+                      )}
 
-                        <div className="grid grid-cols-3 gap-1.5 text-center text-[10px] font-mono">
-                          <div className="p-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-semibold flex items-center justify-center gap-1">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                            <span>1. Paid</span>
-                          </div>
-                          <div className={`p-1.5 rounded-lg border flex items-center justify-center gap-1 font-semibold ${
-                            p.is_otp_verified || p.is_downloaded
-                              ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-                              : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
-                          }`}>
-                            <ShieldCheck className="w-3 h-3" />
-                            <span>2. Verified</span>
-                          </div>
-                          <div className={`p-1.5 rounded-lg border flex items-center justify-center gap-1 font-semibold ${
-                            p.is_downloaded
-                              ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-                              : 'bg-zinc-800 border-zinc-700 text-zinc-500'
-                          }`}>
-                            <Download className="w-3 h-3" />
-                            <span>3. Downloaded</span>
-                          </div>
-                        </div>
+                      {p.status === 'pending' ? (
+                        <>
+                          {/* Step Indicator Bar for Pending Payment */}
+                          <div className="p-3 rounded-2xl bg-[#070D22] border border-white/10 space-y-2">
+                            <div className="text-[11px] font-mono text-[#C9C2A6] flex justify-between">
+                              <span>Verification Trail</span>
+                              <span className="text-amber-400 font-bold">
+                                Awaiting Atelier Approval
+                              </span>
+                            </div>
 
-                        {p.downloaded_at && (
-                          <div className="text-[10px] text-zinc-400 font-mono text-right pt-1">
-                            Downloaded on {new Date(p.downloaded_at).toLocaleDateString()} at {new Date(p.downloaded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            <div className="grid grid-cols-3 gap-1.5 text-center text-[10px] font-mono">
+                              <div className="p-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-semibold flex items-center justify-center gap-1">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                <span>1. Proof Sent</span>
+                              </div>
+                              <div className="p-1.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 font-semibold flex items-center justify-center gap-1">
+                                <Clock className="w-3 h-3 animate-spin" />
+                                <span>2. Verifying</span>
+                              </div>
+                              <div className="p-1.5 rounded-lg bg-zinc-800 border-zinc-700 text-zinc-500 flex items-center justify-center gap-1 font-semibold">
+                                <Lock className="w-3 h-3" />
+                                <span>3. Download</span>
+                              </div>
+                            </div>
                           </div>
-                        )}
-                      </div>
 
-                      {/* Re-Delivery Section */}
-                      <div className="pt-2 border-t border-white/10 space-y-2">
-                        <button
-                          onClick={() => handleRequestRedelivery(p.id, p.product_title)}
-                          disabled={isCapReached || resendingPurchaseId === p.id}
-                          className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                        >
-                          <Send className={`w-4 h-4 ${resendingPurchaseId === p.id ? 'animate-spin' : ''}`} />
-                          <span>
-                            {resendingPurchaseId === p.id ? 'Sending New OTP...' : 'Resend Secure Download Link'}
-                          </span>
-                        </button>
+                          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200/90 space-y-1">
+                            <div className="flex items-center gap-1.5 font-bold text-amber-300">
+                              <Clock className="w-3.5 h-3.5" />
+                              <span>Atelier Payment Verification in Progress</span>
+                            </div>
+                            <p className="text-[11px] text-[#C9C2A6] leading-relaxed">
+                              Your payment receipt and verification details have been received by Studio Administration. Once verified, download access will be unlocked immediately.
+                            </p>
+                          </div>
 
-                        <div className="text-[11px] text-[#C9C2A6] text-center font-mono">
-                          {isCapReached ? (
-                            <span className="text-rose-400 font-bold block bg-rose-500/10 p-2 rounded-lg border border-rose-500/20">
-                              Maximum limit of 3 download re-deliveries reached for this purchase. Need help? Contact Support.
-                            </span>
-                          ) : (
-                            <span>
-                              Re-delivery used: <strong className="text-amber-300">{p.redelivery_count}</strong> of 3 max allowed.
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                          <div className="pt-2 border-t border-white/10">
+                            <button
+                              disabled
+                              className="w-full py-3 rounded-xl bg-zinc-800/80 border border-zinc-700/60 text-zinc-400 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-not-allowed"
+                            >
+                              <Lock className="w-4 h-4 text-amber-400" />
+                              <span>Download Locked — Awaiting Admin Approval</span>
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          {/* Step Indicator Bar: Paid -> Verified -> Downloaded */}
+                          <div className="p-3 rounded-2xl bg-[#070D22] border border-white/10 space-y-2">
+                            <div className="text-[11px] font-mono text-[#C9C2A6] flex justify-between">
+                              <span>Delivery Trail</span>
+                              <span className="text-emerald-400 font-bold">
+                                {p.is_downloaded ? 'Downloaded' : p.is_otp_verified ? 'OTP Verified' : 'Download Enabled'}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-1.5 text-center text-[10px] font-mono">
+                              <div className="p-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-semibold flex items-center justify-center gap-1">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                <span>1. Approved</span>
+                              </div>
+                              <div className={`p-1.5 rounded-lg border flex items-center justify-center gap-1 font-semibold ${
+                                p.is_otp_verified || p.is_downloaded
+                                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                                  : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                              }`}>
+                                <ShieldCheck className="w-3 h-3" />
+                                <span>2. Verified</span>
+                              </div>
+                              <div className={`p-1.5 rounded-lg border flex items-center justify-center gap-1 font-semibold ${
+                                p.is_downloaded
+                                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                                  : 'bg-zinc-800 border-zinc-700 text-zinc-500'
+                              }`}>
+                                <Download className="w-3 h-3" />
+                                <span>3. Downloaded</span>
+                              </div>
+                            </div>
+
+                            {p.downloaded_at && (
+                              <div className="text-[10px] text-zinc-400 font-mono text-right pt-1">
+                                Downloaded on {new Date(p.downloaded_at).toLocaleDateString()} at {new Date(p.downloaded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Re-Delivery / Download Action Section */}
+                          <div className="pt-2 border-t border-white/10 space-y-2">
+                            <button
+                              onClick={() => handleRequestRedelivery(p.id, p.product_title)}
+                              disabled={isCapReached || resendingPurchaseId === p.id}
+                              className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                            >
+                              <Send className={`w-4 h-4 ${resendingPurchaseId === p.id ? 'animate-spin' : ''}`} />
+                              <span>
+                                {resendingPurchaseId === p.id
+                                  ? 'Sending Secure OTP...'
+                                  : !p.is_otp_verified && !p.is_downloaded
+                                  ? 'Verify Email & Download CAD'
+                                  : 'Resend Secure Download Link'}
+                              </span>
+                            </button>
+
+                            <div className="text-[11px] text-[#C9C2A6] text-center font-mono">
+                              {isCapReached ? (
+                                <span className="text-rose-400 font-bold block bg-rose-500/10 p-2 rounded-lg border border-rose-500/20">
+                                  Maximum limit of 3 download re-deliveries reached for this purchase. Need help? Contact Support.
+                                </span>
+                              ) : (
+                                <span>
+                                  Re-delivery used: <strong className="text-amber-300">{p.redelivery_count}</strong> of 3 max allowed.
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                   );
                 })}
@@ -2404,6 +2538,42 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                       className="w-20 h-20 rounded-2xl object-cover border border-white/20 hover:border-[#D4AF37] cursor-pointer"
                     />
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Uploaded Reference Photo (e.g. from Quick Request or single file) */}
+            {specsModalRequest.reference_image && (!specsModalRequest.sketches || !specsModalRequest.sketches.some((s: any) => (s.image_url || s.image) === specsModalRequest.reference_image)) && (
+              <div className="space-y-1.5">
+                <span className="text-xs font-mono uppercase tracking-wider text-[#D4AF37] font-bold flex items-center gap-1.5">
+                  <ImageIcon className="w-3.5 h-3.5 text-[#D4AF37]" /> Uploaded Reference / Inspiration Photo
+                </span>
+                <div className="flex gap-2">
+                  <img
+                    src={specsModalRequest.reference_image}
+                    alt="Reference Photo"
+                    onClick={() => setSelectedSketchUrl(specsModalRequest.reference_image)}
+                    className="w-24 h-24 rounded-2xl object-cover border border-[#D4AF37]/50 hover:border-[#D4AF37] cursor-pointer shadow-md transition-all hover:scale-105"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Voice Note Requisition Player */}
+            {(specsModalRequest.voice_recording_url || specsModalRequest.voice_recording) && (
+              <div className="p-4 rounded-2xl bg-[#070D22] border border-[#D4AF37]/35 space-y-2">
+                <span className="text-xs font-mono uppercase tracking-wider text-[#D4AF37] font-bold flex items-center gap-1.5">
+                  <Mic className="w-3.5 h-3.5 text-[#D4AF37]" /> Voice Note Requisition Attached
+                </span>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37]/40 flex items-center justify-center shrink-0">
+                    <Volume2 className="w-4 h-4 text-[#D4AF37]" />
+                  </div>
+                  <audio
+                    controls
+                    src={specsModalRequest.voice_recording_url || specsModalRequest.voice_recording}
+                    className="w-full h-8 rounded-lg accent-[#D4AF37]"
+                  />
                 </div>
               </div>
             )}

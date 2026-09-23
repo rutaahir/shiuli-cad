@@ -122,6 +122,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  // Listen for global auth expiration (401 token invalid / refresh failed)
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      setIsLoggedIn(false);
+      setUser(null);
+    };
+    window.addEventListener('shiuli:auth_expired', handleAuthExpired);
+    return () => {
+      window.removeEventListener('shiuli:auth_expired', handleAuthExpired);
+    };
+  }, []);
+
   const login = async (username: string, password: string) => {
     const data = await api.login(username, password);
     setUser(data.user);

@@ -14,6 +14,7 @@ import { appStore } from '../services/store';
 import { api } from '../services/api';
 
 import { StaffLayout } from '../components/staff/StaffLayout';
+import { AuthModal } from '../components/AuthModal';
 import { WaxSealStamp } from '../components/staff/WaxSealStamp';
 
 import { StaffWorkbenchTab } from '../components/staff/StaffWorkbenchTab';
@@ -391,6 +392,7 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
   const selectedJobObject = activeJobs.find((j) => j.id === selectedActiveJobId) || activeJobs[0];
 
   return (
+    <>
     <StaffLayout
       activeTab={activeTab}
       onTabChange={handleTabChange}
@@ -463,5 +465,7 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
         />
       )}
     </StaffLayout>
+    <AuthModal />
+    </>
   );
 };

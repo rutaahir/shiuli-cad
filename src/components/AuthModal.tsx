@@ -43,7 +43,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleClose = propOnClose || closeAuthModal;
 
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [userType, setUserType] = useState<'client' | 'staff'>('client');
 
   // Registration step ('form' | 'otp')
   const [regStep, setRegStep] = useState<'form' | 'otp'>('form');
@@ -173,23 +172,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         const data = await login(usernameOrEmail, password);
         const userRole = (data?.user?.role || data?.role || 'client').toLowerCase();
 
-        // Enforce strict Role Isolation per Tab
-        if (userType === 'staff') {
-          if (userRole !== 'staff' && userRole !== 'admin') {
-            await api.logout();
-            setIsLoading(false);
-            setErrorMessage('This account is registered as a Client. Please switch to the Client Login tab to sign in.');
-            return;
-          }
-        } else if (userType === 'client') {
-          if (userRole === 'staff' || userRole === 'admin') {
-            await api.logout();
-            setIsLoading(false);
-            setErrorMessage('This is a Staff/Modeller account. Please switch to the Staff / Modeller tab to sign in.');
-            return;
-          }
-        }
-
         setIsLoading(false);
         if (onLoginSuccess) {
           onLoginSuccess(data.user?.email || usernameOrEmail, userRole);
@@ -286,7 +268,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } else {
       setUsernameOrEmail('vikram@example.com');
     }
-    setPassword('');
+    setPassword('admin123');
+    setErrorMessage(null);
   };
 
 
@@ -326,52 +309,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               ? regStep === 'otp'
                 ? 'Verify Your Email Address'
                 : 'Join Shiuli CAD Studio'
-              : userType === 'staff'
-              ? 'Staff & Designer Portal'
-              : 'Client Atelier Login'}
+              : 'Sign In to Your Account'}
           </h3>
           <p className="text-xs text-[#C9C2A6] font-light">
             {authMode === 'register'
               ? regStep === 'otp'
                 ? `Enter the 6-digit verification code sent to ${usernameOrEmail}`
                 : 'Save designs, track custom orders & download watertight CAD files'
-              : userType === 'staff'
-              ? 'Sign in to access your CAD Workbench & active job pool'
-              : 'Sign in to access your downloaded 3DM and STL assets'}
+              : 'Sign in with your email or username to access your account, orders, or workbench'}
           </p>
         </div>
-
-        {/* User Role Selector (Only in login or initial form step) */}
-        {regStep === 'form' && (
-          <div className="flex rounded-xl bg-[#060D22] p-1 border border-[#D4AF37]/20 mb-5">
-            <button
-              type="button"
-              onClick={() => {
-                setUserType('client');
-                setErrorMessage(null);
-              }}
-              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg tracking-wider transition-all ${
-                userType === 'client' ? 'bg-[#D4AF37] text-[#0B1330] shadow-md' : 'text-[#C9C2A6] hover:text-white'
-              }`}
-            >
-              Client Login
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setUserType('staff');
-                setAuthMode('login');
-                setRegStep('form');
-                setErrorMessage(null);
-              }}
-              className={`flex-1 py-1.5 text-xs font-semibold rounded-lg tracking-wider transition-all ${
-                userType === 'staff' ? 'bg-[#D4AF37] text-[#0B1330] shadow-md' : 'text-[#C9C2A6] hover:text-white'
-              }`}
-            >
-              Staff / Modeller
-            </button>
-          </div>
-        )}
 
         {/* Calm Error Message */}
         {errorMessage && (
@@ -502,8 +449,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             )}
 
             <FloatingLabelInput
-              label={userType === 'staff' ? 'Username or Email' : 'Email Address'}
-              type="email"
+              label={authMode === 'register' ? 'Email Address' : 'Email Address or Username'}
+              type="text"
               value={usernameOrEmail}
               onChange={(e) => handleChange('email', e.target.value, setUsernameOrEmail)}
               onBlur={() => handleBlur('email', usernameOrEmail)}
@@ -570,9 +517,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <span>
                     {authMode === 'register'
                       ? 'Register & Verify Email'
-                      : userType === 'staff'
-                      ? 'Login to Staff Portal'
-                      : 'Sign In To Atelier'}
+                      : 'Sign In'}
                   </span>
                   <ArrowRight className="w-3.5 h-3.5 text-[#0B1330]" />
                 </>
@@ -582,7 +527,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         )}
 
         {/* Toggle Login/Register */}
-        {userType === 'client' && regStep === 'form' && (
+        {regStep === 'form' && (
           <div className="text-center pt-4 border-t border-white/10 mt-4">
             <p className="text-xs text-[#C9C2A6] font-light">
               {authMode === 'login' ? "Don't have an account?" : 'Already registered?'}{' '}
@@ -597,7 +542,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 }}
                 className="text-[#F5E7A3] font-semibold hover:text-[#D4AF37] underline underline-offset-4 cursor-pointer"
               >
-                {authMode === 'login' ? 'Create Account' : 'Sign In'}
+                {authMode === 'login' ? 'Create Client Account' : 'Sign In'}
               </button>
             </p>
           </div>

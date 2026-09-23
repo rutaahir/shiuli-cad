@@ -91,6 +91,8 @@ class RegisterClientSerializer(serializers.ModelSerializer):
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         username_or_email = attrs.get(self.username_field, '')
+        if isinstance(username_or_email, str):
+            username_or_email = username_or_email.strip()
 
         # Allow authentication by either Email or Username
         if username_or_email:
@@ -99,6 +101,8 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             ).first()
             if user_obj:
                 attrs[self.username_field] = user_obj.username
+            else:
+                attrs[self.username_field] = username_or_email
 
         data = super().validate(attrs)
         user_serializer = UserSerializer(self.user)

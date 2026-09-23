@@ -211,6 +211,11 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
 
     const recipientEmail = user.email || 'shahharshil3103@gmail.com';
 
+    if (paymentResult?.isPendingVerification) {
+      // Proof submitted; admin will confirm and enable download in dashboard
+      return;
+    }
+
     setPurchasing(true);
     try {
       const res = await api.post<any>('/payments/purchases/', {

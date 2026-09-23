@@ -84,6 +84,27 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
   const handlePaymentSuccess = async (_result: any) => {
     setIsPaymentModalOpen(false);
+
+    if (_result?.isPendingVerification) {
+      try {
+        for (const item of items) {
+          await api.post<any>('/payments/purchases/', {
+            product_id: item.product.dbId || item.product.id,
+            license_type: item.license === 'commercial' ? 'commercial' : 'atelier',
+            payment_transaction_id: _result.transactionId || `TXN-CART-${Date.now()}`,
+            payment_method: _result.method,
+            payment_details: _result.paymentDetails,
+            payment_screenshot: _result.screenshotUrl,
+            auto_confirm: false,
+          });
+        }
+      } catch (err) {
+        console.error('Failed to create pending purchases:', err);
+      }
+      onClearCart();
+      setOrderCompleted(true);
+      return;
+    }
     
     const recipientEmail = user?.email || 'shahharshil3103@gmail.com';
     const mainTitle = items.length > 0 ? items[0].product.title : 'CAD File Package';

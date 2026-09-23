@@ -39,11 +39,21 @@ class SettlementSerializer(serializers.ModelSerializer):
     order_number = serializers.SerializerMethodField()
     design_title = serializers.SerializerMethodField()
     created_at = serializers.SerializerMethodField()
+    balance_due = serializers.SerializerMethodField()
 
     class Meta:
         model = Settlement
-        fields = ['id', 'staff', 'staff_name', 'order', 'order_id', 'order_number', 'design_title', 'amount', 'status', 'processed_at', 'created_at']
+        fields = [
+            'id', 'staff', 'staff_name', 'order', 'order_id', 'order_number',
+            'design_title', 'amount', 'amount_paid', 'balance_due', 'payment_method',
+            'transaction_ref', 'notes', 'status', 'processed_at', 'created_at'
+        ]
         read_only_fields = ['id', 'staff', 'order', 'amount', 'processed_at']
+
+    def get_balance_due(self, obj):
+        paid = float(obj.amount_paid or 0)
+        total = float(obj.amount or 0)
+        return max(0.0, round(total - paid, 2))
 
     def get_staff_name(self, obj):
         if obj.staff:

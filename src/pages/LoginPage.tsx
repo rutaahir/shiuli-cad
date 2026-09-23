@@ -19,7 +19,6 @@ const BRAND_QUOTES = [
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) => {
   const { login } = useAuth();
-  const [userType, setUserType] = useState<'client' | 'staff'>('client');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -51,21 +50,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
     try {
       const res = await login(email, password);
       const role = (res?.role || res?.user?.role || 'client').toLowerCase();
-
-      // Enforce Tab-Role Alignment
-      if (userType === 'staff') {
-        if (role !== 'staff' && role !== 'admin') {
-          setIsLoading(false);
-          setErrorMessage('This account is registered as a Client. Please switch to the Client Login tab to sign in.');
-          return;
-        }
-      } else if (userType === 'client') {
-        if (role === 'staff' || role === 'admin') {
-          setIsLoading(false);
-          setErrorMessage('This is a Staff/Modeller account. Please switch to the Staff / Modeller tab to sign in.');
-          return;
-        }
-      }
 
       setIsLoading(false);
       if (role === 'admin') {
@@ -176,41 +160,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
           {/* Form Header */}
           <div className="space-y-2">
             <h1 className="font-serif text-3xl sm:text-4xl text-[#FAF8F3] tracking-wide">
-              {userType === 'staff' ? 'Staff & Designer Portal' : 'Client Atelier Sign In'}
+              Sign In to Your Account
             </h1>
             <p className="text-xs text-[#C9C2A6] font-light leading-relaxed">
-              {userType === 'staff'
-                ? 'Sign in to access your CAD Workbench & active job pool'
-                : 'Sign in to access your ready CAD library, track custom orders & download files'}
+              Sign in with your email or username to access your CAD library, orders, or workbench
             </p>
-          </div>
-
-          {/* User Role Selector Tab */}
-          <div className="flex rounded-xl bg-[#060D22] p-1 border border-[#D4AF37]/20">
-            <button
-              type="button"
-              onClick={() => {
-                setUserType('client');
-                setErrorMessage(null);
-              }}
-              className={`flex-1 py-2 text-xs font-semibold rounded-lg tracking-wider transition-all cursor-pointer ${
-                userType === 'client' ? 'bg-[#D4AF37] text-[#0B1330] shadow-md font-bold' : 'text-[#C9C2A6] hover:text-white'
-              }`}
-            >
-              Client Login
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setUserType('staff');
-                setErrorMessage(null);
-              }}
-              className={`flex-1 py-2 text-xs font-semibold rounded-lg tracking-wider transition-all cursor-pointer ${
-                userType === 'staff' ? 'bg-[#D4AF37] text-[#0B1330] shadow-md font-bold' : 'text-[#C9C2A6] hover:text-white'
-              }`}
-            >
-              Staff / Modeller
-            </button>
           </div>
 
           {/* Calm Error Banner */}
@@ -308,19 +262,27 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
                 <div className="flex flex-wrap gap-2 justify-center">
                   <button
                     type="button"
-                    onClick={() => { setEmail('admin@shiuli.com'); setPassword(''); }}
-                    className="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] hover:bg-amber-500/20 flex items-center gap-1"
+                    onClick={() => { setEmail('admin@shiuli.com'); setPassword('admin123'); setErrorMessage(null); }}
+                    className="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] hover:bg-amber-500/20 flex items-center gap-1 cursor-pointer"
                   >
                     <KeyRound className="w-3 h-3" />
-                    Admin Email
+                    Admin
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setEmail('shahharshil313@gmail.com'); setPassword(''); }}
-                    className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[11px] hover:bg-emerald-500/20 flex items-center gap-1"
+                    onClick={() => { setEmail('shahharshil313@gmail.com'); setPassword('admin123'); setErrorMessage(null); }}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[11px] hover:bg-emerald-500/20 flex items-center gap-1 cursor-pointer"
                   >
                     <KeyRound className="w-3 h-3" />
-                    Staff Email
+                    Staff
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setEmail('vikram@example.com'); setPassword('admin123'); setErrorMessage(null); }}
+                    className="px-2.5 py-1 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-300 text-[11px] hover:bg-blue-500/20 flex items-center gap-1 cursor-pointer"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    Client
                   </button>
                 </div>
               </div>

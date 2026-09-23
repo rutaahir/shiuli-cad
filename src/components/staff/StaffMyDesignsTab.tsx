@@ -55,8 +55,8 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
         setDesignStyles(stylesRes);
       }
 
-      // 3. Fetch products
-      const prodRes = await api.getProducts();
+      // 3. Fetch staff's own products isolated
+      const prodRes = await api.getMyProducts();
       const resultsArray = Array.isArray(prodRes) ? prodRes : prodRes?.results || [];
       setProducts(resultsArray);
     } catch (err: any) {
@@ -69,6 +69,22 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
   useEffect(() => {
     loadData();
   }, []);
+
+  const handleToggleActive = async (prod: any) => {
+    try {
+      const res = await api.toggleProductActive(prod.slug);
+      showToast(
+        res.is_active
+          ? `Product "${prod.title}" is now ACTIVE & visible on store.`
+          : `Product "${prod.title}" is now DISABLED & hidden from store.`
+      );
+      setProducts((prev) =>
+        prev.map((p) => (p.slug === prod.slug ? { ...p, is_active: res.is_active } : p))
+      );
+    } catch (err: any) {
+      alert(err.message || 'Failed to toggle product status.');
+    }
+  };
 
   const handleOpenAdd = () => {
     setEditingProduct(null);
@@ -139,15 +155,15 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-[#09112B] text-[#F5E7A3] text-[10px] font-mono font-bold uppercase tracking-widest">
-              Live Public Catalog
+              Designer Workspace
             </span>
-            <span className="text-xs text-[#6B7280] font-mono">• Staff & Artisan Panel</span>
+            <span className="text-xs text-[#6B7280] font-mono">• My Uploaded CAD Designs</span>
           </div>
           <h1 className="font-serif text-2xl font-bold text-[#1E2230] tracking-tight">
-            Manage Products & Store Catalog
+            My Designs & Storefront Catalog
           </h1>
           <p className="text-xs text-[#6B7280] max-w-2xl font-light">
-            Add new 3D CAD jewellery models or edit published catalog designs. Newly published items are immediately live for public client downloads.
+            Upload and manage your personal jewellery CAD models. Check real-time dynamic category commissions, monitor net earnings, and toggle designs active or disabled on the live storefront.
           </p>
         </div>
 
@@ -204,8 +220,8 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
                 <tr className="bg-[#09112B] text-[#F5E7A3] text-[11px] font-mono uppercase tracking-wider">
                   <th className="p-4 font-medium">Design & Title</th>
                   <th className="p-4 font-medium">Category</th>
-                  <th className="p-4 font-medium">Price</th>
-                  <th className="p-4 font-medium">Badges</th>
+                  <th className="p-4 font-medium">Pricing & Payout</th>
+                  <th className="p-4 font-medium">Store Visibility</th>
                   <th className="p-4 font-medium">Status</th>
                   <th className="p-4 font-medium text-right">Actions</th>
                 </tr>
@@ -241,35 +257,42 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
                       </span>
                     </td>
 
-                    {/* Price */}
-                    <td className="p-4 font-mono font-bold text-[#1E2230]">
-                      ${prod.price}
-                      {prod.compare_at_price && (
-                        <span className="text-[10px] text-[#9CA3AF] line-through ml-1.5">
-                          ${prod.compare_at_price}
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Badges */}
-                    <td className="p-4">
-                      <div className="flex items-center gap-1">
-                        {prod.is_bestseller && (
-                          <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-mono font-bold">
-                            BESTSELLER
-                          </span>
-                        )}
-                        {prod.is_new && (
-                          <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-[10px] font-mono font-bold">
-                            NEW
-                          </span>
-                        )}
-                        {prod.is_featured && (
-                          <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-800 text-[10px] font-mono font-bold">
-                            FEATURED
+                    {/* Pricing & Net Payout */}
+                    <td className="p-4 font-mono text-xs">
+                      <div className="font-bold text-[#1E2230] flex items-center gap-1">
+                        <span>${prod.price}</span>
+                        {prod.compare_at_price && (
+                          <span className="text-[10px] text-[#9CA3AF] line-through">
+                            ${prod.compare_at_price}
                           </span>
                         )}
                       </div>
+                      {prod.staff_price != null ? (
+                        <div className="text-[10px] text-emerald-700 font-semibold mt-0.5">
+                          Net: ${prod.staff_price} ({100 - (Number(prod.commission_rate) || 20)}%)
+                        </div>
+                      ) : prod.commission_rate != null ? (
+                        <div className="text-[10px] text-slate-500 mt-0.5">
+                          Fee: {prod.commission_rate}%
+                        </div>
+                      ) : null}
+                    </td>
+
+                    {/* Store Visibility Toggle */}
+                    <td className="p-4">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleActive(prod)}
+                        className={`px-3 py-1 rounded-full text-[11px] font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                          prod.is_active !== false
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200'
+                            : 'bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-200'
+                        }`}
+                        title={prod.is_active !== false ? 'Click to Disable / Hide from store' : 'Click to Enable / Show on store'}
+                      >
+                        <span className={`w-2 h-2 rounded-full ${prod.is_active !== false ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                        <span>{prod.is_active !== false ? 'Active' : 'Disabled'}</span>
+                      </button>
                     </td>
 
                     {/* Status */}
@@ -286,7 +309,7 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
                             prod.status === 'approved' ? 'bg-emerald-500' : 'bg-amber-500'
                           }`}
                         />
-                        {prod.status === 'approved' ? 'Published Live' : 'Draft / In Review'}
+                        {prod.status === 'approved' ? 'Approved' : 'Draft / Review'}
                       </span>
                     </td>
 

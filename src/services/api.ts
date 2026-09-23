@@ -118,6 +118,32 @@ class ApiClient {
         errorData.error ||
         (typeof errorData === 'string' ? errorData : null);
 
+      // Determine if error is from an auth endpoint (login/register) vs an authenticated session call
+      const isAuthEndpoint = Boolean(
+        response.url &&
+        (response.url.includes('/auth/login') ||
+         response.url.includes('/auth/register') ||
+         response.url.includes('/auth/token'))
+      );
+
+      // Intercept cryptic JWT token validation errors only for existing authenticated sessions
+      if (
+        !isAuthEndpoint &&
+        (
+          response.status === 401 ||
+          errorMessage === 'Given token not valid for any token type' ||
+          errorData?.code === 'token_not_valid' ||
+          (typeof errorMessage === 'string' && errorMessage.toLowerCase().includes('token not valid')) ||
+          (typeof errorMessage === 'string' && errorMessage.toLowerCase().includes('token is invalid'))
+        )
+      ) {
+        this.clearSession();
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('shiuli:auth_expired'));
+        }
+        errorMessage = 'Your session has expired. Please sign in again to continue.';
+      }
+
       const fieldErrors: Record<string, string[]> = {};
       if (typeof errorData === 'object' && errorData !== null) {
         const errorPairs: string[] = [];
@@ -145,6 +171,9 @@ class ApiClient {
       err.status = response.status;
       err.fieldErrors = fieldErrors;
       err.data = errorData;
+      if (response.status === 401) {
+        err.isAuthExpired = true;
+      }
       throw err;
     }
 
@@ -183,6 +212,10 @@ class ApiClient {
         const data = await response.json();
         if (data.access) {
           localStorage.setItem('shiuli_access_token', data.access);
+          // When ROTATE_REFRESH_TOKENS=True, SimpleJWT returns new refresh token
+          if (data.refresh) {
+            localStorage.setItem('shiuli_refresh_token', data.refresh);
+          }
           return data.access;
         } else {
           this.clearSession();
@@ -219,7 +252,7 @@ class ApiClient {
         headers,
       });
 
-      if (response.status === 401 && retryCount === 0 && !endpoint.includes('/auth/login/')) {
+      if (response.status === 401 && retryCount === 0 && !endpoint.includes('/auth/login/') && !endpoint.includes('/auth/refresh/')) {
         try {
           await this.refreshToken();
           headers = this.getHeaders(options.headers as Record<string, string>, isFormData);
@@ -229,6 +262,13 @@ class ApiClient {
           });
         } catch {
           this.clearSession();
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('shiuli:auth_expired'));
+          }
+          const sessionErr: any = new Error('Your session has expired. Please sign in again.');
+          sessionErr.status = 401;
+          sessionErr.isAuthExpired = true;
+          throw sessionErr;
         }
       }
 
@@ -272,7 +312,7 @@ class ApiClient {
       user: any;
     }>('/auth/login/', {
       method: 'POST',
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username: username?.trim(), password }),
     });
 
     if (data?.access) {
@@ -485,6 +525,20 @@ class ApiClient {
     return await this.request<any[]>('/payments/gateway-log/');
   }
 
+  async adminApprovePurchase(purchaseId: number | string) {
+    this.ensureAdminToken();
+    return await this.request<any>(`/payments/purchases/${purchaseId}/admin-approve/`, {
+      method: 'POST',
+    });
+  }
+
+  async adminApprovePayment(paymentId: number | string) {
+    this.ensureAdminToken();
+    return await this.request<any>(`/payments/${paymentId}/admin-approve/`, {
+      method: 'POST',
+    });
+  }
+
   async updateStaff(
     staffId: number | string,
     updates: {
@@ -522,6 +576,7 @@ class ApiClient {
     slug?: string;
     parent?: number | null;
     display_order?: number;
+    commission_percentage?: number;
   }) {
     await this.ensureAdminToken();
     try {
@@ -535,6 +590,32 @@ class ApiClient {
         await this.ensureAdminToken();
         return await this.request<any>('/catalog/categories/', {
           method: 'POST',
+          body: JSON.stringify(categoryData),
+        });
+      }
+      throw err;
+    }
+  }
+
+  async updateCategory(categoryId: number | string, categoryData: {
+    name?: string;
+    slug?: string;
+    parent?: number | null;
+    display_order?: number;
+    commission_percentage?: number;
+  }) {
+    await this.ensureAdminToken();
+    try {
+      return await this.request<any>(`/catalog/categories/${categoryId}/`, {
+        method: 'PATCH',
+        body: JSON.stringify(categoryData),
+      });
+    } catch (err: any) {
+      if (err.status === 401 || err.status === 403) {
+        localStorage.removeItem('shiuli_access_token');
+        await this.ensureAdminToken();
+        return await this.request<any>(`/catalog/categories/${categoryId}/`, {
+          method: 'PATCH',
           body: JSON.stringify(categoryData),
         });
       }
@@ -595,8 +676,19 @@ class ApiClient {
     return this.request<any>(endpoint);
   }
 
+  async getMyProducts(params: Record<string, string> = {}) {
+    return this.getProducts({ ...params, scope: 'mine' });
+  }
+
   async getProductBySlug(slug: string) {
     return this.request<any>(`/catalog/products/${slug}/`);
+  }
+
+  async toggleProductActive(slug: string) {
+    await this.ensureAdminToken();
+    return this.request<any>(`/catalog/products/${slug}/toggle-active/`, {
+      method: 'POST',
+    });
   }
 
   async createProduct(productData: {
@@ -605,6 +697,11 @@ class ApiClient {
     style_tags?: number[];
     price: number;
     compare_at_price?: number;
+    staff_price?: number;
+    commission_rate?: number;
+    commission_amount?: number;
+    agreed_terms?: boolean;
+    is_active?: boolean;
     description: string;
     metal_weight_grams?: number;
     stone_count?: number;
@@ -638,6 +735,11 @@ class ApiClient {
       style_tags?: number[];
       price?: number;
       compare_at_price?: number;
+      staff_price?: number;
+      commission_rate?: number;
+      commission_amount?: number;
+      agreed_terms?: boolean;
+      is_active?: boolean;
       commercial_price_markup?: number;
       atelier_license_desc?: string;
       commercial_license_desc?: string;
@@ -977,6 +1079,9 @@ class ApiClient {
     assignment_mode: string;
     auto_escalation_minutes: number;
     advance_payment_percentage: number;
+    studio_upi_id: string;
+    studio_qr_code_url: string;
+    cash_check_instructions: string;
   }>) {
     await this.ensureAdminToken();
     return this.request<any>('/platform-settings/', {
@@ -1116,6 +1221,19 @@ class ApiClient {
   }
 
   async createCustomRequest(data: any): Promise<any> {
+    if (data instanceof FormData) {
+      const token = localStorage.getItem('shiuli_access_token') || localStorage.getItem('access_token');
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const response = await fetch('/api/custom-requests/', {
+        method: 'POST',
+        headers,
+        body: data,
+      });
+      return await this.handleResponse<any>(response);
+    }
     return this.request<any>('/custom-requests/', {
       method: 'POST',
       body: JSON.stringify(data),

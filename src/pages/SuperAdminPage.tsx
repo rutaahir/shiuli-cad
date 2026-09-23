@@ -20,6 +20,7 @@ import { AdminServicesModule } from '../components/admin/AdminServicesModule';
 import { AdminFileEditsModule } from '../components/admin/AdminFileEditsModule';
 import { AdminPortfolioModule } from '../components/admin/AdminPortfolioModule';
 import { AdminContactModule } from '../components/admin/AdminContactModule';
+import { AuthModal } from '../components/AuthModal';
 
 interface SuperAdminPageProps {
   onNavigate: (page: PageId, extraId?: string) => void;
@@ -112,6 +113,7 @@ export const SuperAdminPage: React.FC<SuperAdminPageProps> = ({ onNavigate, init
   };
 
   return (
+    <>
     <AdminLayout
       activeModule={activeModule}
       onSelectModule={setActiveModule}
@@ -178,5 +180,7 @@ export const SuperAdminPage: React.FC<SuperAdminPageProps> = ({ onNavigate, init
 
       {activeModule === 'settings' && <AdminSettingsModule />}
     </AdminLayout>
+    <AuthModal />
+    </>
   );
 };
