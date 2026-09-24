@@ -60,7 +60,7 @@ select::-moz-selection,
   }
 
   body {
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   /* Headings use luxury serif */
@@ -441,7 +441,7 @@ select::-moz-selection,
 @media (max-width: 640px) {
   /* Prevent horizontal overflow on screens down to 320px */
   html, body {
-    overflow-x: hidden !important;
+    overflow-x: clip !important;
     width: 100% !important;
   }
 

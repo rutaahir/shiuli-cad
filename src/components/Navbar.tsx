@@ -208,14 +208,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             : 'bg-gradient-to-b from-[#060B1E] via-[#060B1E]/80 to-transparent py-4'
         }`}
       >
-        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
+        <div className="w-full px-6 sm:px-12 lg:px-20 xl:px-28">
           <div className="flex items-center justify-between">
             {/* Left Brand Logo */}
-            <BrandLogo
-              variant="horizontal"
-              size="md"
-              onClick={() => onNavigate('home')}
-            />
+            <div className="flex-shrink-0 flex items-center mr-4 sm:mr-8">
+              <BrandLogo
+                variant="horizontal"
+                size="md"
+                onClick={() => onNavigate('home')}
+              />
+            </div>
 
             {/* Desktop Navigation Links */}
             <nav className="hidden lg:flex items-center space-x-1 xl:space-x-2">

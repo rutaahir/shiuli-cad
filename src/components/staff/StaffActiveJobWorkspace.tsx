@@ -22,7 +22,9 @@ import {
   Video,
   Image as ImageIcon,
   AlertTriangle,
-  Calendar
+  Calendar,
+  MessageSquare,
+  Volume2
 } from 'lucide-react';
 
 interface StaffActiveJobWorkspaceProps {
@@ -333,14 +335,89 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
               ? 'bg-purple-100 text-purple-800 border border-purple-300'
               : orderData.status === 'completed'
               ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+              : orderData.status === 'revision_requested'
+              ? 'bg-amber-100 text-amber-900 border border-amber-300 animate-pulse'
               : 'bg-amber-100 text-amber-800 border border-amber-300'
           }`}>
-            Status: {orderData.status === 'pending_review' ? 'Pending Admin Review' : orderData.status === 'with_designer' ? 'With Designer' : orderData.status}
+            Status: {
+              orderData.status === 'pending_review'
+                ? 'Pending Admin Review'
+                : orderData.status === 'with_designer'
+                ? 'With Designer'
+                : orderData.status === 'revision_requested'
+                ? `Changes Requested by Client (Target v${orderData.current_version || 1})`
+                : orderData.status
+            }
           </span>
         </div>
       </div>
 
-      {/* SECTION 7: ADMIN REVISION FEEDBACK BANNER (IF REVISION REQUESTED) */}
+      {/* SECTION 7A: CLIENT REVISION FEEDBACK (IF CLIENT REQUESTED CHANGES) */}
+      {orderData.revision_requests && orderData.revision_requests.length > 0 && (
+        <div className="p-5 rounded-2xl bg-amber-50/90 border-2 border-amber-300 space-y-3 text-[#1E2230] shadow-md">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-bold text-amber-950 uppercase tracking-wider">
+              <MessageSquare className="w-5 h-5 text-amber-600" />
+              <span>Customer Revision Instructions ({orderData.revision_requests.length} Iteration{orderData.revision_requests.length > 1 ? 's' : ''} Logged)</span>
+            </div>
+            <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-md bg-amber-200 text-amber-900 font-bold border border-amber-300">
+              Active Target: Deliverable v{orderData.current_version || 1}
+            </span>
+          </div>
+
+          <div className="space-y-2.5">
+            {orderData.revision_requests.map((rev: any, idx: number) => (
+              <div key={rev.id || idx} className="p-4 rounded-xl bg-white border border-amber-200 shadow-sm space-y-2 text-xs">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-bold text-[#1E2230]">
+                    Revision #{rev.revision_number} &bull; Against Previous Deliverable v{rev.deliverable_version}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase font-bold ${
+                    rev.status === 'addressed' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
+                    rev.status === 'in_progress' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                    'bg-amber-100 text-amber-900 border border-amber-300'
+                  }`}>
+                    {rev.status === 'addressed' ? 'Addressed' : rev.status === 'in_progress' ? 'Modelling in CAD' : 'Action Required'}
+                  </span>
+                </div>
+
+                <p className="text-slate-800 text-xs italic leading-relaxed bg-[#F8FAFC] p-3 rounded-lg border border-slate-200">
+                  "{rev.comment}"
+                </p>
+
+                {(rev.voice_note || rev.reference_image) && (
+                  <div className="flex flex-wrap items-center gap-4 pt-1">
+                    {rev.voice_note && (
+                      <div className="flex items-center gap-2 text-xs text-amber-900 font-medium">
+                        <Volume2 className="w-4 h-4 text-amber-600" />
+                        <span className="text-[11px]">Spoken Voice Note:</span>
+                        <audio controls src={rev.voice_note} className="h-7 w-48" />
+                      </div>
+                    )}
+                    {rev.reference_image && (
+                      <a
+                        href={rev.reference_image}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1.5 text-xs text-blue-700 hover:text-blue-900 font-semibold hover:underline"
+                      >
+                        <ImageIcon className="w-4 h-4 text-blue-600" />
+                        <span>Inspect Customer Markup Image</span>
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <p className="text-[11px] text-amber-900 font-mono">
+            ● Please address the client's instructions above in Rhino CAD, export updated files, and upload below as <strong>v{orderData.current_version || 1}</strong>.
+          </p>
+        </div>
+      )}
+
+      {/* SECTION 7B: ADMIN REVISION FEEDBACK BANNER (IF INTERNAL QC REVISION REQUESTED) */}
       {orderData.admin_review_notes && (
         <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 space-y-2 text-[#1E2230] shadow-sm">
           <div className="flex items-center gap-2 text-xs font-bold text-amber-900 uppercase tracking-wider">
@@ -515,7 +592,12 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                   CAD Deliverables Vault
                 </h3>
               </div>
-              <span className="text-xs text-[#6B7280] font-mono">Protected Storage Split Active</span>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 rounded-md bg-[#0D1B4C] text-[#F5E7A3] text-xs font-mono font-bold border border-[#C9A227]/40">
+                  Target: Deliverable v{orderData?.current_version || 1}
+                </span>
+                <span className="text-xs text-[#6B7280] font-mono hidden sm:inline">Protected Storage Active</span>
+              </div>
             </div>
 
             {/* Error Notification Alert for File Type Mismatch */}
@@ -954,18 +1036,19 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                 <Award className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="font-serif text-lg font-bold text-[#1E2230]">Hand Over CAD Commission</h3>
-                <span className="text-xs font-mono text-[#6B7280]">Order #ORD-{effectiveOrderId}</span>
+                <h3 className="font-serif text-lg font-bold text-[#1E2230]">Hand Over CAD Deliverables (v{orderData?.current_version || 1})</h3>
+                <span className="text-xs font-mono text-[#6B7280]">Order #ORD-{effectiveOrderId} &bull; Target Iteration v{orderData?.current_version || 1}</span>
               </div>
             </div>
 
             <p className="text-xs text-[#4B5563] leading-relaxed">
-              Ready to hand this job over? Your workbench slot will be freed once submitted, and deliverables will be transferred for Admin QC review.
+              Ready to hand this job over? Your deliverables for version <strong>v{orderData?.current_version || 1}</strong> will be submitted to the studio admin QC queue for review.
             </p>
 
             <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 space-y-1 font-mono">
-              <div>✓ Rhino Master File (.3DM): {rhinoDeliverable?.filename}</div>
-              <div>✓ Castable STL (.STL): {stlDeliverable?.filename}</div>
+              <div>✓ Version: Deliverable v{orderData?.current_version || 1}</div>
+              <div>✓ Rhino Master File (.3DM): {rhinoDeliverable?.filename || 'Attached'}</div>
+              <div>✓ Castable STL (.STL): {stlDeliverable?.filename || 'Attached'}</div>
               <div>✓ Render Preview (.JPG/.PNG): {renderDeliverable?.filename || 'Attached'}</div>
               <div>✓ Milestone Stage: Ready for Delivery (100%)</div>
             </div>

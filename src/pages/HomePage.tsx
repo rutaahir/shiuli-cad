@@ -329,7 +329,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   }, [liveProducts, selectedFilter]);
 
   return (
-    <div className="min-h-screen bg-[#060B1E] text-[#F5F1E8] overflow-hidden relative">
+    <div className="min-h-screen bg-[#060B1E] text-[#F5F1E8] overflow-x-clip relative">
 
       {/* SECTION 1: HERO (UNTOUCHED HERO LAYOUT WITH PARALLAX ON-SCROLL) */}
       <section ref={heroRef} className="relative min-h-screen flex items-center overflow-hidden" style={{ backgroundColor: '#09112B' }}>
@@ -692,35 +692,35 @@ export const HomePage: React.FC<HomePageProps> = ({
             <p className="text-xs text-[#C9C2A6] font-light">
               Instant download includes native Rhino .3DM, castable .STL, and 4K render pack.
             </p>
-
-            {/* Filter Chips — dynamically built from live backend categories */}
-            <div className="flex flex-wrap items-center justify-center gap-2 pt-4">
-              {[
-                { id: 'all', label: 'All Designs' },
-                ...(categories.length > 0
-                  ? categories.slice(0, 7).map((c) => ({ id: c.slug, label: c.name }))
-                  : [
-                      { id: 'rings', label: 'Rings' },
-                      { id: 'pendants', label: 'Pendants' },
-                      { id: 'earrings', label: 'Earrings' },
-                      { id: 'necklaces', label: 'Necklaces' },
-                      { id: 'bangles', label: 'Bangles' },
-                    ]),
-              ].map((filter) => (
-                <button
-                  key={filter.id}
-                  onClick={() => setSelectedFilter(filter.id)}
-                  className={`px-4 py-1.5 rounded-full text-xs transition-all ${
-                    selectedFilter === filter.id
-                      ? 'bg-[#D4AF37] text-[#0B1330] font-semibold shadow-md'
-                      : 'bg-[#121F4D]/50 text-[#C9C2A6] hover:text-white border border-[#D4AF37]/20'
-                  }`}
-                >
-                  {filter.label}
-                </button>
-              ))}
-            </div>
           </RevealOnScroll>
+
+          {/* Sticky Category Filter Bar — stays pinned below navbar when scrolling products */}
+          <div className="sticky top-[78px] sm:top-[84px] z-30 py-3 px-4 sm:px-6 rounded-2xl bg-[#080E24]/95 backdrop-blur-2xl border border-[#D4AF37]/35 shadow-[0_12px_40px_rgba(0,0,0,0.85)] flex flex-wrap items-center justify-center gap-2 max-w-5xl mx-auto transition-all">
+            {[
+              { id: 'all', label: 'All Designs' },
+              ...(categories.length > 0
+                ? categories.map((c) => ({ id: c.slug, label: c.name }))
+                : [
+                    { id: 'rings', label: 'Rings' },
+                    { id: 'pendants', label: 'Pendants' },
+                    { id: 'earrings', label: 'Earrings' },
+                    { id: 'necklaces', label: 'Necklaces' },
+                    { id: 'bangles', label: 'Bangles' },
+                  ]),
+            ].map((filter) => (
+              <button
+                key={filter.id}
+                onClick={() => setSelectedFilter(filter.id)}
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+                  selectedFilter === filter.id
+                    ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#0B1330] font-extrabold shadow-[0_0_14px_rgba(212,175,55,0.45)] scale-105'
+                    : 'bg-[#121F4D]/80 text-[#C9C2A6] hover:text-white hover:bg-[#1A2E6D] border border-[#D4AF37]/20 hover:border-[#D4AF37]/50'
+                }`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
 
           {/* Product Grid */}
           {filteredProducts.length === 0 ? (

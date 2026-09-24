@@ -42,6 +42,54 @@ function setStored<T>(key: string, value: T): void {
   }
 }
 
+const DEFAULT_STAFF: StaffMember[] = [
+  {
+    id: '6',
+    name: 'Harshil Shah',
+    email: 'shahharshil313@gmail.com',
+    phone: '+91 98765 00000',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+    role: 'MatrixGold Specialist',
+    status: 'active',
+    maxJobLimit: 3,
+    currentLoad: 1,
+    jobsCompleted: 14,
+    rating: 4.95,
+    totalEarnings: 0,
+    activeJobs: [],
+  },
+  {
+    id: '2',
+    name: 'Rahul Sharma',
+    email: 'rahul@shiuli.com',
+    phone: '+91 98765 43210',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
+    role: 'Diamond, Solitaire Rings, 3D Rhino',
+    status: 'active',
+    maxJobLimit: 3,
+    currentLoad: 0,
+    jobsCompleted: 24,
+    rating: 4.9,
+    totalEarnings: 0,
+    activeJobs: [],
+  },
+  {
+    id: '3',
+    name: 'Ananya Patel',
+    email: 'ananya@shiuli.com',
+    phone: '+91 98765 43211',
+    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80',
+    role: 'Modern, Antique Necklaces, Matrix Gold',
+    status: 'active',
+    maxJobLimit: 2,
+    currentLoad: 0,
+    jobsCompleted: 18,
+    rating: 4.85,
+    totalEarnings: 0,
+    activeJobs: [],
+  },
+];
+
 export const appStore = {
   // Products
   getProducts(): Product[] {
@@ -59,10 +107,12 @@ export const appStore = {
 
   // Staff Members
   getStaffList(): StaffMember[] {
-    const raw = getStored<StaffMember[]>(KEYS.STAFF_LIST, []);
+    const raw = getStored<StaffMember[]>(KEYS.STAFF_LIST, DEFAULT_STAFF);
+    // If empty array was explicitly stored in localStorage, fallback to DEFAULT_STAFF
+    const listToUse = (raw && raw.length > 0) ? raw : DEFAULT_STAFF;
     // Deduplicate by ID or Email
     const uniqueMap = new Map<string, StaffMember>();
-    raw.forEach((s) => {
+    listToUse.forEach((s) => {
       const key = (s.id || s.email || '').toString().toLowerCase();
       if (key && !uniqueMap.has(key)) {
         uniqueMap.set(key, s);

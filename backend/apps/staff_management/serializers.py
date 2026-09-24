@@ -9,17 +9,18 @@ class PlatformSettingsSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'studio_name', 'timezone', 'default_max_job_limit',
             'assignment_mode', 'auto_escalation_minutes', 'advance_payment_percentage',
-            'studio_upi_id', 'studio_qr_code', 'studio_qr_code_url', 'cash_check_instructions'
+            'studio_upi_id', 'studio_qr_code', 'studio_qr_code_url', 'cash_check_instructions',
+            'free_revisions_allowed', 'extra_revision_fee'
         ]
 
 
 class StaffListSerializer(serializers.ModelSerializer):
-    profile_id = serializers.IntegerField(source='staff_profile.id', read_only=True)
-    max_concurrent_jobs = serializers.IntegerField(source='staff_profile.max_concurrent_jobs', read_only=True)
-    specialty_tags = serializers.CharField(source='staff_profile.specialty_tags', read_only=True)
-    bio = serializers.CharField(source='staff_profile.bio', read_only=True)
-    rating_average = serializers.DecimalField(source='staff_profile.rating_average', max_digits=3, decimal_places=2, read_only=True)
-    total_jobs_completed = serializers.IntegerField(source='staff_profile.total_jobs_completed', read_only=True)
+    profile_id = serializers.IntegerField(source='staff_profile.id', read_only=True, default=None, allow_null=True)
+    max_concurrent_jobs = serializers.IntegerField(source='staff_profile.max_concurrent_jobs', read_only=True, default=2)
+    specialty_tags = serializers.CharField(source='staff_profile.specialty_tags', read_only=True, default='')
+    bio = serializers.CharField(source='staff_profile.bio', read_only=True, default='')
+    rating_average = serializers.DecimalField(source='staff_profile.rating_average', max_digits=3, decimal_places=2, read_only=True, default="5.00")
+    total_jobs_completed = serializers.IntegerField(source='staff_profile.total_jobs_completed', read_only=True, default=0)
     current_load = serializers.SerializerMethodField()
     active_jobs = serializers.SerializerMethodField()
 
@@ -42,20 +43,44 @@ class StaffListSerializer(serializers.ModelSerializer):
         orders = Order.objects.filter(
             assigned_staff=obj,
             status=Order.Status.WITH_DESIGNER
-        ).select_related('custom_request', 'client').order_by('-assigned_at')
-        return [
-            {
+        ).select_related('custom_request', 'custom_request__category', 'custom_request__reference_product', 'client', 'product').order_by('-assigned_at')
+        active_list = []
+        for o in orders:
+            title = f"Custom CAD Design #{o.id}"
+            if o.product and hasattr(o.product, 'title') and o.product.title:
+                title = o.product.title
+            elif o.custom_request:
+                if getattr(o.custom_request, 'reference_product', None) and getattr(o.custom_request.reference_product, 'title', None):
+                    title = f"Custom: {o.custom_request.reference_product.title}"
+                elif getattr(o.custom_request, 'category', None) and getattr(o.custom_request.category, 'name', None):
+                    title = f"{o.custom_request.category.name} #{o.custom_request.id}"
+                else:
+                    title = f"Custom Request #{o.custom_request.id}"
+
+            client_name = "Client"
+            client_email = ""
+            if o.client:
+                client_name = o.client.get_full_name() or o.client.username
+                client_email = o.client.email or ""
+
+            preview_url = None
+            if o.preview_image:
+                try:
+                    preview_url = o.preview_image.url
+                except Exception:
+                    preview_url = None
+
+            active_list.append({
                 "id": o.id,
-                "title": o.custom_request.title if o.custom_request else f"Custom CAD Design #{o.id}",
-                "client_name": o.client.get_full_name() or o.client.username,
-                "client_email": o.client.email,
+                "title": title,
+                "client_name": client_name,
+                "client_email": client_email,
                 "status": o.status,
                 "assigned_at": o.assigned_at,
                 "deadline_hours": o.deadline_hours,
-                "preview_image": o.preview_image.url if o.preview_image else None
-            }
-            for o in orders
-        ]
+                "preview_image": preview_url
+            })
+        return active_list
 
 
 class CreateStaffSerializer(serializers.ModelSerializer):

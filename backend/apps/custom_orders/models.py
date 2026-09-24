@@ -229,6 +229,7 @@ class Order(models.Model):
         WITH_DESIGNER = "with_designer", "With CAD Designer"
         PENDING_REVIEW = "pending_review", "Pending Admin Quality Review"
         PREVIEW_READY = "preview_ready", "Design Preview Ready for Client"
+        REVISION_REQUESTED = "revision_requested", "Changes Requested — Studio Reviewing"
         PENDING_FINAL_PAYMENT = "pending_final_payment", "Pending Final Payment"
         COMPLETED = "completed", "Completed"
         CANCELLED = "cancelled", "Cancelled"
@@ -259,6 +260,9 @@ class Order(models.Model):
     balance_paid = models.BooleanField(default=False)
     status = models.CharField(max_length=30, choices=Status.choices, default=Status.AWAITING_PAYMENT)
     
+    # Versioning & Revision Management
+    current_version = models.PositiveIntegerField(default=1)
+
     # Deadline Configuration & Tracking (Stage 4B & 7 & 8)
     deadline_hours = models.PositiveIntegerField(default=72)
     due_at = models.DateTimeField(null=True, blank=True)
@@ -294,7 +298,7 @@ class Order(models.Model):
 
 class OrderMilestone(models.Model):
     order = models.ForeignKey(Order, related_name="milestones", on_delete=models.CASCADE)
-    stage = models.CharField(max_length=30)
+    stage = models.CharField(max_length=50)
     reached_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -303,9 +307,48 @@ class OrderMilestone(models.Model):
 
 class OrderDeliverable(models.Model):
     order = models.ForeignKey(Order, related_name="deliverables", on_delete=models.CASCADE)
+    version = models.PositiveIntegerField(default=1)
     file_type = models.CharField(max_length=10)  # 3dm, stl, render, video
     file = models.FileField(upload_to="orders/deliverables/")
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Order #{self.order_id} Deliverable ({self.file_type})"
+        return f"Order #{self.order_id} Deliverable v{self.version} ({self.file_type})"
+
+
+class RevisionRequest(models.Model):
+    class Status(models.TextChoices):
+        OPEN = "open", "Open"
+        IN_PROGRESS = "in_progress", "In Progress"
+        ADDRESSED = "addressed", "Addressed"
+        CLOSED = "closed", "Closed"
+
+    order = models.ForeignKey(Order, related_name="revision_requests", on_delete=models.CASCADE)
+    deliverable_version = models.PositiveIntegerField(default=1)
+    revision_number = models.PositiveIntegerField(default=1)
+    client = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="revision_requests"
+    )
+    comment = models.TextField()
+    voice_note = models.FileField(upload_to="orders/revisions/voice/", null=True, blank=True)
+    reference_image = models.ImageField(upload_to="orders/revisions/images/", null=True, blank=True)
+    is_paid = models.BooleanField(default=True)
+    fee_charged = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN)
+    created_at = models.DateTimeField(auto_now_add=True)
+    addressed_at = models.DateTimeField(null=True, blank=True)
+    addressed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="addressed_revisions"
+    )
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"Revision #{self.revision_number} on Order #{self.order_id} ({self.status})"

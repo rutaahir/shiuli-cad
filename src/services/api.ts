@@ -449,6 +449,27 @@ class ApiClient {
     }
   }
 
+  async submitRevisionRequest(orderId: number | string, data: FormData | Record<string, any>) {
+    if (data instanceof FormData) {
+      const token = localStorage.getItem('shiuli_access_token');
+      const response = await fetch(`/api/orders/${orderId}/revision-requests/`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: data,
+      });
+      return await this.handleResponse<any>(response);
+    } else {
+      return this.request<any>(`/orders/${orderId}/revision-requests/`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    }
+  }
+
+  async getOrderRevisionRequests(orderId: number | string) {
+    return this.request<any[]>(`/orders/${orderId}/revision-requests/`);
+  }
+
   ensureAdminToken() {
     const token =
       localStorage.getItem('shiuli_access_token') ||

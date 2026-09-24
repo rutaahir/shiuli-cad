@@ -45,6 +45,38 @@ def pay_stage_payment(request):
 
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
+def pay_full_order_payment(request):
+    order_id = request.data.get('order_id')
+    if not order_id:
+        return Response({"error": "order_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        order = Order.objects.get(id=order_id, client=request.user)
+    except Order.DoesNotExist:
+        return Response({"error": "Order not found or does not belong to you."}, status=status.HTTP_404_NOT_FOUND)
+
+    transaction_id = request.data.get('transaction_id')
+    payment_method = request.data.get('payment_method', 'upi')
+    payment_details = request.data.get('payment_details', '')
+
+    from .services import process_full_order_payment_success
+    result = process_full_order_payment_success(
+        order,
+        transaction_id=transaction_id,
+        payment_method=payment_method,
+        payment_details=payment_details
+    )
+    return Response({
+        "message": f"Order #{order.id} completely settled in full!",
+        "order_id": order.id,
+        "stages_paid": result.get('stages_paid', 0),
+        "total_amount": float(order.total_price)
+    })
+
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
 def create_payment_session(request):
     order_id = request.data.get('order_id')
     stage_id = request.data.get('stage_id')

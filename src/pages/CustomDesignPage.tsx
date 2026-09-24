@@ -128,6 +128,10 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
   // Selections Map for Dynamic Option Groups (group.key -> option_value.id) - starts empty
   const [selections, setSelections] = useState<Record<string, number>>({});
 
+  // Custom / Other Gold Purity State
+  const [isCustomPuritySelected, setIsCustomPuritySelected] = useState<boolean>(false);
+  const [customPurityInput, setCustomPurityInput] = useState<string>('');
+
   // Stones Specification - starts completely empty
   const [isMetalOnly, setIsMetalOnly] = useState(false);
   const [stonesList, setStonesList] = useState<CustomRequestStonePayload[]>([]);
@@ -496,6 +500,14 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
   const selectedValuesSummary = useMemo(() => {
     const summary: { group: string; value: string; color?: string }[] = [];
     Object.entries(selections).forEach(([groupKey, valueId]) => {
+      if (groupKey === 'gold_purity' && isCustomPuritySelected) {
+        summary.push({
+          group: groupMap['gold_purity']?.label || 'Gold Purity Standard',
+          value: customPurityInput.trim() ? `Custom: ${customPurityInput.trim()}` : 'Custom / Other',
+          color: '#D4AF37'
+        });
+        return;
+      }
       const g = groupMap[groupKey];
       if (g) {
         const val = (g.options || []).find(o => o.id === valueId);
@@ -504,8 +516,16 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
         }
       }
     });
+    // In case gold_purity wasn't in selections map yet when custom was picked
+    if (isCustomPuritySelected && isGoldSelected && !summary.some(s => s.group.toLowerCase().includes('purity'))) {
+      summary.push({
+        group: groupMap['gold_purity']?.label || 'Gold Purity Standard',
+        value: customPurityInput.trim() ? `Custom: ${customPurityInput.trim()}` : 'Custom / Other',
+        color: '#D4AF37'
+      });
+    }
     return summary;
-  }, [selections, groupMap]);
+  }, [selections, groupMap, isCustomPuritySelected, customPurityInput, isGoldSelected]);
 
   // Toggle Selection of a Catalog Product
   const toggleCatalogProductRef = (item: SelectedCatalogRef) => {
@@ -603,6 +623,19 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
       const selectedOptionsPayload = Object.entries(selections)
         .filter(([_, valId]) => Boolean(valId))
         .map(([groupKey, valId]) => {
+          if (groupKey === 'gold_purity' && isCustomPuritySelected) {
+            const groupObj = groupMap['gold_purity'];
+            const customVal = customPurityInput.trim() || 'Custom / Other';
+            return {
+              group_key: 'gold_purity',
+              group_label: groupObj?.label || 'Gold Purity Standard',
+              option_group: groupObj?.id || 'gold_purity',
+              option_value: -1,
+              value_label: customPurityInput.trim() ? `Custom: ${customPurityInput.trim()}` : 'Custom / Other',
+              other_text: customVal,
+              swatch_color: '#D4AF37'
+            };
+          }
           const groupObj = groupMap[groupKey] || optionGroups.find(g => g.key === groupKey || (g.options || []).some(o => o.id === valId));
           const valObj = groupObj?.options?.find(o => o.id === valId);
           return {
@@ -615,6 +648,21 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
             swatch_color: valObj?.swatch_color || ''
           };
         });
+
+      // Ensure custom gold purity is attached if selected
+      if (isGoldSelected && isCustomPuritySelected && !selectedOptionsPayload.some(s => s.group_key === 'gold_purity')) {
+        const groupObj = groupMap['gold_purity'];
+        const customVal = customPurityInput.trim() || 'Custom / Other';
+        selectedOptionsPayload.push({
+          group_key: 'gold_purity',
+          group_label: groupObj?.label || 'Gold Purity Standard',
+          option_group: groupObj?.id || 'gold_purity',
+          option_value: -1,
+          value_label: customPurityInput.trim() ? `Custom: ${customPurityInput.trim()}` : 'Custom / Other',
+          other_text: customVal,
+          swatch_color: '#D4AF37'
+        });
+      }
 
       // Upload draft sketch files if user attached any
       let draftSketchIds: number[] = [];
@@ -638,6 +686,9 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
       }));
 
       let fullNotes = specialInstructions;
+      if (isGoldSelected && isCustomPuritySelected && customPurityInput.trim()) {
+        fullNotes = `${fullNotes ? fullNotes + '\n' : ''}[Client Custom Gold Purity Standard: ${customPurityInput.trim()}]`;
+      }
       if (selectedCatalogProducts.length > 0) {
         const catRefsText = selectedCatalogProducts.map(p => `[Ref SKU: ${p.id} - ${p.title}]`).join(', ');
         fullNotes = `${fullNotes ? fullNotes + '\n' : ''}Catalog References: ${catRefsText}`;
@@ -1277,16 +1328,19 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                             <label className="block text-xs font-bold text-[#F5E7A3] uppercase tracking-wider flex items-center gap-2">
                               <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" /> Gold Purity Standard
                             </label>
-                            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2">
                               {(groupMap['gold_purity'].options || [])
                                 .filter(o => o.is_active)
                                 .map(opt => {
-                                  const isSel = selections['gold_purity'] === opt.id;
+                                  const isSel = !isCustomPuritySelected && selections['gold_purity'] === opt.id;
                                   return (
                                     <button
                                       key={opt.id}
                                       type="button"
-                                      onClick={() => setSelections(prev => ({ ...prev, gold_purity: opt.id }))}
+                                      onClick={() => {
+                                        setIsCustomPuritySelected(false);
+                                        setSelections(prev => ({ ...prev, gold_purity: opt.id }));
+                                      }}
                                       className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all ${isSel
                                         ? 'bg-[#D4AF37] text-[#0B1330] border-[#F5E7A3] shadow-md font-extrabold'
                                         : 'bg-[#09112B] text-[#FAF8F3]/80 border-white/10 hover:border-[#D4AF37]/40'
@@ -1296,7 +1350,47 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                     </button>
                                   );
                                 })}
+
+                              {/* CUSTOM / OTHER option button */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsCustomPuritySelected(true);
+                                  setSelections(prev => ({ ...prev, gold_purity: -1 }));
+                                }}
+                                className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all ${isCustomPuritySelected
+                                  ? 'bg-[#D4AF37] text-[#0B1330] border-[#F5E7A3] shadow-md font-extrabold ring-1 ring-[#F5E7A3]'
+                                  : 'bg-[#09112B] text-[#FAF8F3]/80 border-dashed border-[#D4AF37]/50 hover:border-[#D4AF37] hover:bg-[#D4AF37]/10'
+                                  }`}
+                              >
+                                CUSTOM / OTHER
+                              </button>
                             </div>
+
+                            {/* CUSTOM PURITY INPUT FIELD */}
+                            {isCustomPuritySelected && (
+                              <div className="mt-3 pt-3 border-t border-[#D4AF37]/20 space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                  <label className="block text-xs font-semibold text-[#F5E7A3] flex items-center gap-1.5">
+                                    Specify Custom Gold Purity Standard <span className="text-[#D4AF37]">*</span>
+                                  </label>
+                                  <span className="text-[10px] text-[#FAF8F3]/50">Visible to Studio Admin & CAD Staff</span>
+                                </div>
+                                <div className="relative">
+                                  <input
+                                    type="text"
+                                    value={customPurityInput}
+                                    onChange={e => setCustomPurityInput(e.target.value)}
+                                    placeholder="e.g. 21K (Gulf / Arabic Standard), 19K, 916 Hallmark, 999 Fine Gold..."
+                                    className="w-full bg-[#080E24] border border-[#D4AF37]/60 rounded-xl px-3.5 py-2.5 text-xs text-[#FAF8F3] placeholder-white/30 focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] shadow-inner transition-all"
+                                    autoFocus
+                                  />
+                                </div>
+                                <p className="text-[11px] text-[#FAF8F3]/50">
+                                  Enter any custom or regional gold karat requirement here. Our admin and production staff will review and calibrate your CAD casting shrinkage values accordingly.
+                                </p>
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -2187,6 +2281,10 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                           onClick={() => {
                             if (currentStep === 1 && !selectedCategory) {
                               alert('Please select a jewelry category (e.g. Rings, Pendants, Earrings) before proceeding to the next step.');
+                              return;
+                            }
+                            if (currentStep === 2 && isGoldSelected && isCustomPuritySelected && !customPurityInput.trim()) {
+                              alert('Please type your custom gold purity standard (e.g., 21K, 19K, 916 Hallmark) or select a standard purity option.');
                               return;
                             }
                             setCurrentStep(prev => Math.min(prev + 1, 5));

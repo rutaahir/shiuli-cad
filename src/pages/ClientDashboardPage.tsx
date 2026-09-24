@@ -48,7 +48,8 @@ import {
   Zap,
   Mic,
   Volume2,
-  Image as ImageIcon
+  Image as ImageIcon,
+  RefreshCw
 } from 'lucide-react';
 import { RevealOnScroll } from '../components/motion/RevealOnScroll';
 
@@ -57,6 +58,7 @@ import { appStore } from '../services/store';
 import { OTPVerificationModal } from '../components/delivery/OTPVerificationModal';
 import { OrderOTPVerificationModal } from '../components/delivery/OrderOTPVerificationModal';
 import { UserProfileModule } from '../components/profile/UserProfileModule';
+import { RevisionRequestModal } from '../components/common/RevisionRequestModal';
 
 const formatINR = (val: number | string | undefined | null) => {
   if (val === undefined || val === null || val === '') return '₹0';
@@ -130,6 +132,8 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
   const [specsModalRequest, setSpecsModalRequest] = useState<any | null>(null);
   const [previewLightboxOrder, setPreviewLightboxOrder] = useState<any | null>(null);
   const [lightboxZoom, setLightboxZoom] = useState<number>(1);
+  const [revisionModalOrder, setRevisionModalOrder] = useState<any | null>(null);
+  const [revisionToastMsg, setRevisionToastMsg] = useState<string | null>(null);
 
   const fetchCustomRequests = async () => {
     setLoadingCustom(true);
@@ -364,6 +368,8 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
   const [stagePaymentModalState, setStagePaymentModalState] = useState<{
     isOpen: boolean;
     stageId: number;
+    orderId?: number;
+    isFullPayment?: boolean;
     title: string;
     amount: number;
     percentage: number;
@@ -375,32 +381,62 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
     percentage: 0,
   });
 
-  const handlePayStage = (stage: any) => {
+  const handlePayStage = (stage: any, orderId?: number) => {
     const isObj = typeof stage === 'object' && stage !== null;
     setStagePaymentModalState({
       isOpen: true,
       stageId: isObj ? stage.id : stage,
+      orderId: orderId,
+      isFullPayment: false,
       title: (isObj ? (stage.stage_name || stage.label) : null) || 'Milestone CAD Stage Payment',
       amount: isObj ? (Number(stage.amount) || 0) : 0,
       percentage: isObj ? (Number(stage.percentage) || 0) : 0,
     });
   };
 
+  const handlePayFullOrder = (targetOrder: any, unpaidAmount: number) => {
+    setStagePaymentModalState({
+      isOpen: true,
+      stageId: 0,
+      orderId: targetOrder?.id,
+      isFullPayment: true,
+      title: `Order #${targetOrder?.id || ''} — Settle Complete Balance in Full`,
+      amount: unpaidAmount,
+      percentage: 100,
+    });
+  };
+
   const handleStagePaymentSuccess = async (result: any) => {
     try {
-      await api.request('/payments/pay-stage/', {
-        method: 'POST',
-        body: JSON.stringify({
-          stage_id: stagePaymentModalState.stageId,
-          transaction_id: result.transactionId,
-          payment_method: result.method,
-        }),
-      });
-      setStagePaymentModalState((prev) => ({ ...prev, isOpen: false }));
-      alert('Milestone stage payment confirmed & recorded!');
+      if (stagePaymentModalState.isFullPayment && stagePaymentModalState.orderId) {
+        await api.request('/payments/pay-full-order/', {
+          method: 'POST',
+          body: JSON.stringify({
+            order_id: stagePaymentModalState.orderId,
+            transaction_id: result.transactionId,
+            payment_method: result.method,
+            payment_details: result.paymentDetails || '',
+          }),
+        });
+        setStagePaymentModalState((prev) => ({ ...prev, isOpen: false }));
+        alert('Congratulations! Your entire order has been settled in full. All milestone stages are now unlocked.');
+      } else {
+        await api.request('/payments/pay-stage/', {
+          method: 'POST',
+          body: JSON.stringify({
+            stage_id: stagePaymentModalState.stageId,
+            transaction_id: result.transactionId,
+            payment_method: result.method,
+            payment_details: result.paymentDetails || '',
+          }),
+        });
+        setStagePaymentModalState((prev) => ({ ...prev, isOpen: false }));
+        alert('Milestone stage payment confirmed & recorded!');
+      }
       fetchCustomRequests();
+      fetchClientOrders();
     } catch (err: any) {
-      alert(err?.message || 'Stage payment recording failed.');
+      alert(err?.message || 'Payment recording failed.');
     }
   };
 
@@ -575,6 +611,12 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
               customRequests.map((req) => {
                 const order = req.order || clientOrders.find((o: any) => o.custom_request?.id === req.id || String(o.id) === String(req.order?.id));
                 const assignedStaff = order?.assigned_staff;
+                const isOrderConfirmed = Boolean(
+                  req.status === 'agreed' ||
+                  req.status === 'in_progress' ||
+                  req.status === 'completed' ||
+                  (order && order.status && order.status !== 'cancelled')
+                );
                 const hasOfficialQuote = Boolean(req.agreed_price || req.status === 'quoted' || req.status === 'agreed' || order?.total_price);
                 const totalVal = hasOfficialQuote ? parseFloat(req.agreed_price || order?.total_price || req.estimated_price_shown || '0') : 0;
                 
@@ -588,6 +630,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                 const isFullyPaid = Boolean(order?.payment_stages && order.payment_stages.length > 0 && order.payment_stages.every((st: any) => st.status === 'paid'));
                 const paidPct = totalVal > 0 ? Math.min(100, Math.round((paidVal / totalVal) * 100)) : 0;
+                const unpaidVal = Math.max(0, totalVal - paidVal);
 
                 return (
                   <div key={req.id} className="space-y-8 border-b border-[#D4AF37]/20 pb-16">
@@ -603,11 +646,13 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                           <span className="px-3.5 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider bg-[#12204D] border border-[#D4AF37]/50 text-[#F5E7A3] flex items-center gap-2 shadow-md">
                             <span className="w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse" />
                             {assignedStaff
-                              ? `In Design • With ${assignedStaff.first_name || assignedStaff.username || 'Assigned Artisan'}`
-                              : req.status === 'agreed' || order
-                              ? 'Awaiting Booking Payment (10%)'
+                              ? 'In Design • CAD Production Active'
+                              : isOrderConfirmed
+                              ? 'Order Confirmed • Awaiting Booking Payment (10%)'
                               : req.status === 'quoted'
                               ? 'Official Quote Received'
+                              : req.status === 'negotiating'
+                              ? 'Price Negotiation in Progress'
                               : 'Submitted • In Review'}
                           </span>
 
@@ -674,7 +719,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                       {/* COMPACT PAYMENT PROGRESS BAR / QUOTE STATUS */}
                       <div className="p-4 rounded-2xl bg-[#09112B] border border-[#D4AF37]/30 sm:w-80 space-y-2 shadow-lg">
-                        {hasOfficialQuote ? (
+                        {isOrderConfirmed && totalVal > 0 ? (
                           <>
                             <div className="flex justify-between text-xs font-mono">
                               <span className="text-[#C9C2A6]">Payment Progress</span>
@@ -690,53 +735,53 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                         ) : (
                           <>
                             <div className="flex justify-between text-xs font-mono">
-                              <span className="text-[#C9C2A6]">Quote Status</span>
-                              <span className="text-[#F5E7A3] font-bold">Under Review</span>
+                              <span className="text-[#C9C2A6]">Quote &amp; Order Status</span>
+                              <span className="text-[#F5E7A3] font-bold">
+                                {req.status === 'quoted'
+                                  ? 'Official Quote Ready'
+                                  : req.status === 'negotiating'
+                                  ? 'Negotiating Price'
+                                  : 'Under Review'}
+                              </span>
                             </div>
                             <p className="text-[11px] text-[#C9C2A6]/80 leading-relaxed font-sans">
-                              Official CAD valuation will be issued by Senior Engineer after spec review.
+                              {req.status === 'quoted'
+                                ? `Official price of ${formatINR(req.agreed_price || req.estimated_price_shown)} quoted. Order confirms upon agreement.`
+                                : req.status === 'negotiating'
+                                ? 'Price request/counter-offer is being negotiated with SuperAdmin.'
+                                : 'Official CAD valuation will be issued by Senior Engineer after spec review.'}
                             </p>
                           </>
                         )}
                       </div>
                     </div>
 
-                    {/* 2. THE ASSIGNED DESIGNER CARD (100% DYNAMIC) */}
+                    {/* 2. THE ASSIGNED ATELIER PRODUCTION CARD */}
                     {assignedStaff ? (
                       <div className="p-6 rounded-3xl bg-gradient-to-r from-[#09112B] via-[#0E1B42] to-[#09112B] border-2 border-[#D4AF37]/40 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-6">
                         <div className="flex items-center gap-5">
-                          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 border-[#D4AF37] shadow-lg shrink-0 bg-[#070D22] flex items-center justify-center">
-                            {assignedStaff.profile_photo ? (
-                              <img
-                                src={assignedStaff.profile_photo}
-                                alt="CAD Designer"
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <User className="w-8 h-8 text-[#D4AF37]" />
-                            )}
+                          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-[#D4AF37] shadow-lg shrink-0 bg-gradient-to-br from-[#12204D] via-[#0D1B4C] to-[#070D22] flex items-center justify-center text-[#D4AF37]">
+                            <Sparkles className="w-8 h-8 text-[#D4AF37]" />
                           </div>
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
                               <h4 className="font-serif text-xl font-bold text-[#FAF8F3]">
-                                {assignedStaff.first_name
-                                  ? `${assignedStaff.first_name} ${assignedStaff.last_name || ''}`.trim()
-                                  : assignedStaff.username || 'Assigned Senior Craftsman'}
+                                Shiuli Master CAD Atelier
                               </h4>
-                              <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono font-bold">
-                                Assigned Craftsman
+                              <span className="px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/40 text-[10px] font-mono font-bold uppercase tracking-wider">
+                                CAD Production Active
                               </span>
                             </div>
                             <p className="text-xs text-[#D4AF37] font-medium">
-                              {assignedStaff.role || 'Senior CAD Artisan'} &bull; Specializes in {req.category_name || 'Bespoke Jewelry'}
+                              Dedicated Senior CAD Team &bull; Specializes in {req.category_name || 'Bespoke Jewelry'}
                             </p>
                             <div className="flex items-center gap-3 text-xs text-[#C9C2A6] font-mono pt-1">
-                              <span className="flex items-center gap-1 text-amber-300">
-                                <Star className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
-                                {assignedStaff.rating || '4.95'} / 5.0
+                              <span className="flex items-center gap-1.5 text-[#F5E7A3]">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                                Assigned &amp; Under Active 3D Sculpting
                               </span>
                               <span>&bull;</span>
-                              <span>{assignedStaff.jobs_completed || 140}+ Completed CAD Jobs</span>
+                              <span className="text-emerald-300">Watertight STL Guaranteed</span>
                             </div>
                           </div>
                         </div>
@@ -748,7 +793,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                           className="px-5 py-3 rounded-2xl bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 text-xs font-bold uppercase tracking-wider flex items-center gap-2 hover:bg-emerald-900/60 transition-all shrink-0 shadow-lg"
                         >
                           <Phone className="w-4 h-4 text-emerald-400" />
-                          <span>Direct Artisan Chat</span>
+                          <span>Studio Support Desk</span>
                         </a>
                       </div>
                     ) : (
@@ -1112,182 +1157,246 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                           <Sparkles className="w-3.5 h-3.5 text-[#070D22]" />
                         </div>
 
-                        <div className="space-y-4">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                            <div className="flex items-center gap-3">
-                              <h3 className="font-serif text-xl font-bold text-[#FAF8F3]">
-                                2. Official Senior Engineer Quote &amp; Negotiation
-                              </h3>
-                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider font-mono ${
-                                req.status === 'agreed' || req.status === 'in_progress' || order
-                                  ? 'bg-[#1F9D66] text-white shadow-[0_0_8px_rgba(31,157,102,0.6)]'
-                                  : req.status === 'quoted'
-                                  ? 'bg-[#D4AF37] text-[#070D22]'
-                                  : req.status === 'negotiating'
-                                  ? 'bg-[#E8A93B] text-[#070D22]'
-                                  : 'bg-[#6B7280] text-white'
-                              }`}>
-                                {req.status === 'agreed' || req.status === 'in_progress' || order ? 'ACCEPTED & AGREED' : req.status}
-                              </span>
-                            </div>
-                            <span className="font-serif text-2xl font-bold text-[#F5E7A3]">
-                              {formatINR(req.agreed_price || req.estimated_price_shown)}
-                            </span>
-                          </div>
+                        {/* Negotiation message analysis */}
+                        {(() => {
+                          const latestOfferMsg = req.messages && req.messages.length > 0
+                            ? [...req.messages].reverse().find((m: any) => m.offered_price !== undefined && m.offered_price !== null && m.offered_price !== '')
+                            : null;
+                          const isLatestOfferFromClient = Boolean(latestOfferMsg && latestOfferMsg.sender_type === 'client');
+                          const isLatestOfferFromAdmin = Boolean(
+                            (latestOfferMsg && latestOfferMsg.sender_type === 'admin') ||
+                            (!latestOfferMsg && req.status === 'quoted')
+                          );
+                          const currentOfferedPrice = latestOfferMsg?.offered_price != null
+                            ? Number(latestOfferMsg.offered_price)
+                            : Number(req.agreed_price || req.estimated_price_shown || 0);
 
-                          {/* REAL CHAT BUBBLES THREAD LOG */}
-                          {req.messages && req.messages.length > 0 && (
-                            <div className="space-y-3 p-4 rounded-2xl bg-[#09112B] border border-white/10 max-h-72 overflow-y-auto custom-scrollbar">
-                              {req.messages.map((msg: any) => {
-                                const isAdmin = msg.sender_type === 'admin';
-                                return (
-                                  <div
-                                    key={msg.id}
-                                    className={`flex gap-3 ${isAdmin ? 'justify-start' : 'justify-end'}`}
-                                  >
-                                    {isAdmin && (
-                                      <div className="w-8 h-8 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37] flex items-center justify-center text-[#F5E7A3] text-xs font-serif font-bold shrink-0">
-                                        CAD
-                                      </div>
-                                    )}
-
-                                    <div
-                                      className={`p-4 rounded-2xl max-w-md text-xs space-y-1.5 shadow-md ${
-                                        isAdmin
-                                          ? 'bg-[#12204D] border border-[#D4AF37]/40 text-[#FAF8F3] rounded-tl-none'
-                                          : 'bg-[#1A2E60] border border-white/20 text-[#FAF8F3] rounded-tr-none'
-                                      }`}
-                                    >
-                                      <div className="flex justify-between items-center text-[10px] text-[#C9C2A6] pb-1 border-b border-white/10">
-                                        <span className="font-bold">{isAdmin ? 'Senior CAD Engineer (Admin)' : 'You'}</span>
-                                        <span className="font-mono">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                      </div>
-                                      <p>{msg.message}</p>
-                                      {msg.offered_price && (
-                                        <div className="mt-2 p-2 rounded-xl bg-[#070D22] border border-[#D4AF37]/50 flex items-center justify-between text-xs">
-                                          <span className="text-[10px] text-[#C9C2A6] uppercase">Official Price Offer:</span>
-                                          <span className="font-mono font-bold text-[#F5E7A3]">{formatINR(msg.offered_price)}</span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-
-                          {/* STATUS AGREED BANNER */}
-                          {(req.status === 'agreed' || req.status === 'in_progress' || order) && (
-                            <div className="p-4 rounded-2xl bg-[#09261A] border border-[#1F9D66]/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg text-xs mt-3">
-                              <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-full bg-[#1F9D66]/20 border border-[#1F9D66] flex items-center justify-center text-[#26D07C] shrink-0">
-                                  <CheckCircle2 className="w-5 h-5" />
+                          return (
+                            <div className="space-y-4">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="flex items-center gap-3">
+                                  <h3 className="font-serif text-xl font-bold text-[#FAF8F3]">
+                                    2. Official Senior Engineer Quote &amp; Negotiation
+                                  </h3>
+                                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider font-mono ${
+                                    req.status === 'agreed' || req.status === 'in_progress' || order
+                                      ? 'bg-[#1F9D66] text-white shadow-[0_0_8px_rgba(31,157,102,0.6)]'
+                                      : isLatestOfferFromClient
+                                      ? 'bg-[#E8A93B] text-[#070D22]'
+                                      : req.status === 'quoted' || isLatestOfferFromAdmin
+                                      ? 'bg-[#D4AF37] text-[#070D22]'
+                                      : 'bg-[#6B7280] text-white'
+                                  }`}>
+                                    {req.status === 'agreed' || req.status === 'in_progress' || order
+                                      ? 'ACCEPTED & AGREED'
+                                      : isLatestOfferFromClient
+                                      ? 'COUNTER SENT • AWAITING ADMIN'
+                                      : req.status === 'quoted' || isLatestOfferFromAdmin
+                                      ? 'STUDIO QUOTE RECEIVED'
+                                      : req.status}
+                                  </span>
                                 </div>
-                                <div>
-                                  <span className="font-bold text-[#FAF8F3] text-sm block">Quote Accepted &amp; Status AGREED!</span>
-                                  <span className="text-[#A2E8C4] text-[11px]">
-                                    Agreed Final Price: <strong>{formatINR(req.agreed_price || req.estimated_price_shown)}</strong>. Payment schedule is active below.
+                                <div className="text-left sm:text-right">
+                                  <span className="font-serif text-2xl font-bold text-[#F5E7A3] block">
+                                    {formatINR(currentOfferedPrice)}
+                                  </span>
+                                  <span className="text-[10px] font-mono text-[#C9C2A6]">
+                                    {isOrderConfirmed
+                                      ? 'Agreed Contract Price'
+                                      : isLatestOfferFromClient
+                                      ? 'Your Proposed Price (Waiting for Admin)'
+                                      : 'Studio Quoted Price'}
                                   </span>
                                 </div>
                               </div>
-                              <div className="px-3.5 py-1.5 rounded-xl bg-[#1F9D66] text-white text-[10px] font-extrabold uppercase tracking-wider font-mono flex items-center gap-1.5 shadow shrink-0">
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                <span>ACCEPTED</span>
-                              </div>
-                            </div>
-                          )}
 
-                          {/* ACTION BUTTONS & TWO-WAY NEGOTIATION FORM */}
-                          {(req.status === 'quoted' || req.status === 'negotiating') && (
-                            <div className="space-y-4 pt-2">
-                              <div className="flex flex-wrap items-center gap-4">
-                                {/* Option 1: Accept current quote */}
-                                <button
-                                  onClick={() => handleAcceptQuote(req.id)}
-                                  disabled={isSubmitting[req.id]}
-                                  className="btn-gold-luxury px-8 py-3.5 rounded-2xl text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 shadow-xl"
-                                >
-                                  {isSubmitting[req.id] ? (
-                                    <Loader2 className="w-4 h-4 text-[#0B1330] animate-spin" />
+                              {/* REAL CHAT BUBBLES THREAD LOG */}
+                              {req.messages && req.messages.length > 0 && (
+                                <div className="space-y-3 p-4 rounded-2xl bg-[#09112B] border border-white/10 max-h-72 overflow-y-auto custom-scrollbar">
+                                  {req.messages.map((msg: any) => {
+                                    const isAdmin = msg.sender_type === 'admin';
+                                    return (
+                                      <div
+                                        key={msg.id}
+                                        className={`flex gap-3 ${isAdmin ? 'justify-start' : 'justify-end'}`}
+                                      >
+                                        {isAdmin && (
+                                          <div className="w-8 h-8 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37] flex items-center justify-center text-[#F5E7A3] text-xs font-serif font-bold shrink-0">
+                                            CAD
+                                          </div>
+                                        )}
+
+                                        <div
+                                          className={`p-4 rounded-2xl max-w-md text-xs space-y-1.5 shadow-md ${
+                                            isAdmin
+                                              ? 'bg-[#12204D] border border-[#D4AF37]/40 text-[#FAF8F3] rounded-tl-none'
+                                              : 'bg-[#1A2E60] border border-white/20 text-[#FAF8F3] rounded-tr-none'
+                                          }`}
+                                        >
+                                          <div className="flex justify-between items-center text-[10px] text-[#C9C2A6] pb-1 border-b border-white/10">
+                                            <span className="font-bold">{isAdmin ? 'Senior CAD Engineer (Admin)' : 'You'}</span>
+                                            <span className="font-mono">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                          </div>
+                                          <p>{msg.message}</p>
+                                          {msg.offered_price && (
+                                            <div className="mt-2 p-2 rounded-xl bg-[#070D22] border border-[#D4AF37]/50 flex items-center justify-between text-xs">
+                                              <span className="text-[10px] text-[#C9C2A6] uppercase">Official Price Offer:</span>
+                                              <span className="font-mono font-bold text-[#F5E7A3]">{formatINR(msg.offered_price)}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+
+                              {/* STATUS AGREED BANNER */}
+                              {(req.status === 'agreed' || req.status === 'in_progress' || order) && (
+                                <div className="p-4 rounded-2xl bg-[#09261A] border border-[#1F9D66]/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg text-xs mt-3">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-full bg-[#1F9D66]/20 border border-[#1F9D66] flex items-center justify-center text-[#26D07C] shrink-0">
+                                      <CheckCircle2 className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                      <span className="font-bold text-[#FAF8F3] text-sm block">Quote Accepted &amp; Status AGREED!</span>
+                                      <span className="text-[#A2E8C4] text-[11px]">
+                                        Agreed Final Price: <strong>{formatINR(req.agreed_price || req.estimated_price_shown)}</strong>. Payment schedule is active below.
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="px-3.5 py-1.5 rounded-xl bg-[#1F9D66] text-white text-[10px] font-extrabold uppercase tracking-wider font-mono flex items-center gap-1.5 shadow shrink-0">
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <span>ACCEPTED</span>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* ACTION BUTTONS & TWO-WAY NEGOTIATION FORM */}
+                              {(req.status === 'quoted' || req.status === 'negotiating') && !isOrderConfirmed && (
+                                <div className="space-y-4 pt-2">
+                                  {/* If client made the latest counter-offer: Client is waiting for Admin. Client CANNOT accept their own offer! */}
+                                  {isLatestOfferFromClient ? (
+                                    <div className="p-4 rounded-2xl bg-[#08153A] border border-[#D4AF37]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs shadow-lg">
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-amber-300 shrink-0">
+                                          <Clock className="w-5 h-5 text-amber-300 animate-pulse" />
+                                        </div>
+                                        <div className="space-y-0.5">
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-bold text-[#F5E7A3] text-sm">
+                                              Your Counter-Offer of {formatINR(currentOfferedPrice)} is with SuperAdmin
+                                            </span>
+                                            <span className="px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-500/40 text-[9px] font-mono font-bold uppercase">
+                                              Pending Admin Decision
+                                            </span>
+                                          </div>
+                                          <p className="text-[#C9C2A6] text-[11px] leading-relaxed">
+                                            You offered {formatINR(currentOfferedPrice)}. Waiting for the Studio Admin to review and accept your offer or reply with revised terms. You cannot accept your own counter-offer.
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowCounterForm((prev) => ({ ...prev, [req.id]: !prev[req.id] }))}
+                                        className="px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider border border-[#D4AF37]/50 text-[#F5E7A3] hover:bg-[#D4AF37]/10 transition-all shrink-0 cursor-pointer"
+                                      >
+                                        {showCounterForm[req.id] ? 'Hide Form' : 'Adjust Counter Price'}
+                                      </button>
+                                    </div>
                                   ) : (
-                                    <CheckCircle2 className="w-4 h-4 text-[#0B1330]" />
+                                    /* If admin made the latest offer: Client can accept it! */
+                                    <div className="flex flex-wrap items-center gap-4">
+                                      {/* Option 1: Accept current admin quote */}
+                                      <button
+                                        onClick={() => handleAcceptQuote(req.id)}
+                                        disabled={isSubmitting[req.id]}
+                                        className="btn-gold-luxury px-8 py-3.5 rounded-2xl text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 shadow-xl cursor-pointer"
+                                      >
+                                        {isSubmitting[req.id] ? (
+                                          <Loader2 className="w-4 h-4 text-[#0B1330] animate-spin" />
+                                        ) : (
+                                          <CheckCircle2 className="w-4 h-4 text-[#0B1330]" />
+                                        )}
+                                        <span>Accept Admin Quote ({formatINR(currentOfferedPrice)}) &amp; Confirm Order</span>
+                                      </button>
+
+                                      {/* Option 2: Propose Counter Price / Send Price Request */}
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowCounterForm((prev) => ({ ...prev, [req.id]: !prev[req.id] }))}
+                                        className="px-6 py-3.5 rounded-2xl text-xs font-extrabold uppercase tracking-wider flex items-center gap-2 border border-[#D4AF37]/50 text-[#F5E7A3] hover:bg-[#D4AF37]/10 transition-all shadow-md cursor-pointer"
+                                      >
+                                        <MessageSquare className="w-4 h-4 text-[#D4AF37]" />
+                                        <span>{showCounterForm[req.id] ? 'Hide Counter Form' : 'Not Satisfied? Propose Counter Price'}</span>
+                                      </button>
+                                    </div>
                                   )}
-                                  <span>Accept Quote ({formatINR(req.agreed_price || req.estimated_price_shown)}) &amp; Activate Payment</span>
-                                </button>
 
-                                {/* Option 2: Propose Counter Price / Send Price Request */}
-                                <button
-                                  type="button"
-                                  onClick={() => setShowCounterForm((prev) => ({ ...prev, [req.id]: !prev[req.id] }))}
-                                  className="px-6 py-3.5 rounded-2xl text-xs font-extrabold uppercase tracking-wider flex items-center gap-2 border border-[#D4AF37]/50 text-[#F5E7A3] hover:bg-[#D4AF37]/10 transition-all shadow-md"
-                                >
-                                  <MessageSquare className="w-4 h-4 text-[#D4AF37]" />
-                                  <span>{showCounterForm[req.id] ? 'Hide Counter Form' : 'Not Satisfied? Propose Counter Price'}</span>
-                                </button>
-                              </div>
-
-                              {/* Counter Offer Form (visible when toggled or if status is negotiating) */}
-                              {(showCounterForm[req.id] || req.status === 'negotiating') && (
-                                <form
-                                  onSubmit={(e) => handleSendCounterOffer(e, req.id)}
-                                  className="p-4 rounded-2xl bg-[#081233] border border-[#D4AF37]/30 space-y-3"
-                                >
-                                  <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                                    <span className="text-xs font-bold font-serif text-[#FAF8F3] uppercase tracking-wider flex items-center gap-2">
-                                      <Send className="w-3.5 h-3.5 text-[#D4AF37]" />
-                                      Send Price Request / Counter-Offer to SuperAdmin
-                                    </span>
-                                    <span className="text-[10px] text-[#C9C2A6] font-mono">Multi-Round Negotiation Active</span>
-                                  </div>
-
-                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                    <div className="sm:col-span-1">
-                                      <label className="block text-[10px] font-mono text-[#C9C2A6] uppercase mb-1">
-                                        Your Target Price (₹)
-                                      </label>
-                                      <input
-                                        type="number"
-                                        value={counterPriceInput[req.id] || ''}
-                                        onChange={(e) => setCounterPriceInput({ ...counterPriceInput, [req.id]: e.target.value })}
-                                        placeholder="e.g. 18000"
-                                        className="w-full px-3 py-2 rounded-xl bg-[#060B1E] border border-white/10 text-xs font-mono font-bold text-[#FAF8F3] focus:outline-none focus:border-[#D4AF37]"
-                                      />
-                                    </div>
-                                    <div className="sm:col-span-2">
-                                      <label className="block text-[10px] font-mono text-[#C9C2A6] uppercase mb-1">
-                                        Note for SuperAdmin (Optional)
-                                      </label>
-                                      <input
-                                        type="text"
-                                        value={counterMessageInput[req.id] || ''}
-                                        onChange={(e) => setCounterMessageInput({ ...counterMessageInput, [req.id]: e.target.value })}
-                                        placeholder="e.g. Can we adjust within this budget for 18K Yellow Gold?"
-                                        className="w-full px-3 py-2 rounded-xl bg-[#060B1E] border border-white/10 text-xs text-[#FAF8F3] focus:outline-none focus:border-[#D4AF37]"
-                                      />
-                                    </div>
-                                  </div>
-
-                                  <div className="flex justify-end gap-2 pt-1">
-                                    <button
-                                      type="submit"
-                                      disabled={isSubmitting[req.id]}
-                                      className="btn-gold-luxury px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
+                                  {/* Counter Offer Form */}
+                                  {(showCounterForm[req.id] || (req.status === 'negotiating' && !isLatestOfferFromClient && !isLatestOfferFromAdmin)) && (
+                                    <form
+                                      onSubmit={(e) => handleSendCounterOffer(e, req.id)}
+                                      className="p-4 rounded-2xl bg-[#081233] border border-[#D4AF37]/30 space-y-3"
                                     >
-                                      {isSubmitting[req.id] ? (
-                                        <Loader2 className="w-4 h-4 text-[#0B1330] animate-spin" />
-                                      ) : (
-                                        <>
-                                          <Send className="w-3.5 h-3.5 text-[#0B1330]" />
-                                          <span>Submit Price Request to SuperAdmin</span>
-                                        </>
-                                      )}
-                                    </button>
-                                  </div>
-                                </form>
+                                      <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                                        <span className="text-xs font-bold font-serif text-[#FAF8F3] uppercase tracking-wider flex items-center gap-2">
+                                          <Send className="w-3.5 h-3.5 text-[#D4AF37]" />
+                                          Send Price Request / Counter-Offer to SuperAdmin
+                                        </span>
+                                        <span className="text-[10px] text-[#C9C2A6] font-mono">Multi-Round Negotiation Active</span>
+                                      </div>
+
+                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <div className="sm:col-span-1">
+                                          <label className="block text-[10px] font-mono text-[#C9C2A6] uppercase mb-1">
+                                            Your Target Price (₹)
+                                          </label>
+                                          <input
+                                            type="number"
+                                            value={counterPriceInput[req.id] || ''}
+                                            onChange={(e) => setCounterPriceInput({ ...counterPriceInput, [req.id]: e.target.value })}
+                                            placeholder="e.g. 18000"
+                                            className="w-full px-3 py-2 rounded-xl bg-[#060B1E] border border-white/10 text-xs font-mono font-bold text-[#FAF8F3] focus:outline-none focus:border-[#D4AF37]"
+                                          />
+                                        </div>
+                                        <div className="sm:col-span-2">
+                                          <label className="block text-[10px] font-mono text-[#C9C2A6] uppercase mb-1">
+                                            Note for SuperAdmin (Optional)
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={counterMessageInput[req.id] || ''}
+                                            onChange={(e) => setCounterMessageInput({ ...counterMessageInput, [req.id]: e.target.value })}
+                                            placeholder="e.g. Can we adjust within this budget for 18K Yellow Gold?"
+                                            className="w-full px-3 py-2 rounded-xl bg-[#060B1E] border border-white/10 text-xs text-[#FAF8F3] focus:outline-none focus:border-[#D4AF37]"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      <div className="flex justify-end gap-2 pt-1">
+                                        <button
+                                          type="submit"
+                                          disabled={isSubmitting[req.id]}
+                                          className="btn-gold-luxury px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
+                                        >
+                                          {isSubmitting[req.id] ? (
+                                            <Loader2 className="w-4 h-4 text-[#0B1330] animate-spin" />
+                                          ) : (
+                                            <>
+                                              <Send className="w-3.5 h-3.5 text-[#0B1330]" />
+                                              <span>Submit Price Request to SuperAdmin</span>
+                                            </>
+                                          )}
+                                        </button>
+                                      </div>
+                                    </form>
+                                  )}
+                                </div>
                               )}
                             </div>
-                          )}
-                        </div>
+                          );
+                        })()}
                       </div>
 
                       {/* NODE 3: MULTI-STAGE PAYMENT SCHEDULE TABLE */}
@@ -1295,16 +1404,205 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                         <div className={`absolute -left-[31px] sm:-left-[47px] top-0 w-6 h-6 rounded-full border-4 border-[#070D22] flex items-center justify-center ${
                           paidVal > 0
                             ? 'bg-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.8)]'
+                            : isOrderConfirmed
+                            ? 'bg-[#12204D] border-[#D4AF37]/60 text-[#D4AF37]'
                             : 'bg-[#060B1E] border-slate-700'
                         }`}>
                           <CreditCard className="w-3.5 h-3.5 text-[#070D22]" />
                         </div>
 
                         <div className="space-y-4">
-                          <h3 className="font-serif text-xl font-bold text-[#FAF8F3]">
-                            3. Multi-Stage Payment Schedule (Transparent 10/30/60 Split)
-                          </h3>
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <h3 className="font-serif text-xl font-bold text-[#FAF8F3] flex items-center gap-2.5 flex-wrap">
+                              <span>3. Order Payment Options</span>
+                              <span className="text-xs font-mono font-normal text-[#D4AF37] px-2.5 py-0.5 rounded-full bg-[#12204D] border border-[#D4AF37]/40">
+                                Part Payment (10/30/60 Split) OR Pay Full Amount
+                              </span>
+                            </h3>
+                            {!isOrderConfirmed ? (
+                              <span className="px-2.5 py-1 rounded-full bg-slate-900 border border-slate-700 text-slate-400 text-[10px] font-mono font-bold uppercase tracking-wider inline-flex items-center gap-1.5 w-fit">
+                                <Lock className="w-3 h-3 text-[#D4AF37]" />
+                                Locked &bull; Awaiting Order Confirmation
+                              </span>
+                            ) : isFullyPaid ? (
+                              <span className="px-3 py-1 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/50 text-[11px] font-mono font-bold inline-flex items-center gap-1.5 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                                ORDER 100% PAID IN FULL
+                              </span>
+                            ) : (
+                              <span className="px-3 py-1 rounded-full bg-[#12204D] text-[#F5E7A3] border border-[#D4AF37]/50 text-[11px] font-mono font-bold inline-flex items-center gap-1.5">
+                                <CreditCard className="w-3.5 h-3.5 text-[#D4AF37]" />
+                                Balance Due: {formatINR(unpaidVal)}
+                              </span>
+                            )}
+                          </div>
 
+                          {/* Locked Notice if Order Not Confirmed Yet */}
+                          {!isOrderConfirmed && (
+                            <div className="p-4 rounded-2xl bg-[#09112B] border border-[#D4AF37]/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs shadow-md">
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-full bg-[#12204D] border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] shrink-0">
+                                  <Lock className="w-4 h-4" />
+                                </div>
+                                <div className="space-y-0.5">
+                                  <span className="font-bold text-[#FAF8F3] text-sm block">Payment Option Locked</span>
+                                  <span className="text-[#C9C2A6] text-[11px] block">
+                                    {(() => {
+                                      const latestOfferMsg = req.messages && req.messages.length > 0
+                                        ? [...req.messages].reverse().find((m: any) => m.offered_price !== undefined && m.offered_price !== null && m.offered_price !== '')
+                                        : null;
+                                      const isLatestOfferFromClient = Boolean(latestOfferMsg && latestOfferMsg.sender_type === 'client');
+                                      const currentOfferedPrice = latestOfferMsg?.offered_price != null
+                                        ? Number(latestOfferMsg.offered_price)
+                                        : Number(req.agreed_price || req.estimated_price_shown || 0);
+
+                                      if (isLatestOfferFromClient) {
+                                        return `Your counter-offer of ${formatINR(currentOfferedPrice)} is waiting for SuperAdmin review. Stage payment unlocks once admin accepts your offer.`;
+                                      }
+                                      if (req.status === 'quoted') {
+                                        return `Studio has quoted ${formatINR(currentOfferedPrice)}. Accept the quote above to confirm the order and unlock Stage 1 payment.`;
+                                      }
+                                      if (req.status === 'negotiating') {
+                                        return 'Negotiation is in progress. Stage payment will unlock once an offer is accepted by either you or the atelier administrator.';
+                                      }
+                                      return 'Our Senior Engineers are reviewing your design brief. Stage payment unlocks once price is finalized and the order is confirmed.';
+                                    })()}
+                                  </span>
+                                </div>
+                              </div>
+                              {(() => {
+                                const latestOfferMsg = req.messages && req.messages.length > 0
+                                  ? [...req.messages].reverse().find((m: any) => m.offered_price !== undefined && m.offered_price !== null && m.offered_price !== '')
+                                  : null;
+                                const isLatestOfferFromAdmin = Boolean(
+                                  (latestOfferMsg && latestOfferMsg.sender_type === 'admin') ||
+                                  (!latestOfferMsg && req.status === 'quoted')
+                                );
+                                const currentOfferedPrice = latestOfferMsg?.offered_price != null
+                                  ? Number(latestOfferMsg.offered_price)
+                                  : Number(req.agreed_price || req.estimated_price_shown || 0);
+
+                                if (isLatestOfferFromAdmin && (req.status === 'quoted' || req.status === 'negotiating')) {
+                                  return (
+                                    <button
+                                      onClick={() => handleAcceptQuote(req.id)}
+                                      disabled={isSubmitting[req.id]}
+                                      className="btn-gold-luxury px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider shrink-0 shadow-md cursor-pointer flex items-center gap-1.5"
+                                    >
+                                      {isSubmitting[req.id] ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                      ) : (
+                                        <CheckCircle2 className="w-3.5 h-3.5" />
+                                      )}
+                                      <span>Accept Admin Quote ({formatINR(currentOfferedPrice)})</span>
+                                    </button>
+                                  );
+                                }
+                                return null;
+                              })()}
+                            </div>
+                          )}
+
+                          {/* 100% PAID SUCCESS BANNER */}
+                          {isFullyPaid && (
+                            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-950/90 via-[#09112B] to-emerald-950/90 border-2 border-emerald-500/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
+                              <div className="flex items-center gap-3.5">
+                                <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-400/50 flex items-center justify-center text-emerald-400 shrink-0">
+                                  <CheckCircle2 className="w-5 h-5" />
+                                </div>
+                                <div className="space-y-0.5">
+                                  <h4 className="font-serif font-bold text-emerald-300 text-sm flex items-center gap-2">
+                                    <span>Order Completely Paid in Full ({formatINR(paidVal)})</span>
+                                  </h4>
+                                  <p className="text-xs text-[#C9C2A6]">
+                                    All payment stages are cleared. 3D inspection preview and final CAD deliverables are unlocked.
+                                  </p>
+                                </div>
+                              </div>
+                              <span className="px-3 py-1.5 rounded-xl bg-emerald-900/60 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-bold shrink-0">
+                                Zero Balance Remaining
+                              </span>
+                            </div>
+                          )}
+
+                          {/* DUAL PAYMENT CHOICE CARDS (PAY FULL VS PART-PAYMENT) */}
+                          {isOrderConfirmed && !isFullyPaid && unpaidVal > 0 && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {/* CARD A: PAY FULL AMOUNT */}
+                              <div className="relative p-5 rounded-2xl bg-gradient-to-br from-[#12204D] via-[#0E1A3D] to-[#081026] border-2 border-[#D4AF37] shadow-[0_8px_30px_rgba(212,175,55,0.25)] flex flex-col justify-between gap-4 overflow-hidden">
+                                <div className="absolute top-0 right-0 px-3 py-1 rounded-bl-xl bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] text-[10px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1">
+                                  <Zap className="w-3 h-3 text-[#070D22] fill-current" />
+                                  <span>Fast-Track &bull; Recommended</span>
+                                </div>
+
+                                <div className="space-y-2 pr-12">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-7 h-7 rounded-lg bg-[#D4AF37]/20 border border-[#D4AF37]/50 flex items-center justify-center text-[#D4AF37]">
+                                      <Sparkles className="w-4 h-4" />
+                                    </div>
+                                    <span className="text-xs font-mono font-bold text-[#F5E7A3] uppercase tracking-wide">
+                                      Option A: Pay Full Amount
+                                    </span>
+                                  </div>
+                                  <h4 className="font-serif text-lg font-bold text-[#FAF8F3]">
+                                    {paidVal > 0 ? 'Clear Remaining Balance in Full' : 'Pay 100% Upfront in One Transaction'}
+                                  </h4>
+                                  <p className="text-xs text-[#C9C2A6] leading-relaxed">
+                                    {paidVal > 0
+                                      ? `You have paid ${formatINR(paidVal)} so far. Settle the remaining balance (${formatINR(unpaidVal)}) now to complete your order without stage interruptions.`
+                                      : `Settle the full ${formatINR(unpaidVal)} upfront. Automatically unlocks all 3D inspection previews and final CAD file deliverables upon completion.`}
+                                  </p>
+                                </div>
+
+                                <div className="pt-3 border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
+                                  <div>
+                                    <span className="text-[10px] font-mono text-[#C9C2A6] uppercase block">
+                                      {paidVal > 0 ? 'Remaining Balance' : 'Total Order Valuation'}
+                                    </span>
+                                    <span className="font-serif text-xl font-extrabold text-[#F5E7A3]">
+                                      {formatINR(unpaidVal)}
+                                    </span>
+                                  </div>
+                                  <button
+                                    onClick={() => handlePayFullOrder(order, unpaidVal)}
+                                    className="btn-gold-luxury px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-[0_0_20px_rgba(212,175,55,0.4)] cursor-pointer hover:scale-[1.02] transition-all"
+                                  >
+                                    <CreditCard className="w-4 h-4 text-[#070D22]" />
+                                    <span>Pay Full Amount ({formatINR(unpaidVal)})</span>
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* CARD B: PART PAYMENT MILESTONE SPLIT */}
+                              <div className="p-5 rounded-2xl bg-[#09112B] border border-[#D4AF37]/30 flex flex-col justify-between gap-4">
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[#C9C2A6]">
+                                      <Layers className="w-4 h-4 text-[#D4AF37]" />
+                                    </div>
+                                    <span className="text-xs font-mono font-bold text-[#C9C2A6] uppercase tracking-wide">
+                                      Option B: Part-Payment Milestones
+                                    </span>
+                                  </div>
+                                  <h4 className="font-serif text-lg font-bold text-[#FAF8F3]">
+                                    Pay Step-by-Step Across CAD Milestones
+                                  </h4>
+                                  <p className="text-xs text-[#C9C2A6] leading-relaxed">
+                                    Split payments across 3 transparent stages: <strong>10%</strong> Booking Confirmation to start CAD, <strong>30%</strong> after 3D Preview approval, and <strong>60%</strong> prior to final CAD delivery.
+                                  </p>
+                                </div>
+
+                                <div className="pt-3 border-t border-white/10 flex items-center justify-between text-xs font-mono text-[#C9C2A6]">
+                                  <span>Schedule: 10% &bull; 30% &bull; 60%</span>
+                                  <span className="text-[#D4AF37] font-semibold flex items-center gap-1">
+                                    Use Stage Table Below &darr;
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* PAYMENT STAGES TABLE */}
                           <div className="rounded-2xl bg-[#09112B] border border-[#D4AF37]/30 overflow-hidden shadow-xl">
                             <table className="w-full text-left text-xs text-[#C9C2A6]">
                               <thead className="bg-[#070D22] text-[#FAF8F3] font-serif border-b border-[#D4AF37]/20 uppercase text-[10px] tracking-wider">
@@ -1317,7 +1615,52 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-white/5">
-                                {order?.payment_stages && order.payment_stages.length > 0 ? (
+                                {!isOrderConfirmed ? (
+                                  <>
+                                    <tr className="hover:bg-white/5 transition-colors">
+                                      <td className="p-4 font-bold text-[#FAF8F3]">Stage 1: Booking Confirmation</td>
+                                      <td className="p-4 font-mono">10.00%</td>
+                                      <td className="p-4 font-serif text-sm font-bold text-[#F5E7A3]">
+                                        {hasOfficialQuote ? formatINR(totalVal * 0.1) : 'Quote Pending'}
+                                      </td>
+                                      <td className="p-4 text-[11px] text-[#C9C2A6]">Due Immediately upon Order Confirmation</td>
+                                      <td className="p-4 text-right">
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/90 text-slate-400 border border-slate-700 text-[10px] font-mono font-semibold">
+                                          <Lock className="w-3 h-3 text-[#D4AF37]/70" />
+                                          LOCKED (Pending Confirmation)
+                                        </span>
+                                      </td>
+                                    </tr>
+                                    <tr className="hover:bg-white/5 transition-colors">
+                                      <td className="p-4 font-bold text-[#FAF8F3]">Stage 2: Design Approval Milestone</td>
+                                      <td className="p-4 font-mono">30.00%</td>
+                                      <td className="p-4 font-serif text-sm font-bold text-[#F5E7A3]">
+                                        {hasOfficialQuote ? formatINR(totalVal * 0.3) : 'Quote Pending'}
+                                      </td>
+                                      <td className="p-4 text-[11px] text-[#C9C2A6]">Due on Client 3D Preview Approval</td>
+                                      <td className="p-4 text-right">
+                                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-900 text-slate-400 border border-slate-700 text-[10px] font-mono">
+                                          <Lock className="w-3 h-3" />
+                                          LOCKED
+                                        </span>
+                                      </td>
+                                    </tr>
+                                    <tr className="hover:bg-white/5 transition-colors">
+                                      <td className="p-4 font-bold text-[#FAF8F3]">Stage 3: Final CAD Delivery</td>
+                                      <td className="p-4 font-mono">60.00%</td>
+                                      <td className="p-4 font-serif text-sm font-bold text-[#F5E7A3]">
+                                        {hasOfficialQuote ? formatINR(totalVal * 0.6) : 'Quote Pending'}
+                                      </td>
+                                      <td className="p-4 text-[11px] text-[#C9C2A6]">Due Before Final File Release</td>
+                                      <td className="p-4 text-right">
+                                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-900 text-slate-400 border border-slate-700 text-[10px] font-mono">
+                                          <Lock className="w-3 h-3" />
+                                          LOCKED
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  </>
+                                ) : order?.payment_stages && order.payment_stages.length > 0 ? (
                                   order.payment_stages.map((st: any) => (
                                     <tr key={st.id} className="hover:bg-white/5 transition-colors">
                                       <td className="p-4 font-bold text-[#FAF8F3]">{st.label}</td>
@@ -1338,10 +1681,10 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                           </span>
                                         ) : st.status === 'due' ? (
                                           <button
-                                            onClick={() => handlePayStage(st)}
-                                            className="btn-gold-luxury px-4 py-1.5 rounded-xl text-[11px] font-extrabold uppercase tracking-wider shadow-md"
+                                            onClick={() => handlePayStage(st, order?.id)}
+                                            className="btn-gold-luxury px-4 py-1.5 rounded-xl text-[11px] font-extrabold uppercase tracking-wider shadow-md cursor-pointer"
                                           >
-                                            Pay Now ({formatINR(st.amount)})
+                                            Pay Stage ({formatINR(st.amount)})
                                           </button>
                                         ) : (
                                           <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-900 text-slate-400 border border-slate-700 text-[10px] font-mono">
@@ -1361,8 +1704,8 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                       <td className="p-4 text-[11px] text-[#C9C2A6]">Due Immediately to Start CAD</td>
                                       <td className="p-4 text-right">
                                         <button
-                                          onClick={() => handlePayStage({ id: 1, stage_name: 'Stage 1: Booking Confirmation', amount: totalVal * 0.1, percentage: 10 })}
-                                          className="btn-gold-luxury px-4 py-1.5 rounded-xl text-[11px] font-extrabold uppercase tracking-wider shadow-md"
+                                          onClick={() => handlePayStage({ id: 1, stage_name: 'Stage 1: Booking Confirmation', amount: totalVal * 0.1, percentage: 10 }, order?.id)}
+                                          className="btn-gold-luxury px-4 py-1.5 rounded-xl text-[11px] font-extrabold uppercase tracking-wider shadow-md cursor-pointer"
                                         >
                                           Pay Stage 1
                                         </button>
@@ -1380,9 +1723,50 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                         </span>
                                       </td>
                                     </tr>
+                                    <tr className="hover:bg-white/5 transition-colors">
+                                      <td className="p-4 font-bold text-[#FAF8F3]">Stage 3: Final CAD Delivery</td>
+                                      <td className="p-4 font-mono">60.00%</td>
+                                      <td className="p-4 font-serif text-sm font-bold text-[#F5E7A3]">{formatINR(totalVal * 0.6)}</td>
+                                      <td className="p-4 text-[11px] text-[#C9C2A6]">Due Before Final File Release</td>
+                                      <td className="p-4 text-right">
+                                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-900 text-slate-400 border border-slate-700 text-[10px] font-mono">
+                                          <Lock className="w-3 h-3" />
+                                          LOCKED
+                                        </span>
+                                      </td>
+                                    </tr>
                                   </>
                                 )}
                               </tbody>
+                              {isOrderConfirmed && totalVal > 0 && (
+                                <tfoot className="bg-[#070D22]/80 border-t border-[#D4AF37]/30">
+                                  <tr>
+                                    <td colSpan={2} className="p-4 font-serif font-bold text-[#FAF8F3] text-xs">
+                                      Total Order Summary:
+                                    </td>
+                                    <td className="p-4 font-serif font-bold text-[#F5E7A3] text-sm">
+                                      {formatINR(totalVal)}
+                                    </td>
+                                    <td className="p-4 text-xs font-mono text-[#C9C2A6]">
+                                      Paid: <strong className="text-emerald-400">{formatINR(paidVal)}</strong> | Remaining: <strong className="text-amber-300">{formatINR(unpaidVal)}</strong>
+                                    </td>
+                                    <td className="p-4 text-right">
+                                      {isFullyPaid ? (
+                                        <span className="text-xs font-mono font-bold text-emerald-400 flex items-center justify-end gap-1">
+                                          <CheckCircle2 className="w-3.5 h-3.5" /> 100% Fully Settled
+                                        </span>
+                                      ) : unpaidVal > 0 ? (
+                                        <button
+                                          onClick={() => handlePayFullOrder(order, unpaidVal)}
+                                          className="px-3.5 py-1.5 rounded-xl bg-[#12204D] hover:bg-[#1A2E60] border border-[#D4AF37]/50 text-[#F5E7A3] text-[11px] font-bold uppercase tracking-wider cursor-pointer shadow transition-all"
+                                        >
+                                          Pay Full Balance ({formatINR(unpaidVal)})
+                                        </button>
+                                      ) : null}
+                                    </td>
+                                  </tr>
+                                </tfoot>
+                              )}
                             </table>
                           </div>
                         </div>
@@ -1419,7 +1803,12 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                     <span className="text-xs font-serif font-bold text-[#F5E7A3] block">
                                       Protected 360° Raytraced Master Preview
                                     </span>
-                                    {order?.status === 'preview_ready' || order?.quality_approved ? (
+                                    {order?.status === 'revision_requested' ? (
+                                      <span className="px-2.5 py-0.5 rounded-full bg-amber-950 text-amber-300 border border-amber-500/40 text-[9px] font-mono font-bold flex items-center gap-1.5 shadow-sm">
+                                        <RefreshCw className="w-2.5 h-2.5 animate-spin text-amber-400" />
+                                        Revision v{order.current_version || 1} In Progress
+                                      </span>
+                                    ) : order?.status === 'preview_ready' || order?.quality_approved ? (
                                       <span className="px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/40 text-[9px] font-mono font-bold">
                                         QC Verified &amp; Ready
                                       </span>
@@ -1449,6 +1838,26 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                   </span>
                                 </div>
                               </div>
+
+                              {/* Active Revision Requested Alert Banner */}
+                              {order?.status === 'revision_requested' && (
+                                <div className="p-4 rounded-xl bg-gradient-to-r from-amber-950/70 via-amber-900/40 to-[#09112B] border border-amber-500/50 flex items-start gap-3 text-amber-200 text-xs shadow-lg animate-in fade-in duration-200">
+                                  <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+                                    <RefreshCw className="w-4 h-4 text-amber-300 animate-spin" />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <div className="font-bold text-amber-200 font-serif flex items-center gap-2">
+                                      <span>Changes Requested — Studio Reviewing</span>
+                                      <span className="px-2 py-0.5 rounded-full bg-amber-500/25 text-amber-200 border border-amber-500/40 text-[10px] font-mono">
+                                        Iterating deliverable v{order.current_version || 1}
+                                      </span>
+                                    </div>
+                                    <p className="text-amber-200/80 leading-relaxed text-[11px]">
+                                      Our CAD artisans are actively applying your requested revisions. Once the updated tolerances pass our internal Quality Control, your refreshed 3D preview will be available here automatically.
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
 
                               {/* CLEAN, ELEGANT PROPORTIONED CAD PREVIEW CONTAINER (NO CROPPING) */}
                               <div
@@ -1518,15 +1927,13 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                     <span>Inspect 3D Preview</span>
                                   </button>
 
-                                  <a
-                                    href={`https://wa.me/919574787098?text=Hello%20Shiuli%20Studio%2C%20I%20have%20feedback%20regarding%20my%20Order%20%23${order.id}%20CAD%20preview.`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="px-4 py-2.5 rounded-xl bg-[#12204D] border border-white/20 text-[#FAF8F3] hover:bg-[#1A2E60] text-xs font-bold flex items-center gap-1.5 transition-colors"
+                                  <button
+                                    onClick={() => setRevisionModalOrder(order)}
+                                    className="px-4 py-2.5 rounded-xl bg-[#12204D] border border-[#D4AF37]/50 text-[#FAF8F3] hover:bg-[#1A2E60] text-xs font-bold flex items-center gap-1.5 transition-all shadow-md cursor-pointer hover:border-[#D4AF37]"
                                   >
                                     <MessageSquare className="w-4 h-4 text-[#D4AF37]" />
                                     <span>Comment / Request Changes</span>
-                                  </a>
+                                  </button>
 
                                   {!order?.milestones?.some((m: any) => m.stage?.includes('Approved')) && (
                                     <button
@@ -1539,13 +1946,70 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                   )}
                                 </div>
                               </div>
+
+                              {/* REVISION HISTORY LOG */}
+                              {order?.revision_requests && order.revision_requests.length > 0 && (
+                                <div className="mt-4 p-4 rounded-xl bg-[#070D22] border border-white/10 space-y-3">
+                                  <div className="flex items-center justify-between text-xs font-semibold text-[#F5E7A3]">
+                                    <span className="flex items-center gap-2">
+                                      <Clock className="w-3.5 h-3.5 text-[#D4AF37]" />
+                                      Revision Feedback History ({order.revision_requests.length})
+                                    </span>
+                                    <span className="text-[10px] font-mono text-[#C9C2A6]">
+                                      Current deliverable v{order.current_version || 1}
+                                    </span>
+                                  </div>
+                                  <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                                    {order.revision_requests.map((rev: any, idx: number) => (
+                                      <div key={rev.id || idx} className="p-3 rounded-lg bg-[#09112B] border border-white/5 text-xs space-y-2">
+                                        <div className="flex items-center justify-between text-[11px]">
+                                          <span className="font-semibold text-white">
+                                            Revision #{rev.revision_number} &bull; deliverable v{rev.deliverable_version}
+                                          </span>
+                                          <span className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase ${
+                                            rev.status === 'addressed' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40' :
+                                            rev.status === 'in_progress' ? 'bg-blue-950 text-blue-300 border border-blue-500/40' :
+                                            'bg-amber-950 text-amber-300 border border-amber-500/40'
+                                          }`}>
+                                            {rev.status === 'addressed' ? 'Resolved in new preview' : rev.status === 'in_progress' ? 'Sculpting in CAD' : 'Under Review'}
+                                          </span>
+                                        </div>
+                                        <p className="text-[#C9C2A6] text-[11px] leading-relaxed italic">
+                                          "{rev.comment}"
+                                        </p>
+                                        {(rev.voice_note || rev.reference_image) && (
+                                          <div className="flex flex-wrap items-center gap-3 pt-1">
+                                            {rev.voice_note && (
+                                              <div className="flex items-center gap-1.5 text-[10px] text-[#F5E7A3]">
+                                                <Volume2 className="w-3.5 h-3.5 text-[#D4AF37]" />
+                                                <audio controls src={rev.voice_note} className="h-6 w-44" />
+                                              </div>
+                                            )}
+                                            {rev.reference_image && (
+                                              <a
+                                                href={rev.reference_image}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="flex items-center gap-1 text-[10px] text-[#D4AF37] hover:underline"
+                                              >
+                                                <ImageIcon className="w-3.5 h-3.5" />
+                                                <span>View Attached Reference</span>
+                                              </a>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           ) : (
                             <div className="p-5 rounded-2xl bg-[#09112B] border border-white/10 text-xs text-[#C9C2A6] space-y-1">
                               <span className="font-semibold text-[#F5E7A3] block">
                                 {assignedStaff
-                                  ? `Artisan ${assignedStaff.first_name || assignedStaff.username} is actively sculpting your CAD model in Rhino 8.`
-                                  : 'Matching artisan craftsman...'}
+                                  ? 'Our Master CAD team is actively sculpting your CAD model in Rhino 8.'
+                                  : 'Matching senior CAD team...'}
                               </span>
                               <p>
                                 360° raytraced previews and dimensional inspection views will unlock here as soon as our Quality Control team verifies the tolerances.
@@ -2125,15 +2589,19 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
             </div>
 
             <div className="flex items-center gap-3">
-              <a
-                href={`https://wa.me/919574787098?text=Hello%20Shiuli%20Studio%2C%20I%20have%20feedback%20regarding%20my%20Order%20%23${previewLightboxOrder.id}%20CAD%20preview.`}
-                target="_blank"
-                rel="noreferrer"
-                className="px-5 py-2.5 rounded-xl bg-[#12204D] border border-white/20 text-[#FAF8F3] hover:bg-[#1A2E60] text-xs font-bold flex items-center gap-2 transition-colors"
+              <button
+                type="button"
+                onClick={() => {
+                  const targetOrder = previewLightboxOrder;
+                  setPreviewLightboxOrder(null);
+                  setLightboxZoom(1);
+                  setRevisionModalOrder(targetOrder);
+                }}
+                className="px-5 py-2.5 rounded-xl bg-[#12204D] border border-[#D4AF37]/50 text-[#FAF8F3] hover:bg-[#1A2E60] text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-md hover:border-[#D4AF37]"
               >
                 <MessageSquare className="w-4 h-4 text-[#D4AF37]" />
                 <span>Request Revision</span>
-              </a>
+              </button>
 
               {!previewLightboxOrder?.milestones?.some((m: any) => m.stage?.includes('Approved')) && (
                 <button
@@ -2591,20 +3059,57 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
         </div>
       )}
 
-      {/* Payment Gateway Modal for Milestone Stages */}
+      {/* Payment Gateway Modal for Milestone Stages & Full Payment */}
       <PaymentGatewayModal
         isOpen={stagePaymentModalState.isOpen}
         onClose={() => setStagePaymentModalState((prev) => ({ ...prev, isOpen: false }))}
         title={stagePaymentModalState.title}
-        subtitle={`Milestone ${stagePaymentModalState.percentage ? `${stagePaymentModalState.percentage}% ` : ''}Stage Settlement`}
+        subtitle={
+          stagePaymentModalState.isFullPayment
+            ? 'Complete 100% Full Order Settlement'
+            : `Milestone ${stagePaymentModalState.percentage ? `${stagePaymentModalState.percentage}% ` : ''}Stage Settlement`
+        }
         amount={stagePaymentModalState.amount}
         currency="INR"
-        itemType="milestone_stage"
+        itemType={stagePaymentModalState.isFullPayment ? 'order_full_payment' : 'milestone_stage'}
         orderDetails={{
-          id: stagePaymentModalState.stageId,
+          id: stagePaymentModalState.isFullPayment ? stagePaymentModalState.orderId : stagePaymentModalState.stageId,
         }}
         onPaymentSuccess={handleStagePaymentSuccess}
       />
+
+      {/* Revision Request Modal */}
+      {revisionModalOrder && (
+        <RevisionRequestModal
+          order={revisionModalOrder}
+          isOpen={Boolean(revisionModalOrder)}
+          onClose={() => setRevisionModalOrder(null)}
+          onSuccess={() => {
+            fetchClientOrders();
+            setRevisionToastMsg('Your revision request has been logged. Our CAD team and QC desk have been notified.');
+            setTimeout(() => setRevisionToastMsg(null), 6000);
+          }}
+        />
+      )}
+
+      {/* Floating Revision Toast Notification */}
+      {revisionToastMsg && (
+        <div className="fixed bottom-6 right-6 z-[9999] max-w-md p-4 rounded-2xl bg-[#09112B] border-2 border-[#D4AF37] text-white shadow-2xl flex items-start gap-3 animate-in slide-in-from-bottom-5 duration-300">
+          <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          </div>
+          <div className="space-y-1">
+            <div className="text-xs font-serif font-bold text-[#F5E7A3]">Revision Feedback Dispatched</div>
+            <div className="text-[11px] text-slate-300 leading-relaxed">{revisionToastMsg}</div>
+          </div>
+          <button
+            onClick={() => setRevisionToastMsg(null)}
+            className="p-1 text-slate-400 hover:text-white ml-auto cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

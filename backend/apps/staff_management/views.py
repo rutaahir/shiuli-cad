@@ -16,7 +16,10 @@ from .serializers import (
 )
 
 class StaffViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAdmin]
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [IsStaffOrAdmin()]
+        return [IsAdmin()]
 
     def get_queryset(self):
         return User.objects.filter(role=User.Role.STAFF).select_related('staff_profile').order_by('id')

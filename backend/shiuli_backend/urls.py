@@ -23,6 +23,7 @@ urlpatterns = [
     path('api/option-groups/', include('apps.custom_orders.urls_option_groups')),
     path('api/option-values/', include('apps.custom_orders.urls_option_values')),
     path('api/orders/', include('apps.custom_orders.urls_orders')),
+    path('api/revision-requests/', include('apps.custom_orders.urls_revisions')),
     path('api/staff/', include('apps.staff_management.urls_staff')),
     path('api/platform-settings/', include('apps.staff_management.urls_settings')),
     path('api/payments/', include('apps.payments.urls_payments')),

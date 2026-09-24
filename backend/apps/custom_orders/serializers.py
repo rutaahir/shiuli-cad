@@ -7,6 +7,7 @@ from .models import (
     Order,
     OrderMilestone,
     OrderDeliverable,
+    RevisionRequest,
     AestheticStyle,
     MetalAlloy,
     GemstoneOption,
@@ -561,8 +562,8 @@ class OrderDeliverableSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderDeliverable
-        fields = ['id', 'file_type', 'file', 'file_url', 'filename', 'file_size', 'uploaded_at']
-        read_only_fields = ['id', 'file_url', 'filename', 'file_size', 'uploaded_at']
+        fields = ['id', 'version', 'file_type', 'file', 'file_url', 'filename', 'file_size', 'uploaded_at']
+        read_only_fields = ['id', 'version', 'file_url', 'filename', 'file_size', 'uploaded_at']
 
     def get_file_url(self, obj):
         request = self.context.get('request')
@@ -613,20 +614,72 @@ class OrderDeliverableSerializer(serializers.ModelSerializer):
         return ""
 
 
+class RevisionRequestSerializer(serializers.ModelSerializer):
+    client_name = serializers.SerializerMethodField()
+    client_email = serializers.CharField(source='client.email', read_only=True)
+    voice_note_url = serializers.SerializerMethodField()
+    reference_image_url = serializers.SerializerMethodField()
+    addressed_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RevisionRequest
+        fields = [
+            'id', 'order', 'deliverable_version', 'revision_number',
+            'client', 'client_name', 'client_email',
+            'comment', 'voice_note', 'voice_note_url',
+            'reference_image', 'reference_image_url',
+            'is_paid', 'fee_charged', 'status',
+            'created_at', 'addressed_at', 'addressed_by', 'addressed_by_name'
+        ]
+        read_only_fields = [
+            'id', 'order', 'deliverable_version', 'revision_number',
+            'client', 'client_name', 'client_email',
+            'voice_note_url', 'reference_image_url', 'addressed_by_name',
+            'created_at', 'addressed_at', 'addressed_by'
+        ]
+
+    def get_client_name(self, obj):
+        return obj.client.get_full_name() or obj.client.username if obj.client else 'Client'
+
+    def get_voice_note_url(self, obj):
+        request = self.context.get('request')
+        if obj.voice_note:
+            try:
+                return request.build_absolute_uri(obj.voice_note.url) if request else obj.voice_note.url
+            except Exception:
+                return None
+        return None
+
+    def get_reference_image_url(self, obj):
+        request = self.context.get('request')
+        if obj.reference_image:
+            try:
+                return request.build_absolute_uri(obj.reference_image.url) if request else obj.reference_image.url
+            except Exception:
+                return None
+        return None
+
+    def get_addressed_by_name(self, obj):
+        if obj.addressed_by:
+            return obj.addressed_by.get_full_name() or obj.addressed_by.username
+        return None
+
+
 # STAFF-SAFE ORDER SERIALIZER (Stage 6 Critical Rule: ABSOLUTELY NO PRICE FIELDS)
 class StaffOrderSerializer(serializers.ModelSerializer):
     custom_request = StaffCustomRequestSerializer(read_only=True)
     deliverables = OrderDeliverableSerializer(many=True, read_only=True)
     milestones = OrderMilestoneSerializer(many=True, read_only=True)
+    revision_requests = RevisionRequestSerializer(many=True, read_only=True)
     preview_image = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
         fields = [
-            'id', 'order_type', 'custom_request', 'status',
+            'id', 'order_type', 'current_version', 'custom_request', 'status',
             'deadline_hours', 'due_at', 'is_overdue', 'assigned_at',
             'unassigned_since', 'preview_image', 'admin_review_notes',
-            'milestones', 'deliverables', 'created_at'
+            'milestones', 'deliverables', 'revision_requests', 'created_at'
         ]
 
     def get_preview_image(self, obj):
@@ -645,20 +698,21 @@ class AdminOrderSerializer(serializers.ModelSerializer):
     milestones = OrderMilestoneSerializer(many=True, read_only=True)
     payment_stages = OrderPaymentStageSerializer(many=True, read_only=True)
     deliverables = OrderDeliverableSerializer(many=True, read_only=True)
+    revision_requests = RevisionRequestSerializer(many=True, read_only=True)
     preview_image = serializers.SerializerMethodField()
     is_fully_paid = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
         fields = [
-            'id', 'client', 'order_type', 'product', 'custom_request',
+            'id', 'client', 'order_type', 'current_version', 'product', 'custom_request',
             'assigned_staff', 'total_price', 'advance_amount', 'advance_paid',
             'balance_paid', 'status', 'deadline_hours', 'due_at', 'is_overdue',
             'warning_50_sent', 'warning_80_sent', 'preview_image',
             'admin_review_notes', 'quality_approved', 'settlement_status',
             'download_enabled_by_admin', 'download_count', 'is_fully_paid',
             'unassigned_since', 'assigned_at', 'handed_over_at',
-            'milestones', 'payment_stages', 'deliverables', 'created_at'
+            'milestones', 'payment_stages', 'deliverables', 'revision_requests', 'created_at'
         ]
 
     def get_preview_image(self, obj):
@@ -682,22 +736,25 @@ class ClientOrderSerializer(serializers.ModelSerializer):
     deliverables = serializers.SerializerMethodField()
     preview_image = serializers.SerializerMethodField()
     milestones = OrderMilestoneSerializer(many=True, read_only=True)
+    revision_requests = RevisionRequestSerializer(many=True, read_only=True)
+    revision_policy = serializers.SerializerMethodField()
     is_fully_paid = serializers.SerializerMethodField()
     can_download = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
         fields = [
-            'id', 'order_type', 'custom_request', 'assigned_staff',
+            'id', 'order_type', 'current_version', 'custom_request', 'assigned_staff',
             'total_price', 'status', 'deadline_hours', 'due_at',
             'is_overdue', 'payment_stages', 'deliverables', 'preview_image',
             'quality_approved', 'is_fully_paid', 'download_enabled_by_admin',
-            'can_download', 'download_count', 'milestones', 'created_at'
+            'can_download', 'download_count', 'milestones',
+            'revision_requests', 'revision_policy', 'created_at'
         ]
 
     def get_preview_image(self, obj):
-        # Preview image becomes visible once review is ready, submitted for QC, or approved
-        if obj.status in [Order.Status.PREVIEW_READY, Order.Status.PENDING_REVIEW, Order.Status.PENDING_FINAL_PAYMENT, Order.Status.COMPLETED] or obj.quality_approved:
+        # Preview image becomes visible once review is ready, submitted for QC, or in revision review
+        if obj.status in [Order.Status.PREVIEW_READY, Order.Status.REVISION_REQUESTED, Order.Status.PENDING_REVIEW, Order.Status.PENDING_FINAL_PAYMENT, Order.Status.COMPLETED] or obj.quality_approved:
             request = self.context.get('request')
             if obj.preview_image:
                 return request.build_absolute_uri(obj.preview_image.url) if request else obj.preview_image.url
@@ -717,6 +774,25 @@ class ClientOrderSerializer(serializers.ModelSerializer):
         # Deliverables list is visible to client once files are uploaded so they can see packaged deliverables
         request = self.context.get('request')
         return OrderDeliverableSerializer(obj.deliverables.all(), many=True, context={'request': request}).data
+
+    def get_revision_policy(self, obj):
+        try:
+            from apps.staff_management.models import PlatformSettings
+            settings_obj = PlatformSettings.load()
+            free_allowed = settings_obj.free_revisions_allowed
+            extra_fee = float(settings_obj.extra_revision_fee)
+        except Exception:
+            free_allowed = 2
+            extra_fee = 500.00
+        used_count = obj.revision_requests.count()
+        remaining_free = max(0, free_allowed - used_count)
+        return {
+            'free_revisions_allowed': free_allowed,
+            'extra_revision_fee': extra_fee,
+            'used_revisions': used_count,
+            'remaining_free': remaining_free,
+            'is_free_next': used_count < free_allowed
+        }
 
 
 # DEFAULT ORDER SERIALIZER (For fallback/compatibility)

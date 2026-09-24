@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { PageId, Product } from '../types';
 import {
   Search,
@@ -10,7 +10,10 @@ import {
   Sparkles,
   RotateCcw,
   ArrowUpDown,
+  ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Loader2,
 } from 'lucide-react';
 import { RevealOnScroll } from '../components/motion/RevealOnScroll';
@@ -27,6 +30,24 @@ interface CollectionsPageProps {
   onToggleWishlist: (product: Product) => void;
   wishlistIds: string[];
 }
+
+const ITEMS_PER_PAGE = 9; // 3 rows of 3 items
+
+const getPageNumbers = (current: number, total: number): (number | '...')[] => {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+
+  if (current <= 4) {
+    return [1, 2, 3, 4, 5, '...', total];
+  }
+
+  if (current >= total - 3) {
+    return [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+  }
+
+  return [1, '...', current - 1, current, current + 1, '...', total];
+};
 
 export const CollectionsPage: React.FC<CollectionsPageProps> = ({
   initialCategory = 'all',
@@ -45,6 +66,8 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
   const [maxPrice, setMaxPrice] = useState<number>(99999);
   const [sortBy, setSortBy] = useState<'popular' | 'price-asc' | 'price-desc' | 'newest'>('popular');
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const catalogTopRef = useRef<HTMLDivElement>(null);
 
   // Sync when parent navigates to a specific category
   useEffect(() => {
@@ -177,12 +200,34 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
       });
   }, [products, matchingSlugs, maxPrice, searchQuery, sortBy]);
 
+  // Reset page to 1 whenever any filter or sort option changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedSlug, selectedStyleId, maxPrice, searchQuery, sortBy]);
+
+  const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE) || 1;
+  const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const paginatedProducts = useMemo(() => {
+    const startIndex = (validCurrentPage - 1) * ITEMS_PER_PAGE;
+    return filteredProducts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredProducts, validCurrentPage]);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages || newPage === validCurrentPage) return;
+    setCurrentPage(newPage);
+    if (catalogTopRef.current) {
+      catalogTopRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   const handleResetFilters = () => {
     setSearchQuery('');
     setSelectedSlug('all');
     setSelectedStyleId('all');
     setMaxPrice(globalMaxPrice);
     setSortBy('popular');
+    setCurrentPage(1);
   };
 
   // Active category display label
@@ -380,7 +425,10 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
         )}
 
         {/* Search & Sort Bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-[#080E24] border border-[#D4AF37]/20">
+        <div
+          ref={catalogTopRef}
+          className="scroll-mt-28 flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-[#080E24] border border-[#D4AF37]/20"
+        >
           {/* Search Input */}
           <div className="relative w-full sm:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#D4AF37]" />
@@ -405,7 +453,21 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
           <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4 text-xs">
             <span className="text-[#C9C2A6]">
               Showing{' '}
-              <strong className="text-[#F5E7A3]">{filteredProducts.length}</strong>{' '}
+              <strong className="text-[#F5E7A3]">
+                {filteredProducts.length === 0
+                  ? 0
+                  : filteredProducts.length <= ITEMS_PER_PAGE
+                  ? filteredProducts.length
+                  : `${(validCurrentPage - 1) * ITEMS_PER_PAGE + 1}–${Math.min(
+                      validCurrentPage * ITEMS_PER_PAGE,
+                      filteredProducts.length
+                    )}`}
+              </strong>
+              {filteredProducts.length > ITEMS_PER_PAGE && (
+                <>
+                  {' '}of <strong className="text-[#F5E7A3]">{filteredProducts.length}</strong>
+                </>
+              )}{' '}
               {isLoading ? '(loading…)' : 'CAD files'}
             </span>
             <div className="flex items-center gap-2">
@@ -467,96 +529,200 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                 </div>
               </div>
             ) : (
-              <StaggerGrid key={`${selectedSlug}-${selectedStyleId}-${sortBy}-${searchQuery}`} className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredProducts.map((bp) => {
-                  const product = toProductShape(bp);
-                  const isWishlisted = wishlistIds.includes(product.id);
-                  return (
-                    <StaggerItem key={product.id}>
-                      <div
-                        onClick={() => onNavigate('product-detail', product.id)}
-                        className="group rounded-2xl bg-[#080E24] border border-[#D4AF37]/20 overflow-hidden shadow-xl hover:border-[#D4AF37]/60 hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between cursor-pointer"
-                      >
-                        {/* Image */}
-                        <div className="relative aspect-square overflow-hidden bg-[#070D22]">
-                          <LazyImage
-                            src={product.primaryImage}
-                            alt={product.title}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          />
+              <>
+                <StaggerGrid
+                  key={`${selectedSlug}-${selectedStyleId}-${sortBy}-${searchQuery}-${validCurrentPage}`}
+                  className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6"
+                >
+                  {paginatedProducts.map((bp) => {
+                    const product = toProductShape(bp);
+                    const isWishlisted = wishlistIds.includes(product.id);
+                    return (
+                      <StaggerItem key={product.id}>
+                        <div
+                          onClick={() => onNavigate('product-detail', product.id)}
+                          className="group rounded-2xl bg-[#080E24] border border-[#D4AF37]/20 overflow-hidden shadow-xl hover:border-[#D4AF37]/60 hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between cursor-pointer"
+                        >
+                          {/* Image */}
+                          <div className="relative aspect-square overflow-hidden bg-[#070D22]">
+                            <LazyImage
+                              src={product.primaryImage}
+                              alt={product.title}
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                            />
 
-                          {/* Badges */}
-                          <div className="absolute top-3 left-3 flex flex-col gap-1 z-10">
-                            {product.isBestseller && (
-                              <span className="px-2 py-0.5 rounded bg-[#D4AF37] text-[#0B1330] text-[10px] font-bold tracking-wider uppercase">
-                                Bestseller
-                              </span>
-                            )}
-                            {product.isNew && (
-                              <span className="px-2 py-0.5 rounded bg-[#1E4FA3] text-white text-[10px] font-bold tracking-wider uppercase">
-                                New
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Wishlist */}
-                          <button
-                            onClick={(e) => { e.stopPropagation(); onToggleWishlist(product); }}
-                            className={`absolute top-3 right-3 z-10 p-2 rounded-full backdrop-blur-md transition-colors ${
-                              isWishlisted
-                                ? 'bg-[#D4AF37] text-[#0B1330]'
-                                : 'bg-[#0B1330]/70 text-[#FAF8F3] hover:text-[#D4AF37]'
-                            }`}
-                          >
-                            <Heart className={`w-3.5 h-3.5 ${isWishlisted ? 'fill-current' : ''}`} />
-                          </button>
-
-                          {/* Quick View */}
-                          <button
-                            onClick={(e) => { e.stopPropagation(); onQuickView(product); }}
-                            className="absolute inset-x-3 bottom-3 z-10 py-2 rounded-xl bg-[#0B1330]/90 backdrop-blur border border-[#D4AF37]/30 text-xs text-[#FAF8F3] flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <Eye className="w-3.5 h-3.5 text-[#D4AF37]" />
-                            <span>Quick View CAD Specs</span>
-                          </button>
-                        </div>
-
-                        {/* Info */}
-                        <div className="p-4 space-y-3">
-                          <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-[#D4AF37]">
-                            <span>{product.category}</span>
-                            <span className="text-emerald-400 font-mono">Watertight STL</span>
-                          </div>
-                          <h3 className="font-serif text-lg text-[#FAF8F3] group-hover:text-[#F5E7A3] line-clamp-1 transition-colors">
-                            {product.title}
-                          </h3>
-                          <div className="grid grid-cols-2 gap-1 text-[11px] text-[#C9C2A6] py-1 border-y border-white/5">
-                            <span>18K: {product.specs.metalWeight18k}</span>
-                            <span>Stones: {product.specs.diamondCount}</span>
-                          </div>
-                          <div className="flex items-center justify-between pt-2">
-                            <div>
-                              <span className="text-lg font-serif font-bold text-[#F5E7A3] block">
-                                ₹{Math.round(product.price * 84).toLocaleString('en-IN')}
-                              </span>
-                              <span className="text-[10px] text-[#C9C2A6] block font-sans">
-                                (${product.price} USD)
-                              </span>
+                            {/* Badges */}
+                            <div className="absolute top-3 left-3 flex flex-col gap-1 z-10">
+                              {product.isBestseller && (
+                                <span className="px-2 py-0.5 rounded bg-[#D4AF37] text-[#0B1330] text-[10px] font-bold tracking-wider uppercase">
+                                  Bestseller
+                                </span>
+                              )}
+                              {product.isNew && (
+                                <span className="px-2 py-0.5 rounded bg-[#1E4FA3] text-white text-[10px] font-bold tracking-wider uppercase">
+                                  New
+                                </span>
+                              )}
                             </div>
+
+                            {/* Wishlist */}
                             <button
-                              onClick={(e) => { e.stopPropagation(); onAddToCart(product, 'standard'); }}
-                              className="btn-gold-luxury px-3 py-1.5 rounded-lg text-[11px] font-semibold uppercase tracking-wider flex items-center gap-1 shadow-md"
+                              onClick={(e) => { e.stopPropagation(); onToggleWishlist(product); }}
+                              className={`absolute top-3 right-3 z-10 p-2 rounded-full backdrop-blur-md transition-colors ${
+                                isWishlisted
+                                  ? 'bg-[#D4AF37] text-[#0B1330]'
+                                  : 'bg-[#0B1330]/70 text-[#FAF8F3] hover:text-[#D4AF37]'
+                              }`}
                             >
-                              <ShoppingBag className="w-3.5 h-3.5 text-[#0B1330]" />
-                              <span>Add to Bag</span>
+                              <Heart className={`w-3.5 h-3.5 ${isWishlisted ? 'fill-current' : ''}`} />
+                            </button>
+
+                            {/* Quick View */}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onQuickView(product); }}
+                              className="absolute inset-x-3 bottom-3 z-10 py-2 rounded-xl bg-[#0B1330]/90 backdrop-blur border border-[#D4AF37]/30 text-xs text-[#FAF8F3] flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-[#D4AF37]" />
+                              <span>Quick View CAD Specs</span>
                             </button>
                           </div>
+
+                          {/* Info */}
+                          <div className="p-4 space-y-3">
+                            <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-[#D4AF37]">
+                              <span>{product.category}</span>
+                              <span className="text-emerald-400 font-mono">Watertight STL</span>
+                            </div>
+                            <h3 className="font-serif text-lg text-[#FAF8F3] group-hover:text-[#F5E7A3] line-clamp-1 transition-colors">
+                              {product.title}
+                            </h3>
+                            <div className="grid grid-cols-2 gap-1 text-[11px] text-[#C9C2A6] py-1 border-y border-white/5">
+                              <span>18K: {product.specs.metalWeight18k}</span>
+                              <span>Stones: {product.specs.diamondCount}</span>
+                            </div>
+                            <div className="flex items-center justify-between pt-2">
+                              <div>
+                                <span className="text-lg font-serif font-bold text-[#F5E7A3] block">
+                                  ₹{Math.round(product.price * 84).toLocaleString('en-IN')}
+                                </span>
+                                <span className="text-[10px] text-[#C9C2A6] block font-sans">
+                                  (${product.price} USD)
+                                </span>
+                              </div>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); onAddToCart(product, 'standard'); }}
+                                className="btn-gold-luxury px-3 py-1.5 rounded-lg text-[11px] font-semibold uppercase tracking-wider flex items-center gap-1 shadow-md"
+                              >
+                                <ShoppingBag className="w-3.5 h-3.5 text-[#0B1330]" />
+                                <span>Add to Bag</span>
+                              </button>
+                            </div>
+                          </div>
                         </div>
+                      </StaggerItem>
+                    );
+                  })}
+                </StaggerGrid>
+
+                {/* Pagination Controls (After 3 Rows) */}
+                {totalPages > 1 && (
+                  <div className="mt-10 pt-6 border-t border-[#D4AF37]/20 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <p className="text-xs text-[#C9C2A6]">
+                      Showing{' '}
+                      <span className="font-mono font-semibold text-[#F5E7A3]">
+                        {(validCurrentPage - 1) * ITEMS_PER_PAGE + 1}
+                      </span>
+                      –
+                      <span className="font-mono font-semibold text-[#F5E7A3]">
+                        {Math.min(validCurrentPage * ITEMS_PER_PAGE, filteredProducts.length)}
+                      </span>{' '}
+                      of{' '}
+                      <span className="font-mono font-semibold text-[#F5E7A3]">
+                        {filteredProducts.length}
+                      </span>{' '}
+                      CAD designs (Page {validCurrentPage} of {totalPages})
+                    </p>
+
+                    <nav aria-label="Collections Pagination" className="flex items-center gap-1.5 flex-wrap justify-center">
+                      {/* First Page */}
+                      <button
+                        onClick={() => handlePageChange(1)}
+                        disabled={validCurrentPage === 1}
+                        aria-label="First page"
+                        className="p-2 rounded-xl bg-[#080E24] border border-[#D4AF37]/20 text-[#C9C2A6] hover:text-[#F5E7A3] hover:border-[#D4AF37]/60 hover:bg-[#121F4D]/40 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-[#080E24] disabled:hover:border-[#D4AF37]/20 transition-all cursor-pointer"
+                        title="First Page"
+                      >
+                        <ChevronsLeft className="w-4 h-4" />
+                      </button>
+
+                      {/* Prev Page */}
+                      <button
+                        onClick={() => handlePageChange(validCurrentPage - 1)}
+                        disabled={validCurrentPage === 1}
+                        aria-label="Previous page"
+                        className="px-3 py-2 rounded-xl bg-[#080E24] border border-[#D4AF37]/20 text-xs font-medium text-[#C9C2A6] hover:text-[#F5E7A3] hover:border-[#D4AF37]/60 hover:bg-[#121F4D]/40 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-[#080E24] disabled:hover:border-[#D4AF37]/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        <span className="hidden sm:inline">Prev</span>
+                      </button>
+
+                      {/* Numbers */}
+                      <div className="flex items-center gap-1">
+                        {getPageNumbers(validCurrentPage, totalPages).map((p, idx) => {
+                          if (p === '...') {
+                            return (
+                              <span
+                                key={`ellipsis-${idx}`}
+                                className="w-8 text-center text-xs text-[#C9C2A6]/40 select-none"
+                              >
+                                …
+                              </span>
+                            );
+                          }
+                          const pageNum = p as number;
+                          const isActive = pageNum === validCurrentPage;
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => handlePageChange(pageNum)}
+                              aria-current={isActive ? 'page' : undefined}
+                              className={`w-9 h-9 rounded-xl text-xs font-semibold transition-all flex items-center justify-center cursor-pointer ${
+                                isActive
+                                  ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#0B1330] font-bold shadow-md shadow-[#D4AF37]/20 border border-[#D4AF37]'
+                                  : 'bg-[#080E24] border border-[#D4AF37]/20 text-[#C9C2A6] hover:text-[#FAF8F3] hover:border-[#D4AF37]/60 hover:bg-[#121F4D]/40'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
                       </div>
-                    </StaggerItem>
-                  );
-                })}
-              </StaggerGrid>
+
+                      {/* Next Page */}
+                      <button
+                        onClick={() => handlePageChange(validCurrentPage + 1)}
+                        disabled={validCurrentPage === totalPages}
+                        aria-label="Next page"
+                        className="px-3 py-2 rounded-xl bg-[#080E24] border border-[#D4AF37]/20 text-xs font-medium text-[#C9C2A6] hover:text-[#F5E7A3] hover:border-[#D4AF37]/60 hover:bg-[#121F4D]/40 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-[#080E24] disabled:hover:border-[#D4AF37]/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <span className="hidden sm:inline">Next</span>
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+
+                      {/* Last Page */}
+                      <button
+                        onClick={() => handlePageChange(totalPages)}
+                        disabled={validCurrentPage === totalPages}
+                        aria-label="Last page"
+                        className="p-2 rounded-xl bg-[#080E24] border border-[#D4AF37]/20 text-[#C9C2A6] hover:text-[#F5E7A3] hover:border-[#D4AF37]/60 hover:bg-[#121F4D]/40 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-[#080E24] disabled:hover:border-[#D4AF37]/20 transition-all cursor-pointer"
+                        title="Last Page"
+                      >
+                        <ChevronsRight className="w-4 h-4" />
+                      </button>
+                    </nav>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

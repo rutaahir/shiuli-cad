@@ -5,21 +5,65 @@ interface BrandLogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
   onClick?: () => void;
+  imageSrc?: string; // Path to custom logo image (e.g., '/assets/logo.png')
+  useCustomImage?: boolean;
 }
+
+// Global default custom logo image path — change this path if you place your logo file in public/assets/
+const DEFAULT_CUSTOM_LOGO_PATH = '/assets/logo.png';
 
 export const BrandLogo: React.FC<BrandLogoProps> = ({
   variant = 'horizontal',
   size = 'md',
   className = '',
   onClick,
+  imageSrc,
+  useCustomImage = true,
 }) => {
-  // Dimension presets with prominent Shiuli font scaling
+  const activeImageSrc = imageSrc || (useCustomImage ? DEFAULT_CUSTOM_LOGO_PATH : null);
+
+  // Balanced, legible, luxury proportions for full image logos (without empty padding)
+  const pixelDimensions: Record<string, { height: number; maxWidth: number; className: string }> = {
+    sm: { height: 42, maxWidth: 165, className: 'h-[42px] max-w-[165px]' },
+    md: { height: 58, maxWidth: 230, className: 'h-[58px] max-w-[230px]' },
+    lg: { height: 76, maxWidth: 290, className: 'h-[76px] max-w-[290px]' },
+    xl: { height: 96, maxWidth: 360, className: 'h-[96px] max-w-[360px]' },
+  };
+
+  const dim = pixelDimensions[size] || pixelDimensions.md;
+
+  // Dimension presets with prominent Shiuli font scaling (for SVG vector fallback)
   const sizeMap = {
     sm: { icon: 30, shiuliTitle: 'text-sm sm:text-base', cadTitle: 'text-xs sm:text-sm', subtitle: 'text-[8px] sm:text-[9px]' },
     md: { icon: 42, shiuliTitle: 'text-lg sm:text-2xl', cadTitle: 'text-sm sm:text-lg', subtitle: 'text-[9px] sm:text-[11px]' },
     lg: { icon: 54, shiuliTitle: 'text-2xl sm:text-3xl', cadTitle: 'text-lg sm:text-xl', subtitle: 'text-xs sm:text-sm' },
     xl: { icon: 76, shiuliTitle: 'text-3xl sm:text-5xl', cadTitle: 'text-xl sm:text-3xl', subtitle: 'text-sm sm:text-base' },
   };
+
+  // If a custom image logo (like logo.png) is active, display it with guaranteed exact dimensions
+  if (activeImageSrc) {
+    return (
+      <div
+        onClick={onClick}
+        className={`inline-flex items-center flex-shrink-0 select-none ${onClick ? 'cursor-pointer' : ''} ${className}`}
+        style={{ height: `${dim.height}px`, maxHeight: `${dim.height}px` }}
+      >
+        <img
+          src={activeImageSrc}
+          alt="Shiuli CAD Studio Logo"
+          style={{
+            height: `${dim.height}px`,
+            maxHeight: `${dim.height}px`,
+            maxWidth: `${dim.maxWidth}px`,
+            width: 'auto',
+            objectFit: 'contain',
+            imageRendering: '-webkit-optimize-contrast',
+          }}
+          className={`${dim.className} w-auto object-contain transition-transform duration-300 hover:scale-105 drop-shadow-[0_2px_8px_rgba(212,175,55,0.25)]`}
+        />
+      </div>
+    );
+  }
 
   const currentSize = sizeMap[size];
 

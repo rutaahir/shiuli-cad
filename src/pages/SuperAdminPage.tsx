@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PageId, AdminModuleId, StaffMember, AdminNotification, ActivityLogItem } from '../types';
 import { appStore } from '../services/store';
+import { api } from '../services/api';
 
 import { AdminLayout } from '../components/admin/AdminLayout';
 import { AdminOverviewModule } from '../components/admin/AdminOverviewModule';
@@ -46,6 +47,34 @@ export const SuperAdminPage: React.FC<SuperAdminPageProps> = ({ onNavigate, init
   const [staffList, setStaffList] = useState<StaffMember[]>(() => appStore.getStaffList());
   const [notifications, setNotifications] = useState<AdminNotification[]>(() => appStore.getNotifications());
   const [activityLogs, setActivityLogs] = useState<ActivityLogItem[]>(() => appStore.getActivityLogs());
+
+  // Fetch live staff on mount to keep all admin modules synchronized
+  useEffect(() => {
+    api.getStaffList()
+      .then((data: any) => {
+        const rawList = Array.isArray(data) ? data : (data?.results || []);
+        if (rawList.length > 0) {
+          const mapped: StaffMember[] = rawList.map((item: any) => ({
+            id: item.id.toString(),
+            name: `${item.first_name || ''} ${item.last_name || ''}`.trim() || item.username,
+            email: item.email,
+            phone: item.phone_number || '+91 98765 00000',
+            avatar: item.profile_photo || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
+            role: item.specialty_tags || 'CAD Modeller',
+            status: item.is_active_staff ? 'active' : 'inactive',
+            maxJobLimit: item.max_concurrent_jobs || 2,
+            currentLoad: item.current_load || 0,
+            jobsCompleted: item.total_jobs_completed || 0,
+            rating: item.rating_average ? parseFloat(item.rating_average) : 5.0,
+            totalEarnings: 0,
+            activeJobs: item.active_jobs || [],
+          }));
+          setStaffList(mapped);
+          appStore.saveStaffList(mapped);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Assignment Rules & Escalation Timer State from appStore
   const initialSettings = appStore.getSettings();

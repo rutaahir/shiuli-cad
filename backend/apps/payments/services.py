@@ -116,6 +116,98 @@ def process_stage_payment_success(payment_stage, transaction_id=None):
     return stage
 
 
+def process_full_order_payment_success(order, transaction_id=None, payment_method="upi", payment_details=""):
+    """
+    Settles the entire order in full (100% full payment upfront or all remaining balance stages):
+    - Marks all OrderPaymentStages as PAID with paid_at = timezone.now().
+    - Sets order.advance_paid = True, order.balance_paid = True.
+    - If order was in AWAITING_PAYMENT, transitions to IN_DESIGN and releases to pool.
+    - Records OrderMilestone.
+    - Creates Payment record for traceability (payment_type=Payment.PaymentType.FULL).
+    - Creates notification to client, assigned staff, and admin.
+    """
+    with transaction.atomic():
+        from decimal import Decimal
+        order_obj = Order.objects.select_for_update().get(id=order.id)
+        all_stages = order_obj.payment_stages.all()
+
+        # If order doesn't have payment stages generated yet, create default 10/30/60 stages
+        if not all_stages.exists():
+            total_price = float(order_obj.total_price)
+            advance_amount = round(total_price * 0.10, 2)
+            OrderPaymentStage.objects.create(
+                order=order_obj, label="Booking Confirmation", percentage=10.0, amount=advance_amount,
+                order_index=0, trigger_type="immediate", status=OrderPaymentStage.Status.PAID, paid_at=timezone.now()
+            )
+            OrderPaymentStage.objects.create(
+                order=order_obj, label="Design Approval Milestone", percentage=30.0, amount=round(total_price * 0.30, 2),
+                order_index=1, trigger_type="on_design_approval", status=OrderPaymentStage.Status.PAID, paid_at=timezone.now()
+            )
+            OrderPaymentStage.objects.create(
+                order=order_obj, label="Final CAD Delivery", percentage=60.0, amount=round(total_price * 0.60, 2),
+                order_index=2, trigger_type="on_final_delivery", status=OrderPaymentStage.Status.PAID, paid_at=timezone.now()
+            )
+            all_stages = order_obj.payment_stages.all()
+
+        stages_marked_paid = 0
+        now = timezone.now()
+        for stg in all_stages:
+            if stg.status != OrderPaymentStage.Status.PAID:
+                stg.status = OrderPaymentStage.Status.PAID
+                stg.paid_at = now
+                stg.save(update_fields=['status', 'paid_at'])
+                stages_marked_paid += 1
+
+        order_obj.advance_paid = True
+        order_obj.balance_paid = True
+
+        # If order was awaiting payment, advance to IN_DESIGN and release to pool
+        if order_obj.status == Order.Status.AWAITING_PAYMENT:
+            order_obj.status = Order.Status.IN_DESIGN
+            order_obj.unassigned_since = now
+            order_obj.save(update_fields=['advance_paid', 'balance_paid', 'status', 'unassigned_since'])
+            release_order_to_pool(order_obj)
+        else:
+            order_obj.save(update_fields=['advance_paid', 'balance_paid'])
+
+        OrderMilestone.objects.create(
+            order=order_obj,
+            stage=f"100% Full Payment Settled (₹{order_obj.total_price} INR)"
+        )
+
+        Payment.objects.create(
+            order=order_obj,
+            payment_type=Payment.PaymentType.FULL,
+            amount=order_obj.total_price,
+            gateway_transaction_id=transaction_id or f"TXN-FULL-{order_obj.id}-{int(now.timestamp())}",
+            payment_method=payment_method or "upi",
+            payment_details=payment_details or "Full 100% Upfront Order Settlement",
+            status=Payment.Status.SUCCESS
+        )
+
+        create_notification(
+            recipient=order_obj.client,
+            title="Order 100% Paid in Full",
+            body=f"Your full payment of ₹{order_obj.total_price} for Order #{order_obj.id} was confirmed! All milestone payment gates are unlocked.",
+            notification_type="payment_success",
+            related_order=order_obj
+        )
+
+        if order_obj.assigned_staff:
+            from .models import Settlement
+            payout = Decimal(str(order_obj.total_price)) * Decimal('0.70')
+            Settlement.objects.get_or_create(
+                order=order_obj,
+                staff=order_obj.assigned_staff,
+                defaults={'amount': payout, 'status': Settlement.Status.PENDING}
+            )
+
+        return {
+            "order": order_obj,
+            "stages_paid": stages_marked_paid
+        }
+
+
 def approve_design_preview_and_unlock_stage(order):
     """
     Called when Client approves design preview.

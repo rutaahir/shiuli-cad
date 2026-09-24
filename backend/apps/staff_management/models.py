@@ -19,6 +19,8 @@ class PlatformSettings(models.Model):
         blank=True,
         default="For Cash or Cheque, please submit your transaction details and attach deposit receipt or cheque photo. Atelier accounts will confirm collection and enable your download."
     )
+    free_revisions_allowed = models.PositiveIntegerField(default=2)
+    extra_revision_fee = models.DecimalField(max_digits=10, decimal_places=2, default=500.00)
 
     class Meta:
         verbose_name_plural = "Platform Settings"

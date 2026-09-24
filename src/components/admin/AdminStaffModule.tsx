@@ -55,8 +55,14 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
   const [showAddDrawer, setShowAddDrawer] = useState(false);
 
   // Dynamic Staff List State
-  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
-  const [isLoadingStaff, setIsLoadingStaff] = useState(true);
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>(() => {
+    if (initialStaffList && initialStaffList.length > 0) return initialStaffList;
+    return appStore.getStaffList();
+  });
+  const [isLoadingStaff, setIsLoadingStaff] = useState(() => {
+    const initial = (initialStaffList && initialStaffList.length > 0) ? initialStaffList : appStore.getStaffList();
+    return initial.length === 0;
+  });
 
   // Deletion state
   const [deletingStaff, setDeletingStaff] = useState<StaffMember | null>(null);
@@ -119,30 +125,44 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
   }>({});
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
+  // Sync with initialStaffList prop if it updates
+  useEffect(() => {
+    if (initialStaffList && initialStaffList.length > 0) {
+      setStaffMembers(initialStaffList);
+    }
+  }, [initialStaffList]);
+
   // Fetch Live Staff List from Backend on Mount
   const fetchStaffList = async () => {
-    setIsLoadingStaff(true);
     try {
       const data: any = await api.getStaffList();
       const rawList = Array.isArray(data) ? data : (data?.results || []);
-      const mapped: StaffMember[] = rawList.map((item: any) => ({
-        id: item.id.toString(),
-        name: `${item.first_name || ''} ${item.last_name || ''}`.trim() || item.username,
-        email: item.email,
-        phone: item.phone_number || '+91 98765 00000',
-        avatar: item.profile_photo || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
-        role: item.specialty_tags || 'CAD Modeller',
-        status: item.is_active_staff ? 'active' : 'inactive',
-        maxJobLimit: item.max_concurrent_jobs || 2,
-        currentLoad: item.current_load || 0,
-        jobsCompleted: item.total_jobs_completed || 0,
-        rating: item.rating_average ? parseFloat(item.rating_average) : 5.0,
-        totalEarnings: 0,
-        activeJobs: item.active_jobs || [],
-      }));
-      setStaffMembers(mapped);
-      appStore.saveStaffList(mapped);
-    } catch {
+      if (rawList.length > 0) {
+        const mapped: StaffMember[] = rawList.map((item: any) => ({
+          id: item.id.toString(),
+          name: `${item.first_name || ''} ${item.last_name || ''}`.trim() || item.username,
+          email: item.email,
+          phone: item.phone_number || '+91 98765 00000',
+          avatar: item.profile_photo || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
+          role: item.specialty_tags || 'CAD Modeller',
+          status: item.is_active_staff ? 'active' : 'inactive',
+          maxJobLimit: item.max_concurrent_jobs || 2,
+          currentLoad: item.current_load || 0,
+          jobsCompleted: item.total_jobs_completed || 0,
+          rating: item.rating_average ? parseFloat(item.rating_average) : 5.0,
+          totalEarnings: 0,
+          activeJobs: item.active_jobs || [],
+        }));
+        setStaffMembers(mapped);
+        appStore.saveStaffList(mapped);
+      } else {
+        const stored = appStore.getStaffList();
+        if (stored.length > 0) {
+          setStaffMembers(stored);
+        }
+      }
+    } catch (err) {
+      console.warn('api.getStaffList fallback to appStore:', err);
       // Fallback to local store if API fails
       setStaffMembers(appStore.getStaffList());
     } finally {

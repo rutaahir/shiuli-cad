@@ -39,7 +39,7 @@ export interface PaymentGatewayModalProps {
   subtitle?: string;
   amount: number; // in INR by default or USD
   currency?: 'INR' | 'USD';
-  itemType?: 'ready_cad' | 'custom_advance' | 'milestone_stage' | 'cart';
+  itemType?: 'ready_cad' | 'custom_advance' | 'milestone_stage' | 'order_full_payment' | 'cart';
   orderDetails?: {
     id?: string | number;
     category?: string;
@@ -234,7 +234,7 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
         try {
           await api.post('/payments/create-order/', {
             order_id: orderDetails.id,
-            payment_type: itemType === 'custom_advance' ? 'advance' : 'stage',
+            payment_type: itemType === 'order_full_payment' ? 'full' : itemType === 'custom_advance' ? 'advance' : 'stage',
             payment_method: activeTab,
             payment_details: chosenDetails,
             payment_screenshot: chosenScreenshot || undefined,
