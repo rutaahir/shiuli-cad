@@ -145,11 +145,16 @@ def send_dynamic_mail(
     active_user, active_pass = get_active_email_credentials()
     connection = get_dynamic_email_connection(active_user, active_pass)
 
-    if not from_email:
-        if active_user:
-            from_email = f"Shiuli CAD Studio <{active_user}>"
-        else:
-            from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'Shiuli CAD Studio <noreply@shiulicad.com>')
+    # CRITICAL GOOGLE SMTP / GMAIL REQUIREMENT:
+    # When authenticating against Google SMTP (smtp.gmail.com), the From header MUST
+    # match the authenticated active_user account (e.g. 'Shiuli CAD Studio <username@gmail.com>').
+    # If a view passes a legacy unauthenticated sender like 'noreply@shiulicadstudio.com',
+    # Google SMTP will either reject with 553 error or recipient mailservers will drop the email
+    # due to SPF/DMARC misalignment.
+    if active_user:
+        from_email = f"Shiuli CAD Studio <{active_user}>"
+    elif not from_email:
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'Shiuli CAD Studio <noreply@shiulicad.com>')
 
     return send_mail(
         subject=subject,
