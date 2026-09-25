@@ -5,6 +5,11 @@ export const BackgroundAnimations: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
+    // Disable intensive canvas particle physics loop on mobile/touch screens to ensure smooth 60fps scrolling & save battery
+    const isTouch = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    const isMobileWidth = window.innerWidth < 768;
+    if (isTouch || isMobileWidth) return;
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -17,6 +22,10 @@ export const BackgroundAnimations: React.FC = () => {
 
     const handleResize = () => {
       if (!canvas) return;
+      if (window.innerWidth < 768) {
+        ctx.clearRect(0, 0, width, height);
+        return;
+      }
       width = canvas.width = window.innerWidth;
       height = canvas.height = window.innerHeight;
     };
@@ -44,9 +53,10 @@ export const BackgroundAnimations: React.FC = () => {
       alphaSpeed: number;
     }
 
-    // Create gold dust & CAD mesh particles
-    const particleCount = Math.min(Math.floor((width * height) / 22000), 55);
+    // Lightweight particle count on desktop
+    const particleCount = Math.min(Math.floor((width * height) / 40000), 28);
     const particles: Particle[] = [];
+
 
     for (let i = 0; i < particleCount; i++) {
       const colorPrefix = colors[Math.floor(Math.random() * colors.length)];

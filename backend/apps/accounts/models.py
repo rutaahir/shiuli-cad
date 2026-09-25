@@ -48,3 +48,38 @@ class AccountOTP(models.Model):
         username = self.user.username if self.user else self.target_value
         return f"AccountOTP ({self.otp_type}) for {username}"
 
+
+class DesignerApplication(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending Review"
+        APPROVED = "approved", "Approved"
+        DECLINED = "declined", "Declined"
+
+    first_name = models.CharField(max_length=150)
+    last_name = models.CharField(max_length=150)
+    email = models.EmailField(db_index=True)
+    phone_number = models.CharField(max_length=30)
+    address = models.TextField()
+    city = models.CharField(max_length=100)
+    state = models.CharField(max_length=100)
+    country = models.CharField(max_length=100, default="India")
+    pincode = models.CharField(max_length=20)
+    experience = models.TextField(help_text="Years or summary of CAD experience")
+    portfolio_link = models.URLField(max_length=500, blank=True, null=True)
+    work_zip = models.FileField(upload_to="designer_applications/zips/", blank=True, null=True)
+
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    admin_notes = models.TextField(blank=True, default="")
+    rejection_reason = models.TextField(blank=True, default="")
+    created_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="designer_application")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name} ({self.email}) - {self.status}"
+

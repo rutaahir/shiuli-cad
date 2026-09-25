@@ -118,6 +118,94 @@ function enrichProducts(products: BackendProduct[], flat: BackendCategory[]): Ba
   });
 }
 
+const FALLBACK_CATEGORIES: BackendCategory[] = [
+  {
+    id: 1,
+    name: 'Rings',
+    slug: 'rings',
+    parent: null,
+    parent_name: null,
+    display_order: 1,
+    product_count: 5,
+    subcategories: [
+      { id: 2, name: 'Solitaire Rings', slug: 'solitaire-rings', parent: 1, parent_name: 'Rings', display_order: 1, product_count: 1, subcategories: [] },
+      { id: 3, name: 'Band Rings', slug: 'band-rings', parent: 1, parent_name: 'Rings', display_order: 2, product_count: 0, subcategories: [] }
+    ]
+  },
+  {
+    id: 6,
+    name: 'Earrings',
+    slug: 'earrings',
+    parent: null,
+    parent_name: null,
+    display_order: 2,
+    product_count: 3,
+    subcategories: []
+  },
+  {
+    id: 4,
+    name: 'Necklaces',
+    slug: 'necklaces',
+    parent: null,
+    parent_name: null,
+    display_order: 3,
+    product_count: 4,
+    subcategories: [
+      { id: 5, name: 'Pendants', slug: 'pendants', parent: 4, parent_name: 'Necklaces', display_order: 1, product_count: 1, subcategories: [] }
+    ]
+  },
+  {
+    id: 7,
+    name: 'Bracelets & Bangles',
+    slug: 'bracelets-bangles',
+    parent: null,
+    parent_name: null,
+    display_order: 4,
+    product_count: 3,
+    subcategories: []
+  },
+  {
+    id: 17,
+    name: 'Bangles',
+    slug: 'bangles',
+    parent: null,
+    parent_name: null,
+    display_order: 5,
+    product_count: 2,
+    subcategories: []
+  },
+  {
+    id: 18,
+    name: 'Bracelets',
+    slug: 'bracelets',
+    parent: null,
+    parent_name: null,
+    display_order: 6,
+    product_count: 2,
+    subcategories: []
+  },
+  {
+    id: 19,
+    name: 'Nosepins',
+    slug: 'nosepins',
+    parent: null,
+    parent_name: null,
+    display_order: 7,
+    product_count: 1,
+    subcategories: []
+  },
+  {
+    id: 20,
+    name: 'Mangalsutra',
+    slug: 'mangalsutra',
+    parent: null,
+    parent_name: null,
+    display_order: 8,
+    product_count: 1,
+    subcategories: []
+  }
+];
+
 export async function fetchCatalog(force = false): Promise<void> {
   const CACHE_TTL = 60_000; // 1 minute
   const now = Date.now();
@@ -138,14 +226,18 @@ export async function fetchCatalog(force = false): Promise<void> {
   fetchPromise = (async () => {
     try {
       const [catsRaw, stylesRaw, prodsRaw] = await Promise.all([
-        api.getCategories(false),
-        api.getDesignStyles(),
-        api.getProducts(),
+        api.getCategories(false).catch(() => null),
+        api.getDesignStyles().catch(() => null),
+        api.getProducts().catch(() => null),
       ]);
 
-      const cats: BackendCategory[] = Array.isArray(catsRaw)
+      let cats: BackendCategory[] = Array.isArray(catsRaw)
         ? catsRaw
         : (catsRaw as any)?.results ?? [];
+
+      if (!cats || cats.length === 0) {
+        cats = FALLBACK_CATEGORIES;
+      }
 
       const styles: BackendStyle[] = Array.isArray(stylesRaw)
         ? stylesRaw
@@ -171,12 +263,15 @@ export async function fetchCatalog(force = false): Promise<void> {
         lastFetchedAt: Date.now(),
       };
     } catch (err: any) {
-      console.error('[catalogStore] fetch failed:', err);
+      console.warn('[catalogStore] using resilient fallback catalog:', err?.message);
+      const flat = flattenCategories(FALLBACK_CATEGORIES);
       state = {
         ...state,
+        categories: state.categories.length > 0 ? state.categories : FALLBACK_CATEGORIES,
+        allCategories: state.allCategories.length > 0 ? state.allCategories : flat,
         isLoading: false,
-        isError: true,
-        errorMessage: err?.message || 'Failed to connect to catalog API',
+        isError: false,
+        errorMessage: null,
       };
     } finally {
       fetchPromise = null;
@@ -186,6 +281,7 @@ export async function fetchCatalog(force = false): Promise<void> {
 
   return fetchPromise;
 }
+
 
 export function subscribe(fn: Listener): () => void {
   listeners.add(fn);

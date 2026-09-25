@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrandLogo } from './BrandLogo';
 import { FloatingLabelInput } from './FloatingLabelInput';
+import { DesignerApplicationModal } from './DesignerApplicationModal';
 import { X, Mail, Lock, User, Phone, Sparkles, ArrowRight, ArrowLeft, KeyRound, AlertCircle, ShieldCheck, CheckCircle2, RefreshCw, Check } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
@@ -61,6 +62,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showDesignerModal, setShowDesignerModal] = useState(false);
 
   // Professional Field Validation State
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -280,7 +282,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 15 }}
         transition={{ duration: 0.25 }}
-        className="relative w-full max-w-md rounded-3xl bg-[#080E24] border border-[#D4AF37]/35 shadow-[0_20px_60px_rgba(0,0,0,0.8)] p-6 sm:p-8 text-[#FAF8F3] overflow-hidden"
+        className="relative w-full max-w-md rounded-3xl bg-[#080E24] border border-[#D4AF37]/35 shadow-[0_20px_60px_rgba(0,0,0,0.8)] p-4 sm:p-8 text-[#FAF8F3] overflow-hidden"
       >
         {/* Ambient Gold Gradient Top Line */}
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#1E4FA3] via-[#D4AF37] to-[#F5E7A3]" />
@@ -338,7 +340,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
 
             {/* 6 Individual Digit Boxes */}
-            <div className="flex justify-center gap-2 sm:gap-3">
+            <div className="flex justify-center gap-1.5 xs:gap-2 sm:gap-3">
               {otpDigits.map((digit, index) => (
                 <input
                   key={index}
@@ -350,7 +352,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   value={digit}
                   onChange={(e) => handleOtpDigitChange(index, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                  className="w-11 h-13 sm:w-12 sm:h-14 text-center text-xl sm:text-2xl font-mono font-bold bg-[#060D22] border-2 border-[#D4AF37]/40 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/30 rounded-xl text-[#FAF8F3] outline-none transition-all shadow-inner"
+                  className="w-9 h-11 xs:w-10 xs:h-12 sm:w-12 sm:h-14 text-center text-lg xs:text-xl sm:text-2xl font-mono font-bold bg-[#060D22] border-2 border-[#D4AF37]/40 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/30 rounded-xl text-[#FAF8F3] outline-none transition-all shadow-inner"
                 />
               ))}
             </div>
@@ -528,7 +530,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         {/* Toggle Login/Register */}
         {regStep === 'form' && (
-          <div className="text-center pt-4 border-t border-white/10 mt-4">
+          <div className="text-center pt-4 border-t border-white/10 mt-4 space-y-3">
             <p className="text-xs text-[#C9C2A6] font-light">
               {authMode === 'login' ? "Don't have an account?" : 'Already registered?'}{' '}
               <button
@@ -545,6 +547,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 {authMode === 'login' ? 'Create Client Account' : 'Sign In'}
               </button>
             </p>
+
+            {/* CAD Designer Self-Registration Prompt */}
+            <div className="p-3 rounded-2xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 flex items-center justify-between gap-2 text-left">
+              <div>
+                <p className="text-[11px] font-bold text-[#F5E7A3] flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-[#D4AF37]" />
+                  <span>Are you a CAD Designer?</span>
+                </p>
+                <p className="text-[10px] text-[#C9C2A6]/80 font-light">
+                  Apply to join our atelier and receive staff login credentials.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDesignerModal(true)}
+                className="px-2.5 py-1.5 rounded-lg bg-[#D4AF37] hover:bg-[#F5E7A3] text-[#0B1330] font-bold text-[11px] whitespace-nowrap transition-colors shadow-sm cursor-pointer"
+              >
+                Apply Here
+              </button>
+            </div>
           </div>
         )}
 
@@ -581,6 +603,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         )}
       </motion.div>
+
+      <DesignerApplicationModal
+        isOpen={showDesignerModal}
+        onClose={() => setShowDesignerModal(false)}
+      />
     </div>
   );
 };

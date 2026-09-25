@@ -1,10 +1,15 @@
 import secrets
+import hmac
+import hashlib
+import time
+import random
 from datetime import timedelta
 from django.utils import timezone
 from django.conf import settings
 from django.contrib.auth.hashers import make_password, check_password
-from django.core.mail import send_mail
-from rest_framework import generics, status, permissions
+from apps.core.email_service import send_dynamic_mail as send_mail
+from django.http import FileResponse, Http404
+from rest_framework import generics, status, permissions, parsers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.throttling import ScopedRateThrottle
@@ -13,11 +18,13 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from drf_spectacular.utils import extend_schema
 
-from .models import AccountOTP
+from apps.core.permissions import IsAdmin
+from .models import AccountOTP, DesignerApplication, StaffProfile
 from .serializers import (
     UserSerializer,
     RegisterClientSerializer,
     CustomTokenObtainPairSerializer,
+    DesignerApplicationSerializer,
 )
 
 User = get_user_model()
@@ -26,6 +33,55 @@ User = get_user_model()
 def generate_6digit_otp():
     """Generates a cryptographically secure 6-digit integer string."""
     return f"{secrets.randbelow(900000) + 100000}"
+
+
+def generate_captcha_challenge():
+    """Generates an arithmetic challenge with a signed HMAC token."""
+    n1 = random.randint(2, 18)
+    n2 = random.randint(2, 12)
+    answer = n1 + n2
+    salt = secrets.token_hex(6)
+    timestamp = int(time.time())
+    payload = f"{salt}:{timestamp}:{answer}"
+    secret = getattr(settings, 'SECRET_KEY', 'shiuli_cad_secure_signature')
+    sig = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    key = f"{salt}:{timestamp}:{sig}"
+    question = f"{n1} + {n2} = ?"
+    return key, question
+
+
+def verify_captcha_challenge(key: str, user_answer) -> bool:
+    """Verifies that the user answer matches the cryptographically signed challenge."""
+    try:
+        if not key or user_answer is None or str(user_answer).strip() == '':
+            return False
+        parts = str(key).split(":")
+        if len(parts) != 3:
+            return False
+        salt, timestamp_str, sig = parts
+        timestamp = int(timestamp_str)
+        if time.time() - timestamp > 900:  # 15 minutes validity
+            return False
+        answer = int(str(user_answer).strip())
+        payload = f"{salt}:{timestamp}:{answer}"
+        secret = getattr(settings, 'SECRET_KEY', 'shiuli_cad_secure_signature')
+        expected_sig = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
+        return hmac.compare_digest(sig, expected_sig)
+    except Exception:
+        return False
+
+
+class CaptchaGenerateView(APIView):
+    """Provides a fresh arithmetic captcha challenge for registration forms."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        key, question = generate_captcha_challenge()
+        return Response({
+            "key": key,
+            "question": question,
+            "expires_in_seconds": 900
+        }, status=status.HTTP_200_OK)
 
 
 @extend_schema(responses={201: UserSerializer})
@@ -344,13 +400,23 @@ class VerifyEmailChangeOTPView(APIView):
 
 
 class RequestPasswordResetOTPView(APIView):
-    """Sends 6-digit OTP code to authenticated user's email for password change."""
-    permission_classes = [permissions.IsAuthenticated]
+    """Sends 6-digit OTP code to user's email for password change/reset (supports logged-in staff and unauthenticated users)."""
+    permission_classes = [permissions.AllowAny]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'password_reset'
 
     def post(self, request):
-        user = request.user
+        if request.user and request.user.is_authenticated:
+            user = request.user
+            email = user.email
+        else:
+            email = str(request.data.get("email", "")).strip().lower()
+            if not email:
+                return Response({"error": "Email address is required."}, status=status.HTTP_400_BAD_REQUEST)
+            user = User.objects.filter(email__iexact=email).first()
+            if not user:
+                return Response({"error": "No account found matching this email address."}, status=status.HTTP_404_NOT_FOUND)
+
         now = timezone.now()
         otp_code = generate_6digit_otp()
         otp_hash = make_password(otp_code)
@@ -377,12 +443,12 @@ class RequestPasswordResetOTPView(APIView):
 
         try:
             send_mail(
-                subject="Password Reset Code - Shiuli CAD Studio",
+                subject="Password Reset Verification Code - Shiuli CAD Studio",
                 message=(
                     f"Hello {user.first_name or user.username},\n\n"
-                    f"Your 6-digit password reset verification code is: {otp_code}\n\n"
+                    f"Your 6-digit password verification code is: {otp_code}\n\n"
                     f"This code will expire in 10 minutes.\n\n"
-                    f"If you did not request a password change, please secure your account immediately.\n\n"
+                    f"If you did not request a password change, please disregard this message or secure your account.\n\n"
                     f"Warm regards,\nShiuli CAD Studio Security Team"
                 ),
                 from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com'),
@@ -394,13 +460,15 @@ class RequestPasswordResetOTPView(APIView):
 
         return Response({
             "message": f"Verification code sent to {user.email}. Enter code and new password to confirm.",
-            "expires_in_seconds": 600
+            "email": user.email,
+            "expires_in_seconds": 600,
+            "debug_otp": otp_code if getattr(settings, 'DEBUG', True) else None
         }, status=status.HTTP_200_OK)
 
 
 class VerifyPasswordResetOTPView(APIView):
-    """Verifies OTP code and resets user password."""
-    permission_classes = [permissions.IsAuthenticated]
+    """Verifies OTP code and resets user password (supports logged-in staff and unauthenticated users)."""
+    permission_classes = [permissions.AllowAny]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'password_reset'
 
@@ -414,7 +482,16 @@ class VerifyPasswordResetOTPView(APIView):
         if len(new_password) < 6:
             return Response({"error": "New password must be at least 6 characters long."}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = request.user
+        if request.user and request.user.is_authenticated:
+            user = request.user
+        else:
+            email = str(request.data.get("email", "")).strip().lower()
+            if not email:
+                return Response({"error": "Email address is required."}, status=status.HTTP_400_BAD_REQUEST)
+            user = User.objects.filter(email__iexact=email).first()
+            if not user:
+                return Response({"error": "No account found matching this email address."}, status=status.HTTP_404_NOT_FOUND)
+
         now = timezone.now()
         otp_obj = AccountOTP.objects.filter(
             user=user,
@@ -593,4 +670,433 @@ class AdminClientsListView(APIView):
             })
 
         return Response(client_data, status=status.HTTP_200_OK)
+
+
+class DesignerApplicationCreateView(APIView):
+    """
+    Public self-registration endpoint for CAD Designers.
+    Accepts multipart form data including portfolio link and past work zip archive.
+    Verifies captcha before creating application.
+    Notifies Admin via email and admin queue.
+    """
+    permission_classes = [permissions.AllowAny]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
+
+    def post(self, request):
+        captcha_key = request.data.get("captcha_key")
+        captcha_answer = request.data.get("captcha_answer")
+
+        if not captcha_key or not verify_captcha_challenge(captcha_key, captcha_answer):
+            return Response(
+                {"error": "Captcha verification failed. Please solve the math verification to submit."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        first_name = str(request.data.get("first_name", "")).strip()
+        last_name = str(request.data.get("last_name", "")).strip()
+        email = str(request.data.get("email", "")).strip().lower()
+        phone_number = str(request.data.get("phone_number", "")).strip()
+        address = str(request.data.get("address", "")).strip()
+        city = str(request.data.get("city", "")).strip()
+        state = str(request.data.get("state", "")).strip()
+        country = str(request.data.get("country", "")).strip() or "India"
+        pincode = str(request.data.get("pincode", "")).strip()
+        experience = str(request.data.get("experience", "")).strip()
+        portfolio_link = str(request.data.get("portfolio_link", "")).strip()
+        work_zip = request.FILES.get("work_zip")
+
+        # Validate required fields
+        required_fields = {
+            "First name": first_name,
+            "Last name": last_name,
+            "Email": email,
+            "Phone number": phone_number,
+            "Address": address,
+            "City": city,
+            "State": state,
+            "Postal/PIN code": pincode,
+            "Experience": experience,
+        }
+        for field_label, field_val in required_fields.items():
+            if not field_val:
+                return Response({"error": f"{field_label} is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if '@' not in email or '.' not in email:
+            return Response({"error": "Please provide a valid email address."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if already active staff
+        existing_user = User.objects.filter(email__iexact=email).first()
+        if existing_user and existing_user.role == User.Role.STAFF:
+            return Response(
+                {"error": "An active CAD designer account already exists with this email address. Please sign in directly."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if pending application exists
+        if DesignerApplication.objects.filter(email__iexact=email, status=DesignerApplication.Status.PENDING).exists():
+            return Response(
+                {"error": "An application with this email is currently pending administrative review. You will receive an email once your login is approved."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        app = DesignerApplication.objects.create(
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            phone_number=phone_number,
+            address=address,
+            city=city,
+            state=state,
+            country=country,
+            pincode=pincode,
+            experience=experience,
+            portfolio_link=portfolio_link,
+            work_zip=work_zip,
+            status=DesignerApplication.Status.PENDING
+        )
+
+        # Admin Email Notification
+        admin_emails = list(User.objects.filter(role=User.Role.ADMIN).exclude(email='').values_list('email', flat=True))
+        if not admin_emails:
+            admin_emails = [getattr(settings, 'ADMIN_EMAIL', 'admin@shiulicadstudio.com'), getattr(settings, 'DEFAULT_FROM_EMAIL', 'admin@shiulicadstudio.com')]
+
+        admin_subject = f"New CAD Designer Application - {first_name} {last_name}"
+        admin_message = (
+            f"Dear Administrator,\n\n"
+            f"A new CAD Designer has applied for self-registration on Shiuli CAD Studio.\n\n"
+            f"Applicant Details:\n"
+            f"----------------------------------------\n"
+            f"Name:        {first_name} {last_name}\n"
+            f"Email:       {email}\n"
+            f"Phone:       {phone_number}\n"
+            f"Location:    {city}, {state}, {country} (PIN: {pincode})\n"
+            f"Address:     {address}\n"
+            f"Experience:  {experience}\n"
+            f"Portfolio:   {portfolio_link or 'None provided'}\n"
+            f"Work Archive: {'ZIP file attached and uploaded' if work_zip else 'None'}\n"
+            f"----------------------------------------\n\n"
+            f"You can review, inspect work files, and Approve or Decline this designer directly in your SuperAdmin Panel under Approvals > CAD Designer Applications.\n\n"
+            f"Warm regards,\n"
+            f"Shiuli CAD Studio Automated Platform"
+        )
+
+        try:
+            send_mail(
+                subject=admin_subject,
+                message=admin_message,
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com'),
+                recipient_list=admin_emails,
+                fail_silently=True
+            )
+        except Exception as e:
+            print(f"[EMAIL SERVICE WARNING] Failed to notify admin of designer application: {e}")
+
+        # Terminal debug log
+        print("\n" + "=" * 70)
+        print(f"📥 [NEW CAD DESIGNER APPLICATION RECEIVED]")
+        print(f"   Name:       {first_name} {last_name}")
+        print(f"   Email:      {email}")
+        print(f"   Phone:      {phone_number}")
+        print(f"   Location:   {city}, {state}, {country} ({pincode})")
+        print(f"   Experience: {experience}")
+        print(f"   Portfolio:  {portfolio_link or 'None'}")
+        print(f"   Work Zip:   {app.work_zip.name if app.work_zip else 'None'}")
+        print("=" * 70 + "\n")
+
+        return Response({
+            "message": "Your CAD Designer application has been submitted successfully! Our Atelier team will review your portfolio and send your login credentials via email once approved.",
+            "id": app.id,
+            "status": app.status
+        }, status=status.HTTP_201_CREATED)
+
+
+class DesignerApplicationListView(APIView):
+    """
+    SuperAdmin endpoint to view and filter incoming CAD Designer applications.
+    """
+    permission_classes = [permissions.IsAuthenticated, IsAdmin]
+
+    def get(self, request):
+        status_filter = request.query_params.get('status', 'all').lower()
+        qs = DesignerApplication.objects.all().order_by('-created_at')
+        if status_filter in ['pending', 'approved', 'declined']:
+            qs = qs.filter(status=status_filter)
+
+        serializer = DesignerApplicationSerializer(qs, many=True, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class DesignerApplicationApproveView(APIView):
+    """
+    SuperAdmin endpoint to Approve a CAD Designer application.
+    Auto-generates secure password, creates/activates staff account, and emails credentials to staff.
+    """
+    permission_classes = [permissions.IsAuthenticated, IsAdmin]
+
+    def post(self, request, pk):
+        try:
+            app = DesignerApplication.objects.get(pk=pk)
+        except DesignerApplication.DoesNotExist:
+            return Response({"error": "Designer application not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if app.status == DesignerApplication.Status.APPROVED and app.created_user:
+            return Response({"error": "This application has already been approved."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Generate readable, secure auto-password
+        random_suffix = secrets.token_hex(3).upper()
+        auto_password = f"Shiuli@{random_suffix}!"
+
+        # Create or update user account
+        user = User.objects.filter(email__iexact=app.email).first()
+        if user:
+            user.role = User.Role.STAFF
+            user.is_staff = True
+            user.is_active = True
+            user.is_active_staff = True
+            if app.first_name and not user.first_name:
+                user.first_name = app.first_name
+            if app.last_name and not user.last_name:
+                user.last_name = app.last_name
+            if app.phone_number and not user.phone_number:
+                user.phone_number = app.phone_number
+            user.set_password(auto_password)
+            user.save()
+        else:
+            base_username = app.email.split('@')[0].lower()
+            username = base_username
+            idx = 1
+            while User.objects.filter(username=username).exists():
+                username = f"{base_username}_{idx}"
+                idx += 1
+
+            user = User.objects.create_user(
+                username=username,
+                email=app.email,
+                first_name=app.first_name,
+                last_name=app.last_name,
+                phone_number=app.phone_number,
+                role=User.Role.STAFF,
+                is_staff=True,
+                is_active=True,
+                is_active_staff=True
+            )
+            user.set_password(auto_password)
+            user.save()
+
+        # Create or update StaffProfile
+        StaffProfile.objects.update_or_create(
+            user=user,
+            defaults={
+                'bio': f"CAD Experience: {app.experience}\nLocation: {app.city}, {app.state}, {app.country}",
+                'specialty_tags': 'Jewellery CAD Specialist',
+                'max_concurrent_jobs': 2
+            }
+        )
+
+        # Update application state
+        app.status = DesignerApplication.Status.APPROVED
+        app.reviewed_at = timezone.now()
+        app.created_user = user
+        app.save()
+
+        # Send approval email to CAD Designer
+        staff_subject = "Welcome to Shiuli CAD Studio - Your CAD Designer Login is Approved!"
+        staff_message = (
+            f"Dear {app.first_name} {app.last_name},\n\n"
+            f"Congratulations! We are delighted to inform you that your application to join Shiuli CAD Studio as a CAD Designer has been reviewed and APPROVED by our Atelier Administration.\n\n"
+            f"You can now log in to the Shiuli Staff Portal to access the workbench, accept open CAD jobs, upload 3DM/STL deliverables, and collaborate with our atelier.\n\n"
+            f"====================================================\n"
+            f"YOUR LOGIN CREDENTIALS:\n"
+            f"====================================================\n"
+            f"Portal URL:          /staff-portal (or Login at /login)\n"
+            f"Registered Email:    {app.email}\n"
+            f"Auto-Generated Pass: {auto_password}\n"
+            f"====================================================\n\n"
+            f"PASSWORD CHANGE / RESET VIA OTP:\n"
+            f"For your account security, you can change your password anytime after logging in via your Staff Profile by verifying your email with a 6-digit OTP.\n\n"
+            f"Welcome to the Shiuli CAD Studio family!\n\n"
+            f"Warm regards,\n"
+            f"Shiuli CAD Studio Administration\n"
+            f"https://shiulicadstudio.com"
+        )
+
+        email_sent = False
+        email_error = None
+        sender_email = getattr(settings, 'EMAIL_HOST_USER', None) or getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com')
+        from_header = f"Shiuli CAD Studio <{sender_email}>" if '<' not in str(sender_email) else sender_email
+
+        try:
+            send_mail(
+                subject=staff_subject,
+                message=staff_message,
+                from_email=from_header,
+                recipient_list=[app.email],
+                fail_silently=False
+            )
+            email_sent = True
+        except Exception as e:
+            email_sent = False
+            email_error = str(e)
+            print(f"[EMAIL SERVICE WARNING] Failed to send designer approval email to {app.email}: {e}")
+
+        # Terminal log for dev
+        print("\n" + "=" * 70)
+        print(f"🎉 [CAD DESIGNER APPROVED & CREDENTIALS ISSUED]")
+        print(f"   Name:       {app.first_name} {app.last_name}")
+        print(f"   Email:      {app.email}")
+        print(f"   Username:   {user.username}")
+        print(f"   Auto-Pass:  {auto_password}")
+        print(f"   Email Sent: {'YES ✅' if email_sent else f'FAILED ❌ ({email_error})'}")
+        print("=" * 70 + "\n")
+
+        return Response({
+            "message": f"CAD designer application for {app.first_name} {app.last_name} approved! {'Credentials sent to ' + app.email if email_sent else 'Note: Outgoing email delivery failed (SMTP daily limit or auth error).'}",
+            "generated_password": auto_password,
+            "email_sent": email_sent,
+            "email_error": email_error,
+            "application": DesignerApplicationSerializer(app, context={'request': request}).data
+        }, status=status.HTTP_200_OK)
+
+
+class DesignerApplicationDeclineView(APIView):
+    """
+    SuperAdmin endpoint to Decline a CAD Designer application.
+    """
+    permission_classes = [permissions.IsAuthenticated, IsAdmin]
+
+    def post(self, request, pk):
+        try:
+            app = DesignerApplication.objects.get(pk=pk)
+        except DesignerApplication.DoesNotExist:
+            return Response({"error": "Designer application not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        reason = str(request.data.get("reason", "")).strip()
+
+        app.status = DesignerApplication.Status.DECLINED
+        app.rejection_reason = reason
+        app.reviewed_at = timezone.now()
+        app.save()
+
+        decline_subject = "Update regarding your Shiuli CAD Studio Designer Application"
+        decline_message = (
+            f"Dear {app.first_name} {app.last_name},\n\n"
+            f"Thank you for taking the time to apply to Shiuli CAD Studio as a CAD Designer.\n\n"
+            f"After reviewing your application and past work portfolio, our Atelier administration has decided not to proceed with your onboarding at this time.\n\n"
+            + (f"Administrative Feedback: {reason}\n\n" if reason else "")
+            + f"We appreciate your interest in our studio and wish you the best in your design pursuits.\n\n"
+            f"Warm regards,\n"
+            f"Shiuli CAD Studio Administration"
+        )
+
+        try:
+            send_mail(
+                subject=decline_subject,
+                message=decline_message,
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com'),
+                recipient_list=[app.email],
+                fail_silently=True
+            )
+        except Exception as e:
+            print(f"[EMAIL SERVICE WARNING] Failed to send designer decline email: {e}")
+
+        return Response({
+            "message": f"Application for {app.first_name} {app.last_name} has been declined.",
+            "application": DesignerApplicationSerializer(app, context={'request': request}).data
+        }, status=status.HTTP_200_OK)
+
+
+class DesignerApplicationDownloadZipView(APIView):
+    """
+    SuperAdmin endpoint to securely download the applicant's uploaded past work zip.
+    """
+    permission_classes = [permissions.IsAuthenticated, IsAdmin]
+
+    def get(self, request, pk):
+        try:
+            app = DesignerApplication.objects.get(pk=pk)
+        except DesignerApplication.DoesNotExist:
+            raise Http404("Application not found.")
+
+        if not app.work_zip or not app.work_zip.storage.exists(app.work_zip.name):
+            return Response({"error": "No work zip file uploaded for this application."}, status=status.HTTP_404_NOT_FOUND)
+
+        filename = f"CAD_Portfolio_{app.first_name}_{app.last_name}_{app.id}.zip".replace(" ", "_")
+        response = FileResponse(app.work_zip.open('rb'), content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
+
+class DesignerApplicationResendEmailView(APIView):
+    """
+    SuperAdmin endpoint to resend welcome credentials email to an approved designer.
+    Can also reset auto-password if requested.
+    """
+    permission_classes = [permissions.IsAuthenticated, IsAdmin]
+
+    def post(self, request, pk):
+        try:
+            app = DesignerApplication.objects.get(pk=pk)
+        except DesignerApplication.DoesNotExist:
+            return Response({"error": "Application not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if app.status != DesignerApplication.Status.APPROVED:
+            return Response({"error": "Can only send credentials to an approved applicant."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = app.created_user or User.objects.filter(email__iexact=app.email).first()
+        if not user:
+            return Response({"error": "Associated staff user account could not be found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Generate a fresh secure temporary password
+        random_suffix = secrets.token_hex(3).upper()
+        new_password = f"Shiuli@{random_suffix}!"
+        user.set_password(new_password)
+        user.save()
+
+        # Connect created_user if missing
+        if not app.created_user:
+            app.created_user = user
+            app.save(update_fields=['created_user'])
+
+        staff_subject = "Welcome to Shiuli CAD Studio - Your CAD Designer Login Credentials"
+        staff_message = (
+            f"Dear {app.first_name} {app.last_name},\n\n"
+            f"Here are your login credentials for the Shiuli CAD Studio Staff Workbench:\n\n"
+            f"====================================================\n"
+            f"YOUR LOGIN CREDENTIALS:\n"
+            f"====================================================\n"
+            f"Portal URL:          /staff-portal (or Login at /login)\n"
+            f"Registered Email:    {app.email}\n"
+            f"Login Password:      {new_password}\n"
+            f"====================================================\n\n"
+            f"You can change your password anytime after logging in via your Staff Profile by verifying with OTP.\n\n"
+            f"Warm regards,\n"
+            f"Shiuli CAD Studio Administration\n"
+            f"https://shiulicadstudio.com"
+        )
+
+        sender_email = getattr(settings, 'EMAIL_HOST_USER', None) or getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com')
+        from_header = f"Shiuli CAD Studio <{sender_email}>" if '<' not in str(sender_email) else sender_email
+
+        email_sent = False
+        email_error = None
+        try:
+            send_mail(
+                subject=staff_subject,
+                message=staff_message,
+                from_email=from_header,
+                recipient_list=[app.email],
+                fail_silently=False
+            )
+            email_sent = True
+        except Exception as e:
+            email_sent = False
+            email_error = str(e)
+            print(f"[EMAIL SERVICE WARNING] Failed to resend email to {app.email}: {e}")
+
+        return Response({
+            "message": f"Credentials refreshed for {app.email}.",
+            "generated_password": new_password,
+            "email_sent": email_sent,
+            "email_error": email_error,
+        }, status=status.HTTP_200_OK)
 

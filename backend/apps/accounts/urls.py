@@ -14,6 +14,13 @@ from .views import (
     RequestPasswordResetOTPView,
     VerifyPasswordResetOTPView,
     AdminClientsListView,
+    CaptchaGenerateView,
+    DesignerApplicationCreateView,
+    DesignerApplicationListView,
+    DesignerApplicationApproveView,
+    DesignerApplicationDeclineView,
+    DesignerApplicationDownloadZipView,
+    DesignerApplicationResendEmailView,
 )
 
 urlpatterns = [
@@ -33,4 +40,15 @@ urlpatterns = [
     path('verify-email-change-otp/', VerifyEmailChangeOTPView.as_view(), name='auth-verify-email-otp'),
     path('request-password-reset-otp/', RequestPasswordResetOTPView.as_view(), name='auth-request-password-otp'),
     path('verify-password-reset-otp/', VerifyPasswordResetOTPView.as_view(), name='auth-verify-password-otp'),
+
+    # Captcha challenge for registration verification
+    path('captcha/', CaptchaGenerateView.as_view(), name='auth-captcha'),
+
+    # CAD Designer self-registration & admin approvals
+    path('designer-applications/', DesignerApplicationListView.as_view(), name='designer-applications-list'),
+    path('designer-applications/apply/', DesignerApplicationCreateView.as_view(), name='designer-applications-apply'),
+    path('designer-applications/<int:pk>/approve/', DesignerApplicationApproveView.as_view(), name='designer-applications-approve'),
+    path('designer-applications/<int:pk>/decline/', DesignerApplicationDeclineView.as_view(), name='designer-applications-decline'),
+    path('designer-applications/<int:pk>/download-zip/', DesignerApplicationDownloadZipView.as_view(), name='designer-applications-download-zip'),
+    path('designer-applications/<int:pk>/resend-credentials/', DesignerApplicationResendEmailView.as_view(), name='designer-applications-resend-credentials'),
 ]

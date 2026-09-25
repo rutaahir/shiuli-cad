@@ -175,16 +175,17 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.ScopedRateThrottle',
     ),
     'DEFAULT_THROTTLE_RATES': {
-        'anon': config('THROTTLE_ANON_RATE', default='100/day'),
-        'user': config('THROTTLE_USER_RATE', default='1000/day'),
-        'auth_login': config('THROTTLE_AUTH_LOGIN', default='10/minute'),
-        'auth_otp': config('THROTTLE_AUTH_OTP', default='5/minute'),
-        'password_reset': config('THROTTLE_PASSWORD_RESET', default='5/hour'),
+        'anon': config('THROTTLE_ANON_RATE', default='50000/hour' if not PRODUCTION else '3000/hour'),
+        'user': config('THROTTLE_USER_RATE', default='100000/hour' if not PRODUCTION else '10000/hour'),
+        'auth_login': config('THROTTLE_AUTH_LOGIN', default='60/minute' if not PRODUCTION else '15/minute'),
+        'auth_otp': config('THROTTLE_AUTH_OTP', default='60/minute' if not PRODUCTION else '10/minute'),
+        'password_reset': config('THROTTLE_PASSWORD_RESET', default='60/hour' if not PRODUCTION else '10/hour'),
     },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
+
 
 # SimpleJWT Settings
 SIMPLE_JWT = {
@@ -236,5 +237,6 @@ EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='').strip()
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='').strip().replace(' ', '')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='Shiuli CAD Studio <noreply@shiulicad.com>')
+SETTINGS_ENCRYPTION_KEY = config('SETTINGS_ENCRYPTION_KEY', default='').strip()
 
 

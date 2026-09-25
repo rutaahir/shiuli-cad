@@ -14,22 +14,21 @@ interface RevealOnScrollProps {
 export const RevealOnScroll: React.FC<RevealOnScrollProps> = ({
   children,
   delay = 0,
-  duration = 0.5,
-  yOffset = 24,
-  threshold = 0.15,
+  duration = 0.45,
+  yOffset = 20,
   className = '',
   staggerIndex,
 }) => {
   const prefersReducedMotion = useReducedMotion();
-  const calculatedDelay = delay + (staggerIndex !== undefined ? staggerIndex * 0.08 : 0);
+  const calculatedDelay = delay + (staggerIndex !== undefined ? staggerIndex * 0.06 : 0);
 
   if (prefersReducedMotion) {
     return (
       <motion.div
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}
-        viewport={{ once: true, amount: threshold }}
-        transition={{ duration: 0.2, delay: calculatedDelay }}
+        viewport={{ once: true, amount: 'some' }}
+        transition={{ duration: 0.15, delay: calculatedDelay }}
         className={className}
       >
         {children}
@@ -41,7 +40,7 @@ export const RevealOnScroll: React.FC<RevealOnScrollProps> = ({
     <motion.div
       initial={{ opacity: 0, y: yOffset }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: threshold }}
+      viewport={{ once: true, amount: 'some', margin: '0px 0px -30px 0px' }}
       transition={{
         duration,
         delay: calculatedDelay,
@@ -53,3 +52,4 @@ export const RevealOnScroll: React.FC<RevealOnScrollProps> = ({
     </motion.div>
   );
 };
+

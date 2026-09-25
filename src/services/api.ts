@@ -1103,6 +1103,10 @@ class ApiClient {
     studio_upi_id: string;
     studio_qr_code_url: string;
     cash_check_instructions: string;
+    free_revisions_allowed: number;
+    extra_revision_fee: number;
+    smtp_email: string;
+    smtp_app_password: string;
   }>) {
     await this.ensureAdminToken();
     return this.request<any>('/platform-settings/', {
@@ -1110,6 +1114,15 @@ class ApiClient {
       body: JSON.stringify(settings),
     });
   }
+
+  async testSmtpEmail(data: { smtp_email?: string; smtp_app_password?: string; recipient?: string }) {
+    await this.ensureAdminToken();
+    return this.request<{ success: boolean; detail: string }>('/platform-settings/test-email/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
 
   // Staff & Profile Helper Endpoints
   async updateMe(data: Partial<{
@@ -1414,6 +1427,75 @@ class ApiClient {
     if (Array.isArray(res)) return res;
     if (res && Array.isArray(res.results)) return res.results;
     return [];
+  }
+
+  // Captcha & CAD Designer Self-Registration Endpoints
+  async getCaptcha(): Promise<{ key: string; question: string; expires_in_seconds: number }> {
+    return this.request<{ key: string; question: string; expires_in_seconds: number }>('/auth/captcha/');
+  }
+
+  async applyAsDesigner(formData: FormData): Promise<any> {
+    const token = localStorage.getItem('shiuli_access_token');
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const response = await fetch(`${API_BASE_URL}/auth/designer-applications/apply/`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    if (!response.ok) {
+      let errData: any = {};
+      try {
+        errData = await response.json();
+      } catch (e) {
+        // ignore
+      }
+      throw new Error(errData.error || errData.message || `Submission failed with status ${response.status}`);
+    }
+    return response.json();
+  }
+
+  async getDesignerApplications(status?: string): Promise<any[]> {
+    const q = status && status !== 'all' ? `?status=${encodeURIComponent(status)}` : '';
+    const res = await this.request<any>(`/auth/designer-applications/${q}`);
+    if (Array.isArray(res)) return res;
+    if (res && Array.isArray(res.results)) return res.results;
+    return [];
+  }
+
+  async approveDesignerApplication(id: number | string): Promise<any> {
+    return this.request<any>(`/auth/designer-applications/${id}/approve/`, {
+      method: 'POST',
+    });
+  }
+
+  async declineDesignerApplication(id: number | string, reason?: string): Promise<any> {
+    return this.request<any>(`/auth/designer-applications/${id}/decline/`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  }
+
+  async resendDesignerApplicationCredentials(id: number | string): Promise<any> {
+    return this.request<any>(`/auth/designer-applications/${id}/resend-credentials/`, {
+      method: 'POST',
+    });
+  }
+
+  async requestPasswordResetOtp(email?: string): Promise<{ message: string; email?: string; debug_otp?: string }> {
+    return this.request<any>('/auth/request-password-reset-otp/', {
+      method: 'POST',
+      body: JSON.stringify(email ? { email } : {}),
+    });
+  }
+
+  async verifyPasswordResetOtp(code: string, newPassword: string, email?: string): Promise<{ detail: string }> {
+    return this.request<any>('/auth/verify-password-reset-otp/', {
+      method: 'POST',
+      body: JSON.stringify({ code, new_password: newPassword, ...(email ? { email } : {}) }),
+    });
   }
 }
 

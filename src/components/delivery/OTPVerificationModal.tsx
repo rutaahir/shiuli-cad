@@ -214,7 +214,7 @@ export const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
               )}
 
               {/* 6-Digit Gold Accented OTP Input Boxes */}
-              <div className="flex justify-between gap-2 mb-6">
+              <div className="flex justify-between gap-1.5 xs:gap-2 mb-6">
                 {otp.map((digit, index) => (
                   <input
                     key={index}
@@ -225,7 +225,7 @@ export const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
                     onChange={e => handleInputChange(index, e.target.value)}
                     onKeyDown={e => handleKeyDown(index, e)}
                     onPaste={handlePaste}
-                    className="w-12 h-14 md:w-14 md:h-16 text-center text-xl md:text-2xl font-bold font-mono bg-zinc-900 border-2 border-zinc-800 rounded-xl text-amber-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 focus:outline-none transition-all"
+                    className="w-9 h-11 xs:w-11 xs:h-13 md:w-14 md:h-16 text-center text-lg xs:text-xl md:text-2xl font-bold font-mono bg-zinc-900 border-2 border-zinc-800 rounded-xl text-amber-300 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 focus:outline-none transition-all"
                   />
                 ))}
               </div>

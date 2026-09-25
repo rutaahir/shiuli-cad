@@ -5,7 +5,7 @@ from django.utils import timezone
 from django.conf import settings
 from django.contrib.auth.hashers import make_password, check_password
 from django.core.files.base import ContentFile
-from django.core.mail import send_mail
+from apps.core.email_service import send_dynamic_mail as send_mail
 from django.http import FileResponse
 from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes

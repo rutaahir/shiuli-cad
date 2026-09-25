@@ -3,15 +3,38 @@ from apps.accounts.models import User, StaffProfile
 from apps.custom_orders.models import Order
 from .models import PlatformSettings
 
+from apps.core.email_service import mask_email
+
 class PlatformSettingsSerializer(serializers.ModelSerializer):
+    email_configured = serializers.SerializerMethodField()
+    masked_smtp_email = serializers.SerializerMethodField()
+    smtp_email = serializers.EmailField(write_only=True, required=False, allow_blank=True)
+    smtp_app_password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    smtp_updated_by_name = serializers.SerializerMethodField()
+
     class Meta:
         model = PlatformSettings
         fields = [
             'id', 'studio_name', 'timezone', 'default_max_job_limit',
             'assignment_mode', 'auto_escalation_minutes', 'advance_payment_percentage',
             'studio_upi_id', 'studio_qr_code', 'studio_qr_code_url', 'cash_check_instructions',
-            'free_revisions_allowed', 'extra_revision_fee'
+            'free_revisions_allowed', 'extra_revision_fee',
+            'email_configured', 'masked_smtp_email', 'smtp_email', 'smtp_app_password',
+            'smtp_updated_by_name', 'smtp_updated_at'
         ]
+        read_only_fields = ['smtp_updated_at', 'smtp_updated_by_name']
+
+    def get_email_configured(self, obj):
+        return bool(obj.smtp_email and obj.smtp_app_password_encrypted)
+
+    def get_masked_smtp_email(self, obj):
+        return mask_email(obj.smtp_email) if obj.smtp_email else ""
+
+    def get_smtp_updated_by_name(self, obj):
+        if obj.smtp_updated_by:
+            return obj.smtp_updated_by.get_full_name() or obj.smtp_updated_by.username
+        return None
+
 
 
 class StaffListSerializer(serializers.ModelSerializer):

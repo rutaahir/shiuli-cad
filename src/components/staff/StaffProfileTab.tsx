@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StaffMember } from '../../types';
 import {
   ShieldCheck,
@@ -8,6 +8,7 @@ import {
   LogOut,
   Loader2,
   Check,
+  CheckCircle2,
   X,
   Camera,
   Key,
@@ -43,11 +44,73 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
   const [sendingResetEmail, setSendingResetEmail] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [passwordMode, setPasswordMode] = useState<'otp' | 'direct'>('otp');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [otpCountdown, setOtpCountdown] = useState(0);
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  useEffect(() => {
+    let t: any = null;
+    if (otpCountdown > 0) {
+      t = setInterval(() => setOtpCountdown((c) => c - 1), 1000);
+    }
+    return () => {
+      if (t) clearInterval(t);
+    };
+  }, [otpCountdown]);
+
+  const handleRequestOtp = async () => {
+    setSendingOtp(true);
+    setPasswordMsg(null);
+    try {
+      await api.requestPasswordResetOtp(email);
+      setOtpSent(true);
+      setOtpCountdown(60);
+      setPasswordMsg({ type: 'success', text: `6-digit verification code sent to ${email}!` });
+    } catch (err: any) {
+      setPasswordMsg({ type: 'error', text: err?.message || 'Failed to dispatch verification OTP.' });
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  const handleVerifyOtpAndChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otpCode.trim() || otpCode.trim().length !== 6) {
+      setPasswordMsg({ type: 'error', text: 'Please enter the 6-digit OTP code sent to your email.' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordMsg({ type: 'error', text: 'New passwords do not match.' });
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordMsg({ type: 'error', text: 'New password must be at least 6 characters.' });
+      return;
+    }
+
+    setChangingPassword(true);
+    setPasswordMsg(null);
+    try {
+      const res = await api.verifyPasswordResetOtp(otpCode.trim(), newPassword, email);
+      setPasswordMsg({ type: 'success', text: res.detail || 'Password successfully updated via OTP verification!' });
+      setOtpCode('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setOtpSent(false);
+      setTimeout(() => setPasswordMsg(null), 5000);
+    } catch (err: any) {
+      setPasswordMsg({ type: 'error', text: err?.message || 'Invalid or expired OTP code.' });
+    } finally {
+      setChangingPassword(false);
+    }
+  };
 
   const handleLogout = async () => {
     if (onLogout) {
@@ -415,6 +478,32 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
 
                 {showPasswordChange && (
                   <div className="mt-3 p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E5E7EF] space-y-3 animate-fadeIn">
+                    {/* Mode Toggle: OTP vs Direct */}
+                    <div className="flex items-center gap-2 p-1 bg-white rounded-lg border border-[#E5E7EF] text-xs font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => setPasswordMode('otp')}
+                        className={`flex-1 py-1.5 rounded-md transition-all cursor-pointer ${
+                          passwordMode === 'otp'
+                            ? 'bg-[#09112B] text-[#F5E7A3] shadow-sm'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Verify with Email OTP
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPasswordMode('direct')}
+                        className={`flex-1 py-1.5 rounded-md transition-all cursor-pointer ${
+                          passwordMode === 'direct'
+                            ? 'bg-[#09112B] text-[#F5E7A3] shadow-sm'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        With Current Password
+                      </button>
+                    </div>
+
                     {passwordMsg && (
                       <div
                         className={`p-2.5 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 ${
@@ -432,53 +521,138 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
                       </div>
                     )}
 
-                    <div>
-                      <label className="font-semibold text-[#1E2230] block mb-1">Current Password</label>
-                      <input
-                        type="password"
-                        value={oldPassword}
-                        onChange={(e) => setOldPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E5E7EF]"
-                      />
-                    </div>
+                    {passwordMode === 'otp' ? (
+                      /* EMAIL OTP WORKFLOW */
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs">
+                          <span className="text-amber-900">
+                            Send 6-digit verification code to <strong>{email}</strong>
+                          </span>
+                          <button
+                            type="button"
+                            disabled={sendingOtp || otpCountdown > 0}
+                            onClick={handleRequestOtp}
+                            className="px-2.5 py-1 rounded-md bg-[#09112B] text-[#F5E7A3] font-bold text-[11px] disabled:opacity-50 cursor-pointer shrink-0"
+                          >
+                            {sendingOtp ? (
+                              'Sending...'
+                            ) : otpCountdown > 0 ? (
+                              `Resend in ${otpCountdown}s`
+                            ) : otpSent ? (
+                              'Resend OTP'
+                            ) : (
+                              'Send OTP Code'
+                            )}
+                          </button>
+                        </div>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="font-semibold text-[#1E2230] block mb-1">New Password</label>
-                        <input
-                          type="password"
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          placeholder="Min 6 chars"
-                          className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E5E7EF]"
-                        />
-                      </div>
-                      <div>
-                        <label className="font-semibold text-[#1E2230] block mb-1">Confirm New</label>
-                        <input
-                          type="password"
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          placeholder="Repeat new"
-                          className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E5E7EF]"
-                        />
-                      </div>
-                    </div>
+                        {otpSent && (
+                          <div className="space-y-3 animate-fadeIn">
+                            <div>
+                              <label className="font-semibold text-[#1E2230] block mb-1 text-xs">
+                                6-Digit Email Verification Code
+                              </label>
+                              <input
+                                type="text"
+                                maxLength={6}
+                                value={otpCode}
+                                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                                placeholder="Enter 6-digit code"
+                                className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E5E7EF] font-mono tracking-widest text-sm text-center"
+                              />
+                            </div>
 
-                    <button
-                      type="button"
-                      disabled={changingPassword || !oldPassword || !newPassword}
-                      onClick={handleChangePassword}
-                      className="w-full py-2 rounded-lg bg-[#09112B] hover:bg-[#162758] text-[#F5E7A3] font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-sm"
-                    >
-                      {changingPassword ? (
-                        <Loader2 className="w-3.5 h-3.5 text-[#C9A227] animate-spin" />
-                      ) : (
-                        <Lock className="w-3.5 h-3.5 text-[#C9A227]" />
-                      )}
-                      <span>Update Password Now</span>
-                    </button>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div>
+                                <label className="font-semibold text-[#1E2230] block mb-1">New Password</label>
+                                <input
+                                  type="password"
+                                  value={newPassword}
+                                  onChange={(e) => setNewPassword(e.target.value)}
+                                  placeholder="Min 6 chars"
+                                  className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E5E7EF]"
+                                />
+                              </div>
+                              <div>
+                                <label className="font-semibold text-[#1E2230] block mb-1">Confirm New</label>
+                                <input
+                                  type="password"
+                                  value={confirmPassword}
+                                  onChange={(e) => setConfirmPassword(e.target.value)}
+                                  placeholder="Repeat new"
+                                  className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E5E7EF]"
+                                />
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              disabled={changingPassword || otpCode.length !== 6 || !newPassword}
+                              onClick={handleVerifyOtpAndChangePassword}
+                              className="w-full py-2 rounded-lg bg-[#09112B] hover:bg-[#162758] text-[#F5E7A3] font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+                            >
+                              {changingPassword ? (
+                                <Loader2 className="w-3.5 h-3.5 text-[#C9A227] animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="w-3.5 h-3.5 text-[#C9A227]" />
+                              )}
+                              <span>Verify OTP &amp; Update Password</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* DIRECT WITH OLD PASSWORD WORKFLOW */
+                      <div className="space-y-3">
+                        <div>
+                          <label className="font-semibold text-[#1E2230] block mb-1 text-xs">Current Password</label>
+                          <input
+                            type="password"
+                            value={oldPassword}
+                            onChange={(e) => setOldPassword(e.target.value)}
+                            placeholder="••••••••"
+                            className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E5E7EF] text-xs"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <label className="font-semibold text-[#1E2230] block mb-1">New Password</label>
+                            <input
+                              type="password"
+                              value={newPassword}
+                              onChange={(e) => setNewPassword(e.target.value)}
+                              placeholder="Min 6 chars"
+                              className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E5E7EF]"
+                            />
+                          </div>
+                          <div>
+                            <label className="font-semibold text-[#1E2230] block mb-1">Confirm New</label>
+                            <input
+                              type="password"
+                              value={confirmPassword}
+                              onChange={(e) => setConfirmPassword(e.target.value)}
+                              placeholder="Repeat new"
+                              className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E5E7EF]"
+                            />
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          disabled={changingPassword || !oldPassword || !newPassword}
+                          onClick={handleChangePassword}
+                          className="w-full py-2 rounded-lg bg-[#09112B] hover:bg-[#162758] text-[#F5E7A3] font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+                        >
+                          {changingPassword ? (
+                            <Loader2 className="w-3.5 h-3.5 text-[#C9A227] animate-spin" />
+                          ) : (
+                            <Lock className="w-3.5 h-3.5 text-[#C9A227]" />
+                          )}
+                          <span>Update Password Directly</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

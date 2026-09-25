@@ -22,6 +22,18 @@ class PlatformSettings(models.Model):
     free_revisions_allowed = models.PositiveIntegerField(default=2)
     extra_revision_fee = models.DecimalField(max_digits=10, decimal_places=2, default=500.00)
 
+    # Dynamic Admin-Editable SMTP Credentials (Encrypted at rest via Fernet)
+    smtp_email = models.EmailField(max_length=255, blank=True, default="")
+    smtp_app_password_encrypted = models.TextField(blank=True, default="")
+    smtp_updated_by = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="smtp_settings_updates"
+    )
+    smtp_updated_at = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         verbose_name_plural = "Platform Settings"
 

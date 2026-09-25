@@ -37,8 +37,8 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-      <div className="relative w-full max-w-3xl rounded-2xl bg-[#0B1330] border border-[#D4AF37]/30 shadow-2xl overflow-hidden text-[#FAF8F3]">
+    <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md">
+      <div className="relative w-full max-w-3xl rounded-2xl bg-[#0B1330] border border-[#D4AF37]/30 shadow-2xl overflow-hidden text-[#FAF8F3] max-h-[92vh] overflow-y-auto">
         {/* Close button */}
         <button
           onClick={onClose}

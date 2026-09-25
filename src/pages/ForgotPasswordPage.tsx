@@ -1,42 +1,88 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { BrandLogo } from '../components/BrandLogo';
 import { FloatingLabelInput } from '../components/FloatingLabelInput';
-import { Mail, ArrowRight, ArrowLeft, CheckCircle2, Info } from 'lucide-react';
+import { Mail, Lock, KeyRound, ArrowRight, ArrowLeft, CheckCircle2, AlertCircle, RefreshCw, Check } from 'lucide-react';
 import { PageId } from '../types';
-
-import { sendOtpEmail } from '../services/emailService';
+import { api } from '../services/api';
 
 interface ForgotPasswordPageProps {
   onNavigate: (page: PageId, extraId?: string) => void;
 }
 
 export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNavigate }) => {
+  const [step, setStep] = useState<'email' | 'otp' | 'success'>('email');
   const [email, setEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState(0);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) {
-      setErrorMessage('Please enter your email address');
+  useEffect(() => {
+    let t: any = null;
+    if (countdown > 0) {
+      t = setInterval(() => setCountdown((c) => c - 1), 1000);
+    }
+    return () => {
+      if (t) clearInterval(t);
+    };
+  }, [countdown]);
+
+  const handleRequestOtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!email.trim() || !email.includes('@')) {
+      setErrorMessage('Please enter a valid registered email address.');
       return;
     }
 
     setIsLoading(true);
     setErrorMessage(null);
 
-    // Generate 6-digit OTP code and dispatch via Gmail SMTP
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    sendOtpEmail(email.trim(), otpCode, 'Password Reset Access').catch((e) =>
-      console.warn('Background OTP dispatch notice:', e)
-    );
-
-    setTimeout(() => {
+    try {
+      await api.requestPasswordResetOtp(email.trim().toLowerCase());
+      setStep('otp');
+      setCountdown(60);
+      setSuccessMessage(`A 6-digit verification code has been dispatched to ${email}.`);
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Failed to dispatch verification code. Please check your email.');
+    } finally {
       setIsLoading(false);
-      setIsSubmitted(true);
-    }, 1000);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+
+    if (!otpCode.trim() || otpCode.trim().length !== 6) {
+      setErrorMessage('Please enter the 6-digit verification code received in your email.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setErrorMessage('New password must be at least 6 characters long.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setErrorMessage('New passwords do not match.');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      await api.verifyPasswordResetOtp(otpCode.trim(), newPassword, email.trim().toLowerCase());
+      setStep('success');
+      setTimeout(() => {
+        onNavigate('login');
+      }, 2500);
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Invalid or expired verification code. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -58,69 +104,166 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
           </button>
         </div>
 
-        {!isSubmitted ? (
+        {step === 'email' && (
           <>
             <div className="space-y-2 text-center">
               <h1 className="font-serif text-3xl text-[#FAF8F3]">Reset Password</h1>
               <p className="text-xs text-[#C9C2A6] font-light leading-relaxed">
-                Enter your registered email address and we'll send you instructions to reset your password.
+                Enter your registered email address to receive a secure 6-digit OTP verification code.
               </p>
             </div>
 
-            {/* Note banner regarding Backend Email Integration */}
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] flex items-start gap-2 leading-relaxed">
-              <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-              <span>
-                <strong>Note:</strong> Automated password reset emails require an active SMTP mail server configuration on the Django backend.
-              </span>
-            </div>
+            {errorMessage && (
+              <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleRequestOtp} className="space-y-5">
               <FloatingLabelInput
                 label="Registered Email Address"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 icon={<Mail className="w-4 h-4" />}
-                error={errorMessage || undefined}
                 required
               />
 
               <button
                 type="submit"
                 disabled={isLoading}
-                className="btn-gold-luxury w-full py-3.5 rounded-xl font-medium tracking-[0.15em] uppercase text-xs flex items-center justify-center gap-2 shadow-xl disabled:opacity-50"
+                className="btn-gold-luxury w-full py-3.5 rounded-xl font-medium tracking-[0.15em] uppercase text-xs flex items-center justify-center gap-2 shadow-xl disabled:opacity-50 cursor-pointer"
               >
                 {isLoading ? (
                   <span className="w-4 h-4 border-2 border-[#0B1330] border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <>
-                    <span>Send Reset Instructions</span>
+                    <span>Send Verification Code</span>
                     <ArrowRight className="w-4 h-4 text-[#0B1330]" />
                   </>
                 )}
               </button>
             </form>
           </>
-        ) : (
-          /* Success Confirmation State */
-          <div className="text-center space-y-4 py-4">
-            <div className="w-16 h-16 mx-auto rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37]">
-              <CheckCircle2 className="w-8 h-8" />
+        )}
+
+        {step === 'otp' && (
+          <>
+            <div className="space-y-2 text-center">
+              <h1 className="font-serif text-2xl sm:text-3xl text-[#FAF8F3]">Verify Code &amp; Reset</h1>
+              <p className="text-xs text-[#C9C2A6] font-light leading-relaxed">
+                Enter the 6-digit OTP sent to <strong className="text-[#FAF8F3]">{email}</strong> and choose your new password.
+              </p>
             </div>
 
-            <h2 className="font-serif text-2xl text-[#FAF8F3]">Check Your Inbox</h2>
+            {errorMessage && (
+              <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
+            {successMessage && !errorMessage && (
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{successMessage}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleVerifyOtp} className="space-y-4">
+              <div>
+                <label className="text-xs text-[#C9C2A6] font-medium block mb-1">
+                  6-Digit Verification Code (OTP)
+                </label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                  placeholder="Enter 6-digit OTP"
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#060B1E] border border-white/15 text-center font-mono text-lg font-bold text-[#F5E7A3] tracking-[0.3em] focus:outline-none focus:border-[#D4AF37]"
+                  required
+                />
+              </div>
+
+              <FloatingLabelInput
+                label="New Password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                icon={<Lock className="w-4 h-4" />}
+                required
+              />
+
+              <FloatingLabelInput
+                label="Confirm New Password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                icon={<Lock className="w-4 h-4" />}
+                required
+              />
+
+              <div className="flex items-center justify-between text-xs pt-1">
+                <span className="text-[#C9C2A6]/70">Didn't receive code?</span>
+                {countdown > 0 ? (
+                  <span className="font-mono text-[#D4AF37]">Resend in {countdown}s</span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleRequestOtp()}
+                    className="text-[#F5E7A3] hover:underline font-semibold cursor-pointer"
+                  >
+                    Resend Code
+                  </button>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading || otpCode.length !== 6 || !newPassword}
+                className="btn-gold-luxury w-full py-3.5 rounded-xl font-medium tracking-[0.15em] uppercase text-xs flex items-center justify-center gap-2 shadow-xl disabled:opacity-50 cursor-pointer"
+              >
+                {isLoading ? (
+                  <span className="w-4 h-4 border-2 border-[#0B1330] border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <span>Verify Code &amp; Update Password</span>
+                    <CheckCircle2 className="w-4 h-4 text-[#0B1330]" />
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStep('email')}
+                className="w-full text-center text-xs text-[#C9C2A6] hover:text-[#FAF8F3] transition-colors py-1 cursor-pointer"
+              >
+                ← Change Email Address
+              </button>
+            </form>
+          </>
+        )}
+
+        {step === 'success' && (
+          <div className="text-center space-y-4 py-4">
+            <div className="w-16 h-16 mx-auto rounded-full bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center text-emerald-400 shadow-[0_0_30px_rgba(16,185,129,0.3)]">
+              <Check className="w-8 h-8 stroke-[3]" />
+            </div>
+
+            <h2 className="font-serif text-2xl text-[#FAF8F3]">Password Updated!</h2>
 
             <p className="text-xs text-[#C9C2A6] leading-relaxed">
-              If an account associated with <strong className="text-[#F5E7A3]">{email}</strong> exists, you will receive password reset instructions shortly.
+              Your password has been successfully reset. Redirecting you to sign in...
             </p>
 
             <div className="pt-2">
               <button
-                onClick={() => setIsSubmitted(false)}
-                className="text-xs text-[#D4AF37] hover:underline"
+                onClick={() => onNavigate('login')}
+                className="btn-gold-luxury px-6 py-2 rounded-xl text-xs font-semibold uppercase"
               >
-                Didn't receive email? Try again
+                Go to Sign In
               </button>
             </div>
           </div>
@@ -130,7 +273,7 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
         <div className="pt-4 border-t border-white/5 text-center">
           <button
             onClick={() => onNavigate('login')}
-            className="inline-flex items-center gap-1.5 text-xs text-[#C9C2A6] hover:text-[#FAF8F3] transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs text-[#C9C2A6] hover:text-[#FAF8F3] transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Back to Sign In</span>

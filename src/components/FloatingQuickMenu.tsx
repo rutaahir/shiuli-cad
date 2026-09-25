@@ -78,7 +78,7 @@ export const FloatingQuickMenu: React.FC<FloatingQuickMenuProps> = ({ onNavigate
 
       {/* Quick Menu Panel */}
       <div
-        className={`fixed bottom-24 right-5 z-[50] w-[340px] max-h-[calc(100vh-140px)] overflow-y-auto transition-all duration-400 origin-bottom-right ${
+        className={`fixed bottom-20 sm:bottom-24 right-4 sm:right-5 z-[50] w-[calc(100vw-32px)] max-w-[340px] max-h-[calc(100vh-120px)] sm:max-h-[calc(100vh-140px)] overflow-y-auto transition-all duration-400 origin-bottom-right ${
           isOpen
             ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto'
             : 'opacity-0 scale-90 translate-y-6 pointer-events-none'
@@ -223,22 +223,22 @@ export const FloatingQuickMenu: React.FC<FloatingQuickMenuProps> = ({ onNavigate
       {/* Scroll to Top Button */}
       <button
         onClick={scrollToTop}
-        className={`fixed right-6 z-[42] w-10 h-10 rounded-full bg-[#080E24]/90 border border-[#D4AF37]/40 hover:border-[#D4AF37] hover:bg-[#0D1540] flex items-center justify-center text-[#D4AF37] shadow-lg shadow-black/30 transition-all duration-500 hover:scale-110 group ${
+        className={`fixed right-5 sm:right-6 z-[42] w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#080E24]/90 border border-[#D4AF37]/40 hover:border-[#D4AF37] hover:bg-[#0D1540] flex items-center justify-center text-[#D4AF37] shadow-lg shadow-black/30 transition-all duration-500 hover:scale-110 group ${
           showScrollTop
             ? 'opacity-100 translate-y-0 pointer-events-auto'
             : 'opacity-0 translate-y-4 pointer-events-none'
         }`}
-        style={{ bottom: isOpen ? '88px' : '88px' }}
+        style={{ bottom: isOpen ? '76px' : '76px' }}
         title="Scroll to top"
         aria-label="Scroll to top"
       >
-        <ChevronUp className="w-5 h-5 group-hover:animate-bounce transition-transform" />
+        <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5 group-hover:animate-bounce transition-transform" />
       </button>
 
       {/* Main FAB Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed bottom-6 right-6 z-[50] w-14 h-14 rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(212,175,55,0.35)] transition-all duration-300 hover:scale-105 active:scale-95 ${
+        className={`fixed bottom-4 sm:bottom-6 right-4 sm:right-6 z-[50] w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(212,175,55,0.35)] transition-all duration-300 hover:scale-105 active:scale-95 ${
           isOpen
             ? 'bg-[#080E24] border-2 border-[#D4AF37]/60 rotate-0'
             : 'bg-gradient-to-br from-[#D4AF37] to-[#C49B28] border-2 border-[#F5E7A3]/30 rotate-0'

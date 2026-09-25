@@ -75,11 +75,26 @@ class StaffViewSet(viewsets.ModelViewSet):
         })
 
 
+from django.utils import timezone
+from apps.core.email_service import (
+    encrypt_credential,
+    invalidate_email_cache,
+    test_smtp_credentials,
+    get_active_email_credentials
+)
+
+
 class PlatformSettingsView(APIView):
+    def get_throttles(self):
+        if self.request.method in permissions.SAFE_METHODS:
+            return []
+        return super().get_throttles()
+
     def get_permissions(self):
         if self.request.method in permissions.SAFE_METHODS:
             return [permissions.AllowAny()]
         return [IsStaffOrAdmin()]
+
 
     def get(self, request):
         settings_obj = PlatformSettings.load()
@@ -88,8 +103,94 @@ class PlatformSettingsView(APIView):
 
     def patch(self, request):
         settings_obj = PlatformSettings.load()
-        serializer = PlatformSettingsSerializer(settings_obj, data=request.data, partial=True)
+        data = request.data.copy()
+
+        has_email_update = 'smtp_email' in data or 'smtp_app_password' in data
+        if has_email_update:
+            # Sensitive credential management is strictly restricted to Admin role
+            is_admin = (
+                request.user and
+                request.user.is_authenticated and
+                (request.user.role == 'admin' or request.user.is_superuser)
+            )
+            if not is_admin:
+                return Response(
+                    {"error": "Only Super Administrators can configure studio email credentials."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            new_email = data.get('smtp_email')
+            new_password = data.get('smtp_app_password')
+
+            # Check if admin is requesting to clear/unset database credentials and fall back to .env
+            if new_email == '' and new_password == '':
+                settings_obj.smtp_email = ''
+                settings_obj.smtp_app_password_encrypted = ''
+                settings_obj.smtp_updated_by = request.user
+                settings_obj.smtp_updated_at = timezone.now()
+                settings_obj.save(update_fields=[
+                    'smtp_email', 'smtp_app_password_encrypted', 'smtp_updated_by', 'smtp_updated_at'
+                ])
+                invalidate_email_cache()
+            else:
+                updated_fields = []
+                if new_email is not None and new_email.strip():
+                    settings_obj.smtp_email = new_email.strip()
+                    updated_fields.append('smtp_email')
+
+                if new_password is not None and new_password.strip():
+                    settings_obj.smtp_app_password_encrypted = encrypt_credential(new_password.strip())
+                    updated_fields.append('smtp_app_password_encrypted')
+
+                if updated_fields:
+                    settings_obj.smtp_updated_by = request.user
+                    settings_obj.smtp_updated_at = timezone.now()
+                    updated_fields.extend(['smtp_updated_by', 'smtp_updated_at'])
+                    settings_obj.save(update_fields=updated_fields)
+                    invalidate_email_cache()
+
+        serializer = PlatformSettingsSerializer(settings_obj, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PlatformSettingsEmailTestView(APIView):
+    permission_classes = [IsAdmin]
+
+    def post(self, request):
+        candidate_email = request.data.get('smtp_email', '').strip()
+        candidate_password = request.data.get('smtp_app_password', '').strip()
+        recipient = request.data.get('recipient', '').strip() or request.user.email
+
+        # If fields are empty, test current active configuration (either DB or .env fallback)
+        if not candidate_email or not candidate_password:
+            active_email, active_pass = get_active_email_credentials()
+            if not candidate_email:
+                candidate_email = active_email
+            if not candidate_password:
+                candidate_password = active_pass
+
+        if not candidate_email:
+            return Response(
+                {"success": False, "detail": "No sender email address provided or configured."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if not candidate_password:
+            return Response(
+                {"success": False, "detail": "No app password provided or configured."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        success, detail = test_smtp_credentials(
+            email=candidate_email,
+            app_password=candidate_password,
+            recipient=recipient
+        )
+
+        if success:
+            return Response({"success": True, "detail": detail})
+        else:
+            return Response({"success": False, "detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+

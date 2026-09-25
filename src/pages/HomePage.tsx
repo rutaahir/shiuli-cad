@@ -130,12 +130,13 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
   const [activeProductIdx, setActiveProductIdx] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
-  // Auto slow slideshow moving every 3.2 seconds
+  // Auto slow slideshow on desktop viewports when not paused
   useEffect(() => {
     if (isPaused || categoryProducts.length <= 1) return;
+    if (typeof window !== 'undefined' && window.innerWidth < 768) return; // Prevent background timer load on mobile
     const timer = setInterval(() => {
       setActiveProductIdx((prev) => (prev + 1) % categoryProducts.length);
-    }, 3200);
+    }, 3800);
     return () => clearInterval(timer);
   }, [isPaused, categoryProducts.length]);
 
@@ -161,23 +162,19 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
           onClick={() => onNavigate('collections', cat.slug)}
           className="absolute inset-0 w-full h-full"
         >
-          <AnimatePresence mode="wait">
-            <motion.img
-              key={activeProduct?.id || activeProductIdx}
-              src={getImg(activeProduct)}
-              alt={activeProduct?.title || cat.name}
-              initial={{ opacity: 0.4, scale: 1.04 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0.3, scale: 0.98 }}
-              transition={{ duration: 0.5 }}
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-            />
-          </AnimatePresence>
+          <img
+            key={activeProduct?.id || activeProductIdx}
+            src={getImg(activeProduct)}
+            alt={activeProduct?.title || cat.name}
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            loading="lazy"
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0B1330] via-[#0B1330]/40 to-transparent z-10" />
         </div>
 
         {/* Bottom Panel anchored at down side of category card */}
         <div className="absolute bottom-0 inset-x-0 z-20 p-4 sm:p-5 space-y-2.5 bg-gradient-to-t from-[#060D24] via-[#060D24]/90 to-transparent pt-12">
+
           {/* Category Name ONLY */}
           <div 
             onClick={() => onNavigate('collections', cat.slug)}
@@ -280,6 +277,13 @@ export const HomePage: React.FC<HomePageProps> = ({
   const [activeTestimonialIdx, setActiveTestimonialIdx] = useState(0);
   const [testimonials, setTestimonials] = useState<any[]>([]);
   const [galleryItems, setGalleryItems] = useState<any[]>([]);
+  const [isSaveData, setIsSaveData] = useState(false);
+
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && (navigator as any)?.connection?.saveData) {
+      setIsSaveData(true);
+    }
+  }, []);
 
   useEffect(() => {
     api.getTestimonials().then((res) => {
@@ -333,18 +337,27 @@ export const HomePage: React.FC<HomePageProps> = ({
 
       {/* SECTION 1: HERO (UNTOUCHED HERO LAYOUT WITH PARALLAX ON-SCROLL) */}
       <section ref={heroRef} className="relative min-h-screen flex items-center overflow-hidden" style={{ backgroundColor: '#09112B' }}>
-        {/* BACKGROUND VIDEO */}
-        <video
-          className="hero-video-bg absolute inset-0 w-full h-full object-cover"
-          src="/assets/hero.mp4"
-          poster="/assets/hero-poster.jpg"
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-          aria-hidden="true"
+        {/* BACKGROUND MEDIA: LIGHTWEIGHT OPTIMIZED POSTER ON MOBILE / DATA-SAVER OR MP4 VIDEO ON DESKTOP */}
+        {!isSaveData && (
+          <video
+            className="hero-video-bg absolute inset-0 w-full h-full object-cover hidden sm:block"
+            src="/assets/hero.mp4"
+            poster="/assets/hero-poster.jpg"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            aria-hidden="true"
+          />
+        )}
+        <img
+          src="/assets/hero-poster.jpg"
+          alt="Shiuli Luxury CAD Studio"
+          className={`hero-video-bg absolute inset-0 w-full h-full object-cover ${isSaveData ? 'block' : 'sm:hidden'}`}
+          loading="eager"
         />
+
 
         {/* DARK SCRIM FOR MAXIMUM HIGH-CONTRAST TEXT VISIBILITY */}
         <div
@@ -362,18 +375,18 @@ export const HomePage: React.FC<HomePageProps> = ({
         {/* HERO CONTENT WITH HIGH CONTRAST BRIGHT TYPOGRAPHY */}
         <motion.div
           style={{ y: heroY, opacity: heroOpacity, zIndex: 10, maxWidth: '880px' }}
-          className="relative flex flex-col items-start pt-36 pb-28 px-6 sm:px-12 lg:px-20 xl:px-28"
+          className="relative flex flex-col items-start pt-28 sm:pt-36 pb-16 sm:pb-28 px-4 sm:px-12 lg:px-20 xl:px-28 w-full"
         >
           {/* Vertical gold rule */}
-          <div className="hero-vert-rule absolute left-0 top-36 bottom-28 w-[2px]"
+          <div className="hero-vert-rule absolute left-0 top-28 sm:top-36 bottom-16 sm:bottom-28 w-[2px]"
                style={{ background: 'linear-gradient(to bottom, transparent, #D4AF37 25%, #D4AF37 75%, transparent)' }} />
 
           {/* ROYAL CROWN ORNAMENT */}
-          <div className="hero-anim-1 flex items-center gap-4 mb-8">
-            <div className="flex items-center gap-2">
-              <div className="h-px w-8 bg-gradient-to-r from-transparent to-[#D4AF37]" />
+          <div className="hero-anim-1 flex items-center gap-2 sm:gap-4 mb-6 sm:mb-8 max-w-full overflow-hidden">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <div className="h-px w-4 sm:w-8 bg-gradient-to-r from-transparent to-[#D4AF37]" />
               <div className="w-1.5 h-1.5 rotate-45 bg-[#D4AF37]" />
-              <div className="h-px w-16 bg-gradient-to-r from-[#D4AF37] to-[#D4AF37]/40" />
+              <div className="h-px w-8 sm:w-16 bg-gradient-to-r from-[#D4AF37] to-[#D4AF37]/40" />
             </div>
             <svg width="28" height="22" viewBox="0 0 28 22" fill="none" className="hero-crown-glow flex-shrink-0">
               <path d="M2 20L5 8L10 14L14 2L18 14L23 8L26 20H2Z" fill="none" stroke="#F5E7A3" strokeWidth="1.8" strokeLinejoin="round"/>
@@ -382,50 +395,50 @@ export const HomePage: React.FC<HomePageProps> = ({
               <circle cx="26" cy="8" r="1.5" fill="#D4AF37" opacity="0.9"/>
               <line x1="2" y1="21" x2="26" y2="21" stroke="#F5E7A3" strokeWidth="1.2" opacity="0.8"/>
             </svg>
-            <div className="flex items-center gap-2">
-              <div className="h-px w-16 bg-gradient-to-l from-[#D4AF37] to-[#D4AF37]/40" />
+            <div className="flex items-center gap-1 sm:gap-2">
+              <div className="h-px w-8 sm:w-16 bg-gradient-to-l from-[#D4AF37] to-[#D4AF37]/40" />
               <div className="w-1.5 h-1.5 rotate-45 bg-[#D4AF37]" />
-              <div className="h-px w-8 bg-gradient-to-l from-transparent to-[#D4AF37]" />
+              <div className="h-px w-4 sm:w-8 bg-gradient-to-l from-transparent to-[#D4AF37]" />
             </div>
           </div>
 
           {/* BADGE */}
-          <div className="hero-anim-1 relative mb-8">
+          <div className="hero-anim-1 relative mb-6 sm:mb-8 max-w-full">
             <div className="hero-badge-ring absolute -inset-[3px] rounded-full" />
-            <div className="relative inline-flex items-center gap-3 px-6 py-2.5 rounded-full border border-[#D4AF37]/60 bg-[#060E22]/90 backdrop-blur-xl shadow-[0_0_20px_rgba(212,175,55,0.25)]">
-              <span className="hero-badge-dot w-2.5 h-2.5 rounded-full bg-[#F5E7A3] flex-shrink-0 shadow-[0_0_8px_#F5E7A3]" />
-              <span className="text-[11px] uppercase tracking-[0.3em] font-extrabold text-[#FFF099] drop-shadow-md">Official Luxury CAD Atelier</span>
+            <div className="relative inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-2.5 rounded-full border border-[#D4AF37]/60 bg-[#060E22]/90 backdrop-blur-xl shadow-[0_0_20px_rgba(212,175,55,0.25)]">
+              <span className="hero-badge-dot w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#F5E7A3] flex-shrink-0 shadow-[0_0_8px_#F5E7A3]" />
+              <span className="text-[10px] sm:text-[11px] uppercase tracking-[0.2em] sm:tracking-[0.3em] font-extrabold text-[#FFF099] drop-shadow-md">Official Luxury CAD Atelier</span>
               <span className="w-px h-3.5 bg-[#D4AF37]/50" />
-              <Gem className="w-4 h-4 text-[#F5E7A3] flex-shrink-0" />
+              <Gem className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#F5E7A3] flex-shrink-0" />
             </div>
           </div>
 
           {/* HEADLINE */}
-          <div className="mb-6 overflow-hidden">
-            <h1 className="font-serif leading-[1.1] tracking-tight drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]">
-              <span className="hero-line-reveal-1 block whitespace-nowrap text-[2.8rem] sm:text-5xl lg:text-[3.6rem] xl:text-[4.2rem] text-white font-medium">
+          <div className="mb-4 sm:mb-6 overflow-hidden max-w-full">
+            <h1 className="font-serif leading-[1.15] sm:leading-[1.1] tracking-tight drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]">
+              <span className="hero-line-reveal-1 block text-3xl sm:text-5xl lg:text-[3.6rem] xl:text-[4.2rem] text-white font-medium break-words">
                 Where{' '}
                 <em className="not-italic font-bold hero-italic-word text-[#FFF099] drop-shadow-[0_0_12px_rgba(255,240,153,0.5)]">Imagination</em>
               </span>
-              <span className="hero-line-reveal-2 block whitespace-nowrap text-[2.8rem] sm:text-5xl lg:text-[3.6rem] xl:text-[4.2rem] font-extrabold">
+              <span className="hero-line-reveal-2 block text-3xl sm:text-5xl lg:text-[3.6rem] xl:text-[4.2rem] font-extrabold break-words">
                 <span className="hero-gold-title text-[#F5E7A3]">Becomes Jewellery</span>
               </span>
             </h1>
           </div>
 
           {/* ORNATE DIVIDER */}
-          <div className="hero-anim-3 flex items-center gap-2.5 mb-8">
+          <div className="hero-anim-3 flex items-center gap-2.5 mb-6 sm:mb-8">
             <div className="h-px flex-1 max-w-[70px] bg-gradient-to-r from-[#D4AF37] to-[#D4AF37]/60" />
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rotate-45 bg-[#D4AF37]" />
               <div className="w-2 h-2 rotate-45 bg-[#FFF099]" />
               <div className="w-1.5 h-1.5 rotate-45 bg-[#D4AF37]" />
             </div>
-            <div className="h-px w-36 bg-gradient-to-r from-[#D4AF37]/60 to-transparent" />
+            <div className="h-px w-24 sm:w-36 bg-gradient-to-r from-[#D4AF37]/60 to-transparent" />
           </div>
 
           {/* SUBHEADLINE (HIGH VISIBILITY BRIGHT FONTS) */}
-          <p className="hero-anim-4 font-sans text-base sm:text-lg text-[#EBE3D3] font-medium leading-[1.9] max-w-[540px] mb-10 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
+          <p className="hero-anim-4 font-sans text-sm sm:text-lg text-[#EBE3D3] font-medium leading-[1.7] sm:leading-[1.9] max-w-[540px] mb-8 sm:mb-10 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
             Premium Rhino{' '}
             <span className="text-[#FFE066] font-bold underline decoration-[#D4AF37]/60 underline-offset-4">.3DM</span> files &amp; watertight{' '}
             <span className="text-[#93C5FD] font-bold underline decoration-blue-400/60 underline-offset-4">STL</span> meshes —
@@ -435,10 +448,10 @@ export const HomePage: React.FC<HomePageProps> = ({
           </p>
 
           {/* CTA BUTTONS */}
-          <div className="hero-anim-5 flex flex-wrap gap-4 mb-12">
+          <div className="hero-anim-5 flex flex-col sm:flex-row gap-3 sm:gap-4 mb-8 sm:mb-12 w-full sm:w-auto">
             <button
               onClick={() => onNavigate('collections')}
-              className="hero-btn-primary group relative overflow-hidden flex items-center gap-3 px-9 py-4 rounded-xl font-extrabold tracking-[0.15em] uppercase text-xs shadow-[0_10px_30px_rgba(212,175,55,0.4)]"
+              className="hero-btn-primary group relative overflow-hidden flex items-center justify-center gap-3 px-6 sm:px-9 py-3.5 sm:py-4 rounded-xl font-extrabold tracking-[0.15em] uppercase text-xs shadow-[0_10px_30px_rgba(212,175,55,0.4)] w-full sm:w-auto"
             >
               <span className="hero-btn-shimmer" />
               <span className="hero-corner-tl" />
@@ -450,7 +463,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
             <button
               onClick={() => onNavigate('custom-design')}
-              className="hero-btn-secondary group relative overflow-hidden flex items-center gap-3 px-9 py-4 rounded-xl font-extrabold tracking-[0.15em] uppercase text-xs text-[#FAF8F3] bg-[#09112B]/90 border-2 border-[#D4AF37] hover:bg-[#121F4D] transition-all shadow-xl"
+              className="hero-btn-secondary group relative overflow-hidden flex items-center justify-center gap-3 px-6 sm:px-9 py-3.5 sm:py-4 rounded-xl font-extrabold tracking-[0.15em] uppercase text-xs text-[#FAF8F3] bg-[#09112B]/90 border-2 border-[#D4AF37] hover:bg-[#121F4D] transition-all shadow-xl w-full sm:w-auto"
             >
               <span className="hero-corner-tl hero-corner-tl--gold" />
               <span className="hero-corner-br hero-corner-br--gold" />
@@ -461,14 +474,14 @@ export const HomePage: React.FC<HomePageProps> = ({
           </div>
 
           {/* TRUST STRIP (BRIGHT HIGH-CONTRAST CHIPS) */}
-          <div className="hero-anim-6 flex flex-wrap items-center gap-3">
+          <div className="hero-anim-6 grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
             {[
-              { icon: <FileCheck2 className="w-4 h-4 text-[#FFE066]" />, label: 'Native .3DM' },
-              { icon: <Check className="w-4 h-4 text-[#60A5FA]" />, label: 'Watertight STL' },
-              { icon: <ShieldCheck className="w-4 h-4 text-emerald-300" />, label: 'Castable Ready' },
-              { icon: <Award className="w-4 h-4 text-[#F5E7A3]" />, label: '±0.02 mm' },
+              { icon: <FileCheck2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FFE066]" />, label: 'Native .3DM' },
+              { icon: <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#60A5FA]" />, label: 'Watertight STL' },
+              { icon: <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-300" />, label: 'Castable Ready' },
+              { icon: <Award className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#F5E7A3]" />, label: '±0.02 mm' },
             ].map(({ icon, label }) => (
-              <div key={label} className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#080E24]/90 border border-[#D4AF37]/35 text-xs text-[#FAF8F3] font-bold shadow-lg backdrop-blur-md">
+              <div key={label} className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 px-3 py-1.5 rounded-xl bg-[#080E24]/90 border border-[#D4AF37]/35 text-[11px] sm:text-xs text-[#FAF8F3] font-bold shadow-lg backdrop-blur-md">
                 {icon}
                 <span>{label}</span>
               </div>
@@ -695,7 +708,7 @@ export const HomePage: React.FC<HomePageProps> = ({
           </RevealOnScroll>
 
           {/* Sticky Category Filter Bar — stays pinned below navbar when scrolling products */}
-          <div className="sticky top-[78px] sm:top-[84px] z-30 py-3 px-4 sm:px-6 rounded-2xl bg-[#080E24]/95 backdrop-blur-2xl border border-[#D4AF37]/35 shadow-[0_12px_40px_rgba(0,0,0,0.85)] flex flex-wrap items-center justify-center gap-2 max-w-5xl mx-auto transition-all">
+          <div className="sticky top-[64px] sm:top-[84px] z-30 py-2.5 sm:py-3 px-3 sm:px-6 rounded-2xl bg-[#080E24]/95 backdrop-blur-2xl border border-[#D4AF37]/35 shadow-[0_12px_40px_rgba(0,0,0,0.85)] flex overflow-x-auto no-scrollbar sm:flex-wrap items-center justify-start sm:justify-center gap-1.5 sm:gap-2 max-w-5xl mx-auto transition-all">
             {[
               { id: 'all', label: 'All Designs' },
               ...(categories.length > 0
@@ -711,7 +724,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               <button
                 key={filter.id}
                 onClick={() => setSelectedFilter(filter.id)}
-                className={`px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+                className={`px-3.5 sm:px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                   selectedFilter === filter.id
                     ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#0B1330] font-extrabold shadow-[0_0_14px_rgba(212,175,55,0.45)] scale-105'
                     : 'bg-[#121F4D]/80 text-[#C9C2A6] hover:text-white hover:bg-[#1A2E6D] border border-[#D4AF37]/20 hover:border-[#D4AF37]/50'

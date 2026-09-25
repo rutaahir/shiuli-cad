@@ -23,11 +23,31 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   const activeImageSrc = imageSrc || (useCustomImage ? DEFAULT_CUSTOM_LOGO_PATH : null);
 
   // Balanced, legible, luxury proportions for full image logos (without empty padding)
-  const pixelDimensions: Record<string, { height: number; maxWidth: number; className: string }> = {
-    sm: { height: 42, maxWidth: 165, className: 'h-[42px] max-w-[165px]' },
-    md: { height: 58, maxWidth: 230, className: 'h-[58px] max-w-[230px]' },
-    lg: { height: 76, maxWidth: 290, className: 'h-[76px] max-w-[290px]' },
-    xl: { height: 96, maxWidth: 360, className: 'h-[96px] max-w-[360px]' },
+  const pixelDimensions: Record<string, { height: number; maxWidth: number; containerClass: string; imgClass: string }> = {
+    sm: {
+      height: 38,
+      maxWidth: 150,
+      containerClass: 'h-[32px] sm:h-[38px] max-w-[125px] sm:max-w-[150px]',
+      imgClass: 'h-[32px] sm:h-[38px] max-w-[125px] sm:max-w-[150px]',
+    },
+    md: {
+      height: 52,
+      maxWidth: 220,
+      containerClass: 'h-[36px] xs:h-[40px] sm:h-[52px] max-w-[140px] xs:max-w-[160px] sm:max-w-[220px]',
+      imgClass: 'h-[36px] xs:h-[40px] sm:h-[52px] max-w-[140px] xs:max-w-[160px] sm:max-w-[220px]',
+    },
+    lg: {
+      height: 72,
+      maxWidth: 280,
+      containerClass: 'h-[48px] sm:h-[72px] max-w-[190px] sm:max-w-[280px]',
+      imgClass: 'h-[48px] sm:h-[72px] max-w-[190px] sm:max-w-[280px]',
+    },
+    xl: {
+      height: 90,
+      maxWidth: 340,
+      containerClass: 'h-[60px] sm:h-[90px] max-w-[230px] sm:max-w-[340px]',
+      imgClass: 'h-[60px] sm:h-[90px] max-w-[230px] sm:max-w-[340px]',
+    },
   };
 
   const dim = pixelDimensions[size] || pixelDimensions.md;
@@ -45,21 +65,13 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
     return (
       <div
         onClick={onClick}
-        className={`inline-flex items-center flex-shrink-0 select-none ${onClick ? 'cursor-pointer' : ''} ${className}`}
-        style={{ height: `${dim.height}px`, maxHeight: `${dim.height}px` }}
+        className={`inline-flex items-center flex-shrink-0 select-none ${dim.containerClass} ${onClick ? 'cursor-pointer' : ''} ${className}`}
       >
         <img
           src={activeImageSrc}
           alt="Shiuli CAD Studio Logo"
-          style={{
-            height: `${dim.height}px`,
-            maxHeight: `${dim.height}px`,
-            maxWidth: `${dim.maxWidth}px`,
-            width: 'auto',
-            objectFit: 'contain',
-            imageRendering: '-webkit-optimize-contrast',
-          }}
-          className={`${dim.className} w-auto object-contain transition-transform duration-300 hover:scale-105 drop-shadow-[0_2px_8px_rgba(212,175,55,0.25)]`}
+          className={`${dim.imgClass} w-auto object-contain transition-transform duration-300 hover:scale-105 drop-shadow-[0_2px_8px_rgba(212,175,55,0.25)]`}
+          style={{ imageRendering: '-webkit-optimize-contrast' }}
         />
       </div>
     );

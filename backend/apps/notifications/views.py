@@ -112,11 +112,45 @@ class ContactMessageViewSet(viewsets.ModelViewSet):
                 notification_type="contact_inquiry"
             )
 
+        # 5. Dispatch email alerts via dynamic SMTP service
+        try:
+            from apps.core.email_service import send_dynamic_mail, get_active_email_credentials
+            active_email, _ = get_active_email_credentials()
+            if active_email:
+                send_dynamic_mail(
+                    subject=f"📩 New Inquiry: {subject}",
+                    message=(
+                        f"You received a new inquiry from {name} ({email}, {phone}):\n\n"
+                        f"Subject: {subject}\n\n"
+                        f"{message}\n\n"
+                        f"---\nSent via Shiuli CAD Studio Contact Gateway"
+                    ),
+                    recipient_list=[active_email],
+                    fail_silently=True
+                )
+            if email:
+                send_dynamic_mail(
+                    subject="Shiuli CAD Studio — We Received Your Inquiry",
+                    message=(
+                        f"Dear {name},\n\n"
+                        f"Thank you for reaching out to Shiuli CAD Studio. We have received your inquiry regarding '{subject}'.\n\n"
+                        f"A member of our bespoke jewellery CAD design team will review your message and reply promptly.\n\n"
+                        f"Warm regards,\n"
+                        f"Shiuli CAD Studio Team"
+                    ),
+                    recipient_list=[email],
+                    fail_silently=True
+                )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Could not dispatch contact emails: {e}")
+
         serializer = self.get_serializer(contact_msg)
         return Response({
             "message": f"Thank you, {name}! Your message has been received.",
             "data": serializer.data
         }, status=status.HTTP_201_CREATED)
+
 
     @action(detail=True, methods=['post', 'patch'], permission_classes=[IsAdmin], url_path='read')
     def mark_read(self, request, pk=None):

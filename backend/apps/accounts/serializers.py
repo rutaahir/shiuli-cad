@@ -2,7 +2,7 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 from django.db import models
-from .models import StaffProfile
+from .models import StaffProfile, DesignerApplication
 
 User = get_user_model()
 
@@ -109,4 +109,30 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data['user'] = user_serializer.data
         data['role'] = self.user.role
         return data
+
+
+class DesignerApplicationSerializer(serializers.ModelSerializer):
+    work_zip_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DesignerApplication
+        fields = [
+            'id', 'first_name', 'last_name', 'email', 'phone_number',
+            'address', 'city', 'state', 'country', 'pincode',
+            'experience', 'portfolio_link', 'work_zip', 'work_zip_url',
+            'status', 'admin_notes', 'rejection_reason', 'created_user',
+            'created_at', 'updated_at', 'reviewed_at'
+        ]
+        read_only_fields = ['id', 'status', 'admin_notes', 'rejection_reason', 'created_user', 'created_at', 'updated_at', 'reviewed_at']
+
+    def get_work_zip_url(self, obj):
+        if obj.work_zip:
+            try:
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(obj.work_zip.url)
+                return obj.work_zip.url
+            except Exception:
+                return str(obj.work_zip)
+        return None
 

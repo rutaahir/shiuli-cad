@@ -208,10 +208,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             : 'bg-gradient-to-b from-[#060B1E] via-[#060B1E]/80 to-transparent py-4'
         }`}
       >
-        <div className="w-full px-6 sm:px-12 lg:px-20 xl:px-28">
+        <div className="w-full px-3 sm:px-6 lg:px-20 xl:px-28">
           <div className="flex items-center justify-between">
-            {/* Left Brand Logo */}
-            <div className="flex-shrink-0 flex items-center mr-4 sm:mr-8">
+            {/* Left Brand Logo - Exactly One Instance */}
+            <div className="flex-shrink-0 flex items-center mr-2 sm:mr-8">
               <BrandLogo
                 variant="horizontal"
                 size="md"

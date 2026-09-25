@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StaffMember } from '../../types';
 import { api } from '../../services/api';
 import { appStore } from '../../services/store';
+import { AdminDesignerApplicationsSection } from './AdminDesignerApplicationsSection';
 import {
   Users,
   Sliders,
@@ -50,9 +51,16 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
   assignmentMode,
   onChangeAssignmentMode,
 }) => {
-  const [subTab, setSubTab] = useState<'board' | 'all' | 'rules' | 'performance'>('board');
+  const [subTab, setSubTab] = useState<'board' | 'all' | 'rules' | 'performance' | 'applications'>('board');
   const [loadFilter, setLoadFilter] = useState<'all' | 'available' | 'full'>('all');
   const [showAddDrawer, setShowAddDrawer] = useState(false);
+  const [pendingDesignerAppsCount, setPendingDesignerAppsCount] = useState<number>(0);
+
+  useEffect(() => {
+    api.getDesignerApplications('pending').then((apps) => {
+      setPendingDesignerAppsCount(apps.length);
+    }).catch(() => {});
+  }, [subTab]);
 
   // Dynamic Staff List State
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>(() => {
@@ -474,6 +482,19 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
             >
               Leaderboard
             </button>
+            <button
+              onClick={() => setSubTab('applications')}
+              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                subTab === 'applications' ? 'bg-[#0D1B4C] text-white' : 'text-[#6B7280] hover:text-[#1E2230]'
+              }`}
+            >
+              <span>Applications</span>
+              {pendingDesignerAppsCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full font-mono text-[10px] bg-[#C9A227] text-[#0D1B4C] font-bold animate-pulse">
+                  {pendingDesignerAppsCount}
+                </span>
+              )}
+            </button>
           </div>
 
           <button
@@ -519,6 +540,11 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
             Register First CAD Designer
           </button>
         </div>
+      )}
+
+      {/* Sub-tab: Designer Applications Queue */}
+      {subTab === 'applications' && (
+        <AdminDesignerApplicationsSection />
       )}
 
       {/* Sub-tab B: Job Limits & Live Load Board */}

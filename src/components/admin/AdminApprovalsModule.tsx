@@ -24,9 +24,11 @@ import {
   MessageSquare,
   Volume2,
   Image as ImageIcon,
-  RefreshCw
+  RefreshCw,
+  Users,
 } from 'lucide-react';
 import { api } from '../../services/api';
+import { AdminDesignerApplicationsSection } from './AdminDesignerApplicationsSection';
 
 export const AdminApprovalsModule: React.FC = () => {
   const [approvals, setApprovals] = useState<DesignApproval[]>([]);
@@ -42,6 +44,16 @@ export const AdminApprovalsModule: React.FC = () => {
   const [downloadingDelId, setDownloadingDelId] = useState<number | null>(null);
   const [modalTab, setModalTab] = useState<'render' | 'video'>('render');
   const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
+
+  // Category switch: CAD Designs vs CAD Designer Applications
+  const [approvalCategory, setApprovalCategory] = useState<'designs' | 'applications'>('designs');
+  const [pendingAppsCount, setPendingAppsCount] = useState<number>(0);
+
+  useEffect(() => {
+    api.getDesignerApplications('pending').then((apps) => {
+      setPendingAppsCount(apps.length);
+    }).catch(() => {});
+  }, [approvalCategory]);
 
   useEffect(() => {
     if (inspectingItem) {
@@ -310,9 +322,50 @@ export const AdminApprovalsModule: React.FC = () => {
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-2 border-b border-[#E5E7EF] pb-3 text-xs font-semibold overflow-x-auto">
-        {(['pending', 'revision', 'approved', 'rejected', 'all'] as const).map((tab) => {
+      {/* Category Tabs: CAD Designs QC vs CAD Designer Applications */}
+      <div className="flex items-center gap-4 border-b border-[#E5E7EF] pb-1">
+        <button
+          onClick={() => setApprovalCategory('designs')}
+          className={`pb-3 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
+            approvalCategory === 'designs'
+              ? 'border-[#C9A227] text-[#0D1B4C]'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <FileCode className="w-4 h-4 text-[#C9A227]" />
+          <span>CAD Designs &amp; Deliverables</span>
+          {pendingList.length > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-xs font-mono bg-amber-100 text-amber-900 border border-amber-300">
+              {pendingList.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => setApprovalCategory('applications')}
+          className={`pb-3 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
+            approvalCategory === 'applications'
+              ? 'border-[#C9A227] text-[#0D1B4C]'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Users className="w-4 h-4 text-[#C9A227]" />
+          <span>CAD Designer Applications</span>
+          {pendingAppsCount > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-xs font-mono bg-[#D4AF37] text-[#0B1330] font-bold animate-pulse">
+              {pendingAppsCount} pending
+            </span>
+          )}
+        </button>
+      </div>
+
+      {approvalCategory === 'applications' ? (
+        <AdminDesignerApplicationsSection />
+      ) : (
+        <>
+          {/* Filter Tabs */}
+          <div className="flex items-center gap-2 border-b border-[#E5E7EF] pb-3 text-xs font-semibold overflow-x-auto">
+            {(['pending', 'revision', 'approved', 'rejected', 'all'] as const).map((tab) => {
           const count =
             tab === 'pending'
               ? approvals.filter((a) => a.status === 'pending').length
@@ -613,6 +666,8 @@ export const AdminApprovalsModule: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
 
       {/* Rapid Reviewer Mode Full-Screen Overlay */}

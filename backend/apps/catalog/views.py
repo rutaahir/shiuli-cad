@@ -30,8 +30,10 @@ class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     pagination_class = None  # Always return a plain array, not paginated response
+    throttle_classes = []
 
     def get_permissions(self):
+
         if self.action in ['list', 'retrieve']:
             return [permissions.AllowAny()]
         return [IsStaffOrAdmin()]
@@ -74,6 +76,7 @@ class DesignStyleViewSet(viewsets.ModelViewSet):
     queryset = DesignStyle.objects.all()
     serializer_class = DesignStyleSerializer
     pagination_class = None  # Always return a plain array, not paginated response
+    throttle_classes = []
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
@@ -85,7 +88,13 @@ class ProductViewSet(viewsets.ModelViewSet):
     lookup_field = 'slug'
     pagination_class = StandardResultsSetPagination
 
+    def get_throttles(self):
+        if self.action in ['list', 'retrieve']:
+            return []
+        return super().get_throttles()
+
     def get_permissions(self):
+
         if self.action in ['list', 'retrieve']:
             return [permissions.AllowAny()]
         elif self.action in ['create', 'upload_image', 'upload_file', 'toggle_active']:

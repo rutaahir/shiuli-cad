@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrandLogo } from '../components/BrandLogo';
 import { FloatingLabelInput } from '../components/FloatingLabelInput';
+import { DesignerApplicationModal } from '../components/DesignerApplicationModal';
 import { Mail, Lock, ArrowRight, Sparkles, AlertCircle, KeyRound, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { PageId } from '../types';
@@ -24,6 +25,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [quoteIndex, setQuoteIndex] = useState(0);
+  const [showDesignerModal, setShowDesignerModal] = useState(false);
 
   // Rotate tagline quotes every 5 seconds
   useEffect(() => {
@@ -254,6 +256,29 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
             </p>
           </div>
 
+          {/* Are you CAD Designer Section */}
+          <div className="pt-2">
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-[#D4AF37]/15 via-[#101A3D] to-[#D4AF37]/15 border border-[#D4AF37]/40 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+              <div className="text-left space-y-0.5">
+                <p className="text-xs font-bold text-[#F5E7A3] flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  <span>Are you a CAD Designer?</span>
+                </p>
+                <p className="text-[11px] text-[#C9C2A6]/80 font-light leading-snug">
+                  Apply to join our atelier and accept bespoke 3D CAD design orders.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDesignerModal(true)}
+                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] hover:brightness-110 text-[#0B1330] font-bold text-xs whitespace-nowrap transition-all shadow-md cursor-pointer flex items-center gap-1.5 shrink-0"
+              >
+                <span>Apply Here</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
             {(import.meta as any).env?.DEV && (
               <div className="pt-4 border-t border-white/5 space-y-2">
                 <div className="text-[10px] uppercase tracking-widest text-[#C9C2A6]/50 text-center font-mono">
@@ -289,6 +314,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
             )}
         </motion.div>
       </div>
+
+      <DesignerApplicationModal
+        isOpen={showDesignerModal}
+        onClose={() => setShowDesignerModal(false)}
+      />
     </div>
   );
 };
