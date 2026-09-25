@@ -132,6 +132,10 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
   const [isCustomPuritySelected, setIsCustomPuritySelected] = useState<boolean>(false);
   const [customPurityInput, setCustomPurityInput] = useState<string>('');
 
+  // Custom / Other Metal Alloy State
+  const [isCustomMetalSelected, setIsCustomMetalSelected] = useState<boolean>(false);
+  const [customMetalInput, setCustomMetalInput] = useState<string>('');
+
   // Stones Specification - starts completely empty
   const [isMetalOnly, setIsMetalOnly] = useState(false);
   const [stonesList, setStonesList] = useState<CustomRequestStonePayload[]>([]);
@@ -406,20 +410,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
         { id: 205, group: 2, group_key: 'gold_purity', key: '9k', label: '9K (375)', description: '', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 5 },
       ]
     },
-    {
-      id: 3,
-      key: 'design_style',
-      label: 'Design Style',
-      description: 'Aesthetic setting architecture',
-      is_required: true,
-      display_order: 3,
-      options: [
-        { id: 301, group: 3, group_key: 'design_style', key: 'solitaire', label: 'Solitaire Classic', description: 'Single centerpiece focus with clean minimal wirework', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 1 },
-        { id: 302, group: 3, group_key: 'design_style', key: 'halo', label: 'Micro-Pavé Halo', description: 'Surrounding accent diamond frame for extra sparkle', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 2 },
-        { id: 303, group: 3, group_key: 'design_style', key: 'vintage', label: 'Vintage Filigree', description: 'Intricate 3D relief wirework and milgrain edge details', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 3 },
-        { id: 304, group: 3, group_key: 'design_style', key: 'modern', label: 'Modern Geometric', description: 'Sleek architectural chamfers and clean knife-edge lines', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 4 },
-      ]
-    },
+
     {
       id: 4,
       key: 'cad_file_format',
@@ -636,6 +627,19 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
               swatch_color: '#D4AF37'
             };
           }
+          if (groupKey === 'metal' && isCustomMetalSelected) {
+            const groupObj = groupMap['metal'];
+            const customVal = customMetalInput.trim() || 'Custom / Other';
+            return {
+              group_key: 'metal',
+              group_label: groupObj?.label || 'Metal Alloy',
+              option_group: groupObj?.id || 'metal',
+              option_value: -1,
+              value_label: customMetalInput.trim() ? `Custom: ${customMetalInput.trim()}` : 'Custom / Other',
+              other_text: customVal,
+              swatch_color: '#D4AF37'
+            };
+          }
           const groupObj = groupMap[groupKey] || optionGroups.find(g => g.key === groupKey || (g.options || []).some(o => o.id === valId));
           const valObj = groupObj?.options?.find(o => o.id === valId);
           return {
@@ -688,6 +692,9 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
       let fullNotes = specialInstructions;
       if (isGoldSelected && isCustomPuritySelected && customPurityInput.trim()) {
         fullNotes = `${fullNotes ? fullNotes + '\n' : ''}[Client Custom Gold Purity Standard: ${customPurityInput.trim()}]`;
+      }
+      if (isCustomMetalSelected && customMetalInput.trim()) {
+        fullNotes = `${fullNotes ? fullNotes + '\n' : ''}[Client Custom Metal Alloy: ${customMetalInput.trim()}]`;
       }
       if (selectedCatalogProducts.length > 0) {
         const catRefsText = selectedCatalogProducts.map(p => `[Ref SKU: ${p.id} - ${p.title}]`).join(', ');
@@ -978,7 +985,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
               <div className="flex justify-between items-center relative">
                 {[
                   { step: 1, title: 'Category & Specs' },
-                  { step: 2, title: 'Metal & Style' },
+                  { step: 2, title: 'Metal Alloy' },
                   { step: 3, title: 'Stones & Gemstones' },
                   { step: 4, title: 'Branding & References' },
                   { step: 5, title: 'Review & Dispatch' },
@@ -1286,8 +1293,8 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                     {currentStep === 2 && (
                       <div className="space-y-6">
                         <div>
-                          <h2 className="text-xl font-serif gold-gradient-text font-bold mb-1">Step 2: Metal Alloy & Design Style</h2>
-                          <p className="text-xs text-[#FAF8F3]/60">Select your target metal alloy, gold purity, and structural aesthetic profile.</p>
+                          <h2 className="text-xl font-serif gold-gradient-text font-bold mb-1">Step 2: Metal Alloy Selection</h2>
+                          <p className="text-xs text-[#FAF8F3]/60">Select your target metal alloy and gold purity standard.</p>
                         </div>
 
                         {/* Metal Alloy Selector */}
@@ -1298,11 +1305,14 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                               {(groupMap['metal'].options || [])
                                 .filter(o => o.is_active)
                                 .map(opt => {
-                                  const isSel = selections['metal'] === opt.id;
+                                  const isSel = !isCustomMetalSelected && selections['metal'] === opt.id;
                                   return (
                                     <div
                                       key={opt.id}
-                                      onClick={() => setSelections(prev => ({ ...prev, metal: opt.id }))}
+                                      onClick={() => {
+                                        setIsCustomMetalSelected(false);
+                                        setSelections(prev => ({ ...prev, metal: opt.id }));
+                                      }}
                                       className={`p-3.5 rounded-2xl border cursor-pointer flex items-center gap-3 transition-all duration-300 ${isSel
                                         ? 'border-[#D4AF37] bg-[#121F4D] shadow-[0_0_15px_rgba(212,175,55,0.3)] ring-1 ring-[#D4AF37]/50'
                                         : 'border-white/10 hover:border-[#D4AF37]/30 bg-[#09112B]/60'
@@ -1318,7 +1328,49 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                     </div>
                                   );
                                 })}
+
+                              {/* CUSTOM / OTHER Metal Alloy Option */}
+                              <div
+                                onClick={() => {
+                                  setIsCustomMetalSelected(true);
+                                  setSelections(prev => ({ ...prev, metal: -1 }));
+                                }}
+                                className={`p-3.5 rounded-2xl border cursor-pointer flex items-center gap-3 transition-all duration-300 ${isCustomMetalSelected
+                                  ? 'border-[#D4AF37] bg-[#121F4D] shadow-[0_0_15px_rgba(212,175,55,0.3)] ring-1 ring-[#D4AF37]/50'
+                                  : 'border-dashed border-[#D4AF37]/50 hover:border-[#D4AF37] hover:bg-[#D4AF37]/10 bg-[#09112B]/60'
+                                  }`}
+                              >
+                                <span className="w-7 h-7 rounded-full border border-dashed border-[#D4AF37]/60 shadow-inner flex-shrink-0 flex items-center justify-center text-[#D4AF37] text-xs font-bold">?</span>
+                                <div>
+                                  <p className="font-bold text-[#F5E7A3] text-xs">CUSTOM / OTHER</p>
+                                </div>
+                              </div>
                             </div>
+
+                            {/* CUSTOM METAL ALLOY INPUT FIELD */}
+                            {isCustomMetalSelected && (
+                              <div className="mt-3 pt-3 border-t border-[#D4AF37]/20 space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                  <label className="block text-xs font-semibold text-[#F5E7A3] flex items-center gap-1.5">
+                                    Specify Custom Metal Alloy <span className="text-[#D4AF37]">*</span>
+                                  </label>
+                                  <span className="text-[10px] text-[#FAF8F3]/50">Visible to Studio Admin & CAD Staff</span>
+                                </div>
+                                <div className="relative">
+                                  <input
+                                    type="text"
+                                    value={customMetalInput}
+                                    onChange={e => setCustomMetalInput(e.target.value)}
+                                    placeholder="e.g. Titanium, Tungsten Carbide, Cobalt Chrome, Mokume-gane, Surgical Steel..."
+                                    className="w-full bg-[#080E24] border border-[#D4AF37]/60 rounded-xl px-3.5 py-2.5 text-xs text-[#FAF8F3] placeholder-white/30 focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] shadow-inner transition-all"
+                                    autoFocus
+                                  />
+                                </div>
+                                <p className="text-[11px] text-[#FAF8F3]/50">
+                                  Enter any custom or speciality alloy not listed above. Our admin and CAD team will review your request and confirm material availability.
+                                </p>
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -1394,36 +1446,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                           </div>
                         )}
 
-                        {/* Design Style Selector */}
-                        {groupMap['design_style'] && (
-                          <div className="space-y-3">
-                            <label className="block text-xs font-bold text-[#F5E7A3] uppercase tracking-wider">Aesthetic & Setting Architecture</label>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              {(groupMap['design_style'].options || [])
-                                .filter(o => o.is_active)
-                                .map(opt => {
-                                  const isSel = selections['design_style'] === opt.id;
-                                  return (
-                                    <div
-                                      key={opt.id}
-                                      onClick={() => setSelections(prev => ({ ...prev, design_style: opt.id }))}
-                                      className={`p-4 rounded-2xl border cursor-pointer transition-all duration-300 ${isSel
-                                        ? 'border-[#D4AF37] bg-[#121F4D] shadow-[0_0_15px_rgba(212,175,55,0.3)] ring-1 ring-[#D4AF37]/50'
-                                        : 'border-white/10 hover:border-[#D4AF37]/30 bg-[#09112B]/60'
-                                        }`}
-                                    >
-                                      <div className="flex justify-between items-center mb-1">
-                                        <span className="font-bold text-[#FAF8F3] text-sm">{opt.label}</span>
-                                      </div>
-                                      {opt.description && (
-                                        <p className="text-xs text-[#FAF8F3]/60">{opt.description}</p>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                            </div>
-                          </div>
-                        )}
+
 
                         {/* Ring Type Selector (if category is rings) */}
                         {selectedCategory === 'rings' && groupMap['ring_type'] && (
@@ -2285,6 +2308,10 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                             }
                             if (currentStep === 2 && isGoldSelected && isCustomPuritySelected && !customPurityInput.trim()) {
                               alert('Please type your custom gold purity standard (e.g., 21K, 19K, 916 Hallmark) or select a standard purity option.');
+                              return;
+                            }
+                            if (currentStep === 2 && isCustomMetalSelected && !customMetalInput.trim()) {
+                              alert('Please type your custom metal alloy name (e.g., Titanium, Tungsten Carbide) or select a standard metal option.');
                               return;
                             }
                             setCurrentStep(prev => Math.min(prev + 1, 5));
