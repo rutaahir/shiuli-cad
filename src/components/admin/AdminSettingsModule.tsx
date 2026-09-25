@@ -57,7 +57,7 @@ export const AdminSettingsModule: React.FC = () => {
   // Quick Admin Re-Auth State (if token expires while editing)
   const [showReAuthModal, setShowReAuthModal] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [reAuthUsername, setReAuthUsername] = useState('admin@shiuli.com');
+  const [reAuthUsername, setReAuthUsername] = useState('shiulicad@gmail.com');
   const [reAuthPassword, setReAuthPassword] = useState('admin123');
   const [reAuthenticating, setReAuthenticating] = useState(false);
 
@@ -752,7 +752,7 @@ export const AdminSettingsModule: React.FC = () => {
                   value={reAuthUsername}
                   onChange={(e) => setReAuthUsername(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#070D22] border border-white/15 text-sm text-[#FAF8F3] focus:border-[#D4AF37] focus:outline-none"
-                  placeholder="admin@shiuli.com"
+                  placeholder="shiulicad@gmail.com"
                   required
                 />
               </div>
@@ -774,11 +774,11 @@ export const AdminSettingsModule: React.FC = () => {
               <div className="flex flex-wrap gap-2 pt-1">
                 <button
                   type="button"
-                  onClick={() => { setReAuthUsername('admin@shiuli.com'); setReAuthPassword('admin123'); }}
+                  onClick={() => { setReAuthUsername('shiulicad@gmail.com'); setReAuthPassword('admin123'); }}
                   className="px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] hover:bg-amber-500/20 flex items-center gap-1 cursor-pointer"
                 >
                   <KeyRound className="w-3 h-3" />
-                  admin@shiuli.com
+                  shiulicad@gmail.com
                 </button>
                 <button
                   type="button"

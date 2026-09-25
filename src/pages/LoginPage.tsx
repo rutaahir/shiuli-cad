@@ -287,7 +287,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
                 <div className="flex flex-wrap gap-2 justify-center">
                   <button
                     type="button"
-                    onClick={() => { setEmail('admin@shiuli.com'); setPassword('admin123'); setErrorMessage(null); }}
+                    onClick={() => { setEmail('shiulicad@gmail.com'); setPassword('admin123'); setErrorMessage(null); }}
                     className="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] hover:bg-amber-500/20 flex items-center gap-1 cursor-pointer"
                   >
                     <KeyRound className="w-3 h-3" />

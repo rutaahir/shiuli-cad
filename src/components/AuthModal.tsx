@@ -266,7 +266,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (role === 'staff') {
       setUsernameOrEmail('shahharshil313@gmail.com');
     } else if (role === 'admin') {
-      setUsernameOrEmail('admin@shiuli.com');
+      setUsernameOrEmail('shiulicad@gmail.com');
     } else {
       setUsernameOrEmail('vikram@example.com');
     }

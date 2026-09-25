@@ -28,7 +28,7 @@ class Command(BaseCommand):
         admin, created = User.objects.get_or_create(
             username="admin",
             defaults={
-                "email": "admin@shiuli.com",
+                "email": "shiulicad@gmail.com",
                 "role": User.Role.ADMIN,
                 "is_staff": True,
                 "is_superuser": True
