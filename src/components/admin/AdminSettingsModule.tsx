@@ -73,6 +73,8 @@ export const AdminSettingsModule: React.FC = () => {
         
         // Email configuration data
         setEmailConfigured(Boolean(plat.email_configured));
+        if (plat.smtp_email) setSmtpEmailInput(plat.smtp_email);
+        if (plat.smtp_app_password) setSmtpPasswordInput(plat.smtp_app_password);
         setMaskedSmtpEmail(plat.masked_smtp_email || '');
         setSmtpUpdatedByName(plat.smtp_updated_by_name || null);
         setSmtpUpdatedAt(plat.smtp_updated_at || null);
@@ -211,19 +213,15 @@ export const AdminSettingsModule: React.FC = () => {
       });
 
       setEmailConfigured(Boolean(res.email_configured));
+      if (res.smtp_email) setSmtpEmailInput(res.smtp_email);
+      if (res.smtp_app_password) setSmtpPasswordInput(res.smtp_app_password);
       setMaskedSmtpEmail(res.masked_smtp_email || '');
       setSmtpUpdatedByName(res.smtp_updated_by_name || 'Super Admin');
       setSmtpUpdatedAt(res.smtp_updated_at || new Date().toISOString());
 
-      // Wipe sensitive app password from browser memory
-      setSmtpPasswordInput('');
-      setSmtpEmailInput('');
-      setTestPassed(null);
-      setTestFeedback(null);
-
       setEmailToast({
         type: 'success',
-        message: 'Email credentials encrypted with Fernet and updated successfully! Live emails will now use these credentials.',
+        message: 'Email credentials saved and verified! Live emails will now use these credentials.',
       });
       setTimeout(() => setEmailToast(null), 6000);
     } catch (err: any) {
@@ -642,9 +640,14 @@ export const AdminSettingsModule: React.FC = () => {
                 <span className="font-bold">{testPassed ? 'Verification Succeeded: ' : 'Verification Failed: '}</span>
                 <span>{testFeedback}</span>
                 {testPassed && (
-                  <span className="block mt-0.5 font-medium text-emerald-700">
-                    Pre-flight check passed. You may now click "Save Email Credentials" below to commit these settings.
-                  </span>
+                  <div className="mt-1 space-y-1">
+                    <span className="block font-medium text-emerald-700">
+                      Pre-flight check passed. You may now click "Save Email Credentials" below to commit these settings.
+                    </span>
+                    <span className="block text-[11px] text-emerald-600/90 font-sans">
+                      💡 <strong>Note on Delivery:</strong> If you don't see the email in your primary inbox, please check your <strong>Spam / Junk</strong> folder or <strong>Promotions</strong> tab and click <em>"Report Not Spam"</em>.
+                    </span>
+                  </div>
                 )}
               </div>
             </div>
@@ -657,14 +660,14 @@ export const AdminSettingsModule: React.FC = () => {
             <button
               type="button"
               onClick={handleSaveEmailSettings}
-              disabled={savingEmail || !testPassed}
-              title={!testPassed ? "Send and pass a test email before saving" : "Save verified credentials"}
+              disabled={savingEmail || (!testPassed && !emailConfigured)}
+              title={!testPassed && !emailConfigured ? "Send and pass a test email before saving" : "Save verified credentials"}
               className="btn-gold-luxury px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {savingEmail ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin text-[#0B1330]" />
-                  <span>Encrypting &amp; Saving...</span>
+                  <span>Saving Credentials...</span>
                 </>
               ) : (
                 <>
@@ -674,7 +677,7 @@ export const AdminSettingsModule: React.FC = () => {
               )}
             </button>
 
-            {!testPassed && (
+            {!testPassed && !emailConfigured && (
               <span className="text-[11px] text-[#6B7280] italic">
                 * Test verification required before save
               </span>

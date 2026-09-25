@@ -194,12 +194,35 @@ def test_smtp_credentials(email: str, app_password: str, recipient: str = None) 
             f"Warm regards,\n"
             f"Shiuli CAD Studio Atelier System"
         )
+        test_html = f"""
+        <div style="font-family: Arial, sans-serif; background-color: #060B1E; padding: 40px 20px; color: #FAF8F3;">
+          <div style="max-width: 560px; margin: 0 auto; background-color: #0B1330; border: 1px solid rgba(212,175,55,0.3); border-radius: 16px; padding: 32px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <div style="text-align: center; margin-bottom: 24px;">
+              <h1 style="color: #F5E7A3; margin: 0; font-size: 24px; letter-spacing: 1px;">SHIULI CAD STUDIO</h1>
+              <p style="color: #D4AF37; margin: 4px 0 0 0; font-size: 11px; text-transform: uppercase; letter-spacing: 2px;">Atelier SMTP Configuration Verified</p>
+            </div>
+            <div style="background-color: rgba(212,175,55,0.1); border-left: 4px solid #D4AF37; padding: 12px 16px; border-radius: 4px; margin-bottom: 20px;">
+              <p style="margin: 0; color: #F5E7A3; font-size: 13px; font-weight: bold;">✅ Google SMTP Authentication Succeeded</p>
+            </div>
+            <p style="font-size: 14px; line-height: 1.6; color: #FAF8F3;">
+              This test message confirms that your outgoing Google SMTP credentials for <strong>{clean_email}</strong> have been authenticated and verified successfully by Shiuli CAD Studio.
+            </p>
+            <p style="font-size: 13px; line-height: 1.6; color: #C9C2A6;">
+              Transactional customer emails (Staff Designer approvals, login OTPs, 3D CAD deliverable download links, and order milestones) will now deliver reliably using this authenticated channel.
+            </p>
+            <div style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 24px; padding-top: 16px; font-size: 11px; color: #8C9BB5; text-align: center;">
+              Shiuli CAD Studio Atelier &bull; Premium Jewellery CAD Design &bull; Verified at {timezone.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
+            </div>
+          </div>
+        </div>
+        """
         send_mail(
             subject=test_subject,
             message=test_body,
             from_email=f"Shiuli CAD Studio <{clean_email}>",
             recipient_list=[test_recipient],
             connection=connection,
+            html_message=test_html,
             fail_silently=False
         )
         return True, f"Live test email dispatched successfully to {test_recipient}!"

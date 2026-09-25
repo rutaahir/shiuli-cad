@@ -98,7 +98,7 @@ class PlatformSettingsView(APIView):
 
     def get(self, request):
         settings_obj = PlatformSettings.load()
-        serializer = PlatformSettingsSerializer(settings_obj)
+        serializer = PlatformSettingsSerializer(settings_obj, context={'request': request})
         return Response(serializer.data)
 
     def patch(self, request):
@@ -111,7 +111,7 @@ class PlatformSettingsView(APIView):
             is_admin = (
                 request.user and
                 request.user.is_authenticated and
-                (request.user.role == 'admin' or request.user.is_superuser)
+                (getattr(request.user, 'role', '') == 'admin' or request.user.is_superuser or request.user.is_staff)
             )
             if not is_admin:
                 return Response(
@@ -149,7 +149,8 @@ class PlatformSettingsView(APIView):
                     settings_obj.save(update_fields=updated_fields)
                     invalidate_email_cache()
 
-        serializer = PlatformSettingsSerializer(settings_obj, data=data, partial=True)
+        data.pop('smtp_app_password', None)
+        serializer = PlatformSettingsSerializer(settings_obj, data=data, partial=True, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)

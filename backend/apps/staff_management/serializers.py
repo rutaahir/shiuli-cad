@@ -8,8 +8,8 @@ from apps.core.email_service import mask_email
 class PlatformSettingsSerializer(serializers.ModelSerializer):
     email_configured = serializers.SerializerMethodField()
     masked_smtp_email = serializers.SerializerMethodField()
-    smtp_email = serializers.EmailField(write_only=True, required=False, allow_blank=True)
-    smtp_app_password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    smtp_email = serializers.CharField(required=False, allow_blank=True)
+    smtp_app_password = serializers.SerializerMethodField()
     smtp_updated_by_name = serializers.SerializerMethodField()
 
     class Meta:
@@ -24,11 +24,32 @@ class PlatformSettingsSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['smtp_updated_at', 'smtp_updated_by_name']
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        is_admin = bool(
+            request and request.user and request.user.is_authenticated and
+            (getattr(request.user, 'role', '') == 'admin' or request.user.is_superuser)
+        )
+        if not is_admin:
+            self.fields.pop('smtp_app_password', None)
+
     def get_email_configured(self, obj):
         return bool(obj.smtp_email and obj.smtp_app_password_encrypted)
 
     def get_masked_smtp_email(self, obj):
         return mask_email(obj.smtp_email) if obj.smtp_email else ""
+
+    def get_smtp_app_password(self, obj):
+        request = self.context.get('request')
+        is_admin = (
+            request and request.user and request.user.is_authenticated and
+            (getattr(request.user, 'role', '') == 'admin' or request.user.is_superuser or request.user.is_staff)
+        )
+        if is_admin and obj.smtp_app_password_encrypted:
+            from apps.core.email_service import decrypt_credential
+            return decrypt_credential(obj.smtp_app_password_encrypted)
+        return ""
 
     def get_smtp_updated_by_name(self, obj):
         if obj.smtp_updated_by:
