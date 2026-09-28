@@ -447,7 +447,6 @@ def admin_approve_purchase(request, purchase_id):
         "product_title": purchase.product.title,
         "status": "paid",
         "masked_email": masked_email,
-        "debug_otp": otp_code if getattr(settings, 'DEBUG', False) else None
     }, status=status.HTTP_200_OK)
 
 

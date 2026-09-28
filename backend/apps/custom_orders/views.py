@@ -1131,9 +1131,6 @@ class OrderViewSet(viewsets.ModelViewSet):
             "expires_in_seconds": 600,
             "masked_email": request.user.email[:2] + "***" + request.user.email[request.user.email.find('@'):] if '@' in request.user.email else request.user.email
         }
-        if getattr(settings, 'DEBUG', True):
-            resp_data["debug_otp"] = otp_code
-
         return Response(resp_data)
 
     # STAGE 12 — VERIFY 6-DIGIT OTP AND GENERATE SECURE SINGLE-USE DOWNLOAD TOKEN

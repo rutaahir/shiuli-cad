@@ -350,14 +350,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onSucces
                 ))}
               </div>
 
-              {/* Debug OTP Chip for testing */}
-              {debugOtp && (
-                <div className="text-center">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 font-mono text-[11px]">
-                    <Sparkles className="w-3 h-3" /> Auto-Test Code: <strong>{debugOtp}</strong>
-                  </span>
-                </div>
-              )}
+
 
               {/* Resend OTP + Timer */}
               <div className="flex items-center justify-between text-xs text-[#C9C2A6]">

@@ -156,7 +156,6 @@ class SendRegistrationOTPView(APIView):
             "message": f"Verification code sent to {email}. Enter code to complete registration.",
             "email": email,
             "expires_in_seconds": 600,
-            "debug_otp": otp_code if getattr(settings, 'DEBUG', False) else None
         }, status=status.HTTP_200_OK)
 
 
@@ -439,7 +438,6 @@ class RequestPasswordResetOTPView(APIView):
             "message": f"Verification code sent to {user.email}. Enter code and new password to confirm.",
             "email": user.email,
             "expires_in_seconds": 600,
-            "debug_otp": otp_code if getattr(settings, 'DEBUG', False) else None
         }, status=status.HTTP_200_OK)
 
 
