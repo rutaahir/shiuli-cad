@@ -497,3 +497,31 @@ img {
   animation: shake 0.4s ease-in-out;
 }
 
+/* ═══════════════════════════════════════════
+   CATEGORY CARD PRODUCT THUMBNAIL MARQUEE (Right to Left flow)
+═══════════════════════════════════════════ */
+@keyframes marquee-track {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(calc(-100% - 0.5rem));
+  }
+}
+
+.animate-marquee-track {
+  animation: marquee-track 18s linear infinite;
+  will-change: transform;
+}
+
+.marquee-pause-hover:hover .animate-marquee-track,
+.marquee-pause-hover:focus-within .animate-marquee-track {
+  animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee-track {
+    animation: none;
+  }
+}
+

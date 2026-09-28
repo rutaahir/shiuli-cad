@@ -145,6 +145,15 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
     return p.primaryImage || p.image || (Array.isArray(p.images) && p.images[0]) || fallbackImages[idx % fallbackImages.length];
   };
 
+  const baseItems = React.useMemo(() => {
+    if (!categoryProducts || categoryProducts.length === 0) return [];
+    let items = [...categoryProducts];
+    while (items.length < 5) {
+      items = [...items, ...categoryProducts];
+    }
+    return items;
+  }, [categoryProducts]);
+
   const activeProduct = categoryProducts[activeProductIdx] || categoryProducts[0];
   const count = cat.product_count ?? cat.count ?? categoryProducts.length;
 
@@ -185,46 +194,100 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
             </h3>
           </div>
 
-          {/* Interactive Products Strip (Hover/Touch Selector) */}
-          <div className="pt-0.5">
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none snap-x">
-              {categoryProducts.map((prod, pIdx) => {
-                const isActive = pIdx === activeProductIdx;
-                const imgUrl = getImg(prod);
-                return (
-                  <button
-                    key={prod.id || pIdx}
-                    type="button"
-                    onMouseEnter={() => {
-                      setIsPaused(true);
-                      setActiveProductIdx(pIdx);
-                    }}
-                    onTouchStart={() => {
-                      setIsPaused(true);
-                      setActiveProductIdx(pIdx);
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onQuickView(prod);
-                    }}
-                    title={`View ${prod.title}`}
-                    className={`relative w-9 h-9 sm:w-11 sm:h-11 rounded-xl overflow-hidden shrink-0 border transition-all duration-300 snap-center ${
-                      isActive
-                        ? 'border-[#D4AF37] ring-2 ring-[#D4AF37] scale-105 shadow-[0_0_12px_rgba(212,175,55,0.6)] z-10'
-                        : 'border-white/20 opacity-60 hover:opacity-100 hover:border-white/50'
-                    }`}
-                  >
-                    <img
-                      src={imgUrl}
-                      alt={prod.title}
-                      className="w-full h-full object-cover"
-                    />
-                    {isActive && (
-                      <div className="absolute inset-0 bg-[#D4AF37]/15 border border-[#F5E7A3]/50 pointer-events-none" />
-                    )}
-                  </button>
-                );
-              })}
+          {/* Interactive Products Marquee Strip (Right to Left flow) */}
+          <div className="pt-0.5 relative overflow-hidden w-full marquee-pause-hover select-none">
+            {/* Subtle luxury edge fade overlays for smooth entrance and exit */}
+            <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-3 bg-gradient-to-r from-[#060D24] to-transparent z-10" />
+            <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-3 bg-gradient-to-l from-[#060D24] to-transparent z-10" />
+
+            <div className="flex items-center gap-2 w-max py-1">
+              {/* Primary Track */}
+              <div className="flex items-center gap-2 shrink-0 animate-marquee-track">
+                {baseItems.map((prod, pIdx) => {
+                  const originalIdx = pIdx % categoryProducts.length;
+                  const isActive = (prod.id && activeProduct?.id) ? prod.id === activeProduct.id : originalIdx === activeProductIdx;
+                  const imgUrl = getImg(prod);
+                  return (
+                    <button
+                      key={`track1-${prod.id || pIdx}-${pIdx}`}
+                      type="button"
+                      onMouseEnter={() => {
+                        setIsPaused(true);
+                        setActiveProductIdx(originalIdx);
+                      }}
+                      onTouchStart={() => {
+                        setIsPaused(true);
+                        setActiveProductIdx(originalIdx);
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveProductIdx(originalIdx);
+                        onQuickView(prod);
+                      }}
+                      title={`View ${prod.title}`}
+                      className={`relative w-9 h-9 sm:w-11 sm:h-11 rounded-xl overflow-hidden shrink-0 border transition-all duration-300 cursor-pointer ${
+                        isActive
+                          ? 'border-[#D4AF37] ring-2 ring-[#D4AF37] scale-105 shadow-[0_0_12px_rgba(212,175,55,0.6)] z-10'
+                          : 'border-white/20 opacity-60 hover:opacity-100 hover:border-white/50'
+                      }`}
+                    >
+                      <img
+                        src={imgUrl}
+                        alt={prod.title}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                      {isActive && (
+                        <div className="absolute inset-0 bg-[#D4AF37]/15 border border-[#F5E7A3]/50 pointer-events-none" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Loop Duplicate Track for Infinite Seamless Flow */}
+              <div className="flex items-center gap-2 shrink-0 animate-marquee-track" aria-hidden="true">
+                {baseItems.map((prod, pIdx) => {
+                  const originalIdx = pIdx % categoryProducts.length;
+                  const isActive = (prod.id && activeProduct?.id) ? prod.id === activeProduct.id : originalIdx === activeProductIdx;
+                  const imgUrl = getImg(prod);
+                  return (
+                    <button
+                      key={`track2-${prod.id || pIdx}-${pIdx}`}
+                      type="button"
+                      onMouseEnter={() => {
+                        setIsPaused(true);
+                        setActiveProductIdx(originalIdx);
+                      }}
+                      onTouchStart={() => {
+                        setIsPaused(true);
+                        setActiveProductIdx(originalIdx);
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveProductIdx(originalIdx);
+                        onQuickView(prod);
+                      }}
+                      title={`View ${prod.title}`}
+                      className={`relative w-9 h-9 sm:w-11 sm:h-11 rounded-xl overflow-hidden shrink-0 border transition-all duration-300 cursor-pointer ${
+                        isActive
+                          ? 'border-[#D4AF37] ring-2 ring-[#D4AF37] scale-105 shadow-[0_0_12px_rgba(212,175,55,0.6)] z-10'
+                          : 'border-white/20 opacity-60 hover:opacity-100 hover:border-white/50'
+                      }`}
+                    >
+                      <img
+                        src={imgUrl}
+                        alt={prod.title}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                      {isActive && (
+                        <div className="absolute inset-0 bg-[#D4AF37]/15 border border-[#F5E7A3]/50 pointer-events-none" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
