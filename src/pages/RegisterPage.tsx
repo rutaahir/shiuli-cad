@@ -305,9 +305,21 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onSucces
 
           {/* Error Banner */}
           {errorMessage && (
-            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-              <span>{errorMessage}</span>
+            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex flex-col gap-2">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                <span>{errorMessage}</span>
+              </div>
+              {errorMessage.toLowerCase().includes('already exists') && (
+                <button
+                  type="button"
+                  onClick={() => onNavigate('login')}
+                  className="self-start text-[11px] font-semibold text-[#F5E7A3] hover:text-[#D4AF37] underline underline-offset-2 flex items-center gap-1 cursor-pointer"
+                >
+                  <span>Click here to Sign In with this email</span>
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              )}
             </div>
           )}
 

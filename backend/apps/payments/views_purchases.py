@@ -5,7 +5,7 @@ from django.utils import timezone
 from django.conf import settings
 from django.contrib.auth.hashers import make_password, check_password
 from django.core.files.base import ContentFile
-from apps.core.email_service import send_dynamic_mail as send_mail
+from apps.core.email_service import send_dynamic_mail as send_mail, send_otp_email, build_luxury_email_html
 from django.http import FileResponse
 from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes
@@ -225,18 +225,11 @@ def verify_razorpay_purchase(request):
 
     masked_email = mask_email(request.user.email)
     try:
-        send_mail(
-            subject=f"Verification Code for '{product.title}' - Purchase #{purchase.id}",
-            message=(
-                f"Hello {request.user.get_full_name() or request.user.username},\n\n"
-                f"Thank you for purchasing '{product.title}' from Shiuli CAD Studio.\n\n"
-                f"Your 6-digit verification code is: {otp_code}\n\n"
-                f"This code will expire in 10 minutes.\n\n"
-                f"Shiuli CAD Studio Automated Delivery Service"
-            ),
-            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com'),
-            recipient_list=[request.user.email],
-            fail_silently=True
+        send_otp_email(
+            email=request.user.email,
+            otp_code=otp_code,
+            name=request.user.get_full_name() or request.user.username,
+            purpose="purchase_otp"
         )
     except Exception as e:
         print(f"[EMAIL SERVICE WARNING] {e}")
@@ -374,19 +367,11 @@ def create_purchase(request):
     print("=" * 70 + "\n")
 
     try:
-        send_mail(
-            subject=f"Verify Your Email to Unlock Your CAD Download - Purchase #{purchase.id}",
-            message=(
-                f"Hello {request.user.get_full_name() or request.user.username},\n\n"
-                f"Thank you for purchasing '{product.title}' ({purchase.get_license_type_display()}) from Shiuli CAD Studio.\n\n"
-                f"Your 6-digit email verification code is: {otp_code}\n\n"
-                f"This code will expire in 10 minutes. Please enter it on the website to unlock your secure download link.\n\n"
-                f"If you did not make this purchase, please contact support immediately.\n\n"
-                f"Warm regards,\nShiuli CAD Studio Security Team"
-            ),
-            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com'),
-            recipient_list=[request.user.email],
-            fail_silently=True
+        send_otp_email(
+            email=request.user.email,
+            otp_code=otp_code,
+            name=request.user.get_full_name() or request.user.username,
+            purpose="purchase_otp"
         )
     except Exception as e:
         print(f"[EMAIL SERVICE WARNING] Failed to dispatch email: {e}")
@@ -447,19 +432,11 @@ def admin_approve_purchase(request, purchase_id):
     print("=" * 70 + "\n")
 
     try:
-        send_mail(
-            subject=f"Payment Verified! Your CAD Download is Ready - Purchase #{purchase.id}",
-            message=(
-                f"Hello {purchase.buyer.get_full_name() or purchase.buyer.username},\n\n"
-                f"Your payment of ₹{purchase.price_paid:,.2f} for '{purchase.product.title}' ({purchase.get_license_type_display()}) has been verified and confirmed by Shiuli CAD Studio.\n\n"
-                f"Your 6-digit email verification code is: {otp_code}\n\n"
-                f"Enter this code on the website to unlock your single-use secure download link. This code expires in 10 minutes.\n\n"
-                f"Thank you for choosing Shiuli CAD Studio!\n"
-                f"Shiuli CAD Studio Atelier Accounts Team"
-            ),
-            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com'),
-            recipient_list=[purchase.buyer.email],
-            fail_silently=True
+        send_otp_email(
+            email=purchase.buyer.email,
+            otp_code=otp_code,
+            name=purchase.buyer.get_full_name() or purchase.buyer.username,
+            purpose="purchase_otp"
         )
     except Exception as e:
         print(f"[EMAIL SERVICE WARNING] Failed to dispatch admin approval email: {e}")
@@ -531,15 +508,11 @@ def resend_otp(request, purchase_id):
 
     masked_email = mask_email(request.user.email)
     try:
-        send_mail(
-            subject=f"New Verification Code - Purchase #{purchase.id}",
-            message=(
-                f"Your new 6-digit verification code is: {otp_code}\n\n"
-                f"This code will expire in 10 minutes."
-            ),
-            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com'),
-            recipient_list=[request.user.email],
-            fail_silently=True
+        send_otp_email(
+            email=request.user.email,
+            otp_code=otp_code,
+            name=request.user.get_full_name() or request.user.username,
+            purpose="purchase_otp"
         )
     except Exception as e:
         print(f"[EMAIL SERVICE WARNING] Failed to dispatch email: {e}")
@@ -624,23 +597,36 @@ def verify_otp(request, purchase_id):
     masked_email = mask_email(request.user.email)
 
     try:
-        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or 'Shiuli CAD Studio <socialbuzz31@gmail.com>'
+        subject = f"Your Secure CAD Download Link — '{purchase.product.title}'"
+        plain_msg = (
+            f"Hello {request.user.get_full_name() or request.user.username},\n\n"
+            f"Your email verification is successful!\n\n"
+            f"Here is your single-use secure download link for '{purchase.product.title}' ({purchase.get_license_type_display()}):\n\n"
+            f"{download_url}\n\n"
+            f"IMPORTANT SECURITY NOTES:\n"
+            f"- This link is valid for 48 hours and can only be downloaded EXACTLY ONCE.\n"
+            f"- This link is locked to your account ({request.user.email}). Forwarded links will not work for anyone else.\n"
+            f"- Once used, the link will immediately expire.\n\n"
+            f"Thank you for choosing Shiuli CAD Studio.\n\n"
+            f"Warm regards,\nShiuli CAD Studio Security Team"
+        )
+        html_msg = build_luxury_email_html(
+            headline="Your 3D CAD Download Package is Ready",
+            paragraphs=[
+                f"Hello {request.user.get_full_name() or request.user.username},",
+                f"Your email verification was successful. Your production-ready jewellery CAD package for <strong>'{purchase.product.title}'</strong> ({purchase.get_license_type_display()}) is ready to download.",
+                "Click the button below to download your watertight 3DM, STL, and render assets:",
+                "<strong>Security Notice:</strong> This single-use download link is cryptographically tied to your atelier account and expires in 48 hours."
+            ],
+            action_button_text="DOWNLOAD 3D CAD FILES",
+            action_button_url=download_url,
+            footer_note="Single-use link valid for 48 hours. If you did not initiate this request, contact support immediately."
+        )
         send_mail(
-            subject=f"Your Secure CAD Download Link - '{purchase.product.title}'",
-            message=(
-                f"Hello {request.user.get_full_name() or request.user.username},\n\n"
-                f"Your email verification is successful!\n\n"
-                f"Here is your single-use secure download link for '{purchase.product.title}' ({purchase.get_license_type_display()}):\n\n"
-                f"{download_url}\n\n"
-                f"IMPORTANT SECURITY NOTES:\n"
-                f"- This link is valid for 48 hours and can only be downloaded EXACTLY ONCE.\n"
-                f"- This link is locked to your account ({request.user.email}). Forwarded links will not work for anyone else.\n"
-                f"- Once used, the link will immediately expire.\n\n"
-                f"Thank you for choosing Shiuli CAD Studio.\n\n"
-                f"Warm regards,\nShiuli CAD Studio Security Team"
-            ),
-            from_email=from_email,
+            subject=subject,
+            message=plain_msg,
             recipient_list=[request.user.email],
+            html_message=html_msg,
             fail_silently=False
         )
         print(f"[EMAIL SUCCESS] Secure download link dispatched to {request.user.email} via Gmail SMTP.")
@@ -921,18 +907,11 @@ def resend_download_link(request, purchase_id):
 
     masked_email = mask_email(request.user.email)
     try:
-        send_mail(
-            subject=f"Re-Delivery Verification Code - Purchase #{purchase.id}",
-            message=(
-                f"Hello {request.user.get_full_name() or request.user.username},\n\n"
-                f"You requested a new download link for '{purchase.product.title}'.\n\n"
-                f"Your 6-digit verification code is: {otp_code}\n\n"
-                f"Enter this code on the site to generate a new single-use download link.\n\n"
-                f"Re-delivery count: {purchase.redelivery_count} of 3 max allowed."
-            ),
-            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com'),
-            recipient_list=[request.user.email],
-            fail_silently=True
+        send_otp_email(
+            email=request.user.email,
+            otp_code=otp_code,
+            name=request.user.get_full_name() or request.user.username,
+            purpose="download_otp"
         )
     except Exception as e:
         print(f"[EMAIL SERVICE WARNING] Failed to dispatch re-delivery email: {e}")

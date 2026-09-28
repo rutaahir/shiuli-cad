@@ -359,6 +359,10 @@ class ApiClient {
       });
       return res;
     } catch (err: any) {
+      // Re-throw validation errors (e.g. 400 "account already exists", 429 rate limit)
+      if (err?.status && err.status < 500) {
+        throw err;
+      }
       console.warn('[sendRegistrationOtp] Backend offline, falling back to Vite Gmail SMTP plugin:', err?.message);
       const fallbackOtp = Math.floor(100000 + Math.random() * 900000).toString();
       sessionStorage.setItem(`shiuli_reg_otp_${email.toLowerCase().trim()}`, fallbackOtp);

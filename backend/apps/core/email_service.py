@@ -249,3 +249,145 @@ def mask_email(email: str) -> str:
     else:
         masked_local = local[:2] + "***" + local[-2:]
     return f"{masked_local}@{domain}"
+
+
+def build_luxury_email_html(
+    headline: str,
+    paragraphs: list,
+    code_badge: str = None,
+    badge_label: str = "SECURITY VERIFICATION CODE",
+    action_button_text: str = None,
+    action_button_url: str = None,
+    footer_note: str = None
+) -> str:
+    """
+    Generates a high-deliverability, luxury dark navy and gold branded HTML email template.
+    """
+    paragraphs_html = "".join([f'<p style="font-size: 14px; line-height: 1.6; color: #E5E7EB; margin: 0 0 16px 0;">{p}</p>' for p in paragraphs])
+
+    badge_html = ""
+    if code_badge:
+        badge_html = f'''
+        <div style="text-align: center; margin: 28px 0;">
+          <div style="display: inline-block; background-color: #060D24; border: 2px solid #D4AF37; border-radius: 14px; padding: 18px 36px; box-shadow: 0 6px 24px rgba(212,175,55,0.25);">
+            <div style="font-size: 10px; font-weight: 700; color: #D4AF37; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px;">{badge_label}</div>
+            <div style="font-size: 36px; font-weight: 900; letter-spacing: 8px; color: #F5E7A3; font-family: Courier, monospace;">{code_badge}</div>
+          </div>
+        </div>
+        '''
+
+    btn_html = ""
+    if action_button_text and action_button_url:
+        btn_html = f'''
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="{action_button_url}" style="display: inline-block; background: linear-gradient(135deg, #F5E7A3 0%, #D4AF37 50%, #B8860B 100%); color: #0B1330; font-weight: 800; font-size: 13px; text-decoration: none; padding: 14px 32px; border-radius: 12px; letter-spacing: 1px; text-transform: uppercase;">
+            {action_button_text}
+          </a>
+        </div>
+        '''
+
+    footer_text = footer_note or "This code expires in 10 minutes. If you did not initiate this request, please disregard."
+
+    return f'''
+    <div style="font-family: Arial, Helvetica, sans-serif; background-color: #060B1E; padding: 40px 16px; color: #FAF8F3;">
+      <div style="max-width: 560px; margin: 0 auto; background-color: #0B1330; border: 1px solid rgba(212,175,55,0.35); border-radius: 20px; padding: 36px; box-shadow: 0 16px 48px rgba(0,0,0,0.6);">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h1 style="color: #F5E7A3; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: 2px;">SHIULI CAD STUDIO</h1>
+          <p style="color: #D4AF37; margin: 6px 0 0 0; font-size: 11px; text-transform: uppercase; letter-spacing: 3px;">Jewellery Design &bull; 3D Modeling &bull; CAD Files</p>
+        </div>
+        <div style="height: 1px; background: linear-gradient(90deg, transparent, rgba(212,175,55,0.4), transparent); margin-bottom: 24px;"></div>
+        <h2 style="color: #FAF8F3; font-size: 18px; margin: 0 0 14px 0; font-weight: 700;">{headline}</h2>
+        {paragraphs_html}
+        {badge_html}
+        {btn_html}
+        <p style="font-size: 12px; color: #9CA3AF; text-align: center; margin: 20px 0 0 0;">
+          ⏱ {footer_text}
+        </p>
+        <div style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 28px; padding-top: 20px; font-size: 11px; color: #6B7280; text-align: center; line-height: 1.5;">
+          Shiuli CAD Studio &bull; Precision Jewelry CAD Engineering &bull; support@shiulicad.com
+        </div>
+      </div>
+    </div>
+    '''
+
+
+def send_otp_email(email: str, otp_code: str, name: str = None, purpose: str = "registration"):
+    """
+    Standardized, high-deliverability OTP email dispatcher with multipart MIME HTML & plain-text.
+    """
+    clean_email = email.strip()
+    client_name = name or "Valued Client"
+
+    if purpose == "registration":
+        subject = f"Verify Your Email Address: {otp_code} — Shiuli CAD Studio"
+        headline = "Complete Your Atelier Account Registration"
+        paragraphs = [
+            f"Hello {client_name},",
+            "Welcome to Shiuli CAD Studio. To verify your email address and secure your jewellery atelier workbench access, please enter the 6-digit verification code below:",
+        ]
+        footer_note = "This verification code will expire in 10 minutes. If you did not initiate this registration, please disregard this email."
+    elif purpose == "password_reset":
+        subject = f"Password Reset Code: {otp_code} — Shiuli CAD Studio"
+        headline = "Reset Your Account Password"
+        paragraphs = [
+            f"Hello {client_name},",
+            "We received a request to reset the password for your Shiuli CAD Studio account. Enter this 6-digit verification code to complete your password update:",
+        ]
+        footer_note = "This code expires in 10 minutes. If you did not request a password reset, please secure your account immediately."
+    elif purpose == "download_otp":
+        subject = f"CAD Deliverables Access Code: {otp_code} — Shiuli CAD Studio"
+        headline = "Access Your 3D CAD Production Package"
+        paragraphs = [
+            f"Hello {client_name},",
+            "Your production-ready watertight jewellery CAD files (.3DM, .STL, 4K Renders) are ready for download. Please enter this 6-digit verification code on your order download page:",
+        ]
+        footer_note = "For security, this download token is valid for a single session. Contact support@shiulicad.com for assistance."
+    elif purpose == "email_change":
+        subject = f"Verify New Email Address: {otp_code} — Shiuli CAD Studio"
+        headline = "Confirm Your New Email Address"
+        paragraphs = [
+            f"Hello {client_name},",
+            "You requested to update the email address associated with your Shiuli CAD Studio account. To verify this email address, enter the 6-digit code below:",
+        ]
+        footer_note = "This code will expire in 10 minutes. If you did not request this change, please ignore this email or contact support."
+    elif purpose == "purchase_otp":
+        subject = f"Unlock Your CAD Download: {otp_code} — Shiuli CAD Studio"
+        headline = "CAD Deliverables Verification Code"
+        paragraphs = [
+            f"Hello {client_name},",
+            "Thank you for your purchase with Shiuli CAD Studio. Enter the 6-digit verification code below to unlock your production-ready 3D CAD deliverable package (.3DM, .STL, and High-Res Renders):",
+        ]
+        footer_note = "This single-use security token expires in 10 minutes."
+    else:
+        subject = f"Security Code: {otp_code} — Shiuli CAD Studio"
+        headline = "Security Verification"
+        paragraphs = [
+            f"Hello {client_name},",
+            "Please use the 6-digit verification code below to confirm your action:",
+        ]
+        footer_note = "This code will expire in 10 minutes."
+
+    plain_message = (
+        f"{paragraphs[0]}\n\n"
+        f"{paragraphs[1]}\n\n"
+        f"Your 6-Digit Code: {otp_code}\n\n"
+        f"{footer_note}\n\n"
+        "Warm regards,\nShiuli CAD Studio Engineering Team"
+    )
+
+    html_message = build_luxury_email_html(
+        headline=headline,
+        paragraphs=paragraphs,
+        code_badge=otp_code,
+        badge_label="6-DIGIT VERIFICATION CODE",
+        footer_note=footer_note
+    )
+
+    return send_dynamic_mail(
+        subject=subject,
+        message=plain_message,
+        recipient_list=[clean_email],
+        html_message=html_message,
+        fail_silently=False
+    )
+

@@ -7,7 +7,7 @@ from datetime import timedelta
 from django.utils import timezone
 from django.conf import settings
 from django.contrib.auth.hashers import make_password, check_password
-from apps.core.email_service import send_dynamic_mail as send_mail
+from apps.core.email_service import send_dynamic_mail as send_mail, send_otp_email, build_luxury_email_html
 from django.http import FileResponse, Http404
 from rest_framework import generics, status, permissions, parsers
 from rest_framework.response import Response
@@ -143,19 +143,11 @@ class SendRegistrationOTPView(APIView):
         print("=" * 70 + "\n")
 
         try:
-            send_mail(
-                subject="Verify Your Email Address - Shiuli CAD Studio Registration",
-                message=(
-                    f"Hello {name or 'Valued Client'},\n\n"
-                    f"Welcome to Shiuli CAD Studio. To complete your registration and secure your wholesale atelier access, please enter the following verification code:\n\n"
-                    f"Your 6-Digit Email Verification Code: {otp_code}\n\n"
-                    f"This code will expire in 10 minutes.\n\n"
-                    f"If you did not initiate this registration, please disregard this message.\n\n"
-                    f"Warm regards,\nShiuli CAD Studio Security Team"
-                ),
-                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com'),
-                recipient_list=[email],
-                fail_silently=True
+            send_otp_email(
+                email=email,
+                otp_code=otp_code,
+                name=name,
+                purpose="registration"
             )
         except Exception as e:
             print(f"[EMAIL SERVICE WARNING] Failed to dispatch registration OTP email: {e}")
@@ -164,7 +156,7 @@ class SendRegistrationOTPView(APIView):
             "message": f"Verification code sent to {email}. Enter code to complete registration.",
             "email": email,
             "expires_in_seconds": 600,
-            "debug_otp": otp_code if getattr(settings, 'DEBUG', True) else None
+            "debug_otp": otp_code if getattr(settings, 'DEBUG', False) else None
         }, status=status.HTTP_200_OK)
 
 
@@ -326,19 +318,11 @@ class RequestEmailChangeOTPView(APIView):
         print("=" * 70 + "\n")
 
         try:
-            send_mail(
-                subject="Verify Your New Email Address - Shiuli CAD Studio",
-                message=(
-                    f"Hello {request.user.first_name or request.user.username},\n\n"
-                    f"You requested to change your account email address to: {new_email}.\n\n"
-                    f"Your 6-digit email verification code is: {otp_code}\n\n"
-                    f"This code will expire in 10 minutes.\n\n"
-                    f"If you did not request this change, please ignore this email or contact support.\n\n"
-                    f"Warm regards,\nShiuli CAD Studio Team"
-                ),
-                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com'),
-                recipient_list=[new_email],
-                fail_silently=True
+            send_otp_email(
+                email=new_email,
+                otp_code=otp_code,
+                name=request.user.first_name or request.user.username,
+                purpose="email_change"
             )
         except Exception as e:
             print(f"[EMAIL SERVICE WARNING] Failed to send email change OTP: {e}")
@@ -442,18 +426,11 @@ class RequestPasswordResetOTPView(APIView):
         print("=" * 70 + "\n")
 
         try:
-            send_mail(
-                subject="Password Reset Verification Code - Shiuli CAD Studio",
-                message=(
-                    f"Hello {user.first_name or user.username},\n\n"
-                    f"Your 6-digit password verification code is: {otp_code}\n\n"
-                    f"This code will expire in 10 minutes.\n\n"
-                    f"If you did not request a password change, please disregard this message or secure your account.\n\n"
-                    f"Warm regards,\nShiuli CAD Studio Security Team"
-                ),
-                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com'),
-                recipient_list=[user.email],
-                fail_silently=True
+            send_otp_email(
+                email=user.email,
+                otp_code=otp_code,
+                name=user.first_name or user.username,
+                purpose="password_reset"
             )
         except Exception as e:
             print(f"[EMAIL SERVICE WARNING] Failed to send password reset OTP: {e}")
@@ -462,7 +439,7 @@ class RequestPasswordResetOTPView(APIView):
             "message": f"Verification code sent to {user.email}. Enter code and new password to confirm.",
             "email": user.email,
             "expires_in_seconds": 600,
-            "debug_otp": otp_code if getattr(settings, 'DEBUG', True) else None
+            "debug_otp": otp_code if getattr(settings, 'DEBUG', False) else None
         }, status=status.HTTP_200_OK)
 
 
@@ -781,11 +758,23 @@ class DesignerApplicationCreateView(APIView):
         )
 
         try:
+            admin_html = build_luxury_email_html(
+                headline="New CAD Designer Application Received",
+                paragraphs=[
+                    f"A new CAD Designer onboarding application has been submitted by <strong>{first_name} {last_name}</strong>.",
+                    f"<strong>Email:</strong> {email}<br/><strong>Phone:</strong> {phone_number}<br/><strong>Location:</strong> {city}, {state}, {country} ({pincode})<br/><strong>Experience:</strong> {experience}<br/><strong>Portfolio:</strong> {portfolio_link or 'None'}",
+                    "You can review applicant details, download their portfolio ZIP, and approve or decline them directly in your Studio Admin Panel."
+                ],
+                action_button_text="REVIEW DESIGNER APPLICATION",
+                action_button_url="https://shiulicad.com/admin/applications",
+                footer_note="Shiuli CAD Studio Automated Platform Security Notification"
+            )
             send_mail(
                 subject=admin_subject,
                 message=admin_message,
                 from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com'),
                 recipient_list=admin_emails,
+                html_message=admin_html,
                 fail_silently=True
             )
         except Exception as e:
@@ -926,11 +915,27 @@ class DesignerApplicationApproveView(APIView):
         from_header = f"Shiuli CAD Studio <{sender_email}>" if '<' not in str(sender_email) else sender_email
 
         try:
+            staff_html = build_luxury_email_html(
+                headline="Your CAD Designer Application is Approved!",
+                paragraphs=[
+                    f"Dear {app.first_name} {app.last_name},",
+                    "Congratulations! We are delighted to inform you that your application to join Shiuli CAD Studio as a CAD Designer has been reviewed and APPROVED by our Atelier Administration.",
+                    "You can now log in to the Shiuli Staff Portal to access the workbench, accept open CAD jobs, and upload 3DM/STL deliverables.",
+                    f"<strong>Portal URL:</strong> https://shiulicad.com/login<br/><strong>Registered Email:</strong> {app.email}<br/><strong>Auto-Generated Password:</strong> <code style='color:#F5E7A3; background:#0B1330; padding:2px 8px; border-radius:4px;'>{auto_password}</code>",
+                    "For your security, you can change your password anytime after logging in via your Staff Profile by verifying with OTP."
+                ],
+                code_badge=auto_password,
+                badge_label="TEMPORARY LOGIN PASSWORD",
+                action_button_text="SIGN IN TO STAFF WORKBENCH",
+                action_button_url="https://shiulicad.com/login",
+                footer_note="Welcome to Shiuli CAD Studio. Please change your password upon initial sign in."
+            )
             send_mail(
                 subject=staff_subject,
                 message=staff_message,
                 from_email=from_header,
                 recipient_list=[app.email],
+                html_message=staff_html,
                 fail_silently=False
             )
             email_sent = True
@@ -989,11 +994,23 @@ class DesignerApplicationDeclineView(APIView):
         )
 
         try:
+            decline_html = build_luxury_email_html(
+                headline="Update Regarding Your Designer Application",
+                paragraphs=[
+                    f"Dear {app.first_name} {app.last_name},",
+                    "Thank you for taking the time to apply to Shiuli CAD Studio as a CAD Designer.",
+                    "After reviewing your application and past work portfolio, our Atelier administration has decided not to proceed with your onboarding at this time.",
+                    (f"<strong>Administrative Feedback:</strong> {reason}" if reason else ""),
+                    "We appreciate your interest in our studio and wish you the best in your design pursuits."
+                ],
+                footer_note="Shiuli CAD Studio Administration"
+            )
             send_mail(
                 subject=decline_subject,
                 message=decline_message,
                 from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com'),
                 recipient_list=[app.email],
+                html_message=decline_html,
                 fail_silently=True
             )
         except Exception as e:
@@ -1080,11 +1097,26 @@ class DesignerApplicationResendEmailView(APIView):
         email_sent = False
         email_error = None
         try:
+            staff_html = build_luxury_email_html(
+                headline="Welcome to Shiuli CAD Studio — Login Credentials",
+                paragraphs=[
+                    f"Dear {app.first_name} {app.last_name},",
+                    "Here are your refreshed login credentials for the Shiuli CAD Studio Staff Workbench:",
+                    f"<strong>Portal URL:</strong> https://shiulicad.com/login<br/><strong>Registered Email:</strong> {app.email}<br/><strong>Login Password:</strong> <code style='color:#F5E7A3; background:#0B1330; padding:2px 8px; border-radius:4px;'>{new_password}</code>",
+                    "You can change your password anytime after logging in via your Staff Profile by verifying with OTP."
+                ],
+                code_badge=new_password,
+                badge_label="LOGIN PASSWORD",
+                action_button_text="SIGN IN TO STAFF WORKBENCH",
+                action_button_url="https://shiulicad.com/login",
+                footer_note="Shiuli CAD Studio Administration"
+            )
             send_mail(
                 subject=staff_subject,
                 message=staff_message,
                 from_email=from_header,
                 recipient_list=[app.email],
+                html_message=staff_html,
                 fail_silently=False
             )
             email_sent = True

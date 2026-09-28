@@ -7,7 +7,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.conf import settings
 from django.contrib.auth.hashers import make_password, check_password
-from apps.core.email_service import send_dynamic_mail as send_mail
+from apps.core.email_service import send_dynamic_mail as send_mail, send_otp_email, build_luxury_email_html
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -786,17 +786,24 @@ class OrderViewSet(viewsets.ModelViewSet):
             # Send email to client
             if order.client and order.client.email:
                 try:
+                    preview_subject = f"3D CAD Preview Ready (v{order.current_version}) — Order #{order.id} — Shiuli CAD Studio"
+                    preview_paragraphs = [
+                        f"Hello {order.client.first_name or order.client.username},",
+                        f"Great news! Your 3D CAD jewellery model preview for <strong>Order #{order.id} (v{order.current_version})</strong> has passed Studio Quality Control review and is ready for your inspection.",
+                        "Log into your atelier portal to inspect the interactive 360° views, examine stone settings, and approve or request adjustments."
+                    ]
+                    preview_html = build_luxury_email_html(
+                        headline=f"3D CAD Preview Ready (v{order.current_version})",
+                        paragraphs=preview_paragraphs,
+                        action_button_text="INSPECT 3D CAD PREVIEW",
+                        action_button_url="https://shiulicad.com/account",
+                        footer_note="Inspect high-resolution 3D turnarounds directly in your client dashboard."
+                    )
                     send_mail(
-                        subject=f"[Shiuli CAD Studio] Updated 3D CAD Preview (v{order.current_version}) Ready for Order #{order.id}",
-                        message=(
-                            f"Hello {order.client.first_name or order.client.username},\n\n"
-                            f"Great news! Your 3D CAD design preview for Order #{order.id} (v{order.current_version}) has passed studio quality review and is now ready for your inspection.\n\n"
-                            f"Please log into your client portal to inspect the interactive 360° views and approve or request adjustments:\n"
-                            f"http://localhost:3000/account\n\n"
-                            f"Warm regards,\nShiuli CAD Studio Master Atelier\nhello@shiulicadstudio.com"
-                        ),
-                        from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com'),
+                        subject=preview_subject,
+                        message="\n\n".join(preview_paragraphs) + "\n\nWarm regards,\nShiuli CAD Studio",
                         recipient_list=[order.client.email],
+                        html_message=preview_html,
                         fail_silently=True
                     )
                 except Exception as mail_err:
@@ -911,18 +918,25 @@ class OrderViewSet(viewsets.ModelViewSet):
             )
             if order.assigned_staff.email:
                 try:
+                    staff_subj = f"Design Revision #{revision_num} Requested — Order #{order.id} — Shiuli CAD Studio"
+                    staff_paras = [
+                        f"Hello {order.assigned_staff.first_name or order.assigned_staff.username},",
+                        f"The client has requested design adjustments on <strong>Order #{order.id}</strong> (previous deliverable v{rev_req.deliverable_version}).",
+                        f"<strong>Client Revision Notes:</strong><br/><em style='color:#F5E7A3;'>\"{comment}\"</em>",
+                        f"Please access your staff workbench, update the CAD geometry, and upload deliverable v{order.current_version} for QC approval."
+                    ]
+                    staff_html = build_luxury_email_html(
+                        headline=f"Design Revision #{revision_num} Requested",
+                        paragraphs=staff_paras,
+                        action_button_text="OPEN STAFF WORKBENCH",
+                        action_button_url="https://shiulicad.com/staff-portal",
+                        footer_note="Deliverable turnaround expected within active order milestone window."
+                    )
                     send_mail(
-                        subject=f"[Shiuli Studio] Revision #{revision_num} Requested for Order #{order.id}",
-                        message=(
-                            f"Hello {order.assigned_staff.first_name or order.assigned_staff.username},\n\n"
-                            f"The client has requested design adjustments on Order #{order.id} (previous deliverable v{rev_req.deliverable_version}).\n\n"
-                            f"Client Feedback:\n\"{comment}\"\n\n"
-                            f"Please check your staff portal, update the CAD geometry, and upload deliverable v{order.current_version} for QC approval.\n\n"
-                            f"Portal: http://localhost:3000/staff\n\n"
-                            f"Warm regards,\nShiuli Atelier Production Desk"
-                        ),
-                        from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com'),
+                        subject=staff_subj,
+                        message="\n\n".join(staff_paras) + "\n\nShiuli Atelier Production Desk",
                         recipient_list=[order.assigned_staff.email],
+                        html_message=staff_html,
                         fail_silently=True
                     )
                 except Exception as mail_err:
@@ -941,17 +955,25 @@ class OrderViewSet(viewsets.ModelViewSet):
         # 3. Confirmation Email to Client
         if order.client and order.client.email:
             try:
+                client_subj = f"Revision Request Received — Order #{order.id} — Shiuli CAD Studio"
+                client_paras = [
+                    f"Hello {order.client.first_name or order.client.username},",
+                    f"We have received your revision request for <strong>Order #{order.id} (Revision #{revision_num})</strong>.",
+                    f"<strong>Your Submitted Notes:</strong><br/><em style='color:#F5E7A3;'>\"{comment}\"</em>",
+                    "Our CAD engineering atelier is updating your jewelry geometry. Once the new 3D turnaround preview is rendered and passes QC review, you will be notified to inspect it in your dashboard."
+                ]
+                client_html = build_luxury_email_html(
+                    headline="Revision Request Confirmed",
+                    paragraphs=client_paras,
+                    action_button_text="VIEW ORDER STATUS",
+                    action_button_url="https://shiulicad.com/account",
+                    footer_note="Thank you for partnering with Shiuli CAD Studio Atelier."
+                )
                 send_mail(
-                    subject=f"[Shiuli CAD Studio] Revision Request Received — Order #{order.id}",
-                    message=(
-                        f"Hello {order.client.first_name or order.client.username},\n\n"
-                        f"We have received your revision request for Order #{order.id} (Revision #{revision_num}).\n\n"
-                        f"Your Comments:\n\"{comment}\"\n\n"
-                        f"Our CAD engineering team is reviewing your instructions. Once the updated 3D CAD preview is sculpted and passes studio quality control, you will receive a notification to review it in your dashboard.\n\n"
-                        f"Warm regards,\nShiuli CAD Studio Support\nhello@shiulicadstudio.com"
-                    ),
-                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com'),
+                    subject=client_subj,
+                    message="\n\n".join(client_paras) + "\n\nWarm regards,\nShiuli CAD Studio",
                     recipient_list=[order.client.email],
+                    html_message=client_html,
                     fail_silently=True
                 )
             except Exception as mail_err:
@@ -1094,18 +1116,11 @@ class OrderViewSet(viewsets.ModelViewSet):
         print("=" * 70 + "\n", flush=True)
 
         try:
-            send_mail(
-                subject=f"[Shiuli CAD Studio] Download OTP Code: {otp_code} for Order #{order.id}",
-                message=(
-                    f"Hello {request.user.first_name or request.user.username},\n\n"
-                    f"Your custom CAD design Order #{order.id} is ready for download!\n\n"
-                    f"Your One-Time Security Code is: {otp_code}\n\n"
-                    f"This OTP will expire in 10 minutes. Enter this code on your dashboard to receive your single-use download link.\n\n"
-                    f"Warm regards,\nShiuli CAD Studio Atelier Support\nhello@shiulicadstudio.com"
-                ),
-                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com'),
-                recipient_list=[request.user.email],
-                fail_silently=False
+            send_otp_email(
+                email=request.user.email,
+                otp_code=otp_code,
+                name=request.user.first_name or request.user.username,
+                purpose="download_otp"
             )
             print(f"[EMAIL SUCCESS] Dispatched OTP code {otp_code} to {request.user.email} via Gmail SMTP.", flush=True)
         except Exception as e:
@@ -1184,21 +1199,25 @@ class OrderViewSet(viewsets.ModelViewSet):
         print("=" * 70 + "\n", flush=True)
 
         try:
+            download_subj = f"Your 3D CAD Download Link — Order #{order.id} — Shiuli CAD Studio"
+            download_paras = [
+                f"Hello {request.user.first_name or request.user.username},",
+                f"Your email verification is confirmed! Your bespoke jewelry production files (.3DM / .STL / 4K Renders) for <strong>Order #{order.id}</strong> are ready for download.",
+                "Click the button below to download your complete production package:",
+                "<strong>IMPORTANT SECURITY NOTICE:</strong><br/>- This link can be used to download your production files (.3DM / .STL) <strong>ONCE only</strong>.<br/>- After downloading, this link automatically self-destructs and cannot be opened again."
+            ]
+            download_html = build_luxury_email_html(
+                headline="Your Custom CAD Files are Ready",
+                paragraphs=download_paras,
+                action_button_text="DOWNLOAD PRODUCTION CAD FILES",
+                action_button_url=download_url,
+                footer_note="Single-use link valid for 48 hours. If you did not initiate this request, contact support immediately."
+            )
             send_mail(
-                subject=f"[Shiuli CAD Studio] Your Single-Use CAD Download Link - Order #{order.id}",
-                message=(
-                    f"Hello {request.user.first_name or request.user.username},\n\n"
-                    f"Your email verification is confirmed!\n\n"
-                    f"Here is your single-use secure CAD download link for Order #{order.id}:\n\n"
-                    f"{download_url}\n\n"
-                    f"IMPORTANT SECURITY NOTICE:\n"
-                    f"- This link can be used to download your production files (.3DM / .STL) ONCE only.\n"
-                    f"- After downloading, this link automatically self-destructs and cannot be opened again.\n"
-                    f"- If you need to download your CAD assets again in the future, please contact studio administration to re-authorize download access.\n\n"
-                    f"Warm regards,\nShiuli CAD Studio Master Atelier\nhello@shiulicadstudio.com"
-                ),
-                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@shiulicadstudio.com'),
+                subject=download_subj,
+                message="\n\n".join(download_paras) + f"\n\nDownload Link: {download_url}\n\nWarm regards,\nShiuli CAD Studio",
                 recipient_list=[request.user.email],
+                html_message=download_html,
                 fail_silently=False
             )
             print(f"[EMAIL SUCCESS] Dispatched single-use download link to {request.user.email} via Gmail SMTP.", flush=True)
