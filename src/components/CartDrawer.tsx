@@ -177,7 +177,7 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
     // Dispatch real email via Gmail SMTP
     const firstTitle = items.length > 0 ? items[0].product.title : 'Master CAD Package';
     sendCadDownloadEmail(
-      'socialbuzz31@gmail.com',
+      'shiulicad@gmail.com',
       items.length > 1 ? `${firstTitle} (+${items.length - 1} more items)` : firstTitle,
       ['.3DM (Rhino 8 Layered)', '.STL (Watertight Mesh)', '.OBJ (Universal Mesh)', '4K Renders'],
       window.location.origin

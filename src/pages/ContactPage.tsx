@@ -199,7 +199,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
     setErrors({});
 
     try {
-      // Send real email via Gmail SMTP (socialbuzz31@gmail.com)
+      // Send real email via Gmail SMTP (shiulicad@gmail.com)
       sendContactFormEmail(name.trim(), email.trim(), subject, message.trim()).catch((e) =>
         console.warn('Background email dispatch notice:', e)
       );

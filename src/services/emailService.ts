@@ -1,7 +1,7 @@
 /**
  * Shiuli CAD Studio - Production Email Service
  * Configured with Gmail SMTP transport:
- * Sender: socialbuzz31@gmail.com
+ * Sender: shiulicad@gmail.com
  * App Password: rcyg ebys rsgn yguc
  */
 
@@ -174,9 +174,9 @@ export async function sendCustomDesignConfirmationEmail(toEmail: string, designT
     </div>
   `;
 
-  // Also send copy to studio inbox socialbuzz31@gmail.com
+  // Also send copy to studio inbox shiulicad@gmail.com
   await sendEmail({
-    to: 'socialbuzz31@gmail.com',
+    to: 'shiulicad@gmail.com',
     subject: `[STUDIO ALERT] New Custom Design Request: ${designTitle} from ${clientName}`,
     html: `<p><strong>Client:</strong> ${clientName} (${toEmail})</p><p><strong>Title:</strong> ${designTitle}</p><p><strong>Category:</strong> ${categoryName}</p><p><strong>Specs:</strong> ${detailsSummary}</p>`,
     text: `New Custom Design Request from ${clientName} (${toEmail}): ${designTitle}`,
@@ -221,9 +221,9 @@ export async function sendContactFormEmail(name: string, clientEmail: string, me
     </div>
   `;
 
-  // Send copy to studio inbox socialbuzz31@gmail.com
+  // Send copy to studio inbox shiulicad@gmail.com
   await sendEmail({
-    to: 'socialbuzz31@gmail.com',
+    to: 'shiulicad@gmail.com',
     subject: `[INQUIRY ALERT] Contact Form Submission from ${name} (${clientEmail})`,
     html: `<p><strong>Name:</strong> ${name}</p><p><strong>Email:</strong> ${clientEmail}</p><p><strong>Subject:</strong> ${messageSubject}</p><p><strong>Message:</strong> ${messageBody}</p>`,
     text: `New contact form inquiry from ${name} (${clientEmail}): ${messageBody}`,
