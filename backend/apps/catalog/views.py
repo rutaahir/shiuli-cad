@@ -1,4 +1,5 @@
 import os
+from django.shortcuts import get_object_or_404
 from django.http import FileResponse, Http404
 from django.utils import timezone
 from django.db.models import Q
@@ -97,13 +98,66 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         if self.action in ['list', 'retrieve']:
             return [permissions.AllowAny()]
-        elif self.action in ['create', 'upload_image', 'upload_file', 'toggle_active']:
+        elif self.action in ['create', 'upload_image', 'upload_file', 'toggle_active', 'destroy']:
             return [IsStaffOrAdmin()]
         elif self.action in ['pending', 'approve', 'reject']:
             return [IsAdmin()]
         elif self.action in ['download_file']:
             return [permissions.IsAuthenticated()]
         return [IsStaffOrAdmin()]
+
+    def get_object(self):
+        queryset = self.filter_queryset(self.get_queryset())
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        lookup_value = self.kwargs.get(lookup_url_kwarg)
+
+        # Try finding by lookup_field (slug)
+        filter_kwargs = {self.lookup_field: lookup_value}
+        try:
+            return get_object_or_404(queryset, **filter_kwargs)
+        except Exception:
+            # Fallback by primary key if lookup_value is numeric
+            if str(lookup_value).isdigit():
+                return get_object_or_404(queryset, pk=int(lookup_value))
+            raise
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        user = request.user
+        
+        # Staff can only delete their own products
+        if getattr(user, 'role', '') == 'staff' and instance.uploaded_by != user:
+            return Response(
+                {"error": "You can only delete your own products."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        try:
+            # Handle dependent purchases & download tokens safely to prevent ProtectedError
+            from apps.payments.models import Purchase, DownloadToken
+            DownloadToken.objects.filter(purchase__product=instance).delete()
+            Purchase.objects.filter(product=instance).delete()
+
+            # Handle custom requests and orders referencing this product
+            from apps.custom_orders.models import CustomRequest, Order
+            CustomRequest.objects.filter(reference_product=instance).update(reference_product=None)
+            Order.objects.filter(product=instance).update(product=None)
+
+            # Clean up associated images and files
+            instance.images.all().delete()
+            instance.files.all().delete()
+
+            # Delete product
+            instance.delete()
+            return Response(
+                {"message": f"Product '{instance.title}' has been successfully deleted."},
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to delete product: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
     def get_queryset(self):
         user = self.request.user

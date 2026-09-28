@@ -912,17 +912,18 @@ class ApiClient {
     });
   }
 
-  async deleteProduct(slug: string) {
+  async deleteProduct(slug: string | number) {
     await this.ensureAdminToken();
+    const encoded = encodeURIComponent(slug);
     try {
-      return await this.request<any>(`/catalog/products/${slug}/`, {
+      return await this.request<any>(`/catalog/products/${encoded}/`, {
         method: 'DELETE',
       });
     } catch (err: any) {
       if (err.status === 401 || err.status === 403) {
         localStorage.removeItem('shiuli_access_token');
         await this.ensureAdminToken();
-        return await this.request<any>(`/catalog/products/${slug}/`, {
+        return await this.request<any>(`/catalog/products/${encoded}/`, {
           method: 'DELETE',
         });
       }

@@ -434,14 +434,18 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
       try {
         const [groupsData, catsData] = await Promise.all([
           api.getOptionGroups().catch(() => []),
-          api.getCategories(true).catch(() => [])
+          api.getCategories(false).catch(() => [])
         ]);
 
         if (!isMounted) return;
 
         const effectiveGroups = Array.isArray(groupsData) && groupsData.length > 0 ? groupsData : DEFAULT_OPTION_GROUPS;
         setOptionGroups(effectiveGroups);
-        setCategories(Array.isArray(catsData) ? catsData : []);
+        // Exclusively keep main / parent categories (parent is null / undefined)
+        const mainCats = Array.isArray(catsData)
+          ? catsData.filter((c: any) => !c.parent && !c.parent_id && !c.name?.toLowerCase().includes('test'))
+          : [];
+        setCategories(mainCats);
 
         // Do not pre-populate defaults: let selections start empty so customer chooses their own
         setSelections({});
@@ -802,21 +806,26 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
   const [apiCategories, setApiCategories] = useState<any[]>([]);
 
   useEffect(() => {
-    api.getCategories(true).then((cats) => {
+    api.getCategories(false).then((cats) => {
       if (cats && Array.isArray(cats) && cats.length > 0) {
-        setApiCategories(cats);
+        // Strictly main categories only (no subcategories, parent must be null/undefined)
+        const mainCats = cats.filter((c: any) => !c.parent && !c.parent_id && !c.name?.toLowerCase().includes('test'));
+        setApiCategories(mainCats);
       }
     }).catch(() => { });
   }, []);
 
-  // Dynamic Category Selector Config from API
+  // Dynamic Category Selector Config from API - MAIN CATEGORIES ONLY
   const categoryGroups = useMemo(() => {
-    if (apiCategories.length > 0) {
-      return apiCategories.map((c) => ({
+    // Strictly filter out any subcategories (only categories without a parent)
+    const validMainCategories = apiCategories.filter((c: any) => !c.parent && !c.parent_id);
+    if (validMainCategories.length > 0) {
+      return validMainCategories.map((c) => ({
         id: c.slug,
+        categoryId: c.id,
         name: c.name,
-        icon: c.slug.includes('ring') ? Sparkles : c.slug.includes('ear') ? Gem : c.slug.includes('pendant') ? Layers : Ruler,
-        desc: `Bespoke ${c.name} 3D CAD modeling & precision engineering.`
+        icon: c.slug?.includes('ring') ? Sparkles : c.slug?.includes('ear') ? Gem : (c.slug?.includes('pendant') || c.slug?.includes('neck')) ? Layers : Ruler,
+        desc: c.tagline || `Bespoke ${c.name} 3D CAD modeling & precision engineering.`
       }));
     }
     return [
@@ -1040,8 +1049,13 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                 key={cat.id}
                                 onClick={() => {
                                   setSelectedCategory(cat.id);
-                                  const matched = categories.find(c => c.slug?.toLowerCase() === cat.id || c.name?.toLowerCase().includes(cat.id.slice(0, 4)));
-                                  if (matched) setSelectedCategoryId(matched.id);
+                                  const catItem = cat as any;
+                                  if (catItem.categoryId) {
+                                    setSelectedCategoryId(catItem.categoryId);
+                                  } else {
+                                    const matched = categories.find(c => c.slug?.toLowerCase() === cat.id || c.name?.toLowerCase().includes(cat.id.slice(0, 4)));
+                                    if (matched) setSelectedCategoryId(matched.id);
+                                  }
                                 }}
                                 className={`p-4 rounded-2xl border cursor-pointer transition-all duration-300 ${isSel
                                   ? 'border-[#D4AF37] bg-[#121F4D]/90 shadow-[0_0_20px_rgba(212,175,55,0.2)] ring-1 ring-[#D4AF37]/50'
@@ -1695,102 +1709,12 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                           <p className="text-xs text-[#FAF8F3]/60">Select catalog designs or upload custom reference sketches & hallmark vector logos.</p>
                         </div>
 
-                        {/* Engraving Specs */}
-                        <div className="bg-[#121F4D]/50 border border-[#D4AF37]/30 rounded-2xl p-5 space-y-4">
-                          <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-[#D4AF37]" /> Custom Engraving Personalization
-                          </h3>
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <div>
-                              <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">Engraving Text</label>
-                              <input
-                                type="text"
-                                value={engravingText}
-                                onChange={e => setEngravingText(e.target.value)}
-                                placeholder="e.g. Forever & Always"
-                                className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2 px-3"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">Font Style</label>
-                              <select
-                                value={engravingFont}
-                                onChange={e => setEngravingFont(e.target.value)}
-                                className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3"
-                              >
-                                <option value="Script">Calligraphy Script</option>
-                                <option value="Block">Modern Block Sans</option>
-                                <option value="Roman">Classic Roman Serif</option>
-                                <option value="Gothic">Vintage Gothic</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">Placement</label>
-                              <select
-                                value={engravingPlacement}
-                                onChange={e => setEngravingPlacement(e.target.value)}
-                                className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3"
-                              >
-                                <option value="Inside Shank">Inside Shank / Band</option>
-                                <option value="Outside Shank">Outside Shank</option>
-                                <option value="Pendant Backing">Pendant Backplate</option>
-                                <option value="Bail">Bail Accent</option>
-                              </select>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Studio / Brand Logo Upload */}
-                        <div className="bg-[#121F4D]/50 border border-[#D4AF37]/30 rounded-2xl p-5 space-y-3">
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
-                                <ShieldCheck className="w-4 h-4 text-[#D4AF37]" /> Studio Hallmark & Vector Logo Stamp
-                              </h3>
-                              <p className="text-xs text-[#FAF8F3]/60">Stamp your studio hallmark directly onto 3D model geometry.</p>
-                            </div>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={hasLogo}
-                                onChange={e => setHasLogo(e.target.checked)}
-                                className="sr-only peer"
-                              />
-                              <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#D4AF37]"></div>
-                            </label>
-                          </div>
-
-                          {hasLogo && (
-                            <div className="pt-2">
-                              <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">
-                                Upload Vector Logo (.svg, .ai, .eps, .pdf, .png, .jpg)
-                              </label>
-                              <input
-                                type="file"
-                                accept=".svg,.ai,.eps,.pdf,.png,.jpg,.jpeg"
-                                onChange={handleLogoUpload}
-                                className="block w-full text-xs text-[#FAF8F3]/70 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#D4AF37] file:text-[#0B1330] hover:file:bg-[#F5E7A3]"
-                              />
-                              {logoError && (
-                                <p className="text-xs text-rose-400 font-semibold mt-1.5 flex items-center gap-1">
-                                  <AlertCircle className="w-3.5 h-3.5" /> {logoError}
-                                </p>
-                              )}
-                              {logoFile && !logoError && (
-                                <div className="mt-2 flex items-center gap-2 text-xs text-emerald-400 font-medium">
-                                  <CheckCircle2 className="w-4 h-4" /> Selected: {logoFile.name}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* REFERENCE IMAGES / HAND SKETCHES SECTION - DUAL OPTION (CATALOG vs UPLOAD) */}
+                        {/* 1. Reference Designs / Upload Custom Sketch */}
                         <div className="bg-[#121F4D]/50 border border-[#D4AF37]/30 rounded-2xl p-5 space-y-4">
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
                             <div>
                               <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
-                                <Grid className="w-4 h-4 text-[#D4AF37]" /> Reference Designs & Hand Sketches
+                                <Grid className="w-4 h-4 text-[#D4AF37]" /> 1. Reference Designs / Upload Custom Sketch
                               </h3>
                               <p className="text-xs text-[#FAF8F3]/60">Choose from existing studio CAD catalog products or upload custom hand sketches.</p>
                             </div>
@@ -1800,7 +1724,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                               <button
                                 type="button"
                                 onClick={() => setActiveReferenceTab('catalog')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${activeReferenceTab === 'catalog'
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${activeReferenceTab === 'catalog'
                                   ? 'bg-gradient-to-r from-[#F5E7A3] via-[#D4AF37] to-[#B8860B] text-[#0B1330] shadow-md'
                                   : 'text-[#FAF8F3]/70 hover:text-white'
                                   }`}
@@ -1810,7 +1734,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                               <button
                                 type="button"
                                 onClick={() => setActiveReferenceTab('upload')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${activeReferenceTab === 'upload'
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${activeReferenceTab === 'upload'
                                   ? 'bg-gradient-to-r from-[#F5E7A3] via-[#D4AF37] to-[#B8860B] text-[#0B1330] shadow-md'
                                   : 'text-[#FAF8F3]/70 hover:text-white'
                                   }`}
@@ -1834,7 +1758,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                     <button
                                       type="button"
                                       onClick={() => toggleCatalogProductRef(p)}
-                                      className="text-rose-400 hover:text-rose-200"
+                                      className="text-rose-400 hover:text-rose-200 cursor-pointer"
                                     >
                                       <X className="w-3.5 h-3.5" />
                                     </button>
@@ -1866,9 +1790,9 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                 >
                                   <option value="all">All Categories</option>
                                   <option value="ring">Rings</option>
-                                  <option value="pendant">Pendants & Necklaces</option>
+                                  <option value="pendant">Pendants &amp; Necklaces</option>
                                   <option value="earring">Earrings</option>
-                                  <option value="bangle">Bracelets & Bangles</option>
+                                  <option value="bangle">Bracelets &amp; Bangles</option>
                                 </select>
                               </div>
 
@@ -1933,7 +1857,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                       <button
                                         type="button"
                                         onClick={() => removeSketch(i)}
-                                        className="absolute top-1 right-1 p-1 bg-rose-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all"
+                                        className="absolute top-1 right-1 p-1 bg-rose-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
                                       >
                                         <X className="w-3 h-3" />
                                       </button>
@@ -1945,13 +1869,13 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                           )}
                         </div>
 
-                        {/* Special Design Notes & Voice Requisition Module */}
+                        {/* 2. Special Design Notes & Voice Instructions */}
                         <div className="space-y-4 bg-[#121F4D]/40 border border-[#D4AF37]/30 rounded-2xl p-5">
                           <div className="flex justify-between items-center">
                             <label className="block text-xs font-bold text-[#F5E7A3] uppercase tracking-wider flex items-center gap-1.5">
-                              <Mic className="w-4 h-4 text-[#D4AF37]" /> Special Design Notes & Voice Requisition
+                              <Mic className="w-4 h-4 text-[#D4AF37]" /> 2. Special Design Notes &amp; Voice Instructions
                             </label>
-                            <span className="text-[10px] text-[#D4AF37] font-mono">Text, Speech AI & Audio</span>
+                            <span className="text-[10px] text-[#D4AF37] font-mono">Text, Speech AI &amp; Audio</span>
                           </div>
 
                           <textarea
@@ -1979,14 +1903,14 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                 )}
                               </div>
                               <p className="text-[10px] text-[#FAF8F3]/60 leading-tight">
-                                Click start to speak your CAD instructions. Spoken words will be transcribed & audio file attached automatically.
+                                Click start to speak your CAD instructions. Spoken words will be transcribed &amp; audio file attached automatically.
                               </p>
                               <div className="pt-1 flex gap-2">
                                 {!isRecordingVoice ? (
                                   <button
                                     type="button"
                                     onClick={handleStartVoiceRecording}
-                                    className="w-full py-2.5 rounded-lg bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#F5E7A3] hover:bg-[#D4AF37]/30 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                                    className="w-full py-2.5 rounded-lg bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#F5E7A3] hover:bg-[#D4AF37]/30 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                                   >
                                     <Mic className="w-3.5 h-3.5 text-[#D4AF37]" /> Start Recording
                                   </button>
@@ -2044,103 +1968,309 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                           )}
                         </div>
 
-                        {/* Complexity Tier & Timeline */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5 flex items-center gap-1">
-                              <Award className="w-3.5 h-3.5 text-[#D4AF37]" /> Production Complexity Tier
-                            </label>
-                            <select
-                              value={projectTier}
-                              onChange={e => setProjectTier(e.target.value)}
-                              className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3"
-                            >
-                              <option value="">-- Choose Project Tier (Optional) --</option>
-                              <option value="Standard Commercial CAD">Standard Commercial CAD</option>
-                              <option value="High Precision Fine Jewelry">High Precision Fine Jewelry</option>
-                              <option value="Exquisite Masterpiece">Exquisite Masterpiece</option>
-                              <option value="Haute Joaillerie Atelier">Haute Joaillerie Atelier</option>
-                            </select>
-                          </div>
-
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <label className="block text-xs font-semibold text-[#FAF8F3]/80 flex items-center gap-1.5">
-                                <Calendar className="w-3.5 h-3.5 text-[#D4AF37]" /> Target Completion Date (Optional)
-                              </label>
-                              {neededByDate && (
-                                <button
-                                  type="button"
-                                  onClick={() => setNeededByDate('')}
-                                  className="text-[10px] text-rose-400 hover:text-rose-300 underline font-mono"
-                                >
-                                  Clear Date
-                                </button>
-                              )}
-                            </div>
-
-                            <div className="relative">
+                        {/* 3. Custom Engraving Personalization */}
+                        <div className="bg-[#121F4D]/50 border border-[#D4AF37]/30 rounded-2xl p-5 space-y-4">
+                          <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-[#D4AF37]" /> 3. Custom Engraving Personalization
+                          </h3>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                              <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">Engraving Text</label>
                               <input
-                                type="date"
-                                min={minSelectableDate}
-                                value={neededByDate}
-                                onChange={e => setNeededByDate(e.target.value)}
-                                className="w-full text-xs rounded-xl border border-[#D4AF37]/40 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3 focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] [color-scheme:dark] cursor-pointer"
+                                type="text"
+                                value={engravingText}
+                                onChange={e => setEngravingText(e.target.value)}
+                                placeholder="e.g. Forever & Always"
+                                className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2 px-3"
                               />
                             </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">Font Style</label>
+                              <select
+                                value={engravingFont}
+                                onChange={e => setEngravingFont(e.target.value)}
+                                className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3"
+                              >
+                                <option value="Script">Calligraphy Script</option>
+                                <option value="Block">Modern Block Sans</option>
+                                <option value="Roman">Classic Roman Serif</option>
+                                <option value="Gothic">Vintage Gothic</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">Placement</label>
+                              <select
+                                value={engravingPlacement}
+                                onChange={e => setEngravingPlacement(e.target.value)}
+                                className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3"
+                              >
+                                <option value="Inside Shank">Inside Shank / Band</option>
+                                <option value="Outside Shank">Outside Shank</option>
+                                <option value="Pendant Backing">Pendant Backplate</option>
+                                <option value="Bail">Bail Accent</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
 
-                            {/* Quick Presets for Target Deadline */}
-                            <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
-                              <span className="text-[10px] font-mono text-[#FAF8F3]/50">Quick Pick:</span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const d = new Date();
-                                  d.setDate(d.getDate() + 7);
-                                  setNeededByDate(d.toISOString().split('T')[0]);
-                                }}
-                                className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-white/5 hover:bg-[#D4AF37]/20 border border-white/10 hover:border-[#D4AF37]/40 text-[#FAF8F3]/80 transition-all cursor-pointer"
+                        {/* 4. Studio Hallmark & Vector Logo */}
+                        <div className="bg-[#121F4D]/50 border border-[#D4AF37]/30 rounded-2xl p-5 space-y-3">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
+                                <ShieldCheck className="w-4 h-4 text-[#D4AF37]" /> 4. Studio Hallmark &amp; Vector Logo
+                              </h3>
+                              <p className="text-xs text-[#FAF8F3]/60">Stamp your studio hallmark directly onto 3D model geometry.</p>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={hasLogo}
+                                onChange={e => setHasLogo(e.target.checked)}
+                                className="sr-only peer"
+                              />
+                              <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#D4AF37]"></div>
+                            </label>
+                          </div>
+
+                          {hasLogo && (
+                            <div className="pt-2">
+                              <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">
+                                Upload Vector Logo (.svg, .ai, .eps, .pdf, .png, .jpg)
+                              </label>
+                              <input
+                                type="file"
+                                accept=".svg,.ai,.eps,.pdf,.png,.jpg,.jpeg"
+                                onChange={handleLogoUpload}
+                                className="block w-full text-xs text-[#FAF8F3]/70 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#D4AF37] file:text-[#0B1330] hover:file:bg-[#F5E7A3]"
+                              />
+                              {logoError && (
+                                <p className="text-xs text-rose-400 font-semibold mt-1.5 flex items-center gap-1">
+                                  <AlertCircle className="w-3.5 h-3.5" /> {logoError}
+                                </p>
+                              )}
+                              {logoFile && !logoError && (
+                                <div className="mt-2 flex items-center gap-2 text-xs text-emerald-400 font-medium">
+                                  <CheckCircle2 className="w-4 h-4" /> Selected: {logoFile.name}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 5. Reference Design Preview */}
+                        <div className="bg-[#121F4D]/50 border border-[#D4AF37]/30 rounded-2xl p-5 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
+                              <ImageIcon className="w-4 h-4 text-[#D4AF37]" /> 5. Reference Design Preview
+                            </h3>
+                            <span className="text-[10px] text-[#D4AF37] font-mono">
+                              {selectedCatalogProducts.length + sketchPreviews.length + (voiceAudioFile ? 1 : 0)} Attachment(s)
+                            </span>
+                          </div>
+
+                          {selectedCatalogProducts.length === 0 && sketchPreviews.length === 0 && !voiceAudioFile ? (
+                            <div className="p-6 rounded-xl bg-[#09112B]/70 border border-dashed border-white/15 text-center space-y-1.5">
+                              <ImageIcon className="w-7 h-7 text-[#D4AF37]/40 mx-auto" />
+                              <p className="text-xs font-medium text-[#FAF8F3]/70">No reference sketches or catalog designs selected yet</p>
+                              <p className="text-[11px] text-[#FAF8F3]/40">Choose from existing studio designs or upload custom sketches above to preview them here.</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-4">
+                              {/* Catalog Product Previews */}
+                              {selectedCatalogProducts.length > 0 && (
+                                <div>
+                                  <p className="text-[11px] font-bold text-[#F5E7A3] mb-2 uppercase tracking-wide">
+                                    Studio Catalog Reference Designs ({selectedCatalogProducts.length})
+                                  </p>
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                    {selectedCatalogProducts.map(p => (
+                                      <div key={p.id} className="relative rounded-xl overflow-hidden border border-[#D4AF37]/40 bg-[#09112B] group shadow-md flex flex-col justify-between">
+                                        <div className="aspect-square w-full overflow-hidden bg-slate-900">
+                                          <img src={p.image} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                                        </div>
+                                        <div className="p-2 flex items-center justify-between gap-1">
+                                          <div className="truncate">
+                                            <p className="text-[11px] font-bold text-white truncate">{p.title}</p>
+                                            <span className="text-[9px] text-[#D4AF37]">SKU #{p.id}</span>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => toggleCatalogProductRef(p)}
+                                            className="p-1 rounded-full text-rose-400 hover:text-white hover:bg-rose-600/80 transition-all cursor-pointer shrink-0"
+                                            title="Remove"
+                                          >
+                                            <X className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Uploaded Sketches Previews */}
+                              {sketchPreviews.length > 0 && (
+                                <div>
+                                  <p className="text-[11px] font-bold text-[#F5E7A3] mb-2 uppercase tracking-wide">
+                                    Custom Hand Sketches &amp; Reference Files ({sketchPreviews.length})
+                                  </p>
+                                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                                    {sketchPreviews.map((url, i) => (
+                                      <div key={i} className="relative group rounded-xl overflow-hidden border border-white/20 aspect-square bg-slate-900 shadow-md">
+                                        <img src={url} alt={`Sketch ${i + 1}`} className="w-full h-full object-cover" />
+                                        <button
+                                          type="button"
+                                          onClick={() => removeSketch(i)}
+                                          className="absolute top-1 right-1 p-1 bg-rose-600/90 hover:bg-rose-600 text-white rounded-full transition-all cursor-pointer shadow-md"
+                                          title="Remove sketch"
+                                        >
+                                          <X className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Attached Voice Note Audio Preview */}
+                              {voiceAudioPreviewUrl && (
+                                <div className="p-3 rounded-xl bg-[#09112B] border border-emerald-500/30 flex items-center justify-between flex-wrap gap-2">
+                                  <div className="flex items-center gap-2 text-xs text-emerald-300 font-medium">
+                                    <Volume2 className="w-4 h-4 text-emerald-400" />
+                                    <span>Attached Voice Note ({voiceAudioFile?.name || 'Voice Instruction'})</span>
+                                  </div>
+                                  <audio controls src={voiceAudioPreviewUrl} className="h-7 max-w-[220px]" />
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 6. Configured Parameters / Final Summary */}
+                        <div className="bg-[#121F4D]/50 border border-[#D4AF37]/30 rounded-2xl p-5 space-y-4">
+                          <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
+                            <Award className="w-4 h-4 text-[#D4AF37]" /> 6. Configured Parameters / Final Summary
+                          </h3>
+
+                          {/* Complexity Tier & Timeline */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5 flex items-center gap-1">
+                                <Award className="w-3.5 h-3.5 text-[#D4AF37]" /> Production Complexity Tier
+                              </label>
+                              <select
+                                value={projectTier}
+                                onChange={e => setProjectTier(e.target.value)}
+                                className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3"
                               >
-                                +7d (Rush)
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const d = new Date();
-                                  d.setDate(d.getDate() + 14);
-                                  setNeededByDate(d.toISOString().split('T')[0]);
-                                }}
-                                className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-white/5 hover:bg-[#D4AF37]/20 border border-white/10 hover:border-[#D4AF37]/40 text-[#FAF8F3]/80 transition-all cursor-pointer"
-                              >
-                                +14d (Standard)
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const d = new Date();
-                                  d.setDate(d.getDate() + 30);
-                                  setNeededByDate(d.toISOString().split('T')[0]);
-                                }}
-                                className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-white/5 hover:bg-[#D4AF37]/20 border border-white/10 hover:border-[#D4AF37]/40 text-[#FAF8F3]/80 transition-all cursor-pointer"
-                              >
-                                +30d (Relaxed)
-                              </button>
+                                <option value="">-- Choose Project Tier (Optional) --</option>
+                                <option value="Standard Commercial CAD">Standard Commercial CAD</option>
+                                <option value="High Precision Fine Jewelry">High Precision Fine Jewelry</option>
+                                <option value="Exquisite Masterpiece">Exquisite Masterpiece</option>
+                                <option value="Haute Joaillerie Atelier">Haute Joaillerie Atelier</option>
+                              </select>
                             </div>
 
-                            {neededByDate && (
-                              <div className="p-2 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-xs text-[#F5E7A3] flex items-center justify-between font-mono">
-                                <span className="flex items-center gap-1.5">
-                                  <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
-                                  Target Deadline: {new Date(neededByDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                </span>
-                                <span className="text-[10px] text-emerald-400 font-bold">
-                                  {(() => {
-                                    const diff = Math.ceil((new Date(neededByDate + 'T00:00:00').getTime() - new Date().setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24));
-                                    return diff > 0 ? `In ${diff} day${diff === 1 ? '' : 's'}` : 'Today';
-                                  })()}
-                                </span>
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <label className="block text-xs font-semibold text-[#FAF8F3]/80 flex items-center gap-1.5">
+                                  <Calendar className="w-3.5 h-3.5 text-[#D4AF37]" /> Target Completion Date (Optional)
+                                </label>
+                                {neededByDate && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setNeededByDate('')}
+                                    className="text-[10px] text-rose-400 hover:text-rose-300 underline font-mono cursor-pointer"
+                                  >
+                                    Clear Date
+                                  </button>
+                                )}
                               </div>
-                            )}
+
+                              <div className="relative">
+                                <input
+                                  type="date"
+                                  min={minSelectableDate}
+                                  value={neededByDate}
+                                  onChange={e => setNeededByDate(e.target.value)}
+                                  className="w-full text-xs rounded-xl border border-[#D4AF37]/40 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3 focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] [color-scheme:dark] cursor-pointer"
+                                />
+                              </div>
+
+                              {/* Quick Presets for Target Deadline: +3d, +5d, +7d */}
+                              <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
+                                <span className="text-[10px] font-mono text-[#FAF8F3]/50">Quick Pick:</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const d = new Date();
+                                    d.setDate(d.getDate() + 3);
+                                    setNeededByDate(d.toISOString().split('T')[0]);
+                                  }}
+                                  className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-white/5 hover:bg-[#D4AF37]/20 border border-white/10 hover:border-[#D4AF37]/40 text-[#FAF8F3]/80 transition-all cursor-pointer"
+                                >
+                                  +3d (Rush)
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const d = new Date();
+                                    d.setDate(d.getDate() + 5);
+                                    setNeededByDate(d.toISOString().split('T')[0]);
+                                  }}
+                                  className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-white/5 hover:bg-[#D4AF37]/20 border border-white/10 hover:border-[#D4AF37]/40 text-[#FAF8F3]/80 transition-all cursor-pointer"
+                                >
+                                  +5d (Standard)
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const d = new Date();
+                                    d.setDate(d.getDate() + 7);
+                                    setNeededByDate(d.toISOString().split('T')[0]);
+                                  }}
+                                  className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-white/5 hover:bg-[#D4AF37]/20 border border-white/10 hover:border-[#D4AF37]/40 text-[#FAF8F3]/80 transition-all cursor-pointer"
+                                >
+                                  +7d (Relaxed)
+                                </button>
+                              </div>
+
+                              {neededByDate && (
+                                <div className="p-2 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-xs text-[#F5E7A3] flex items-center justify-between font-mono">
+                                  <span className="flex items-center gap-1.5">
+                                    <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+                                    Target Deadline: {new Date(neededByDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                  </span>
+                                  <span className="text-[10px] text-emerald-400 font-bold">
+                                    {(() => {
+                                      const diff = Math.ceil((new Date(neededByDate + 'T00:00:00').getTime() - new Date().setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24));
+                                      return diff > 0 ? `In ${diff} day${diff === 1 ? '' : 's'}` : 'Today';
+                                    })()}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Quick Spec Parameter Chips */}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 text-xs">
+                            <div className="p-2.5 rounded-xl bg-[#09112B] border border-white/10">
+                              <span className="text-[10px] text-[#FAF8F3]/50 block uppercase">Category</span>
+                              <span className="font-bold text-[#F5E7A3] capitalize truncate block">{selectedCategory || 'Not Selected'}</span>
+                            </div>
+                            <div className="p-2.5 rounded-xl bg-[#09112B] border border-white/10">
+                              <span className="text-[10px] text-[#FAF8F3]/50 block uppercase">Engraving</span>
+                              <span className="font-bold text-white truncate block">{engravingText ? `"${engravingText}"` : 'None'}</span>
+                            </div>
+                            <div className="p-2.5 rounded-xl bg-[#09112B] border border-white/10">
+                              <span className="text-[10px] text-[#FAF8F3]/50 block uppercase">Logo Stamp</span>
+                              <span className="font-bold text-white block">{hasLogo ? 'Requested' : 'Standard'}</span>
+                            </div>
+                            <div className="p-2.5 rounded-xl bg-[#09112B] border border-white/10">
+                              <span className="text-[10px] text-[#FAF8F3]/50 block uppercase">Gemstones</span>
+                              <span className="font-bold text-white block">{isMetalOnly ? 'Plain Metal' : `${stonesList.length} Stone Row(s)`}</span>
+                            </div>
                           </div>
                         </div>
                       </div>

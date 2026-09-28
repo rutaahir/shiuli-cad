@@ -206,12 +206,12 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
     return matchesCategory && matchesSearch;
   });
 
-  // Unique categories for dropdown
+  // Unique categories for dropdown - Main categories only (no subcategories)
   const categoryOptions = Array.from(
     new Set(
       (catalogState.categories || [])
+        .filter((c: any) => !c.parent && !c.parent_id)
         .map((c: any) => c.name || c.title)
-        .concat((catalogState.products || []).map((p) => p.category_name).filter(Boolean))
     )
   ).filter(Boolean);
 

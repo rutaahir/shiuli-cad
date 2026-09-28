@@ -651,13 +651,19 @@ export const AdminCatalogModule: React.FC = () => {
 
                       <button
                         onClick={async () => {
-                          if (window.confirm(`Delete "${prod.title}"?`)) {
-                            await api.deleteProduct(prod.slug);
-                            showToast(`Product deleted.`);
-                            loadData();
+                          const identifier = prod.slug || prod.id;
+                          if (window.confirm(`Are you sure you want to permanently delete "${prod.title}"?`)) {
+                            try {
+                              await api.deleteProduct(identifier);
+                              showToast(`Product "${prod.title}" deleted.`);
+                              await loadData();
+                            } catch (err: any) {
+                              console.error('Delete product failed:', err);
+                              showToast(err.message || 'Failed to delete product. Please try again.', 'error');
+                            }
                           }
                         }}
-                        className="p-2 rounded-lg text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors"
+                        className="p-2 rounded-lg text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors cursor-pointer"
                         title="Delete Product"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
