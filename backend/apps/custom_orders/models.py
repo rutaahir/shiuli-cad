@@ -148,6 +148,8 @@ class CustomRequest(models.Model):
     timeline = models.CharField(max_length=20, default="standard")
     status = models.CharField(max_length=15, choices=Status.choices, default=Status.NEW)
     agreed_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    admin_commission_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=20.00)
+    admin_call_notes = models.TextField(blank=True, default="", help_text="Admin consultation, call discussion notes, and private order information")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -255,6 +257,8 @@ class Order(models.Model):
         limit_choices_to={'role': 'staff'}
     )
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
+    admin_commission_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=20.00)
+    staff_payout_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     advance_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     advance_paid = models.BooleanField(default=False)
     balance_paid = models.BooleanField(default=False)
@@ -273,6 +277,7 @@ class Order(models.Model):
     # Quality Review & Previews (Stage 9 & 10)
     preview_image = models.ImageField(upload_to="custom_orders/previews/", null=True, blank=True)
     admin_review_notes = models.TextField(blank=True)
+    admin_call_notes = models.TextField(blank=True, default="", help_text="Admin consultation, call discussion notes, and private order information")
     quality_approved = models.BooleanField(default=False)
     client_consent_to_feature = models.BooleanField(default=False)
 
@@ -291,6 +296,22 @@ class Order(models.Model):
     assigned_at = models.DateTimeField(null=True, blank=True)
     handed_over_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def calculate_staff_payout(self):
+        if self.total_price is not None:
+            from decimal import Decimal
+            pct = Decimal(str(self.admin_commission_percentage if self.admin_commission_percentage is not None else '20.00'))
+            multiplier = max(Decimal('0.00'), (Decimal('100.00') - pct) / Decimal('100.00'))
+            return round(Decimal(str(self.total_price)) * multiplier, 2)
+        return Decimal('0.00')
+
+    def save(self, *args, **kwargs):
+        from decimal import Decimal
+        if self.admin_commission_percentage is None:
+            self.admin_commission_percentage = Decimal('20.00')
+        if self.staff_payout_price is None and self.total_price is not None:
+            self.staff_payout_price = self.calculate_staff_payout()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Order #{self.id} ({self.order_type}) - {self.status}"

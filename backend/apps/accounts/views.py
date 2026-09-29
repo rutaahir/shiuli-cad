@@ -16,6 +16,7 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
+from django.db import models
 from drf_spectacular.utils import extend_schema
 
 from apps.core.permissions import IsAdmin
@@ -265,11 +266,37 @@ class UserMeView(generics.RetrieveUpdateAPIView):
 
     def patch(self, request, *args, **kwargs):
         user = self.get_object()
+        has_new_photo = bool(
+            request.data.get('profile_photo') or
+            (request.FILES and 'profile_photo' in request.FILES)
+        )
         if request.data.get('remove_photo') is True:
-            user.profile_photo.delete(save=False)
+            if user.profile_photo:
+                try:
+                    user.profile_photo.delete(save=False)
+                except Exception:
+                    pass
             user.profile_photo = None
             user.save(update_fields=['profile_photo'])
-        return super().patch(request, *args, **kwargs)
+        
+        response = super().patch(request, *args, **kwargs)
+
+        if has_new_photo and getattr(user, 'role', '') == User.Role.STAFF:
+            try:
+                from apps.notifications.models import Notification
+                staff_name = f"{user.first_name} {user.last_name}".strip() or user.username
+                admins = User.objects.filter(models.Q(role=User.Role.ADMIN) | models.Q(is_superuser=True)).distinct()
+                for admin in admins:
+                    Notification.objects.create(
+                        recipient=admin,
+                        title="Staff Profile Photo Updated",
+                        body=f"CAD Craftsman {staff_name} updated their profile picture.",
+                        notification_type="staff_profile_updated"
+                    )
+            except Exception as e:
+                print("Could not create admin notification for staff photo update:", e)
+
+        return response
 
 
 class RequestEmailChangeOTPView(APIView):

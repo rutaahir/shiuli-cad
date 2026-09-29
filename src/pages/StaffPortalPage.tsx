@@ -124,13 +124,15 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
           const selMetal = req?.selections?.find((s: any) => s.group_key === 'metal' || s.group_label?.toLowerCase().includes('metal'));
           const metalPreference = selMetal?.value_label || req?.metal_alloy_name || '';
 
+          const rawPayout = Number(ord.staff_payout_price ?? ord.payout_price ?? (ord.total_price ? Math.round(Number(ord.total_price) * 0.8) : 0));
+
           return {
             id: ord.id.toString(),
             orderNumber: `ORD-${ord.id}`,
             title: req?.category_name ? `Bespoke ${req.category_name}` : `Custom Design #${ord.id}`,
             category: req?.category_name || 'Custom Jewellery',
-            agreedPayout: 0, // Staff does NOT see price
-            clientBudget: '',
+            agreedPayout: rawPayout,
+            clientBudget: rawPayout > 0 ? `₹${rawPayout.toLocaleString('en-IN')}` : '',
             deadlineHours: ord.deadline_hours || 48,
             releasedTimeAgo: ord.unassigned_since
               ? new Date(ord.unassigned_since).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -248,7 +250,7 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
             acceptedAt: ord.assigned_at ? new Date(ord.assigned_at).toLocaleDateString() : 'Active',
             deadline: 'In 48 Hours',
             hoursRemaining: 48,
-            payoutAmount: Math.round(total * 0.4),
+            payoutAmount: Number(ord.staff_payout_price ?? ord.payout_price ?? (total ? Math.round(total * 0.8) : 0)),
             clientName: req?.contact_name || ord.client?.first_name || 'Jewellery Atelier',
             clientNotes: req?.description || 'Watertight 3D CAD design request.',
             currentMilestone: currentMilestone,

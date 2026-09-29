@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StaffMember } from '../../types';
 import { api } from '../../services/api';
+import { appStore } from '../../services/store';
 import {
   ShoppingBag,
   Clock,
@@ -24,7 +25,12 @@ import {
   Layers,
   ArrowRight,
   Check,
-  RefreshCw
+  RefreshCw,
+  Phone,
+  PhoneCall,
+  Save,
+  Lock,
+  StickyNote
 } from 'lucide-react';
 
 interface AdminOrdersModuleProps {
@@ -54,6 +60,58 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
   // Filter state
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [downloadingDelId, setDownloadingDelId] = useState<number | null>(null);
+
+  // Commission editing state
+  const [drawerCommissionPct, setDrawerCommissionPct] = useState<number>(20);
+  const [isSavingCommission, setIsSavingCommission] = useState<boolean>(false);
+  const [isReleasingToPool, setIsReleasingToPool] = useState<boolean>(false);
+
+  // Admin Call & Consultation Notes State
+  const [drawerAdminNotes, setDrawerAdminNotes] = useState<string>('');
+  const [isSavingDrawerNotes, setIsSavingDrawerNotes] = useState<boolean>(false);
+  const [drawerNotesSaveStatus, setDrawerNotesSaveStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (selectedOrderDrawer) {
+      const notes = selectedOrderDrawer.admin_call_notes || selectedOrderDrawer.custom_request?.admin_call_notes || '';
+      setDrawerAdminNotes(notes);
+      setDrawerNotesSaveStatus(null);
+    }
+  }, [selectedOrderDrawer?.id]);
+
+  const handleSaveDrawerAdminNotes = async () => {
+    if (!selectedOrderDrawer) return;
+    setIsSavingDrawerNotes(true);
+    setDrawerNotesSaveStatus(null);
+    try {
+      if (selectedOrderDrawer.custom_request?.id) {
+        try {
+          await api.updateCustomRequestAdminNotes(selectedOrderDrawer.custom_request.id, drawerAdminNotes);
+        } catch {}
+      }
+      try {
+        await api.updateOrderAdminNotes(selectedOrderDrawer.id, drawerAdminNotes);
+      } catch {}
+
+      if (selectedOrderDrawer.custom_request?.id) {
+        appStore.updateCustomRequestNotes(selectedOrderDrawer.custom_request.id, drawerAdminNotes);
+      }
+
+      setSelectedOrderDrawer((prev: any) => prev ? {
+        ...prev,
+        admin_call_notes: drawerAdminNotes,
+        custom_request: prev.custom_request ? { ...prev.custom_request, admin_call_notes: drawerAdminNotes } : prev.custom_request
+      } : prev);
+
+      setDrawerNotesSaveStatus('Saved');
+      setTimeout(() => setDrawerNotesSaveStatus(null), 3500);
+    } catch (err) {
+      console.error(err);
+      setDrawerNotesSaveStatus('Failed');
+    } finally {
+      setIsSavingDrawerNotes(false);
+    }
+  };
 
   const handleDownloadDeliverable = async (del: any, orderId: number) => {
     if (!del?.id || !orderId) return;
@@ -111,6 +169,52 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
   useEffect(() => {
     fetchOrders();
   }, []);
+
+  useEffect(() => {
+    if (selectedOrderDrawer) {
+      setDrawerCommissionPct(Number(selectedOrderDrawer.admin_commission_percentage ?? 20));
+    }
+  }, [selectedOrderDrawer?.id]);
+
+  const handleSaveCommission = async () => {
+    if (!selectedOrderDrawer) return;
+    setIsSavingCommission(true);
+    try {
+      const res = await api.request<any>(`/orders/${selectedOrderDrawer.id}/set-commission/`, {
+        method: 'POST',
+        body: JSON.stringify({ admin_commission_percentage: drawerCommissionPct }),
+      });
+      if (res) {
+        setSelectedOrderDrawer(res);
+        setOrders(prev => prev.map(o => o.id === res.id ? res : o));
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Failed to update commission');
+    } finally {
+      setIsSavingCommission(false);
+    }
+  };
+
+  const handleReleaseToPool = async (orderId: number) => {
+    setIsReleasingToPool(true);
+    try {
+      const res = await api.request<any>(`/orders/${orderId}/approve-to-pool/`, {
+        method: 'POST',
+        body: JSON.stringify({ admin_commission_percentage: drawerCommissionPct }),
+      });
+      if (res?.order) {
+        setSelectedOrderDrawer(res.order);
+        setOrders(prev => prev.map(o => o.id === res.order.id ? res.order : o));
+      } else {
+        await fetchOrders();
+      }
+      alert(`Order #${orderId} approved & updated in Staff Pool with ${drawerCommissionPct}% commission!`);
+    } catch (err: any) {
+      alert(err?.message || 'Failed to release order to pool');
+    } finally {
+      setIsReleasingToPool(false);
+    }
+  };
 
   // Admin QC Approve
   const handleApproveOrder = async (orderId: number) => {
@@ -266,7 +370,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                 <th className="p-4 font-medium">Design Brief</th>
                 <th className="p-4 font-medium">Assigned Modeller</th>
                 <th className="p-4 font-medium">Progress / QC Status</th>
-                <th className="p-4 font-medium">Agreed Price</th>
+                <th className="p-4 font-medium">Price &amp; Commission</th>
                 <th className="p-4 font-medium">Download Toggle</th>
                 <th className="p-4 font-medium text-right">Actions</th>
               </tr>
@@ -358,12 +462,20 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                       </div>
                     </td>
 
-                    {/* Agreed Price */}
+                    {/* Price & Admin Commission & Staff Payout */}
                     <td className="p-4 font-mono">
                       <div className="font-bold text-[#1E2230] text-sm">
                         {formatINR(ord.total_price || req?.agreed_price)}
                       </div>
-                      <div className="text-[10px]">
+                      <div className="flex items-center gap-1.5 text-[10px] mt-0.5">
+                        <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 font-bold">
+                          Admin: {ord.admin_commission_percentage ?? 20}%
+                        </span>
+                        <span className="text-emerald-700 font-bold">
+                          Staff: {formatINR(ord.staff_payout_price || (Number(ord.total_price || req?.agreed_price || 0) * 0.8))}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">
                         {isFullyPaid ? (
                           <span className="text-emerald-700 font-bold">100% Paid</span>
                         ) : (
@@ -466,6 +578,83 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                 </div>
               </div>
             )}
+
+            {/* Admin Commission & Staff Pool Payout Control */}
+            <div className="p-4 rounded-2xl bg-[#09112B] text-white border border-[#D4AF37]/40 shadow-md space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-mono font-bold uppercase text-[#F5E7A3] flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-[#D4AF37]" /> Admin Commission &amp; Staff Pool Payout
+                </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-500/30">
+                  Pool Ready
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                {/* Client Total Price */}
+                <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                  <span className="text-[10px] font-mono text-slate-400 uppercase block">Client Order Price</span>
+                  <span className="text-sm font-mono font-bold text-white">
+                    {formatINR(selectedOrderDrawer.total_price)}
+                  </span>
+                </div>
+
+                {/* Admin Commission Input */}
+                <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                  <span className="text-[10px] font-mono text-[#F5E7A3] uppercase block font-semibold">Admin Commission %</span>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={drawerCommissionPct}
+                      onChange={(e) => setDrawerCommissionPct(Number(e.target.value))}
+                      className="w-16 px-2 py-1 rounded-lg bg-black/40 border border-[#D4AF37]/50 text-xs font-mono font-bold text-[#F5E7A3] focus:outline-none focus:border-[#D4AF37]"
+                    />
+                    <span className="text-xs font-mono text-slate-300 font-bold">%</span>
+                    <button
+                      onClick={handleSaveCommission}
+                      disabled={isSavingCommission}
+                      className="ml-auto px-2.5 py-1 rounded-lg bg-[#D4AF37] hover:bg-[#F5E7A3] text-[#09112B] text-[11px] font-bold shadow-sm transition-all disabled:opacity-50"
+                    >
+                      {isSavingCommission ? 'Saving...' : 'Save'}
+                    </button>
+                  </div>
+                  <span className="text-[9px] font-mono text-slate-400 mt-1 block">
+                    Fee: -{formatINR((Number(selectedOrderDrawer.total_price || 0) * (drawerCommissionPct || 0)) / 100)}
+                  </span>
+                </div>
+
+                {/* Staff Payout Price */}
+                <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/30">
+                  <span className="text-[10px] font-mono text-emerald-400 uppercase block font-semibold">Staff Pool Payout</span>
+                  <span className="text-sm font-mono font-bold text-emerald-300">
+                    {formatINR((Number(selectedOrderDrawer.total_price || 0) * (100 - (drawerCommissionPct || 0))) / 100)}
+                  </span>
+                  <span className="text-[9px] font-mono text-emerald-500/80 mt-1 block">
+                    Shown to staff in pool
+                  </span>
+                </div>
+              </div>
+
+              {/* Release to Pool Action if unassigned or in_design */}
+              {!selectedOrderDrawer.assigned_staff && (
+                <div className="pt-2 flex items-center justify-between border-t border-white/10">
+                  <span className="text-[11px] text-slate-300 font-mono">
+                    Status: <strong className="text-amber-400 font-semibold">Open Pool Broadcast</strong>
+                  </span>
+                  <button
+                    onClick={() => handleReleaseToPool(selectedOrderDrawer.id)}
+                    disabled={isReleasingToPool}
+                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow flex items-center gap-1.5 transition-all"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>{isReleasingToPool ? 'Releasing...' : 'Approve & Refresh in Staff Pool'}</span>
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* Download Toggle Banner */}
             <div className="p-4 rounded-2xl bg-[#F6F7FB] border border-[#E5E7EF] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -661,6 +850,84 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                 </div>
               </div>
             )}
+
+            {/* ADMIN CALL & CONSULTATION NOTES (SAVED PER PARTICULAR ORDER) */}
+            <div className="bg-gradient-to-br from-amber-500/10 via-amber-50/70 to-slate-50 border-2 border-amber-300/80 rounded-xl p-3.5 space-y-2.5 shadow-sm">
+              <div className="flex items-center justify-between border-b border-amber-200/80 pb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-md bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-amber-800 shrink-0">
+                    <PhoneCall className="w-3.5 h-3.5 text-amber-700" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-xs uppercase tracking-wider text-amber-950 font-mono flex items-center gap-1.5">
+                      Admin Call &amp; Consultation Notes
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-200/70 text-amber-900 border border-amber-300 flex items-center gap-0.5">
+                        <Lock className="w-2 h-2" /> Internal CRM
+                      </span>
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {drawerNotesSaveStatus && (
+                    <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded">
+                      ✓ {drawerNotesSaveStatus}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleSaveDrawerAdminNotes}
+                    disabled={isSavingDrawerNotes}
+                    className="px-3 py-1 rounded-lg bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white text-[11px] font-bold font-mono flex items-center gap-1 shadow-sm transition-all cursor-pointer"
+                  >
+                    {isSavingDrawerNotes ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                    <span>Save Note</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Tag Templates */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const stamp = `\n[📞 Call (${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})]: `;
+                    setDrawerAdminNotes(prev => (prev ? prev.trim() + '\n' + stamp : stamp.trimStart()));
+                  }}
+                  className="text-[9px] font-mono px-2 py-0.5 rounded bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 cursor-pointer"
+                >
+                  + Call Log
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const stamp = `\n[💬 WhatsApp (${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})]: `;
+                    setDrawerAdminNotes(prev => (prev ? prev.trim() + '\n' + stamp : stamp.trimStart()));
+                  }}
+                  className="text-[9px] font-mono px-2 py-0.5 rounded bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 cursor-pointer"
+                >
+                  + WhatsApp
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const stamp = `\n[📝 Customer Spec Note]: `;
+                    setDrawerAdminNotes(prev => (prev ? prev.trim() + '\n' + stamp : stamp.trimStart()));
+                  }}
+                  className="text-[9px] font-mono px-2 py-0.5 rounded bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 cursor-pointer"
+                >
+                  + Spec Note
+                </button>
+              </div>
+
+              <textarea
+                rows={3}
+                value={drawerAdminNotes}
+                onChange={(e) => setDrawerAdminNotes(e.target.value)}
+                placeholder="Log customer phone calls, WhatsApp messages, or special order agreements here..."
+                className="w-full text-xs font-mono p-2.5 rounded-lg border border-amber-300 bg-white text-[#1E2230] focus:outline-none focus:ring-1 focus:ring-amber-500 placeholder:text-slate-400 resize-y"
+              />
+            </div>
 
             {/* Payment Schedule Breakdown */}
             {selectedOrderDrawer.payment_stages && selectedOrderDrawer.payment_stages.length > 0 && (

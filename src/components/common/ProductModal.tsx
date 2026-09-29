@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
+import { invalidateCatalog } from '../../services/catalogStore';
 import {
   X,
   Plus,
@@ -56,6 +58,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   designStyles,
   onNewStyleCreated,
 }) => {
+  const { user } = useAuth();
+  const isStaff = user?.role === 'staff';
   const isEditMode = Boolean(product && product.slug);
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -98,6 +102,18 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   const [fileStl, setFileStl] = useState<File | null>(null);
   const [fileRender, setFileRender] = useState<File | null>(null);
   const [fileVideo, setFileVideo] = useState<File | null>(null);
+  const [fileZip, setFileZip] = useState<File | null>(null);
+
+  // Per-file upload progress (0-100)
+  const [uploadProgressMap, setUploadProgressMap] = useState<Record<string, number>>({});
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  };
 
   // Pre-fill fields when entering edit mode or reset on new create
   useEffect(() => {
@@ -177,6 +193,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       setFileStl(null);
       setFileRender(null);
       setFileVideo(null);
+      setFileZip(null);
     } else {
       // Reset for Create Mode
       setProdTitle('');
@@ -202,6 +219,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       setFileStl(null);
       setFileRender(null);
       setFileVideo(null);
+      setFileZip(null);
+      setUploadProgressMap({});
     }
     setCurrentStep(1);
     setSubmitError(null);
@@ -387,27 +406,26 @@ export const ProductModal: React.FC<ProductModalProps> = ({
       }
 
       // Step C: Upload CAD Deliverables (if selected)
-      if (file3dm) {
-        setUploadProgressText('Uploading .3DM Rhino File...');
-        await api.uploadProductFile(productSlug, file3dm, '3dm');
-      }
+      const cadUploads: { file: File; type: '3dm' | 'stl' | 'render' | 'video' | 'zip'; label: string }[] = [];
+      if (file3dm) cadUploads.push({ file: file3dm, type: '3dm', label: '.3DM Rhino File' });
+      if (fileStl) cadUploads.push({ file: fileStl, type: 'stl', label: '.STL Print File' });
+      if (fileRender) cadUploads.push({ file: fileRender, type: 'render', label: 'Render Image' });
+      if (fileVideo) cadUploads.push({ file: fileVideo, type: 'video', label: '360° Video' });
+      if (fileZip) cadUploads.push({ file: fileZip, type: 'zip', label: 'ZIP Archive' });
 
-      if (fileStl) {
-        setUploadProgressText('Uploading .STL Print File...');
-        await api.uploadProductFile(productSlug, fileStl, 'stl');
-      }
-
-      if (fileRender) {
-        setUploadProgressText('Uploading High-Res Render File...');
-        await api.uploadProductFile(productSlug, fileRender, 'render');
-      }
-
-      if (fileVideo) {
-        setUploadProgressText('Uploading 360° Video File...');
-        await api.uploadProductFile(productSlug, fileVideo, 'video');
+      for (let ci = 0; ci < cadUploads.length; ci++) {
+        const { file, type, label } = cadUploads[ci];
+        setUploadProgressText(`Uploading ${label} (${ci + 1}/${cadUploads.length})...`);
+        setUploadProgressMap((prev) => ({ ...prev, [type]: 0 }));
+        await api.uploadProductFile(productSlug, file, type, (pct) => {
+          setUploadProgressMap((prev) => ({ ...prev, [type]: pct }));
+          setUploadProgressText(`Uploading ${label}: ${pct}% (${ci + 1}/${cadUploads.length})`);
+        });
+        setUploadProgressMap((prev) => ({ ...prev, [type]: 100 }));
       }
 
       setIsSubmitting(false);
+      invalidateCatalog();
       onSuccess(finalProduct, isEditMode ? 'edit' : 'create');
       onClose();
     } catch (err: any) {
@@ -1016,10 +1034,11 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-[#C9C2A6]">
-                These files are served via authenticated, purchase-verified endpoints. They are never publicly accessible without purchase.
+                Files are stored securely and served only to authenticated, verified purchasers. Supports large files up to 250 MB. Individual types or ZIP archive accepted.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs">
+                {/* .3DM */}
                 <div className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-1">
                   <div className="flex items-center gap-1.5 font-bold text-[#F5E7A3]">
                     <FileCode className="w-4 h-4 text-[#D4AF37]" /> .3DM (Rhino) File
@@ -1027,12 +1046,23 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   <input
                     type="file"
                     accept=".3dm"
-                    onChange={(e) => setFile3dm(e.target.files?.[0] || null)}
+                    onChange={(e) => { setFile3dm(e.target.files?.[0] || null); setUploadProgressMap((p) => ({ ...p, '3dm': 0 })); }}
                     className="w-full text-[11px] text-slate-300 cursor-pointer"
                   />
-                  {file3dm && <span className="text-[10px] text-emerald-400 font-mono block">Selected: {file3dm.name}</span>}
+                  {file3dm && (
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-emerald-400 font-mono block truncate">✓ {file3dm.name}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">{formatFileSize(file3dm.size)}</span>
+                      {typeof uploadProgressMap['3dm'] === 'number' && uploadProgressMap['3dm'] > 0 && (
+                        <div className="w-full bg-white/10 rounded-full h-1.5">
+                          <div className="h-1.5 rounded-full bg-[#D4AF37] transition-all" style={{ width: `${uploadProgressMap['3dm']}%` }} />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
+                {/* .STL */}
                 <div className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-1">
                   <div className="flex items-center gap-1.5 font-bold text-[#F5E7A3]">
                     <Box className="w-4 h-4 text-emerald-400" /> .STL Print File
@@ -1040,25 +1070,42 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   <input
                     type="file"
                     accept=".stl"
-                    onChange={(e) => setFileStl(e.target.files?.[0] || null)}
+                    onChange={(e) => { setFileStl(e.target.files?.[0] || null); setUploadProgressMap((p) => ({ ...p, stl: 0 })); }}
                     className="w-full text-[11px] text-slate-300 cursor-pointer"
                   />
-                  {fileStl && <span className="text-[10px] text-emerald-400 font-mono block">Selected: {fileStl.name}</span>}
+                  {fileStl && (
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-emerald-400 font-mono block truncate">✓ {fileStl.name}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">{formatFileSize(fileStl.size)}</span>
+                      {typeof uploadProgressMap['stl'] === 'number' && uploadProgressMap['stl'] > 0 && (
+                        <div className="w-full bg-white/10 rounded-full h-1.5">
+                          <div className="h-1.5 rounded-full bg-emerald-400 transition-all" style={{ width: `${uploadProgressMap['stl']}%` }} />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
+                {/* Render */}
                 <div className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-1">
                   <div className="flex items-center gap-1.5 font-bold text-[#F5E7A3]">
-                    <Sparkles className="w-4 h-4 text-amber-400" /> Render Image File
+                    <Sparkles className="w-4 h-4 text-amber-400" /> Render Image
                   </div>
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => setFileRender(e.target.files?.[0] || null)}
+                    onChange={(e) => { setFileRender(e.target.files?.[0] || null); setUploadProgressMap((p) => ({ ...p, render: 0 })); }}
                     className="w-full text-[11px] text-slate-300 cursor-pointer"
                   />
-                  {fileRender && <span className="text-[10px] text-emerald-400 font-mono block">Selected: {fileRender.name}</span>}
+                  {fileRender && (
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-emerald-400 font-mono block truncate">✓ {fileRender.name}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">{formatFileSize(fileRender.size)}</span>
+                    </div>
+                  )}
                 </div>
 
+                {/* Video */}
                 <div className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-1">
                   <div className="flex items-center gap-1.5 font-bold text-[#F5E7A3]">
                     <Eye className="w-4 h-4 text-blue-400" /> 360° Video File
@@ -1066,10 +1113,54 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   <input
                     type="file"
                     accept="video/*"
-                    onChange={(e) => setFileVideo(e.target.files?.[0] || null)}
+                    onChange={(e) => { setFileVideo(e.target.files?.[0] || null); setUploadProgressMap((p) => ({ ...p, video: 0 })); }}
                     className="w-full text-[11px] text-slate-300 cursor-pointer"
                   />
-                  {fileVideo && <span className="text-[10px] text-emerald-400 font-mono block">Selected: {fileVideo.name}</span>}
+                  {fileVideo && (
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-emerald-400 font-mono block truncate">✓ {fileVideo.name}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">{formatFileSize(fileVideo.size)}</span>
+                      {typeof uploadProgressMap['video'] === 'number' && uploadProgressMap['video'] > 0 && (
+                        <div className="w-full bg-white/10 rounded-full h-1.5">
+                          <div className="h-1.5 rounded-full bg-blue-400 transition-all" style={{ width: `${uploadProgressMap['video']}%` }} />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* ZIP - spans full width */}
+                <div className="sm:col-span-2 p-3 rounded-xl bg-gradient-to-r from-[#D4AF37]/10 to-white/5 border border-[#D4AF37]/30 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-bold text-[#F5E7A3]">
+                      <UploadCloud className="w-4 h-4 text-[#D4AF37]" />
+                      ZIP Archive (all CAD files bundled)
+                    </div>
+                    <span className="text-[10px] text-[#D4AF37] font-mono bg-[#D4AF37]/10 px-2 py-0.5 rounded-full">Optional</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400">
+                    Upload a single .zip, .7z, or .rar containing your 3DM + STL files together. Accepts large archives up to 250 MB.
+                  </p>
+                  <input
+                    type="file"
+                    accept=".zip,.7z,.tar,.gz,.rar"
+                    onChange={(e) => { setFileZip(e.target.files?.[0] || null); setUploadProgressMap((p) => ({ ...p, zip: 0 })); }}
+                    className="w-full text-[11px] text-slate-300 cursor-pointer"
+                  />
+                  {fileZip && (
+                    <div className="space-y-1 pt-1">
+                      <span className="text-[10px] text-emerald-400 font-mono block truncate">✓ {fileZip.name}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">{formatFileSize(fileZip.size)}</span>
+                      {typeof uploadProgressMap['zip'] === 'number' && uploadProgressMap['zip'] > 0 && (
+                        <div className="w-full bg-white/10 rounded-full h-2">
+                          <div
+                            className="h-2 rounded-full bg-[#D4AF37] transition-all duration-300"
+                            style={{ width: `${uploadProgressMap['zip']}%` }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1142,6 +1233,21 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               </div>
             </div>
 
+            {/* Staff Verification Notice */}
+            {isStaff && (
+              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-xs text-amber-950 flex items-start gap-3 shadow-xs">
+                <AlertCircle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <strong className="block font-bold text-amber-950 text-xs">
+                    Admin Verification &amp; QC Review Required
+                  </strong>
+                  <p className="text-[11px] text-amber-900/80 leading-relaxed">
+                    When you submit this product, it will be placed in the <strong>Admin Verification Queue</strong> with status <em>Pending Approval</em>. Once the Super Admin reviews and verifies your CAD specifications, it will automatically go live on the public storefront.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {isSubmitting && (
               <div className="p-4 rounded-xl bg-[#09112B] text-[#F5E7A3] border border-[#D4AF37] flex items-center gap-3 animate-pulse">
                 <div className="w-5 h-5 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
@@ -1199,7 +1305,11 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               className="btn-gold-luxury px-6 py-3 rounded-xl font-extrabold uppercase text-xs tracking-wider shadow-lg flex items-center gap-2"
             >
               <Sparkles className="w-4 h-4 fill-[#0B1330]" />
-              <span>{isEditMode ? 'Save Product Changes' : 'Publish Product Live'}</span>
+              <span>
+                {isStaff
+                  ? (isEditMode ? 'Submit Changes for Admin Review' : 'Submit for Admin Verification')
+                  : (isEditMode ? 'Save Product Changes' : 'Publish Product Live')}
+              </span>
             </button>
           )}
         </div>

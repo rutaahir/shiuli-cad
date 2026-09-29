@@ -3,7 +3,7 @@ import { PaymentGatewayModal } from '../components/payment/PaymentGatewayModal';
 import { appStore } from '../services/store';
 import { QuickCustomRequestForm } from '../components/custom_design/QuickCustomRequestForm';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { PageId } from '../types';
 import {
   api,
@@ -290,11 +290,46 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
   // Project Complexity Tier & Needed By Date (Starts unselected)
   const [projectTier, setProjectTier] = useState('');
   const [neededByDate, setNeededByDate] = useState('');
+  const dateInputRef = useRef<HTMLInputElement>(null);
+
+  const openCalendarPicker = () => {
+    if (dateInputRef.current) {
+      try {
+        if (typeof dateInputRef.current.showPicker === 'function') {
+          dateInputRef.current.showPicker();
+        } else {
+          dateInputRef.current.focus();
+        }
+      } catch {
+        dateInputRef.current.focus();
+      }
+    }
+  };
+
   const minSelectableDate = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
     return d.toISOString().split('T')[0];
   }, []);
+
+  const quick3d = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 3);
+    return d.toISOString().split('T')[0];
+  }, []);
+
+  const quick5d = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 5);
+    return d.toISOString().split('T')[0];
+  }, []);
+
+  const quick7d = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().split('T')[0];
+  }, []);
+
   const [selectedDeliverySpeedId, setSelectedDeliverySpeedId] = useState<number | null>(null);
 
   // Contact Info & Portfolio Consent
@@ -2174,28 +2209,62 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 
                             <div className="space-y-2">
                               <div className="flex items-center justify-between">
-                                <label className="block text-xs font-semibold text-[#FAF8F3]/80 flex items-center gap-1.5">
+                                <label 
+                                  onClick={openCalendarPicker}
+                                  className="text-xs font-semibold text-[#FAF8F3]/80 flex items-center gap-1.5 cursor-pointer hover:text-[#D4AF37] transition-colors select-none"
+                                >
                                   <Calendar className="w-3.5 h-3.5 text-[#D4AF37]" /> Target Completion Date (Optional)
                                 </label>
                                 {neededByDate && (
                                   <button
                                     type="button"
                                     onClick={() => setNeededByDate('')}
-                                    className="text-[10px] text-rose-400 hover:text-rose-300 underline font-mono cursor-pointer"
+                                    className="text-[10px] text-rose-400 hover:text-rose-300 font-mono cursor-pointer flex items-center gap-1 transition-colors hover:underline"
                                   >
-                                    Clear Date
+                                    <X className="w-3 h-3" /> Clear Date
                                   </button>
                                 )}
                               </div>
 
-                              <div className="relative">
+                              {/* Interactive Calendar Input Box - Click anywhere to open picker */}
+                              <div
+                                onClick={openCalendarPicker}
+                                className="relative flex items-center w-full rounded-xl border border-[#D4AF37]/40 hover:border-[#D4AF37] focus-within:border-[#D4AF37] focus-within:ring-2 focus-within:ring-[#D4AF37]/30 bg-[#09112B] transition-all cursor-pointer group shadow-sm hover:shadow-[0_0_15px_rgba(212,175,55,0.15)] px-3 py-2"
+                              >
+                                <div className="flex items-center gap-2 pointer-events-none text-[#D4AF37] mr-2 shrink-0">
+                                  <Calendar className="w-4 h-4 text-[#D4AF37] group-hover:scale-110 transition-transform" />
+                                </div>
                                 <input
+                                  ref={dateInputRef}
                                   type="date"
                                   min={minSelectableDate}
                                   value={neededByDate}
                                   onChange={e => setNeededByDate(e.target.value)}
-                                  className="w-full text-xs rounded-xl border border-[#D4AF37]/40 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3 focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] [color-scheme:dark] cursor-pointer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openCalendarPicker();
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.preventDefault();
+                                      openCalendarPicker();
+                                    }
+                                  }}
+                                  className="w-full text-xs bg-transparent text-[#FAF8F3] font-mono focus:outline-none cursor-pointer [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-80 hover:[&::-webkit-calendar-picker-indicator]:opacity-100"
                                 />
+                                {neededByDate && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setNeededByDate('');
+                                    }}
+                                    className="ml-2 p-1 rounded-lg text-[#FAF8F3]/40 hover:text-rose-400 hover:bg-rose-500/10 transition-colors shrink-0 cursor-pointer"
+                                    title="Clear Date"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
                               </div>
 
                               {/* Quick Presets for Target Deadline: +3d, +5d, +7d */}
@@ -2203,46 +2272,48 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                 <span className="text-[10px] font-mono text-[#FAF8F3]/50">Quick Pick:</span>
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    const d = new Date();
-                                    d.setDate(d.getDate() + 3);
-                                    setNeededByDate(d.toISOString().split('T')[0]);
-                                  }}
-                                  className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-white/5 hover:bg-[#D4AF37]/20 border border-white/10 hover:border-[#D4AF37]/40 text-[#FAF8F3]/80 transition-all cursor-pointer"
+                                  onClick={() => setNeededByDate(quick3d)}
+                                  className={`text-[10px] font-mono px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                                    neededByDate === quick3d
+                                      ? 'bg-[#D4AF37]/25 border-[#D4AF37] text-[#F5E7A3] font-bold shadow-[0_0_8px_rgba(212,175,55,0.25)]'
+                                      : 'bg-white/5 hover:bg-[#D4AF37]/20 border-white/10 hover:border-[#D4AF37]/40 text-[#FAF8F3]/80'
+                                  }`}
                                 >
                                   +3d (Rush)
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    const d = new Date();
-                                    d.setDate(d.getDate() + 5);
-                                    setNeededByDate(d.toISOString().split('T')[0]);
-                                  }}
-                                  className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-white/5 hover:bg-[#D4AF37]/20 border border-white/10 hover:border-[#D4AF37]/40 text-[#FAF8F3]/80 transition-all cursor-pointer"
+                                  onClick={() => setNeededByDate(quick5d)}
+                                  className={`text-[10px] font-mono px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                                    neededByDate === quick5d
+                                      ? 'bg-[#D4AF37]/25 border-[#D4AF37] text-[#F5E7A3] font-bold shadow-[0_0_8px_rgba(212,175,55,0.25)]'
+                                      : 'bg-white/5 hover:bg-[#D4AF37]/20 border-white/10 hover:border-[#D4AF37]/40 text-[#FAF8F3]/80'
+                                  }`}
                                 >
                                   +5d (Standard)
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    const d = new Date();
-                                    d.setDate(d.getDate() + 7);
-                                    setNeededByDate(d.toISOString().split('T')[0]);
-                                  }}
-                                  className="text-[10px] font-mono px-2 py-0.5 rounded-lg bg-white/5 hover:bg-[#D4AF37]/20 border border-white/10 hover:border-[#D4AF37]/40 text-[#FAF8F3]/80 transition-all cursor-pointer"
+                                  onClick={() => setNeededByDate(quick7d)}
+                                  className={`text-[10px] font-mono px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                                    neededByDate === quick7d
+                                      ? 'bg-[#D4AF37]/25 border-[#D4AF37] text-[#F5E7A3] font-bold shadow-[0_0_8px_rgba(212,175,55,0.25)]'
+                                      : 'bg-white/5 hover:bg-[#D4AF37]/20 border-white/10 hover:border-[#D4AF37]/40 text-[#FAF8F3]/80'
+                                  }`}
                                 >
                                   +7d (Relaxed)
                                 </button>
                               </div>
 
                               {neededByDate && (
-                                <div className="p-2 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-xs text-[#F5E7A3] flex items-center justify-between font-mono">
-                                  <span className="flex items-center gap-1.5">
-                                    <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
-                                    Target Deadline: {new Date(neededByDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                <div className="p-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37]/15 to-[#D4AF37]/5 border border-[#D4AF37]/35 text-xs text-[#F5E7A3] flex items-center justify-between font-mono animate-fadeIn">
+                                  <span className="flex items-center gap-2">
+                                    <Sparkles className="w-3.5 h-3.5 text-[#D4AF37] animate-pulse shrink-0" />
+                                    <span>
+                                      Target Deadline: <strong className="text-white">{new Date(neededByDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</strong>
+                                    </span>
                                   </span>
-                                  <span className="text-[10px] text-emerald-400 font-bold">
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0">
                                     {(() => {
                                       const diff = Math.ceil((new Date(neededByDate + 'T00:00:00').getTime() - new Date().setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24));
                                       return diff > 0 ? `In ${diff} day${diff === 1 ? '' : 's'}` : 'Today';

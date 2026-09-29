@@ -193,8 +193,18 @@ export const StaffWorkbenchTab: React.FC<StaffWorkbenchTabProps> = ({
                 </div>
 
                 {/* Client Instructions */}
-                <div className="text-xs text-[#4B5563] italic bg-slate-100/70 p-3 rounded-xl border border-slate-200/60 mb-4 line-clamp-2">
+                <div className="text-xs text-[#4B5563] italic bg-slate-100/70 p-3 rounded-xl border border-slate-200/60 mb-3 line-clamp-2">
                   "{job.clientNotes}"
+                </div>
+
+                {/* Modeller Payout Display */}
+                <div className="flex items-center justify-between text-xs py-2 px-3.5 rounded-xl bg-emerald-50 text-emerald-900 border border-emerald-200/80 font-mono font-bold mb-4 shadow-sm">
+                  <span className="flex items-center gap-1.5 text-slate-600 text-[11px]">
+                    <Sparkles className="w-3.5 h-3.5 text-[#C9A227]" /> Commission Payout:
+                  </span>
+                  <span className="text-sm font-bold text-emerald-800">
+                    {job.payoutAmount > 0 ? `₹${job.payoutAmount.toLocaleString('en-IN')}` : '₹—'}
+                  </span>
                 </div>
               </div>
 

@@ -12,7 +12,8 @@ import {
   ExternalLink,
   Loader2,
   Eye,
-  Check
+  Check,
+  Clock
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { ProductModal, CategoryItem, DesignStyleItem } from '../common/ProductModal';
@@ -28,7 +29,7 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
   const [designStyles, setDesignStyles] = useState<DesignStyleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'pending'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'pending' | 'rejected'>('all');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   // Modal State
@@ -118,8 +119,8 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
   const handleModalSuccess = (savedProduct: any, mode: 'create' | 'edit') => {
     showToast(
       mode === 'create'
-        ? `Product "${savedProduct?.title || 'Design'}" published live to public store!`
-        : `Product "${savedProduct?.title || 'Design'}" updated successfully!`
+        ? `Design "${savedProduct?.title || 'Product'}" submitted! It is now pending admin verification before appearing on the public store.`
+        : `Design "${savedProduct?.title || 'Product'}" updated! It has been submitted for admin re-verification.`
     );
     loadData();
   };
@@ -135,7 +136,9 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
         ? true
         : statusFilter === 'approved'
         ? prod.status === 'approved'
-        : prod.status !== 'approved';
+        : statusFilter === 'rejected'
+        ? prod.status === 'rejected'
+        : prod.status === 'pending';
 
     return matchesSearch && matchesStatus;
   });
@@ -199,9 +202,10 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
               onChange={(e) => setStatusFilter(e.target.value as any)}
               className="px-3 py-1.5 rounded-xl bg-white border border-[#E5E7EF] text-xs text-[#1E2230] focus:outline-none font-medium"
             >
-              <option value="all">All Products ({products.length})</option>
-              <option value="approved">Live / Published ({products.filter((p) => p.status === 'approved').length})</option>
-              <option value="pending">Draft / Pending ({products.filter((p) => p.status !== 'approved').length})</option>
+              <option value="all">All Designs ({products.length})</option>
+              <option value="approved">Approved &amp; Live ({products.filter((p) => p.status === 'approved').length})</option>
+              <option value="pending">Pending Admin Verification ({products.filter((p) => p.status === 'pending').length})</option>
+              <option value="rejected">Rejected ({products.filter((p) => p.status === 'rejected').length})</option>
             </select>
           </div>
         </div>
@@ -280,19 +284,25 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
 
                     {/* Store Visibility Toggle */}
                     <td className="p-4">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleActive(prod)}
-                        className={`px-3 py-1 rounded-full text-[11px] font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
-                          prod.is_active !== false
-                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200'
-                            : 'bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-200'
-                        }`}
-                        title={prod.is_active !== false ? 'Click to Disable / Hide from store' : 'Click to Enable / Show on store'}
-                      >
-                        <span className={`w-2 h-2 rounded-full ${prod.is_active !== false ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-                        <span>{prod.is_active !== false ? 'Active' : 'Disabled'}</span>
-                      </button>
+                      {prod.status !== 'approved' ? (
+                        <span className="text-[10px] font-mono font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full inline-flex items-center gap-1.5" title="Requires Admin Verification before going live">
+                          <Clock className="w-3 h-3 text-amber-600 animate-spin" /> Awaiting Approval
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleActive(prod)}
+                          className={`px-3 py-1 rounded-full text-[11px] font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                            prod.is_active !== false
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200'
+                              : 'bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-200'
+                          }`}
+                          title={prod.is_active !== false ? 'Click to Disable / Hide from store' : 'Click to Enable / Show on store'}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${prod.is_active !== false ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                          <span>{prod.is_active !== false ? 'Active' : 'Disabled'}</span>
+                        </button>
+                      )}
                     </td>
 
                     {/* Status */}
@@ -301,16 +311,31 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
                         className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold ${
                           prod.status === 'approved'
                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : prod.status === 'rejected'
+                            ? 'bg-rose-50 text-rose-700 border border-rose-200'
                             : 'bg-amber-50 text-amber-700 border border-amber-200'
                         }`}
                       >
                         <span
                           className={`w-1.5 h-1.5 rounded-full ${
-                            prod.status === 'approved' ? 'bg-emerald-500' : 'bg-amber-500'
+                            prod.status === 'approved'
+                              ? 'bg-emerald-500'
+                              : prod.status === 'rejected'
+                              ? 'bg-rose-500'
+                              : 'bg-amber-500 animate-pulse'
                           }`}
                         />
-                        {prod.status === 'approved' ? 'Approved' : 'Draft / Review'}
+                        {prod.status === 'approved'
+                          ? 'Approved & Live'
+                          : prod.status === 'rejected'
+                          ? 'Rejected'
+                          : 'Pending Admin Verification'}
                       </span>
+                      {prod.status === 'rejected' && prod.rejection_reason && (
+                        <div className="text-[10px] text-rose-600 font-mono mt-1 max-w-[200px] truncate" title={prod.rejection_reason}>
+                          Reason: {prod.rejection_reason}
+                        </div>
+                      )}
                     </td>
 
                     {/* Actions */}

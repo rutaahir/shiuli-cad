@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
+import { appStore } from '../../services/store';
+import { getOptimizedImageUrl } from '../../utils/imageHelper';
 
 interface StaffProfileTabProps {
   staff: StaffMember;
@@ -210,10 +212,34 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
         role: updatedUser.staff_profile?.specialty_tags || role,
       };
 
+      // 1. Update centralized store & trigger admin sync
+      appStore.updateStaff(updatedStaff);
+
+      // 2. Post real-time Admin Notification & Activity Log so Admin immediately sees the new photo
+      if (updatedStaff.avatar !== staff.avatar) {
+        appStore.addNotification({
+          id: `photo-update-${Date.now()}`,
+          title: 'Staff Profile Photo Updated',
+          message: `${updatedStaff.name} updated their craftsman profile picture.`,
+          timestamp: 'Just now',
+          read: false,
+          type: 'system',
+        });
+        appStore.addActivityLog({
+          id: `log-${Date.now()}`,
+          action: 'Staff Profile Photo Updated',
+          target: 'Craftsman Avatar',
+          user: updatedStaff.name,
+          timestamp: 'Just now',
+          type: 'system',
+          userAvatar: updatedStaff.avatar,
+        });
+      }
+
       if (onUpdateProfile) {
         onUpdateProfile(updatedStaff);
       }
-      localStorage.setItem('shiuli_user', JSON.stringify(updatedUser));
+      localStorage.setItem('shiuli_user', JSON.stringify({ ...updatedUser, profile_photo: updatedStaff.avatar }));
       setToastMsg('Craftsman profile & credentials updated in database successfully!');
       setShowEditModal(false);
       setTimeout(() => setToastMsg(null), 4000);
@@ -262,8 +288,11 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 border-b border-[#E5E7EF] pb-6">
           <div className="relative group">
             <img
-              src={staff.avatar}
+              src={getOptimizedImageUrl(staff.avatar)}
               alt={staff.name}
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80';
+              }}
               className="w-24 h-24 rounded-2xl object-cover border-2 border-[#C9A227] shadow-md"
             />
             <button
@@ -348,8 +377,11 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
                 <label className="font-semibold text-[#1E2230] block">Artisan Profile Photo</label>
                 <div className="flex items-center gap-4">
                   <img
-                    src={avatar || staff.avatar}
+                    src={getOptimizedImageUrl(avatar || staff.avatar)}
                     alt="Preview"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80';
+                    }}
                     className="w-16 h-16 rounded-xl object-cover border border-[#C9A227] shadow-sm shrink-0"
                   />
                   <div className="space-y-2 flex-1">

@@ -312,6 +312,29 @@ class CustomRequestViewSet(viewsets.ModelViewSet):
 
         return Response(CustomRequestSerializer(custom_req, context={'request': request}).data)
 
+    # ADMIN CALL & CONSULTATION NOTES (SAVED PER PARTICULAR ORDER/REQUEST)
+    @action(detail=True, methods=['post', 'patch'], permission_classes=[permissions.IsAuthenticated], url_path='update-notes')
+    def update_notes(self, request, pk=None):
+        custom_req = self.get_object()
+        notes = request.data.get('admin_call_notes', request.data.get('notes', ''))
+        custom_req.admin_call_notes = notes
+        custom_req.save(update_fields=['admin_call_notes'])
+
+        # Keep linked Order in sync if existing
+        if hasattr(custom_req, 'order') and custom_req.order:
+            try:
+                custom_req.order.admin_call_notes = notes
+                custom_req.order.save(update_fields=['admin_call_notes'])
+            except Exception:
+                pass
+
+        return Response({
+            "status": "success",
+            "id": custom_req.id,
+            "admin_call_notes": custom_req.admin_call_notes,
+            "message": f"Admin notes saved for Request #{custom_req.id}"
+        })
+
     # STAGE 3 — ACCEPT QUOTE / OFFER (LOCKS AGREED_PRICE)
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated], url_path='accept-quote')
     def accept_quote(self, request, pk=None):
@@ -339,6 +362,8 @@ class CustomRequestViewSet(viewsets.ModelViewSet):
         # Automatically create Order & default payment stages if not existing, and release to staff job pool
         from apps.payments.models import OrderPaymentStage
         total_price = float(custom_req.agreed_price)
+        comm_pct = custom_req.admin_commission_percentage if custom_req.admin_commission_percentage is not None else 20.00
+        payout_price = round(total_price * (100.0 - float(comm_pct)) / 100.0, 2)
         advance_amount = round(total_price * 0.10, 2)
 
         if not hasattr(custom_req, 'order') or not custom_req.order:
@@ -347,6 +372,8 @@ class CustomRequestViewSet(viewsets.ModelViewSet):
                 order_type=Order.OrderType.CUSTOM,
                 custom_request=custom_req,
                 total_price=total_price,
+                admin_commission_percentage=comm_pct,
+                staff_payout_price=payout_price,
                 advance_amount=advance_amount,
                 deadline_hours=72,
                 status=Order.Status.IN_DESIGN,
@@ -358,6 +385,8 @@ class CustomRequestViewSet(viewsets.ModelViewSet):
         else:
             order = custom_req.order
             order.total_price = total_price
+            order.admin_commission_percentage = comm_pct
+            order.staff_payout_price = payout_price
             order.advance_amount = advance_amount
             order.status = Order.Status.IN_DESIGN
             order.unassigned_since = timezone.now()
@@ -830,6 +859,29 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         return Response({"error": "Invalid decision. Use 'approve' or 'reject'."}, status=status.HTTP_400_BAD_REQUEST)
 
+    # ADMIN CALL & CONSULTATION NOTES (SAVED PER PARTICULAR ORDER)
+    @action(detail=True, methods=['post', 'patch'], permission_classes=[permissions.IsAuthenticated], url_path='update-notes')
+    def update_notes(self, request, pk=None):
+        order = self.get_object()
+        notes = request.data.get('admin_call_notes', request.data.get('notes', ''))
+        order.admin_call_notes = notes
+        order.save(update_fields=['admin_call_notes'])
+
+        # Sync back to linked CustomRequest if available
+        if order.custom_request:
+            try:
+                order.custom_request.admin_call_notes = notes
+                order.custom_request.save(update_fields=['admin_call_notes'])
+            except Exception:
+                pass
+
+        return Response({
+            "status": "success",
+            "id": order.id,
+            "admin_call_notes": order.admin_call_notes,
+            "message": f"Admin notes saved for Order #{order.id}"
+        })
+
     # STAGE 11 — CLIENT 3D DESIGN PREVIEW APPROVAL
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated], url_path='approve-design-preview')
     def approve_design_preview(self, request, pk=None):
@@ -1066,6 +1118,45 @@ class OrderViewSet(viewsets.ModelViewSet):
         )
 
         return Response(AdminOrderSerializer(order, context={'request': request}).data)
+
+    # ADMIN SET / UPDATE COMMISSION ON PARTICULAR ORDER
+    @action(detail=True, methods=['post', 'patch'], permission_classes=[IsAdmin], url_path='set-commission')
+    def set_commission(self, request, pk=None):
+        order = self.get_object()
+        commission_pct = request.data.get('admin_commission_percentage')
+        if commission_pct is not None:
+            try:
+                from decimal import Decimal
+                order.admin_commission_percentage = Decimal(str(commission_pct))
+                order.staff_payout_price = order.calculate_staff_payout()
+                order.save(update_fields=['admin_commission_percentage', 'staff_payout_price'])
+            except Exception as e:
+                return Response({"error": f"Invalid commission rate: {e}"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(AdminOrderSerializer(order, context={'request': request}).data)
+
+    # ADMIN APPROVE ORDER & RELEASE TO STAFF POOL WITH COMMISSION
+    @action(detail=True, methods=['post'], permission_classes=[IsAdmin], url_path='approve-to-pool')
+    def approve_to_pool(self, request, pk=None):
+        order = self.get_object()
+        commission_pct = request.data.get('admin_commission_percentage')
+        if commission_pct is not None:
+            try:
+                from decimal import Decimal
+                order.admin_commission_percentage = Decimal(str(commission_pct))
+                order.staff_payout_price = order.calculate_staff_payout()
+            except Exception:
+                pass
+
+        order.status = Order.Status.IN_DESIGN
+        order.assigned_staff = None
+        order.unassigned_since = timezone.now()
+        order.save()
+
+        release_order_to_pool(order)
+        return Response({
+            "message": f"Order #{order.id} approved and released to Staff Job Pool with {order.admin_commission_percentage}% admin commission.",
+            "order": AdminOrderSerializer(order, context={'request': request}).data
+        })
 
     # STAGE 12 — GENERATE 6-DIGIT OTP FOR CAD DOWNLOAD UPON 100% PAYMENT + ADMIN TOGGLE
     @action(detail=True, methods=['post'], permission_classes=[IsClient], url_path='request-otp')

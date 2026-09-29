@@ -2,6 +2,7 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 from django.db import models
+from django.utils import timezone
 from .models import StaffProfile, DesignerApplication
 
 User = get_user_model()
@@ -38,6 +39,9 @@ class UserSerializer(serializers.ModelSerializer):
     def get_profile_photo(self, obj):
         if obj.profile_photo:
             try:
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(obj.profile_photo.url)
                 return obj.profile_photo.url
             except Exception:
                 return str(obj.profile_photo)
@@ -55,11 +59,21 @@ class UserSerializer(serializers.ModelSerializer):
                 ext = header.split('/')[-1]
                 if ext.lower() in ['jpeg', 'pjpeg']:
                     ext = 'jpg'
-                file_data = ContentFile(base64.b64decode(imgstr), name=f"profile_{instance.id}.{ext}")
+                elif ext.lower() == 'png':
+                    ext = 'png'
+                elif ext.lower() == 'webp':
+                    ext = 'webp'
+                file_data = ContentFile(base64.b64decode(imgstr), name=f"profile_{instance.id}_{int(timezone.now().timestamp())}.{ext}")
                 instance.profile_photo = file_data
                 instance.save()
             except Exception as e:
                 print('Error decoding profile photo base64:', e)
+        elif request and 'profile_photo' in request.FILES:
+            try:
+                instance.profile_photo = request.FILES['profile_photo']
+                instance.save()
+            except Exception as e:
+                print('Error saving uploaded profile photo:', e)
 
         user = super().update(instance, validated_data)
 

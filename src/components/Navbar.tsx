@@ -4,6 +4,8 @@ import { useCatalog, toProductShape } from '../hooks/useCatalog';
 import { useAuth } from '../context/AuthContext';
 import { BrandLogo } from './BrandLogo';
 import { PageId } from '../types';
+import { getOptimizedImageUrl, handleImgError } from '../utils/imageHelper';
+import { formatINR } from '../utils/currencyHelper';
 import {
   ShoppingBag,
   Heart,
@@ -75,6 +77,19 @@ export const Navbar: React.FC<NavbarProps> = ({
       setHoveredCategorySlug(categories[0].slug);
     }
   }, [categories]);
+
+  const activeMegaCategory = categories.find(c => c.slug === hoveredCategorySlug) || categories[0];
+  const megaMenuCategoryProducts = products.filter(
+    p =>
+      p.category_slug === hoveredCategorySlug ||
+      (p as any).parent_slug === hoveredCategorySlug ||
+      (activeMegaCategory && p.category === activeMegaCategory.id) ||
+      (p.category_name && hoveredCategorySlug && p.category_name.toLowerCase().includes(hoveredCategorySlug.replace(/-/g, ' '))) ||
+      (hoveredCategorySlug && (p.title || '').toLowerCase().includes(hoveredCategorySlug.replace(/s$/i, '').toLowerCase()))
+  );
+  const megaMenuDisplayProducts = megaMenuCategoryProducts.length > 0 
+    ? megaMenuCategoryProducts.slice(0, 4) 
+    : products.slice(0, 4);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -285,70 +300,118 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
 
                 {activeDropdown === 'cad-files' && (
-                  <div className="absolute left-1/2 -translate-x-1/2 top-full pt-2 w-[680px] z-50">
-                    <div className="bg-[#09112B] border border-[#D4AF37]/30 rounded-3xl shadow-2xl p-6 backdrop-blur-xl grid grid-cols-12 gap-6">
-                      <div className="col-span-5 border-r border-[#D4AF37]/20 pr-4 space-y-1">
-                        <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest block mb-2">
+                  <div className="absolute left-1/2 -translate-x-1/2 top-full pt-2 w-[720px] max-w-[95vw] z-50 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="bg-[#09112B]/98 border border-[#D4AF37]/35 rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.85)] p-5 sm:p-6 backdrop-blur-2xl grid grid-cols-12 gap-5 ring-1 ring-white/10">
+                      {/* Left: Category list */}
+                      <div className="col-span-5 border-r border-[#D4AF37]/20 pr-3.5 space-y-1 max-h-[380px] overflow-y-auto custom-scrollbar">
+                        <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest block mb-2 px-1">
                           Ready-Made CAD Categories
                         </span>
-                        {categories.map(cat => (
-                          <button
-                            key={cat.id}
-                            onMouseEnter={() => setHoveredCategorySlug(cat.slug)}
-                            onClick={() => {
-                              onNavigate('collections', cat.slug);
-                              setActiveDropdown(null);
-                            }}
-                            className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-between ${
-                              hoveredCategorySlug === cat.slug
-                                ? 'bg-[#D4AF37] text-[#0B1330] shadow-md'
-                                : 'text-[#FAF8F3]/80 hover:bg-[#121F4D]'
-                            }`}
-                          >
-                            <span>{cat.name}</span>
-                            <ChevronRight className="w-3.5 h-3.5" />
-                          </button>
-                        ))}
+                        {categories.map(cat => {
+                          const isHovered = (hoveredCategorySlug || categories[0]?.slug) === cat.slug;
+                          return (
+                            <button
+                              key={cat.id}
+                              onMouseEnter={() => setHoveredCategorySlug(cat.slug)}
+                              onClick={() => {
+                                onNavigate('collections', cat.slug);
+                                setActiveDropdown(null);
+                              }}
+                              className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between ${
+                                isHovered
+                                  ? 'bg-gradient-to-r from-[#D4AF37] to-[#E6C65B] text-[#080E24] font-bold shadow-lg shadow-[#D4AF37]/20 translate-x-1'
+                                  : 'text-[#FAF8F3]/80 hover:text-[#FAF8F3] hover:bg-[#121F4D]/70'
+                              }`}
+                            >
+                              <span>{cat.name}</span>
+                              <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isHovered ? 'translate-x-0.5 text-[#080E24]' : 'opacity-50'}`} />
+                            </button>
+                          );
+                        })}
                       </div>
 
-                      <div className="col-span-7 space-y-3">
-                        <div className="flex justify-between items-center pb-2 border-b border-[#D4AF37]/20">
-                          <span className="text-xs font-bold text-[#F5E7A3] uppercase">
-                            Featured CAD Files
+                      {/* Right: Featured products matching hovered category */}
+                      <div className="col-span-7 flex flex-col justify-between space-y-3">
+                        <div className="flex justify-between items-center pb-2.5 border-b border-[#D4AF37]/20">
+                          <span className="text-xs font-bold text-[#F5E7A3] uppercase tracking-wider flex items-center gap-1.5">
+                            <Gem className="w-3.5 h-3.5 text-[#D4AF37]" />
+                            {activeMegaCategory?.name || 'Featured'} CAD Models
                           </span>
                           <button
                             onClick={() => {
                               onNavigate('collections', hoveredCategorySlug);
                               setActiveDropdown(null);
                             }}
-                            className="text-[11px] font-bold text-[#D4AF37] hover:underline"
+                            className="text-[11px] font-bold text-[#D4AF37] hover:text-[#F5E7A3] hover:underline transition-colors flex items-center gap-1"
                           >
-                            View All →
+                            View All ({megaMenuCategoryProducts.length > 0 ? megaMenuCategoryProducts.length : products.length}) →
                           </button>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          {products.slice(0, 4).map(p => (
-                            <div
-                              key={p.id}
+
+                        {megaMenuDisplayProducts.length > 0 ? (
+                          <div className="grid grid-cols-2 gap-2.5">
+                            {megaMenuDisplayProducts.map(p => (
+                              <div
+                                key={p.id}
+                                onClick={() => {
+                                  onNavigate('product-detail', p.slug || String(p.id));
+                                  setActiveDropdown(null);
+                                }}
+                                className="p-2.5 bg-[#0C1536]/85 hover:bg-[#12204E] rounded-2xl border border-white/10 hover:border-[#D4AF37]/50 cursor-pointer flex gap-3 items-center group transition-all duration-200 shadow-md hover:shadow-lg hover:shadow-[#D4AF37]/10"
+                              >
+                                <div className="w-[52px] h-[52px] rounded-xl shrink-0 bg-[#070D1F] border border-white/10 overflow-hidden flex items-center justify-center p-1 group-hover:border-[#D4AF37]/40 transition-colors">
+                                  <img
+                                    src={getOptimizedImageUrl(p.primary_image, p.category_name)}
+                                    alt={p.title}
+                                    onError={(e) => handleImgError(e, p.category_name)}
+                                    className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
+                                    loading="lazy"
+                                  />
+                                </div>
+                                <div className="overflow-hidden min-w-0 flex-1">
+                                  <p className="text-xs font-semibold text-[#FAF8F3] group-hover:text-[#F5E7A3] truncate transition-colors leading-tight">
+                                    {p.title}
+                                  </p>
+                                  <div className="flex items-center justify-between gap-1 mt-1.5">
+                                    <span className="text-xs font-bold text-[#E6C65B] font-mono tracking-tight">
+                                      ₹{formatINR(p.price)}
+                                    </span>
+                                    <span className="text-[9px] font-medium text-[#D4AF37] font-mono bg-[#D4AF37]/10 px-1.5 py-0.5 rounded border border-[#D4AF37]/25 shrink-0">
+                                      3DM+STL
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="py-8 text-center bg-[#0C1536]/40 rounded-2xl border border-white/5">
+                            <p className="text-xs text-[#FAF8F3]/60 mb-2">No CAD files currently in this category.</p>
+                            <button
                               onClick={() => {
-                                onNavigate('product-detail', p.slug || String(p.id));
+                                onNavigate('collections');
                                 setActiveDropdown(null);
                               }}
-                              className="p-2 bg-[#121F4D]/60 rounded-xl border border-white/10 hover:border-[#D4AF37]/40 cursor-pointer flex gap-2 items-center group"
+                              className="text-xs font-bold text-[#D4AF37] hover:underline"
                             >
-                              <img
-                                src={p.primary_image || '/unsplash-img/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=300&q=80'}
-                                alt={p.title}
-                                className="w-10 h-10 rounded-lg object-cover"
-                              />
-                              <div className="overflow-hidden">
-                                <p className="text-xs font-bold text-[#FAF8F3] group-hover:text-[#F5E7A3] truncate">
-                                  {p.title}
-                                </p>
-                                <span className="text-[10px] text-[#D4AF37] font-mono">3DM + STL</span>
-                              </div>
-                            </div>
-                          ))}
+                              Explore All Collections →
+                            </button>
+                          </div>
+                        )}
+
+                        <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-[#C9C2A6]">
+                          <span className="flex items-center gap-1.5 text-[#D4AF37]">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#D4AF37]" /> Watertight & Cast-Ready
+                          </span>
+                          <button
+                            onClick={() => {
+                              onNavigate('custom-design');
+                              setActiveDropdown(null);
+                            }}
+                            className="text-[#FAF8F3] hover:text-[#D4AF37] transition-colors"
+                          >
+                            Need Custom CAD? <span className="text-[#D4AF37] font-semibold">Request Order</span>
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -609,16 +672,26 @@ export const Navbar: React.FC<NavbarProps> = ({
                       onNavigate('product-detail', p.id);
                       setSearchOverlayOpen(false);
                     }}
-                    className="p-3 bg-[#121F4D]/60 rounded-2xl border border-white/10 hover:border-[#D4AF37] cursor-pointer flex items-center justify-between"
+                    className="p-3 bg-[#121F4D]/60 hover:bg-[#121F4D] rounded-2xl border border-white/10 hover:border-[#D4AF37] cursor-pointer flex items-center justify-between transition-colors group"
                   >
-                    <div className="flex items-center gap-3">
-                      <img src={p.primaryImage} alt={p.title} className="w-10 h-10 rounded-lg object-cover" />
-                      <div>
-                        <p className="font-bold text-xs text-[#FAF8F3]">{p.title}</p>
-                        <span className="text-[10px] text-[#D4AF37]">{p.category}</span>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-12 h-12 rounded-xl shrink-0 bg-[#070D1F] border border-white/10 overflow-hidden flex items-center justify-center p-1">
+                        <img
+                          src={getOptimizedImageUrl(p.primaryImage, p.category)}
+                          alt={p.title}
+                          onError={(e) => handleImgError(e, p.category)}
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-xs text-[#FAF8F3] truncate group-hover:text-[#F5E7A3]">{p.title}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[10px] text-[#D4AF37]">{p.category}</span>
+                          <span className="text-xs font-bold text-[#E6C65B] font-mono">₹{formatINR(p.price)}</span>
+                        </div>
                       </div>
                     </div>
-                    <ArrowRight className="w-4 h-4 text-[#D4AF37]" />
+                    <ArrowRight className="w-4 h-4 text-[#D4AF37] shrink-0" />
                   </div>
                 ))}
               </div>

@@ -123,15 +123,39 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS("[OK] Client 2 created (client_priya / client123)."))
 
         # 3. Categories & Styles
-        rings, _ = Category.objects.get_or_create(name="Rings", display_order=1)
-        solitaire, _ = Category.objects.get_or_create(name="Solitaire Rings", parent=rings, display_order=1)
-        band_rings, _ = Category.objects.get_or_create(name="Band Rings", parent=rings, display_order=2)
+        categories_data = [
+            ("Rings", "rings", 1, "https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=1000&q=85", "Solitaires, Bands & Bridal Rings"),
+            ("Earrings", "earrings", 2, "https://images.unsplash.com/photo-1630019852942-f89202989a59?auto=format&fit=crop&w=1000&q=85", "Jhumkas, Drops & Diamond Studs"),
+            ("Necklaces", "necklaces", 3, "https://images.unsplash.com/photo-1599643477877-530eb83abc8e?auto=format&fit=crop&w=1000&q=85", "Chokers, Chains & Bridal Sets"),
+            ("Pendants", "pendants", 4, "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=1000&q=85", "Kundan, Diamond & Solitaire Pendants"),
+            ("Bracelets & Bangles", "bracelets-bangles", 5, "https://images.unsplash.com/photo-1603561591411-07134e71a2a9?auto=format&fit=crop&w=1000&q=85", "Kadas, Bangles & Tennis Bracelets"),
+            ("Mangalsutra", "mangalsutra", 6, "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=1000&q=85", "Traditional & Modern Tanmaniya"),
+            ("Nose Pins", "nosepins", 7, "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=1000&q=85", "Diamond Studs & Bridal Naths"),
+            ("Polki Jewellery", "polki-jewellery", 8, "https://images.unsplash.com/photo-1611591475140-be38b638ed3d?auto=format&fit=crop&w=1000&q=85", "Royal Jadau & Uncut Diamonds"),
+        ]
 
-        necklaces, _ = Category.objects.get_or_create(name="Necklaces", display_order=2)
-        pendant, _ = Category.objects.get_or_create(name="Pendants", parent=necklaces, display_order=1)
+        created_cats = {}
+        for name, slug, order, img_url, tagline in categories_data:
+            cat, _ = Category.objects.update_or_create(
+                slug=slug,
+                defaults={
+                    "name": name,
+                    "display_order": order,
+                    "image_url": img_url,
+                    "tagline": tagline,
+                    "parent": None,
+                }
+            )
+            created_cats[slug] = cat
 
-        earrings, _ = Category.objects.get_or_create(name="Earrings", display_order=3)
-        bracelets, _ = Category.objects.get_or_create(name="Bracelets & Bangles", display_order=4)
+        rings = created_cats["rings"]
+        solitaire, _ = Category.objects.update_or_create(slug="solitaire-rings", defaults={"name": "Solitaire Rings", "parent": rings, "display_order": 1})
+        band_rings, _ = Category.objects.update_or_create(slug="band-rings", defaults={"name": "Band Rings", "parent": rings, "display_order": 2})
+
+        necklaces = created_cats["necklaces"]
+        pendant = created_cats["pendants"]
+        bracelets = created_cats["bracelets-bangles"]
+        earrings = created_cats["earrings"]
 
         style_diamond, _ = DesignStyle.objects.get_or_create(name="Diamond")
         style_modern, _ = DesignStyle.objects.get_or_create(name="Modern")
@@ -149,12 +173,13 @@ class Command(BaseCommand):
             defaults={
                 "category": solitaire,
                 "uploaded_by": staff1,
-                "price": 149.00,
-                "compare_at_price": 199.00,
+                "price": 1699.00,
+                "compare_at_price": 2499.00,
                 "description": "Exquisite 18K White Gold Halo Diamond Ring 3D CAD Model. Precision engineered for casting and gemstone setting.",
                 "metal_weight_grams": 4.85,
                 "stone_count": 37,
                 "status": Product.Status.APPROVED,
+                "is_active": True,
                 "is_bestseller": True,
                 "is_new": False,
                 "approved_at": timezone.now()
@@ -162,21 +187,26 @@ class Command(BaseCommand):
         )
         if p1_created:
             prod1.style_tags.add(style_diamond, style_modern)
-            ProductImage.objects.create(product=prod1, image=ContentFile(dummy_png, name="ring_primary.png"), is_primary=True)
+            ProductImage.objects.create(
+                product=prod1,
+                image_url="https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=800&q=85",
+                is_primary=True
+            )
             ProductFile.objects.create(product=prod1, file_type=ProductFile.FileType.FILE_3DM, file=ContentFile(b"MOCK 3DM DATA", name="halo_ring.3dm"))
             ProductFile.objects.create(product=prod1, file_type=ProductFile.FileType.STL, file=ContentFile(b"MOCK STL DATA", name="halo_ring.stl"))
-            ProductFile.objects.create(product=prod1, file_type=ProductFile.FileType.RENDER, file=ContentFile(dummy_png, name="render_1.png"))
 
         prod2, p2_created = Product.objects.get_or_create(
             title="Antique Peacock Kundan Pendant CAD",
             defaults={
                 "category": pendant,
                 "uploaded_by": staff2,
-                "price": 220.00,
+                "price": 2499.00,
+                "compare_at_price": 3499.00,
                 "description": "Handcrafted Indian traditional Kundan peacock pendant CAD model ready for direct wax printing.",
                 "metal_weight_grams": 14.20,
                 "stone_count": 82,
                 "status": Product.Status.APPROVED,
+                "is_active": True,
                 "is_bestseller": False,
                 "is_new": True,
                 "approved_at": timezone.now()
@@ -184,7 +214,11 @@ class Command(BaseCommand):
         )
         if p2_created:
             prod2.style_tags.add(style_traditional, style_antique)
-            ProductImage.objects.create(product=prod2, image=ContentFile(dummy_png, name="pendant_primary.png"), is_primary=True)
+            ProductImage.objects.create(
+                product=prod2,
+                image_url="https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=800&q=85",
+                is_primary=True
+            )
             ProductFile.objects.create(product=prod2, file_type=ProductFile.FileType.FILE_3DM, file=ContentFile(b"MOCK 3DM DATA", name="peacock_pendant.3dm"))
             ProductFile.objects.create(product=prod2, file_type=ProductFile.FileType.STL, file=ContentFile(b"MOCK STL DATA", name="peacock_pendant.stl"))
 
@@ -193,18 +227,25 @@ class Command(BaseCommand):
             defaults={
                 "category": bracelets,
                 "uploaded_by": staff1,
-                "price": 180.00,
+                "price": 1899.00,
+                "compare_at_price": 2799.00,
                 "description": "Modern minimalist geometric bangle CAD file with channel-set baguettes.",
                 "metal_weight_grams": 18.50,
                 "stone_count": 24,
-                "status": Product.Status.PENDING,
+                "status": Product.Status.APPROVED,
+                "is_active": True,
                 "is_bestseller": False,
-                "is_new": True
+                "is_new": True,
+                "approved_at": timezone.now()
             }
         )
         if p3_created:
             prod3.style_tags.add(style_modern, style_casting)
-            ProductImage.objects.create(product=prod3, image=ContentFile(dummy_png, name="bangle_primary.png"), is_primary=True)
+            ProductImage.objects.create(
+                product=prod3,
+                image_url="https://images.unsplash.com/photo-1603561591411-07134e71a2a9?auto=format&fit=crop&w=800&q=85",
+                is_primary=True
+            )
 
         self.stdout.write(self.style.SUCCESS("[OK] Demo ready-made products created."))
 

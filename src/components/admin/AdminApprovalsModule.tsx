@@ -28,6 +28,8 @@ import {
   Users,
 } from 'lucide-react';
 import { api } from '../../services/api';
+import { appStore } from '../../services/store';
+import { getOptimizedImageUrl } from '../../utils/imageHelper';
 import { AdminDesignerApplicationsSection } from './AdminDesignerApplicationsSection';
 
 export const AdminApprovalsModule: React.FC = () => {
@@ -128,11 +130,12 @@ export const AdminApprovalsModule: React.FC = () => {
           if (isPendingReview || isApproved || isRejected || isRevision) {
             const req = ord.custom_request || {};
             const staff = ord.assigned_staff || {};
+            const localStaff = appStore.getStaffList().find((s) => s.id === staff.id?.toString() || s.name === (staff.first_name ? `${staff.first_name} ${staff.last_name || ''}`.trim() : staff.username));
             items.push({
               id: `ORD-${ord.id}`,
               title: req.category_name ? `Bespoke ${req.category_name} (Order #${ord.id})` : `Custom Order #${ord.id}`,
               designerName: staff.first_name ? `${staff.first_name} ${staff.last_name || ''}`.trim() : (staff.username || 'CAD Modeller'),
-              designerAvatar: staff.profile_photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
+              designerAvatar: staff.profile_photo || localStaff?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
               category: req.category_name || 'Bespoke Order',
               uploadedDate: ord.assigned_at ? new Date(ord.assigned_at).toISOString().split('T')[0] : 'Recently',
               thumbnail: ord.preview_image || req.sketches?.[0]?.image_url || req.sketches?.[0]?.image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&q=80&w=600',
@@ -158,31 +161,51 @@ export const AdminApprovalsModule: React.FC = () => {
         console.warn('Could not fetch custom orders for approvals:', e);
       }
 
-      // 2. Fetch catalog products needing review
+      // 2. Fetch catalog products needing review (including explicit /pending/ endpoint)
       try {
+        let pendingRes: any = [];
+        try {
+          pendingRes = await api.request<any>('/catalog/products/pending/');
+        } catch {}
+        const pendingList = Array.isArray(pendingRes) ? pendingRes : pendingRes?.results || [];
+
         const prodRes = await api.getProducts();
         const prodList = Array.isArray(prodRes) ? prodRes : prodRes?.results || [];
 
+        // Combine unique products
+        const allCatalogProds = [...pendingList];
         prodList.forEach((p: any) => {
-          items.push({
-            id: p.slug || `PROD-${p.id}`,
-            title: p.title,
-            designerName: p.uploaded_by?.username || 'Craftsman',
-            designerAvatar: p.uploaded_by?.profile_photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
-            category: p.category_name || p.category?.name || 'Catalog Design',
-            uploadedDate: p.created_at ? new Date(p.created_at).toISOString().split('T')[0] : 'Recently',
-            thumbnail: p.primary_image || p.images?.[0]?.image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&q=80&w=600',
-            status: p.status === 'approved' ? 'approved' : p.status === 'rejected' ? 'rejected' : 'pending',
-            fileFormats: ['3DM', 'STL', 'Render'],
-            suggestedPrice: parseFloat(p.price || '0'),
-            specs: {
-              metalWeight18k: p.metal_weight_grams ? `${p.metal_weight_grams}g` : '14.5g',
-              diamondCount: p.stone_count ? `${p.stone_count} Pcs` : '36 Pcs',
-              dimensions: 'Standard',
-            },
-            rawSlug: p.slug,
-            isCatalogProduct: true,
-          } as any);
+          if (!allCatalogProds.some((ex: any) => (ex.slug && ex.slug === p.slug) || ex.id === p.id)) {
+            allCatalogProds.push(p);
+          }
+        });
+
+        allCatalogProds.forEach((p: any) => {
+          const isStaffDesign = p.status === 'pending' || p.uploaded_by?.role === 'staff' || p.status === 'rejected';
+          if (isStaffDesign) {
+              const designerName = p.uploaded_by_name || (p.uploaded_by?.first_name ? `${p.uploaded_by.first_name} ${p.uploaded_by.last_name || ''}`.trim() : (p.uploaded_by?.username || 'Staff Designer'));
+              const localStaff = appStore.getStaffList().find((s) => s.id === (p.uploaded_by?.id || p.uploaded_by)?.toString() || s.name.toLowerCase() === designerName.toLowerCase());
+              items.push({
+                id: p.slug || `PROD-${p.id}`,
+                title: p.title,
+                designerName: designerName,
+                designerAvatar: p.uploaded_by_avatar || p.uploaded_by?.profile_photo || localStaff?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
+              category: p.category_name || p.category?.name || 'Catalog Design',
+              uploadedDate: p.created_at ? new Date(p.created_at).toISOString().split('T')[0] : 'Recently',
+              thumbnail: p.primary_image || p.images?.[0]?.image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&q=80&w=600',
+              status: p.status === 'approved' ? 'approved' : p.status === 'rejected' ? 'rejected' : 'pending',
+              fileFormats: ['3DM', 'STL', 'Render'],
+              suggestedPrice: parseFloat(p.price || '0'),
+              specs: {
+                metalWeight18k: p.metal_weight_grams ? `${p.metal_weight_grams}g` : '14.5g',
+                diamondCount: p.stone_count ? `${p.stone_count} Pcs` : '36 Pcs',
+                dimensions: 'Standard',
+              },
+              rawSlug: p.slug,
+              isCatalogProduct: true,
+              uploadedByRole: p.uploaded_by?.role,
+            } as any);
+          }
         });
       } catch (e) {
         console.warn('Could not fetch catalog products for approvals:', e);
@@ -488,8 +511,11 @@ export const AdminApprovalsModule: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <img
-                        src={item.designerAvatar}
+                        src={getOptimizedImageUrl(item.designerAvatar)}
                         alt={item.designerName}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200';
+                        }}
                         className="w-6 h-6 rounded-full object-cover border border-[#E5E7EF]"
                       />
                       <span className="text-xs font-semibold text-[#1E2230]">
@@ -720,8 +746,11 @@ export const AdminApprovalsModule: React.FC = () => {
                 </h2>
                 <div className="flex items-center gap-2 mt-2">
                   <img
-                    src={pendingList[rapidReviewIndex].designerAvatar}
+                    src={getOptimizedImageUrl(pendingList[rapidReviewIndex].designerAvatar)}
                     alt=""
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200';
+                    }}
                     className="w-6 h-6 rounded-full object-cover"
                   />
                   <span className="text-xs text-white/80">

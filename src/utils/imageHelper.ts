@@ -61,6 +61,9 @@ export function getOptimizedImageUrl(src?: string | null, category?: string): st
 
   // Handle django media files
   if (trimmed.startsWith('/media/')) {
+    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      return trimmed;
+    }
     return `http://127.0.0.1:8000${trimmed}`;
   }
 

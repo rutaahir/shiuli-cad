@@ -267,6 +267,7 @@ class CustomRequestSerializer(serializers.ModelSerializer):
             'reference_product_price', 'reference_product_image',
             'voice_recording', 'voice_recording_url', 'description',
             'contact_name', 'contact_phone', 'contact_email', 'status', 'agreed_price',
+            'admin_commission_percentage', 'admin_call_notes',
             'client_consent_to_feature',
             'gemstones', 'stones', 'selections', 'sketches', 'messages',
             'draft_sketch_ids', 'stones_data', 'selections_data', 'catalog_references_data', 'order', 'created_at'
@@ -481,7 +482,7 @@ class OrderCustomRequestSummarySerializer(serializers.ModelSerializer):
             'reference_product_price', 'reference_product_image',
             'voice_recording', 'voice_recording_url', 'description',
             'contact_name', 'contact_phone', 'contact_email', 'status', 'agreed_price',
-            'client_consent_to_feature',
+            'admin_commission_percentage', 'admin_call_notes', 'client_consent_to_feature',
             'gemstones', 'stones', 'selections', 'sketches', 'messages', 'created_at'
         ]
 
@@ -513,10 +514,10 @@ class OrderCustomRequestSummarySerializer(serializers.ModelSerializer):
 
 # STAFF-SAFE CUSTOM REQUEST SERIALIZER (Shows full technical CAD specifications without pricing)
 class StaffCustomRequestSerializer(serializers.ModelSerializer):
-    category_name = serializers.CharField(source='category.name', read_only=True)
-    aesthetic_style_name = serializers.CharField(source='aesthetic_style.name', read_only=True)
-    metal_alloy_name = serializers.CharField(source='metal_alloy.name', read_only=True)
-    metal_swatch_color = serializers.CharField(source='metal_alloy.swatch_color', read_only=True)
+    category_name = serializers.CharField(source='category.name', read_only=True, default='')
+    aesthetic_style_name = serializers.CharField(source='aesthetic_style.name', read_only=True, default='')
+    metal_alloy_name = serializers.CharField(source='metal_alloy.name', read_only=True, default='')
+    metal_swatch_color = serializers.CharField(source='metal_alloy.swatch_color', read_only=True, default='')
     reference_image = serializers.SerializerMethodField()
     catalog_references = serializers.SerializerMethodField()
     gemstones = CustomRequestGemstoneSerializer(many=True, read_only=True)
@@ -665,13 +666,15 @@ class RevisionRequestSerializer(serializers.ModelSerializer):
         return None
 
 
-# STAFF-SAFE ORDER SERIALIZER (Stage 6 Critical Rule: ABSOLUTELY NO PRICE FIELDS)
+# STAFF-SAFE ORDER SERIALIZER (Shows Staff Payout Price = Total Price - Admin Commission)
 class StaffOrderSerializer(serializers.ModelSerializer):
     custom_request = StaffCustomRequestSerializer(read_only=True)
     deliverables = OrderDeliverableSerializer(many=True, read_only=True)
     milestones = OrderMilestoneSerializer(many=True, read_only=True)
     revision_requests = RevisionRequestSerializer(many=True, read_only=True)
     preview_image = serializers.SerializerMethodField()
+    staff_payout_price = serializers.SerializerMethodField()
+    payout_price = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -679,7 +682,8 @@ class StaffOrderSerializer(serializers.ModelSerializer):
             'id', 'order_type', 'current_version', 'custom_request', 'status',
             'deadline_hours', 'due_at', 'is_overdue', 'assigned_at',
             'unassigned_since', 'preview_image', 'admin_review_notes',
-            'milestones', 'deliverables', 'revision_requests', 'created_at'
+            'milestones', 'deliverables', 'revision_requests', 'created_at',
+            'staff_payout_price', 'payout_price'
         ]
 
     def get_preview_image(self, obj):
@@ -687,6 +691,17 @@ class StaffOrderSerializer(serializers.ModelSerializer):
         if obj.preview_image:
             return request.build_absolute_uri(obj.preview_image.url) if request else obj.preview_image.url
         return None
+
+    def get_staff_payout_price(self, obj):
+        if obj.staff_payout_price is not None:
+            return float(obj.staff_payout_price)
+        if obj.total_price is not None:
+            pct = float(obj.admin_commission_percentage if obj.admin_commission_percentage is not None else 20.00)
+            return round(float(obj.total_price) * max(0.0, (100.0 - pct) / 100.0), 2)
+        return 0.0
+
+    def get_payout_price(self, obj):
+        return self.get_staff_payout_price(obj)
 
 
 # FULL ADMIN ORDER SERIALIZER
@@ -701,19 +716,27 @@ class AdminOrderSerializer(serializers.ModelSerializer):
     revision_requests = RevisionRequestSerializer(many=True, read_only=True)
     preview_image = serializers.SerializerMethodField()
     is_fully_paid = serializers.SerializerMethodField()
+    admin_commission_amount = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
         fields = [
             'id', 'client', 'order_type', 'current_version', 'product', 'custom_request',
-            'assigned_staff', 'total_price', 'advance_amount', 'advance_paid',
+            'assigned_staff', 'total_price', 'admin_commission_percentage', 'staff_payout_price',
+            'admin_commission_amount', 'advance_amount', 'advance_paid',
             'balance_paid', 'status', 'deadline_hours', 'due_at', 'is_overdue',
             'warning_50_sent', 'warning_80_sent', 'preview_image',
-            'admin_review_notes', 'quality_approved', 'settlement_status',
+            'admin_review_notes', 'admin_call_notes', 'quality_approved', 'settlement_status',
             'download_enabled_by_admin', 'download_count', 'is_fully_paid',
             'unassigned_since', 'assigned_at', 'handed_over_at',
             'milestones', 'payment_stages', 'deliverables', 'revision_requests', 'created_at'
         ]
+
+    def get_admin_commission_amount(self, obj):
+        if obj.total_price is not None:
+            pct = float(obj.admin_commission_percentage if obj.admin_commission_percentage is not None else 20.00)
+            return round(float(obj.total_price) * (pct / 100.0), 2)
+        return 0.0
 
     def get_preview_image(self, obj):
         request = self.context.get('request')

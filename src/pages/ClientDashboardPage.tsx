@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PageId, Product } from '../types';
 import { useCatalog, toProductShape } from '../hooks/useCatalog';
 import { api } from '../services/api';
@@ -14,6 +14,7 @@ import {
   FileCode2, 
   Sparkles, 
   ArrowRight, 
+  ArrowLeft,
   ExternalLink,
   ShieldCheck,
   Building,
@@ -49,7 +50,11 @@ import {
   Mic,
   Volume2,
   Image as ImageIcon,
-  RefreshCw
+  RefreshCw,
+  Search,
+  Bell,
+  BellRing,
+  CheckCheck
 } from 'lucide-react';
 import { RevealOnScroll } from '../components/motion/RevealOnScroll';
 
@@ -59,6 +64,11 @@ import { OTPVerificationModal } from '../components/delivery/OTPVerificationModa
 import { OrderOTPVerificationModal } from '../components/delivery/OrderOTPVerificationModal';
 import { UserProfileModule } from '../components/profile/UserProfileModule';
 import { RevisionRequestModal } from '../components/common/RevisionRequestModal';
+import { 
+  playNegotiationRing, 
+  requestDesktopNotificationPermission, 
+  triggerNegotiationAlert 
+} from '../utils/negotiationNotificationHelper';
 
 const formatINR = (val: number | string | undefined | null) => {
   if (val === undefined || val === null || val === '') return '₹0';
@@ -87,9 +97,27 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
 
   // Live State
   const [customRequests, setCustomRequests] = useState<any[]>([]);
+  const [selectedCustomReqId, setSelectedCustomReqId] = useState<number | null>(null);
+  const [openedOrderId, setOpenedOrderId] = useState<number | null>(null);
+  const [activeStageTab, setActiveStageTab] = useState<'all' | 'specs' | 'negotiation' | 'payments' | 'preview' | 'deliverables'>('all');
+  const [orderSearchTerm, setOrderSearchTerm] = useState<string>('');
   const [loadingCustom, setLoadingCustom] = useState<boolean>(false);
   const [clientOrders, setClientOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState<boolean>(false);
+
+  // Real-Time Negotiation Notification & Audio Alert
+  const [negotiationAlertBanner, setNegotiationAlertBanner] = useState<{
+    reqId: number;
+    orderId?: number;
+    title: string;
+    message: string;
+    offeredPrice?: number;
+  } | null>(null);
+  const [desktopAlertsEnabled, setDesktopAlertsEnabled] = useState<boolean>(() => {
+    return typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted';
+  });
+  const lastAdminMsgIdRef = useRef<{ [reqId: number]: number }>({});
+  const initialFetchDoneRef = useRef<boolean>(false);
   const [counterPriceInput, setCounterPriceInput] = useState<{ [key: number]: string }>({});
   const [counterMessageInput, setCounterMessageInput] = useState<{ [key: number]: string }>({});
   const [showCounterForm, setShowCounterForm] = useState<{ [key: number]: boolean }>({});
@@ -217,10 +245,57 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
       });
 
       setCustomRequests(combined);
+
+      // Check for incoming negotiation notifications from Studio Admin
+      combined.forEach((r: any) => {
+        const adminMsgs = (r.messages || []).filter((m: any) => m.sender_type === 'admin' || m.sender === 'admin');
+        const latestAdminMsg = adminMsgs[adminMsgs.length - 1];
+        if (latestAdminMsg && latestAdminMsg.id) {
+          if (initialFetchDoneRef.current) {
+            const prevId = lastAdminMsgIdRef.current[r.id] || 0;
+            if (latestAdminMsg.id > prevId) {
+              lastAdminMsgIdRef.current[r.id] = latestAdminMsg.id;
+              const ord = r.order || clientOrders.find((o: any) => o.custom_request?.id === r.id || String(o.id) === String(r.order?.id));
+              const ordNum = ord ? `Order #${ord.id}` : `Request #${r.id}`;
+              const offerTxt = latestAdminMsg.offered_price ? ` (Quote Offer: ₹${Number(latestAdminMsg.offered_price).toLocaleString('en-IN')})` : '';
+
+              triggerNegotiationAlert({
+                title: `Shiuli CAD Studio: ${ordNum} Negotiation Offer`,
+                body: `${latestAdminMsg.message || 'Studio Admin sent an updated quote/message'}${offerTxt}`,
+                onClick: () => {
+                  setSelectedCustomReqId(r.id);
+                  setOpenedOrderId(r.id);
+                  setActiveStageTab('negotiation');
+                }
+              });
+
+              setNegotiationAlertBanner({
+                reqId: r.id,
+                orderId: ord?.id,
+                title: `New Negotiation Offer on ${ordNum}`,
+                message: latestAdminMsg.message || 'Studio Admin sent an updated negotiation offer.',
+                offeredPrice: latestAdminMsg.offered_price ? Number(latestAdminMsg.offered_price) : undefined,
+              });
+            }
+          } else {
+            lastAdminMsgIdRef.current[r.id] = latestAdminMsg.id;
+          }
+        }
+      });
+
+      if (combined.length > 0) {
+        const storedLastReqId = localStorage.getItem('shiuli_last_submitted_req_id');
+        if (storedLastReqId && combined.some((c: any) => String(c.id) === String(storedLastReqId))) {
+          setSelectedCustomReqId(Number(storedLastReqId));
+        } else {
+          setSelectedCustomReqId((prev) => (prev && combined.some((c: any) => c.id === prev) ? prev : combined[0].id));
+        }
+      }
     } catch (e) {
       console.warn('Failed to fetch client custom requests:', e);
     } finally {
       setLoadingCustom(false);
+      initialFetchDoneRef.current = true;
     }
   };
 
@@ -277,6 +352,22 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
       fetchPurchases();
     }
   }, [isLoggedIn, user, activeTab]);
+
+  // Live polling for negotiation updates & quotes every 7 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchCustomRequests();
+    }, 7000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleEnableDesktopAlerts = async () => {
+    const granted = await requestDesktopNotificationPermission();
+    setDesktopAlertsEnabled(granted);
+    if (granted) {
+      playNegotiationRing();
+    }
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -607,8 +698,22 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                   <span>Start Bespoke CAD Order</span>
                 </button>
               </div>
-            ) : (
-              customRequests.map((req) => {
+            ) : (() => {
+                // 1. Filter custom requests if user entered a search query
+                const filteredRequests = customRequests.filter((r) => {
+                  if (!orderSearchTerm.trim()) return true;
+                  const term = orderSearchTerm.toLowerCase().trim();
+                  const ord = r.order || clientOrders.find((o: any) => o.custom_request?.id === r.id || String(o.id) === String(r.order?.id));
+                  const ordNum = ord ? `ord #${ord.id} order #${ord.id} ${ord.id}` : '';
+                  const reqNum = `req #${r.id} ${r.id}`;
+                  const cat = (r.category_name || '').toLowerCase();
+                  const metal = (r.metal_alloy_name || '').toLowerCase();
+                  return ordNum.toLowerCase().includes(term) || reqNum.toLowerCase().includes(term) || cat.includes(term) || metal.includes(term);
+                });
+
+                // 2. Determine active selected request
+                const activeReq = customRequests.find((r) => r.id === selectedCustomReqId) || (filteredRequests.length > 0 ? filteredRequests[0] : customRequests[0]);
+                const req = activeReq;
                 const order = req.order || clientOrders.find((o: any) => o.custom_request?.id === req.id || String(o.id) === String(req.order?.id));
                 const assignedStaff = order?.assigned_staff;
                 const isOrderConfirmed = Boolean(
@@ -633,7 +738,441 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                 const unpaidVal = Math.max(0, totalVal - paidVal);
 
                 return (
-                  <div key={req.id} className="space-y-8 border-b border-[#D4AF37]/20 pb-16">
+                  <div className="space-y-6">
+                    {/* LIVE NEGOTIATION ALERT BANNER */}
+                    {negotiationAlertBanner && (
+                      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[#2B1B09] via-[#38230B] to-[#1F1407] border-2 border-[#D4AF37] shadow-[0_0_20px_rgba(212,175,55,0.3)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37] flex items-center justify-center text-[#D4AF37] shrink-0">
+                            <BellRing className="w-5 h-5 text-[#F5E7A3] animate-pulse" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 rounded bg-[#D4AF37] text-[#070D22] text-[10px] font-mono font-black uppercase">
+                                LIVE NEGOTIATION UPDATE
+                              </span>
+                              <span className="text-xs font-mono font-bold text-[#F5E7A3]">
+                                {negotiationAlertBanner.title}
+                              </span>
+                            </div>
+                            <p className="text-xs text-[#FAF8F3] mt-0.5">
+                              {negotiationAlertBanner.message}
+                              {negotiationAlertBanner.offeredPrice && (
+                                <span className="text-[#F5E7A3] font-bold ml-1 font-mono">
+                                  (Offered Price: {formatINR(negotiationAlertBanner.offeredPrice)})
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedCustomReqId(negotiationAlertBanner.reqId);
+                              setOpenedOrderId(negotiationAlertBanner.reqId);
+                              setActiveStageTab('negotiation');
+                              setNegotiationAlertBanner(null);
+                            }}
+                            className="btn-gold-luxury px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider shadow cursor-pointer"
+                          >
+                            Open Negotiation →
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setNegotiationAlertBanner(null)}
+                            className="p-2 rounded-xl bg-black/40 text-slate-400 hover:text-white transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {openedOrderId === null ? (
+                      /* VIEW 1: ONLY ORDER BOXES GRID (No deep vertical scrolling) */
+                      <div className="p-6 rounded-3xl bg-[#09112B] border border-[#D4AF37]/30 shadow-2xl space-y-5">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="px-2.5 py-0.5 rounded-full bg-[#12204D] border border-[#D4AF37]/50 text-[10px] font-mono font-bold text-[#F5E7A3] uppercase tracking-wider">
+                                ATELIER ORDER SELECTOR
+                              </span>
+                              <span className="text-xs font-mono text-[#C9C2A6]">
+                                Total Orders: <strong className="text-white">{customRequests.length}</strong>
+                              </span>
+                            </div>
+                            <h3 className="font-serif text-xl sm:text-2xl font-bold text-[#FAF8F3] mt-1">
+                              My Custom CAD Orders
+                            </h3>
+                            <p className="text-xs text-[#C9C2A6]">
+                              Click on any order box below to open its dedicated workspace, manage payments, chat with 3D modelers, and download master CAD packages.
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={handleEnableDesktopAlerts}
+                              className={`px-3 py-1.5 rounded-xl border text-[11px] font-mono font-bold flex items-center gap-1.5 transition-all ${
+                                desktopAlertsEnabled
+                                  ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300'
+                                  : 'bg-[#12204D] border-[#D4AF37]/40 text-[#F5E7A3] hover:bg-[#1A2E68]'
+                              }`}
+                            >
+                              {desktopAlertsEnabled ? (
+                                <>
+                                  <CheckCheck className="w-3.5 h-3.5 text-emerald-400" />
+                                  <span>Ring &amp; Push Alerts Active</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Bell className="w-3.5 h-3.5 text-[#D4AF37]" />
+                                  <span>Enable Audio Ring &amp; Push</span>
+                                </>
+                              )}
+                            </button>
+
+                            {customRequests.length > 2 && (
+                              <div className="relative min-w-[200px]">
+                                <Search className="w-3.5 h-3.5 text-[#C9C2A6] absolute left-3 top-1/2 -translate-y-1/2" />
+                                <input
+                                  type="text"
+                                  value={orderSearchTerm}
+                                  onChange={(e) => setOrderSearchTerm(e.target.value)}
+                                  placeholder="Search Order # or Keyword..."
+                                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#060B1E] border border-white/10 text-xs text-[#FAF8F3] placeholder:text-[#C9C2A6]/50 focus:outline-none focus:border-[#D4AF37]"
+                                />
+                              </div>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => onNavigate('custom-design')}
+                              className="btn-gold-luxury px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider inline-flex items-center gap-1.5 shadow"
+                            >
+                              <PlusCircle className="w-3.5 h-3.5 text-[#0B1330]" />
+                              <span>New Order Brief</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* THE LITTLE BOXES (CARDS GRID) */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                          {filteredRequests.map((item) => {
+                            const itemOrder = item.order || clientOrders.find((o: any) => o.custom_request?.id === item.id || String(o.id) === String(item.order?.id));
+                            const itemAssigned = itemOrder?.assigned_staff;
+                            const itemHasQuote = Boolean(item.agreed_price || item.status === 'quoted' || item.status === 'agreed' || itemOrder?.total_price);
+                            const itemTotal = itemHasQuote ? parseFloat(item.agreed_price || itemOrder?.total_price || item.estimated_price_shown || '0') : 0;
+                            let itemPaid = 0;
+                            if (itemOrder?.payment_stages && itemOrder.payment_stages.length > 0) {
+                              itemPaid = itemOrder.payment_stages
+                                .filter((st: any) => st.status === 'paid')
+                                .reduce((acc: number, st: any) => acc + parseFloat(st.amount || '0'), 0);
+                            }
+                            const itemPaidPct = itemTotal > 0 ? Math.min(100, Math.round((itemPaid / itemTotal) * 100)) : 0;
+                            const itemFullyPaid = Boolean(itemOrder?.payment_stages && itemOrder.payment_stages.length > 0 && itemOrder.payment_stages.every((st: any) => st.status === 'paid'));
+
+                            const selMetal = item.selections?.find((s: any) => s.group_key === 'metal' || s.group_label?.toLowerCase().includes('metal'));
+                            const metalLabel = selMetal?.value_label || item.metal_alloy_name || 'Custom Metal';
+
+                            const hasNegotiationPending = item.status === 'quoted' || item.status === 'negotiating';
+
+                            return (
+                              <div
+                                key={item.id}
+                                onClick={() => {
+                                  setSelectedCustomReqId(item.id);
+                                  setOpenedOrderId(item.id);
+                                  if (hasNegotiationPending) {
+                                    setActiveStageTab('negotiation');
+                                  } else if (itemOrder && !itemFullyPaid) {
+                                    setActiveStageTab('payments');
+                                  } else {
+                                    setActiveStageTab('all');
+                                  }
+                                }}
+                                className="relative p-4 rounded-2xl cursor-pointer transition-all duration-300 flex flex-col justify-between gap-3 text-left group bg-[#060B1E]/95 hover:bg-[#0E1A3D] border border-white/10 hover:border-[#D4AF37]/80 hover:shadow-[0_10px_25px_rgba(212,175,55,0.2)] hover:-translate-y-1"
+                              >
+                                <div>
+                                  {/* Header Row: ORDER # & STATUS */}
+                                  <div className="flex items-start justify-between gap-2 mb-2">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="px-2.5 py-1 rounded-lg bg-[#D4AF37]/20 border border-[#D4AF37]/60 text-xs font-mono font-black text-[#F5E7A3] tracking-wider shadow-sm">
+                                        {itemOrder ? `ORDER #${itemOrder.id}` : `REQ #${item.id}`}
+                                      </span>
+                                      {itemOrder && (
+                                        <span className="text-[10px] font-mono text-[#C9C2A6] font-semibold">
+                                          (REQ #{item.id})
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <span className="text-[10px] font-mono text-[#D4AF37] group-hover:underline font-bold shrink-0 flex items-center gap-0.5">
+                                      Open →
+                                    </span>
+                                  </div>
+
+                                  {/* Thumbnail & Title */}
+                                  <div className="flex items-center gap-2.5 my-2">
+                                    {item.reference_image ? (
+                                      <img
+                                        src={item.reference_image}
+                                        alt={item.category_name}
+                                        className="w-12 h-12 rounded-xl object-cover border border-[#D4AF37]/30 bg-black/50 shrink-0"
+                                      />
+                                    ) : (
+                                      <div className="w-12 h-12 rounded-xl bg-[#12204D] border border-white/10 flex items-center justify-center text-[#D4AF37] shrink-0">
+                                        <Gem className="w-5 h-5" />
+                                      </div>
+                                    )}
+                                    <div className="min-w-0 flex-1">
+                                      <h4 className="font-serif text-sm font-bold text-[#FAF8F3] truncate group-hover:text-[#F5E7A3] transition-colors">
+                                        {item.category_name || 'Bespoke Custom Jewellery'}
+                                      </h4>
+                                      <p className="text-[11px] font-mono text-[#C9C2A6] truncate">
+                                        {metalLabel}
+                                      </p>
+                                      <span className="text-[10px] font-mono text-slate-400 block">
+                                        {item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recent'}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Status Pill */}
+                                  <div className="mt-1">
+                                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider inline-flex items-center gap-1.5 w-full justify-start ${
+                                      itemAssigned
+                                        ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-300'
+                                        : item.status === 'agreed' || (itemOrder && itemOrder.status)
+                                        ? 'bg-amber-500/15 border border-amber-500/40 text-amber-300'
+                                        : item.status === 'quoted'
+                                        ? 'bg-blue-500/15 border border-blue-500/40 text-blue-300'
+                                        : 'bg-slate-800 border border-slate-700 text-slate-300'
+                                    }`}>
+                                      <span className={`w-1.5 h-1.5 rounded-full ${
+                                        itemAssigned ? 'bg-emerald-400 animate-pulse' : 'bg-[#D4AF37]'
+                                      }`} />
+                                      <span className="truncate">
+                                        {itemAssigned
+                                          ? 'In CAD Production'
+                                          : itemOrder
+                                          ? 'Order Confirmed'
+                                          : item.status === 'quoted'
+                                          ? 'Official Quote Ready'
+                                          : 'Brief In Review'}
+                                      </span>
+                                    </span>
+                                  </div>
+
+                                  {/* Active Negotiation Callout Pill if pending */}
+                                  {hasNegotiationPending && (
+                                    <div className="mt-2 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/40 text-amber-300 text-[10px] font-mono flex items-center gap-1.5">
+                                      <BellRing className="w-3 h-3 text-amber-400 animate-pulse shrink-0" />
+                                      <span className="truncate font-semibold">Active Price Negotiation</span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Financial & Action Row */}
+                                <div className="pt-2 border-t border-white/10 space-y-2">
+                                  <div className="flex items-center justify-between text-xs font-mono">
+                                    <div>
+                                      <span className="text-[10px] text-[#C9C2A6] block leading-none">ORDER TOTAL</span>
+                                      <span className="text-xs font-bold text-[#FAF8F3]">
+                                        {itemTotal > 0 ? formatINR(itemTotal) : 'Estimating'}
+                                      </span>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="text-[10px] text-[#C9C2A6] block leading-none">PAYMENT</span>
+                                      <span className={`text-[10px] font-bold ${itemFullyPaid ? 'text-emerald-400' : itemPaid > 0 ? 'text-amber-300' : 'text-slate-400'}`}>
+                                        {itemFullyPaid ? '100% Paid' : itemPaid > 0 ? `${itemPaidPct}% Paid` : 'Pending'}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {itemTotal > 0 && (
+                                    <div className="w-full bg-black/40 rounded-full h-1.5 overflow-hidden border border-white/5">
+                                      <div
+                                        className={`h-full rounded-full transition-all duration-500 ${
+                                          itemFullyPaid ? 'bg-emerald-400' : 'bg-gradient-to-r from-amber-500 to-[#D4AF37]'
+                                        }`}
+                                        style={{ width: `${itemPaidPct}%` }}
+                                      />
+                                    </div>
+                                  )}
+
+                                  {/* Open & Manage Button */}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedCustomReqId(item.id);
+                                      setOpenedOrderId(item.id);
+                                      if (hasNegotiationPending) {
+                                        setActiveStageTab('negotiation');
+                                      } else if (itemOrder && !itemFullyPaid) {
+                                        setActiveStageTab('payments');
+                                      } else {
+                                        setActiveStageTab('all');
+                                      }
+                                    }}
+                                    className="w-full mt-1 py-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-[0_0_12px_rgba(212,175,55,0.3)] hover:brightness-110 transition-all cursor-pointer"
+                                  >
+                                    <Eye className="w-3.5 h-3.5 text-[#070D22]" />
+                                    <span>Open &amp; Manage Order</span>
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      /* VIEW 2: DEDICATED OPENED ORDER WORKSPACE (Zero Endless Scrolling) */
+                      <div className="space-y-6">
+                        {/* STICKY TOP ORDER BAR */}
+                        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[#12204D] via-[#0E1A3D] to-[#0A132C] border-2 border-[#D4AF37]/50 shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => setOpenedOrderId(null)}
+                              className="px-4 py-2 rounded-xl bg-[#09112B] hover:bg-[#14265A] border border-[#D4AF37]/60 text-[#F5E7A3] font-bold text-xs flex items-center gap-2 shadow transition-all cursor-pointer shrink-0"
+                            >
+                              <ArrowLeft className="w-4 h-4 text-[#D4AF37]" />
+                              <span>← Back to All Orders Grid</span>
+                            </button>
+                            <div className="border-l border-white/10 pl-3">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="px-2.5 py-0.5 rounded-lg bg-[#D4AF37] text-[#070D22] text-xs font-mono font-black shadow">
+                                  {order ? `ORDER #${order.id}` : `REQ #${req.id}`}
+                                </span>
+                                {order && (
+                                  <span className="text-xs font-mono font-bold text-[#D4AF37]">
+                                    (REQ #{req.id})
+                                  </span>
+                                )}
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-white/10 text-slate-200">
+                                  {assignedStaff ? 'CAD Production Active' : isOrderConfirmed ? 'Order Confirmed' : req.status === 'quoted' ? 'Official Quote' : 'In Review'}
+                                </span>
+                              </div>
+                              <h3 className="font-serif text-lg sm:text-xl font-bold text-[#FAF8F3] mt-0.5 truncate">
+                                {req.category_name || 'Bespoke Custom Jewellery'}
+                              </h3>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-4 self-end md:self-auto">
+                            <div className="text-right font-mono">
+                              <span className="text-[10px] text-[#C9C2A6] block uppercase leading-none">Order Balance</span>
+                              <span className="text-sm font-bold text-[#F5E7A3]">
+                                {totalVal > 0 ? formatINR(totalVal) : 'Est'} • <span className={isFullyPaid ? 'text-emerald-400' : 'text-amber-300'}>{paidPct}% Paid</span>
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setOpenedOrderId(null)}
+                              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                              title="Close this order view"
+                            >
+                              <X className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* STAGE NAVIGATION BAR (Zero Scrolling) */}
+                        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-mono">
+                          <button
+                            type="button"
+                            onClick={() => setActiveStageTab('all')}
+                            className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
+                              activeStageTab === 'all'
+                                ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] shadow-[0_0_12px_rgba(212,175,55,0.35)]'
+                                : 'bg-[#09112B] border border-white/10 text-[#C9C2A6] hover:text-white hover:border-[#D4AF37]/40'
+                            }`}
+                          >
+                            <Layers className="w-3.5 h-3.5" />
+                            <span>Full Continuous View</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setActiveStageTab('specs')}
+                            className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
+                              activeStageTab === 'specs'
+                                ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] shadow-[0_0_12px_rgba(212,175,55,0.35)]'
+                                : 'bg-[#09112B] border border-white/10 text-[#C9C2A6] hover:text-white hover:border-[#D4AF37]/40'
+                            }`}
+                          >
+                            <Sliders className="w-3.5 h-3.5" />
+                            <span>1. Brief &amp; Specs</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setActiveStageTab('negotiation')}
+                            className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer relative ${
+                              activeStageTab === 'negotiation'
+                                ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] shadow-[0_0_12px_rgba(212,175,55,0.35)]'
+                                : 'bg-[#09112B] border border-white/10 text-[#C9C2A6] hover:text-white hover:border-[#D4AF37]/40'
+                            }`}
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            <span>2. Quote &amp; Negotiation</span>
+                            {(req.status === 'quoted' || req.status === 'negotiating') && (
+                              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setActiveStageTab('payments')}
+                            className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
+                              activeStageTab === 'payments'
+                                ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] shadow-[0_0_12px_rgba(212,175,55,0.35)]'
+                                : 'bg-[#09112B] border border-white/10 text-[#C9C2A6] hover:text-white hover:border-[#D4AF37]/40'
+                            }`}
+                          >
+                            <CreditCard className="w-3.5 h-3.5" />
+                            <span>3. Milestone Payments</span>
+                            {isOrderConfirmed && !isFullyPaid && (
+                              <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setActiveStageTab('preview')}
+                            className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
+                              activeStageTab === 'preview'
+                                ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] shadow-[0_0_12px_rgba(212,175,55,0.35)]'
+                                : 'bg-[#09112B] border border-white/10 text-[#C9C2A6] hover:text-white hover:border-[#D4AF37]/40'
+                            }`}
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>4. 3D Rhino Preview</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setActiveStageTab('deliverables')}
+                            className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
+                              activeStageTab === 'deliverables'
+                                ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] shadow-[0_0_12px_rgba(212,175,55,0.35)]'
+                                : 'bg-[#09112B] border border-white/10 text-[#C9C2A6] hover:text-white hover:border-[#D4AF37]/40'
+                            }`}
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>5. Deliverables (.3DM/.STL)</span>
+                            {isFullyPaid && (
+                              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                            )}
+                          </button>
+                        </div>
+
+                        {/* SELECTED ORDER WORKFLOW CONTAINER */}
+                        <div key={req.id} className="space-y-8 border-b border-[#D4AF37]/20 pb-16">
                     {/* 1. TOP ORDER SUMMARY BAND */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-white/10 pb-6">
                       <div className="space-y-1">
@@ -833,6 +1372,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                     <div className="relative pl-6 sm:pl-10 space-y-10 border-l-2 border-[#D4AF37]/30 ml-4 sm:ml-8 pt-2">
                       
                       {/* NODE 1: REQUEST SUBMITTED */}
+                      {(activeStageTab === 'all' || activeStageTab === 'specs') && (
                       <div className="relative group">
                         <div className="absolute -left-[31px] sm:-left-[47px] top-0 w-6 h-6 rounded-full bg-[#D4AF37] border-4 border-[#070D22] shadow-[0_0_10px_rgba(212,175,55,0.8)] flex items-center justify-center">
                           <CheckCircle2 className="w-3.5 h-3.5 text-[#070D22]" />
@@ -1146,8 +1686,10 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                           </div>
                         </div>
                       </div>
+                      )}
 
                       {/* NODE 2: OFFICIAL QUOTE & NEGOTIATION */}
+                      {(activeStageTab === 'all' || activeStageTab === 'negotiation') && (
                       <div className="relative group">
                         <div className={`absolute -left-[31px] sm:-left-[47px] top-0 w-6 h-6 rounded-full border-4 border-[#070D22] flex items-center justify-center ${
                           req.status === 'quoted' || req.status === 'negotiating' || req.status === 'agreed' || order
@@ -1398,8 +1940,10 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                           );
                         })()}
                       </div>
+                      )}
 
                       {/* NODE 3: MULTI-STAGE PAYMENT SCHEDULE TABLE */}
+                      {(activeStageTab === 'all' || activeStageTab === 'payments') && (
                       <div className="relative group">
                         <div className={`absolute -left-[31px] sm:-left-[47px] top-0 w-6 h-6 rounded-full border-4 border-[#070D22] flex items-center justify-center ${
                           paidVal > 0
@@ -1771,8 +2315,10 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                           </div>
                         </div>
                       </div>
+                      )}
 
                       {/* NODE 4: DESIGN PREVIEW & APPROVAL */}
+                      {(activeStageTab === 'all' || activeStageTab === 'preview') && (
                       <div className="relative group">
                         <div className={`absolute -left-[31px] sm:-left-[47px] top-0 w-6 h-6 rounded-full border-4 border-[#070D22] flex items-center justify-center ${
                           order?.preview_image || order?.milestones?.some((m: any) => m.stage.includes('Approved'))
@@ -2018,8 +2564,10 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                           )}
                         </div>
                       </div>
+                      )}
 
                       {/* NODE 5: DELIVERABLES & FINAL SOURCE FILES */}
+                      {(activeStageTab === 'all' || activeStageTab === 'deliverables') && (
                       <div className="relative group">
                         <div className={`absolute -left-[31px] sm:-left-[47px] top-0 w-6 h-6 rounded-full border-4 border-[#070D22] flex items-center justify-center ${
                           isFullyPaid && (order?.download_enabled_by_admin || order?.can_download)
@@ -2153,12 +2701,30 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                           )}
                         </div>
                       </div>
+                      )}
 
                     </div>
+
+                    {/* Bottom Navigation within Workspace */}
+                    <div className="pt-6 border-t border-white/10 flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => setOpenedOrderId(null)}
+                        className="px-4 py-2 rounded-xl bg-[#12204D] border border-[#D4AF37]/50 text-[#F5E7A3] hover:text-white font-bold text-xs flex items-center gap-2 transition-all cursor-pointer"
+                      >
+                        <ArrowLeft className="w-4 h-4 text-[#D4AF37]" />
+                        <span>← Back to All Orders Grid</span>
+                      </button>
+                      <span className="text-xs font-mono text-[#C9C2A6]">
+                        {order ? `ORDER #${order.id}` : `REQ #${req.id}`} • {req.category_name}
+                      </span>
+                    </div>
                   </div>
-                );
-              })
-            )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
           </div>
         )}
 
@@ -2421,7 +2987,17 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                         </td>
                         <td className="p-4 text-right">
                           <button
-                            onClick={() => setActiveTab('custom')}
+                            onClick={() => {
+                              if (ord.custom_request?.id) {
+                                setSelectedCustomReqId(ord.custom_request.id);
+                              } else if (ord.custom_request && typeof ord.custom_request === 'number') {
+                                setSelectedCustomReqId(ord.custom_request);
+                              } else {
+                                const matched = customRequests.find((r: any) => r.order?.id === ord.id || String(r.id) === String(ord.custom_request));
+                                if (matched) setSelectedCustomReqId(matched.id);
+                              }
+                              setActiveTab('custom');
+                            }}
                             className="px-3 py-1.5 rounded-xl border border-[#D4AF37]/40 text-[#F5E7A3] text-xs hover:bg-[#D4AF37]/20 transition-colors inline-flex items-center gap-1"
                           >
                             <Eye className="w-3.5 h-3.5 text-[#D4AF37]" />
@@ -2443,10 +3019,10 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
             {wishlistedProducts.map((prod) => (
               <div key={prod.id} className="p-4 rounded-3xl bg-[#09112B] border border-[#D4AF37]/30 space-y-3 flex flex-col justify-between">
                 <div className="space-y-2">
-                  <img src={prod.primaryImage} alt={prod.title} className="w-full aspect-square rounded-2xl object-cover" />
+                  <img src={prod.primaryImage} alt={prod.title} className="w-full aspect-square rounded-2xl object-contain p-2 bg-[#060D24]" />
                   <h4 className="font-serif font-bold text-[#FAF8F3] text-sm leading-snug">{prod.title}</h4>
                   <div className="font-serif text-base text-[#F5E7A3] font-bold">
-                    ₹{Math.round(prod.price * 84).toLocaleString('en-IN')} INR <span className="text-xs text-[#C9C2A6] font-normal font-sans">(${prod.price} USD)</span>
+                    ₹{Math.round(prod.price * 84).toLocaleString('en-IN')}
                   </div>
                 </div>
                 <button onClick={() => onAddToCart(prod, 'standard')} className="btn-gold-luxury w-full py-2.5 rounded-xl text-xs font-bold uppercase flex items-center justify-center gap-1.5 shadow-md">

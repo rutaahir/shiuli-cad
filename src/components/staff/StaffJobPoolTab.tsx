@@ -193,6 +193,21 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
                     )}
                   </div>
 
+                  {/* Staff Payout Price Display (After Admin Commission Deducted) */}
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-[#09112B] to-[#12204D] text-[#FAF8F3] border border-[#D4AF37]/40 shadow-sm">
+                    <div>
+                      <span className="text-[10px] font-mono uppercase font-bold text-[#F5E7A3] flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-[#D4AF37]" /> Modeller Payout
+                      </span>
+                      <span className="text-[10px] text-slate-300 font-mono">Net Earnings</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-base font-mono font-bold text-[#F5E7A3] tracking-tight">
+                        {job.agreedPayout > 0 ? `₹${job.agreedPayout.toLocaleString('en-IN')}` : '₹—'}
+                      </span>
+                    </div>
+                  </div>
+
                   <div className="text-[11px] text-[#C9A227] font-semibold flex items-center justify-between pt-1">
                     <span className="flex items-center gap-1">
                       <Eye className="w-3.5 h-3.5" />
@@ -231,7 +246,7 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
                     ) : (
                       <>
                         <Zap className="w-4 h-4 fill-[#0B1330]" />
-                        <span>Accept This Job</span>
+                        <span>Accept This Job {job.agreedPayout > 0 ? `• ₹${job.agreedPayout.toLocaleString('en-IN')}` : ''}</span>
                       </>
                     )}
                   </button>
@@ -270,12 +285,21 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
               </button>
             </div>
 
-            {/* Privacy Shield Notice */}
-            <div className="p-3.5 rounded-xl bg-[#070D22] border border-[#D4AF37]/20 flex items-center gap-2.5 text-xs text-[#C9C2A6]">
-              <ShieldAlert className="w-4 h-4 text-[#D4AF37] shrink-0" />
-              <span>
-                <strong>Atelier Privacy Protocol:</strong> Commercial quotation values are strictly isolated between Admin and Client. Technical parameters and design assets are fully exposed for CAD engineering below.
-              </span>
+            {/* Modeller Payout Banner */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-[#0C1536] to-[#12204E] border border-[#D4AF37]/50 flex items-center justify-between shadow-lg">
+              <div>
+                <span className="text-xs font-mono uppercase font-bold text-[#F5E7A3] flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-[#D4AF37]" /> Modeller Commission Payout
+                </span>
+                <p className="text-[11px] text-slate-300 font-mono mt-0.5">
+                  Guaranteed net payout credited upon final watertight CAD approval
+                </p>
+              </div>
+              <div className="text-right">
+                <span className="text-2xl font-mono font-bold text-[#F5E7A3]">
+                  {selectedJobDrawer.agreedPayout > 0 ? `₹${selectedJobDrawer.agreedPayout.toLocaleString('en-IN')}` : '₹—'}
+                </span>
+              </div>
             </div>
 
             {/* Primary Visual Preview */}
@@ -556,7 +580,7 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
                 ) : (
                   <>
                     <Zap className="w-4 h-4 fill-[#0B1330]" />
-                    <span>Accept Commission &amp; Move to Workbench</span>
+                    <span>Accept Commission {selectedJobDrawer.agreedPayout > 0 ? `(₹${selectedJobDrawer.agreedPayout.toLocaleString('en-IN')})` : ''} &amp; Move to Workbench</span>
                   </>
                 )}
               </button>

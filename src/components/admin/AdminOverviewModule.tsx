@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { StaffMember, AdminModuleId, ActivityLogItem } from '../../types';
 import { api } from '../../services/api';
+import { getOptimizedImageUrl } from '../../utils/imageHelper';
 import {
   TrendingUp,
   Clock,
@@ -78,7 +79,7 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
     else setLoading(true);
 
     try {
-      await api.ensureAdminToken().catch(() => {});
+      try { api.ensureAdminToken(); } catch {}
 
       const [ordersRes, customReqsRes, analyticsRes, appsRes] = await Promise.allSettled([
         api.request<any>('/orders/'),
@@ -96,7 +97,7 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
 
       // 2. Process Custom Requests
       if (customReqsRes.status === 'fulfilled') {
-        const raw = customReqsRes.value;
+        const raw = customReqsRes.value as any;
         const arr = Array.isArray(raw) ? raw : (raw?.results || raw?.data || []);
         setCustomRequests(arr);
       }
@@ -215,7 +216,7 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
     setAssignError(null);
 
     try {
-      await api.ensureAdminToken().catch(() => {});
+      try { api.ensureAdminToken(); } catch {}
       const res = await api.request<any>(`/orders/${assignModalOrder.id}/reassign/`, {
         method: 'POST',
         body: JSON.stringify({ staff_id: selectedModellerId }),
@@ -475,8 +476,11 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
                       <td className="py-3 pr-2">
                         <div className="flex items-center gap-2.5">
                           <img
-                            src={staff.avatar}
+                            src={getOptimizedImageUrl(staff.avatar)}
                             alt={staff.name}
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80';
+                            }}
                             className="w-8 h-8 rounded-full object-cover border border-[#E5E7EF]"
                           />
                           <div>
@@ -832,8 +836,11 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
 
             <div className="flex items-center gap-3">
               <img
-                src={selectedStaffDrawer.avatar}
-                alt=""
+                src={getOptimizedImageUrl(selectedStaffDrawer.avatar)}
+                alt={selectedStaffDrawer.name}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80';
+                }}
                 className="w-14 h-14 rounded-full object-cover border-2 border-[#C9A227]"
               />
               <div>
@@ -989,8 +996,11 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
                   >
                     <div className="flex items-center gap-3">
                       <img
-                        src={staff.avatar}
-                        alt=""
+                        src={getOptimizedImageUrl(staff.avatar)}
+                        alt={staff.name}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80';
+                        }}
                         className="w-10 h-10 rounded-full object-cover border border-slate-200"
                       />
                       <div>

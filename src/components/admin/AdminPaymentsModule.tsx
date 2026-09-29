@@ -947,7 +947,12 @@ export const AdminPaymentsModule: React.FC = () => {
                     type="date"
                     value={settleDate}
                     onChange={(e) => setSettleDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono focus:border-[#0D1B4C]"
+                    onClick={(e) => {
+                      try {
+                        (e.currentTarget as any).showPicker?.();
+                      } catch {}
+                    }}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono focus:border-[#0D1B4C] cursor-pointer"
                   />
                 </div>
               </div>

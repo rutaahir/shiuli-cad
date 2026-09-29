@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Product, PageId } from '../types';
 import { X, Check, ShoppingBag, Heart, ExternalLink, ShieldCheck, Sparkles } from 'lucide-react';
 import { getOptimizedImageUrl, handleImgError } from '../utils/imageHelper';
+import { formatINR } from '../utils/currencyHelper';
 
 interface QuickViewModalProps {
   product: Product | null;
@@ -56,7 +57,7 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
                 alt={product.title}
                 onError={(e) => handleImgError(e, product.category)}
                 referrerPolicy="no-referrer"
-                className="w-full h-full object-cover transition-all duration-300"
+                className="w-full h-full object-contain p-4 drop-shadow-[0_12px_24px_rgba(0,0,0,0.8)] transition-all duration-300"
               />
               <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-[#0B1330]/80 backdrop-blur text-[10px] text-[#F5E7A3] border border-[#D4AF37]/30 font-semibold tracking-wider uppercase">
                 {product.category}
@@ -101,11 +102,11 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
 
               <div className="flex items-baseline gap-3">
                 <span className="text-2xl font-serif text-[#F5E7A3] font-bold">
-                  ₹{Math.round(currentPrice * 84).toLocaleString('en-IN')} <span className="text-xs font-sans text-[#C9C2A6] font-normal">(${currentPrice.toFixed(0)} USD)</span>
+                  ₹{formatINR(currentPrice)}
                 </span>
                 {product.originalPrice && (
                   <span className="text-sm text-[#C9C2A6] line-through">
-                    ₹{Math.round(product.originalPrice * (selectedLicense === 'commercial' ? 1.8 : 1) * 84).toLocaleString('en-IN')}
+                    ₹{formatINR(product.originalPrice * (selectedLicense === 'commercial' ? 1.8 : 1))}
                   </span>
                 )}
                 <span className="text-[11px] text-[#C9C2A6]">
@@ -180,7 +181,7 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
                   className="btn-gold-luxury flex-1 py-3 rounded-xl font-medium tracking-wider uppercase text-xs flex items-center justify-center gap-2"
                 >
                   <ShoppingBag className="w-4 h-4 text-[#0B1330]" />
-                  Add To CAD Bag (${currentPrice.toFixed(0)})
+                  Add To CAD Bag (₹{formatINR(currentPrice)})
                 </button>
                 <button
                   onClick={() => onToggleWishlist(product)}

@@ -60,6 +60,7 @@ class PlatformSettingsSerializer(serializers.ModelSerializer):
 
 class StaffListSerializer(serializers.ModelSerializer):
     profile_id = serializers.IntegerField(source='staff_profile.id', read_only=True, default=None, allow_null=True)
+    profile_photo = serializers.SerializerMethodField()
     max_concurrent_jobs = serializers.IntegerField(source='staff_profile.max_concurrent_jobs', read_only=True, default=2)
     specialty_tags = serializers.CharField(source='staff_profile.specialty_tags', read_only=True, default='')
     bio = serializers.CharField(source='staff_profile.bio', read_only=True, default='')
@@ -72,10 +73,21 @@ class StaffListSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name', 'phone_number',
-            'is_active', 'is_active_staff', 'profile_id', 'max_concurrent_jobs',
+            'profile_photo', 'is_active', 'is_active_staff', 'profile_id', 'max_concurrent_jobs',
             'specialty_tags', 'bio', 'rating_average', 'total_jobs_completed',
             'current_load', 'active_jobs'
         ]
+
+    def get_profile_photo(self, obj):
+        if obj.profile_photo:
+            try:
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(obj.profile_photo.url)
+                return obj.profile_photo.url
+            except Exception:
+                return str(obj.profile_photo)
+        return None
 
     def get_current_load(self, obj):
         return Order.objects.filter(

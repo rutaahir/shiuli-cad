@@ -40,7 +40,8 @@ class DesignStyle(models.Model):
 from django.core.files.storage import FileSystemStorage
 
 protected_cad_storage = FileSystemStorage(
-    location=getattr(settings, 'PROTECTED_MEDIA_ROOT', settings.BASE_DIR / 'protected_media')
+    location=getattr(settings, 'PROTECTED_MEDIA_ROOT', settings.BASE_DIR / 'protected_media'),
+    base_url='/protected_media/'
 )
 
 class Product(models.Model):
@@ -133,9 +134,12 @@ class ProductImage(models.Model):
 
 
 def product_file_upload_to(instance, filename):
-    if instance.file_type in [ProductFile.FileType.FILE_3DM, ProductFile.FileType.STL]:
-        return f"cad/{filename}"
-    return f"products/previews/{filename}"
+    import os
+    # Sanitize filename to prevent directory traversal
+    safe_name = os.path.basename(filename).replace(' ', '_')
+    if instance.file_type in [ProductFile.FileType.FILE_3DM, ProductFile.FileType.STL, ProductFile.FileType.ZIP]:
+        return f"cad/{instance.file_type}/{safe_name}"
+    return f"products/previews/{safe_name}"
 
 
 class ProductFile(models.Model):
@@ -144,11 +148,25 @@ class ProductFile(models.Model):
         STL = "stl", "STL"
         RENDER = "render", "Render Image"
         VIDEO = "video", "360 Video"
+        ZIP = "zip", "ZIP Archive (all CAD files)"
 
     product = models.ForeignKey(Product, related_name="files", on_delete=models.CASCADE)
     file_type = models.CharField(max_length=10, choices=FileType.choices)
     file = models.FileField(upload_to=product_file_upload_to, storage=protected_cad_storage)
+    original_filename = models.CharField(max_length=500, blank=True, default='')
+    file_size_bytes = models.PositiveBigIntegerField(null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.product.title} - {self.get_file_type_display()}"
 
+    def save(self, *args, **kwargs):
+        if self.file and not self.original_filename:
+            import os
+            self.original_filename = os.path.basename(self.file.name)
+        if self.file and not self.file_size_bytes:
+            try:
+                self.file_size_bytes = self.file.size
+            except Exception:
+                pass
+        super().save(*args, **kwargs)

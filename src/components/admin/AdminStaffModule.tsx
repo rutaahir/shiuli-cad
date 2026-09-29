@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StaffMember } from '../../types';
 import { api } from '../../services/api';
 import { appStore } from '../../services/store';
+import { getOptimizedImageUrl } from '../../utils/imageHelper';
 import { AdminDesignerApplicationsSection } from './AdminDesignerApplicationsSection';
 import {
   Users,
@@ -140,31 +141,52 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
     }
   }, [initialStaffList]);
 
+  // Real-time synchronization when staff updates profile photo or details
+  useEffect(() => {
+    const handleStaffSync = (e: any) => {
+      const updatedList = e?.detail || appStore.getStaffList();
+      if (Array.isArray(updatedList) && updatedList.length > 0) {
+        setStaffMembers(updatedList);
+      }
+    };
+    window.addEventListener('shiuli_staff_updated', handleStaffSync);
+    window.addEventListener('storage', handleStaffSync);
+    return () => {
+      window.removeEventListener('shiuli_staff_updated', handleStaffSync);
+      window.removeEventListener('storage', handleStaffSync);
+    };
+  }, []);
+
   // Fetch Live Staff List from Backend on Mount
   const fetchStaffList = async () => {
     try {
       const data: any = await api.getStaffList();
       const rawList = Array.isArray(data) ? data : (data?.results || []);
+      const stored = appStore.getStaffList();
       if (rawList.length > 0) {
-        const mapped: StaffMember[] = rawList.map((item: any) => ({
-          id: item.id.toString(),
-          name: `${item.first_name || ''} ${item.last_name || ''}`.trim() || item.username,
-          email: item.email,
-          phone: item.phone_number || '+91 98765 00000',
-          avatar: item.profile_photo || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
-          role: item.specialty_tags || 'CAD Modeller',
-          status: item.is_active_staff ? 'active' : 'inactive',
-          maxJobLimit: item.max_concurrent_jobs || 2,
-          currentLoad: item.current_load || 0,
-          jobsCompleted: item.total_jobs_completed || 0,
-          rating: item.rating_average ? parseFloat(item.rating_average) : 5.0,
-          totalEarnings: 0,
-          activeJobs: item.active_jobs || [],
-        }));
+        const mapped: StaffMember[] = rawList.map((item: any) => {
+          const localMatch = stored.find(
+            (s) => s.id === item.id?.toString() || (s.email && s.email.toLowerCase() === item.email?.toLowerCase())
+          );
+          return {
+            id: item.id.toString(),
+            name: `${item.first_name || ''} ${item.last_name || ''}`.trim() || item.username,
+            email: item.email,
+            phone: item.phone_number || '+91 98765 00000',
+            avatar: item.profile_photo || localMatch?.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
+            role: item.specialty_tags || 'CAD Modeller',
+            status: item.is_active_staff ? 'active' : 'inactive',
+            maxJobLimit: item.max_concurrent_jobs || 2,
+            currentLoad: item.current_load || 0,
+            jobsCompleted: item.total_jobs_completed || 0,
+            rating: item.rating_average ? parseFloat(item.rating_average) : 5.0,
+            totalEarnings: 0,
+            activeJobs: item.active_jobs || [],
+          };
+        });
         setStaffMembers(mapped);
         appStore.saveStaffList(mapped);
       } else {
-        const stored = appStore.getStaffList();
         if (stored.length > 0) {
           setStaffMembers(stored);
         }
@@ -600,8 +622,11 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <img
-                          src={staff.avatar}
-                          alt=""
+                          src={getOptimizedImageUrl(staff.avatar)}
+                          alt={staff.name}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80';
+                          }}
                           className="w-10 h-10 rounded-full object-cover border-2 border-[#0D1B4C]"
                         />
                         <div>
@@ -733,8 +758,11 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
                         <img
-                          src={staff.avatar}
-                          alt=""
+                          src={getOptimizedImageUrl(staff.avatar)}
+                          alt={staff.name}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80';
+                          }}
                           className="w-9 h-9 rounded-full object-cover border border-[#E5E7EF]"
                         />
                         <div>
@@ -1049,8 +1077,11 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
             <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-4">
               <div className="flex items-center gap-3">
                 <img
-                  src={selectedStaffForJobs.avatar}
-                  alt=""
+                  src={getOptimizedImageUrl(selectedStaffForJobs.avatar)}
+                  alt={selectedStaffForJobs.name}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80';
+                  }}
                   className="w-11 h-11 rounded-full object-cover border-2 border-[#0D1B4C]"
                 />
                 <div>

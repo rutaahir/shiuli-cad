@@ -7,6 +7,7 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from apps.core.permissions import IsStaff, IsAdmin, IsStaffOrAdmin
 from .models import Category, DesignStyle, Product, ProductFile, ProductImage
@@ -24,12 +25,13 @@ from .serializers import (
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 20
     page_size_query_param = 'page_size'
-    max_page_size = 100
+    max_page_size = 1000
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
     pagination_class = None  # Always return a plain array, not paginated response
     throttle_classes = []
 
@@ -88,6 +90,7 @@ class DesignStyleViewSet(viewsets.ModelViewSet):
 class ProductViewSet(viewsets.ModelViewSet):
     lookup_field = 'slug'
     pagination_class = StandardResultsSetPagination
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
 
     def get_throttles(self):
         if self.action in ['list', 'retrieve']:
@@ -176,50 +179,78 @@ class ProductViewSet(viewsets.ModelViewSet):
             return queryset.filter(uploaded_by=user).order_by('-created_at')
 
         # Public list only shows APPROVED and ACTIVE products unless admin
+        is_admin = user.is_authenticated and (getattr(user, 'role', '') == 'admin' or getattr(user, 'is_superuser', False))
+
         if self.action == 'list':
             status_param = self.request.query_params.get('status')
-            if status_param:
+            if is_admin and status_param:
                 queryset = queryset.filter(status__iexact=status_param)
-            elif not user.is_authenticated or user.role == 'client' or (user.role == 'staff' and scope != 'mine'):
-                # Customers and public storefront browse active approved products
+            elif not is_admin:
+                # Public storefront, clients, and staff browsing catalog ONLY see APPROVED and ACTIVE products!
                 queryset = queryset.filter(status=Product.Status.APPROVED, is_active=True)
+        elif self.action == 'retrieve':
+            if not is_admin:
+                if user.is_authenticated and getattr(user, 'role', '') == 'staff':
+                    # Staff can retrieve approved products or their own uploaded design preview
+                    queryset = queryset.filter(Q(status=Product.Status.APPROVED, is_active=True) | Q(uploaded_by=user))
+                else:
+                    # Public storefront can ONLY retrieve approved products!
+                    queryset = queryset.filter(status=Product.Status.APPROVED, is_active=True)
 
-            # Filters
-            category_slug = self.request.query_params.get('category')
-            if category_slug:
+        # Filters (applied across both list and retrieve queries)
+        category_param = self.request.query_params.get('category')
+        if category_param:
+            cat_str = str(category_param).strip()
+            if cat_str.isdigit():
+                cat_id = int(cat_str)
                 queryset = queryset.filter(
-                    Q(category__slug=category_slug) | Q(category__parent__slug=category_slug)
+                    Q(category__id=cat_id) | Q(category__parent__id=cat_id)
+                )
+            else:
+                queryset = queryset.filter(
+                    Q(category__slug__iexact=cat_str) | Q(category__parent__slug__iexact=cat_str) |
+                    Q(category__name__iexact=cat_str) | Q(category__parent__name__iexact=cat_str)
                 )
 
-            style = self.request.query_params.get('style')
-            if style:
+        style = self.request.query_params.get('style')
+        if style:
+            if str(style).isdigit():
+                queryset = queryset.filter(style_tags__id=int(style))
+            else:
                 queryset = queryset.filter(style_tags__name__iexact=style)
 
-            min_price = self.request.query_params.get('min_price')
-            if min_price:
-                queryset = queryset.filter(price__gte=min_price)
+        min_price = self.request.query_params.get('min_price')
+        if min_price:
+            try:
+                queryset = queryset.filter(price__gte=float(min_price))
+            except ValueError:
+                pass
 
-            max_price = self.request.query_params.get('max_price')
-            if max_price:
-                queryset = queryset.filter(price__lte=max_price)
+        max_price = self.request.query_params.get('max_price')
+        if max_price:
+            try:
+                queryset = queryset.filter(price__lte=float(max_price))
+            except ValueError:
+                pass
 
-            search = self.request.query_params.get('search')
-            if search:
-                queryset = queryset.filter(
-                    Q(title__icontains=search) | Q(description__icontains=search)
-                )
+        search = self.request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search) | Q(description__icontains=search) |
+                Q(category__name__icontains=search) | Q(category__parent__name__icontains=search)
+            )
 
-            is_bestseller = self.request.query_params.get('is_bestseller')
-            if is_bestseller:
-                queryset = queryset.filter(is_bestseller=is_bestseller.lower() == 'true')
+        is_bestseller = self.request.query_params.get('is_bestseller')
+        if is_bestseller:
+            queryset = queryset.filter(is_bestseller=is_bestseller.lower() == 'true')
 
-            is_new = self.request.query_params.get('is_new')
-            if is_new:
-                queryset = queryset.filter(is_new=is_new.lower() == 'true')
+        is_new = self.request.query_params.get('is_new')
+        if is_new:
+            queryset = queryset.filter(is_new=is_new.lower() == 'true')
 
-            featured = self.request.query_params.get('featured') or self.request.query_params.get('is_featured')
-            if featured:
-                queryset = queryset.filter(is_featured=featured.lower() == 'true')
+        featured = self.request.query_params.get('featured') or self.request.query_params.get('is_featured')
+        if featured:
+            queryset = queryset.filter(is_featured=featured.lower() == 'true')
 
         return queryset.order_by('-created_at')
 
@@ -251,17 +282,57 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user if self.request.user.is_authenticated else None
-        if user and (getattr(user, 'role', '') in ['admin', 'staff'] or getattr(user, 'is_superuser', False) or getattr(user, 'is_staff', False)):
+        is_admin_user = user and (getattr(user, 'role', '') == 'admin' or getattr(user, 'is_superuser', False))
+
+        if is_admin_user:
             serializer.save(uploaded_by=user, status=Product.Status.APPROVED, approved_at=timezone.now())
         else:
-            serializer.save(uploaded_by=user, status=Product.Status.PENDING)
+            # Staff-submitted products MUST first go for verification to the admin!
+            product = serializer.save(uploaded_by=user, status=Product.Status.PENDING, approved_at=None)
+            try:
+                from apps.accounts.models import User
+                from apps.custom_orders.services import create_notification
+                admin_users = User.objects.filter(Q(role='admin') | Q(is_superuser=True))
+                staff_name = user.get_full_name() or user.username if user else "Staff Designer"
+                for admin in admin_users:
+                    create_notification(
+                        recipient=admin,
+                        title="New Staff Design Awaiting Verification",
+                        body=f"{staff_name} submitted new design '{product.title}' for verification.",
+                        notification_type="system"
+                    )
+            except Exception:
+                pass
+
+    def perform_update(self, serializer):
+        user = self.request.user if self.request.user.is_authenticated else None
+        is_admin_user = user and (getattr(user, 'role', '') == 'admin' or getattr(user, 'is_superuser', False))
+
+        if is_admin_user:
+            serializer.save()
+        else:
+            # When staff updates an existing design, it goes back for admin re-verification
+            product = serializer.save(status=Product.Status.PENDING, approved_at=None)
+            try:
+                from apps.accounts.models import User
+                from apps.custom_orders.services import create_notification
+                admin_users = User.objects.filter(Q(role='admin') | Q(is_superuser=True))
+                staff_name = user.get_full_name() or user.username if user else "Staff Designer"
+                for admin in admin_users:
+                    create_notification(
+                        recipient=admin,
+                        title="Staff Design Updated - Needs Re-verification",
+                        body=f"{staff_name} updated design '{product.title}'. Needs admin review.",
+                        notification_type="system"
+                    )
+            except Exception:
+                pass
 
     @action(detail=False, methods=['get'], permission_classes=[IsAdmin])
     def pending(self, request):
-        # Only staff-submitted products awaiting approval show up in the Design Approvals queue
+        # All products awaiting approval show up in the Design Approvals queue
         pending_products = Product.objects.filter(
-            status=Product.Status.PENDING,
-            uploaded_by__role='staff'
+            status=Product.Status.PENDING
         ).order_by('-created_at')
         page = self.paginate_queryset(pending_products)
         if page is not None:
@@ -276,8 +347,23 @@ class ProductViewSet(viewsets.ModelViewSet):
         product.status = Product.Status.APPROVED
         product.approved_at = timezone.now()
         product.rejection_reason = ""
-        product.save()
-        return Response({"message": f"Product '{product.title}' has been approved.", "status": product.status})
+        product.is_active = True
+        product.save(update_fields=['status', 'approved_at', 'rejection_reason', 'is_active'])
+
+        # Notify the staff designer who uploaded it
+        if product.uploaded_by:
+            try:
+                from apps.custom_orders.services import create_notification
+                create_notification(
+                    recipient=product.uploaded_by,
+                    title="Design Approved by Admin!",
+                    body=f"Super Admin verified and approved '{product.title}'. It is now live on the public storefront.",
+                    notification_type="system"
+                )
+            except Exception:
+                pass
+
+        return Response({"message": f"Product '{product.title}' has been approved and published to store.", "status": product.status})
 
     @action(detail=True, methods=['post'], permission_classes=[IsAdmin], url_path='reject')
     def reject(self, request, slug=None):
@@ -288,10 +374,25 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         product.status = Product.Status.REJECTED
         product.rejection_reason = reason
-        product.save()
+        product.is_active = False
+        product.save(update_fields=['status', 'rejection_reason', 'is_active'])
+
+        # Notify the staff designer who uploaded it
+        if product.uploaded_by:
+            try:
+                from apps.custom_orders.services import create_notification
+                create_notification(
+                    recipient=product.uploaded_by,
+                    title="Design Verification: Revisions Needed",
+                    body=f"Admin requested revisions for '{product.title}': {reason}",
+                    notification_type="system"
+                )
+            except Exception:
+                pass
+
         return Response({"message": f"Product '{product.title}' has been rejected.", "status": product.status, "reason": reason})
 
-    @action(detail=True, methods=['post'], permission_classes=[IsStaffOrAdmin], url_path='upload-image')
+    @action(detail=True, methods=['post'], permission_classes=[IsStaffOrAdmin], parser_classes=[MultiPartParser, FormParser], url_path='upload-image')
     def upload_image(self, request, slug=None):
         product = self.get_object()
         image_file = request.FILES.get('image')
@@ -313,23 +414,58 @@ class ProductViewSet(viewsets.ModelViewSet):
         serializer = ProductImageSerializer(img, context={'request': request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsStaffOrAdmin], url_path='upload-file')
+    @action(detail=True, methods=['post'], permission_classes=[IsStaffOrAdmin], parser_classes=[MultiPartParser, FormParser], url_path='upload-file')
     def upload_file(self, request, slug=None):
         product = self.get_object()
         file_obj = request.FILES.get('file')
-        file_type = request.data.get('file_type')
+        file_type = request.data.get('file_type', '').strip().lower()
 
-        if not file_obj or not file_type:
-            return Response({"error": "Both file and file_type are required."}, status=status.HTTP_400_BAD_REQUEST)
+        if not file_obj:
+            return Response({"error": "No file provided."}, status=status.HTTP_400_BAD_REQUEST)
+        if not file_type:
+            return Response({"error": "file_type is required. Valid choices: 3dm, stl, render, video, zip."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if file_type not in [choice[0] for choice in ProductFile.FileType.choices]:
-            return Response({"error": f"Invalid file_type '{file_type}'. Valid choices: 3dm, stl, render, video."}, status=status.HTTP_400_BAD_REQUEST)
+        valid_types = [choice[0] for choice in ProductFile.FileType.choices]
+        if file_type not in valid_types:
+            return Response(
+                {"error": f"Invalid file_type '{file_type}'. Valid choices: {', '.join(valid_types)}."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        pf = ProductFile.objects.create(
+        # Extension validation per file type
+        import os
+        ext = os.path.splitext(file_obj.name)[1].lower()
+        allowed_extensions = {
+            '3dm': ['.3dm'],
+            'stl': ['.stl'],
+            'render': ['.jpg', '.jpeg', '.png', '.webp', '.tiff', '.bmp'],
+            'video': ['.mp4', '.mov', '.webm', '.avi', '.mkv'],
+            'zip': ['.zip', '.7z', '.tar', '.gz', '.rar'],
+        }
+        if ext not in allowed_extensions.get(file_type, []):
+            return Response(
+                {"error": f"Invalid file extension '{ext}' for type '{file_type}'. Allowed: {', '.join(allowed_extensions.get(file_type, []))}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Replace existing file of same type (keep DB clean - only 1 file per type per product)
+        existing = product.files.filter(file_type=file_type).first()
+        if existing:
+            try:
+                existing.file.delete(save=False)
+                existing.delete()
+            except Exception:
+                pass
+
+        pf = ProductFile(
             product=product,
-            file=file_obj,
-            file_type=file_type
+            file_type=file_type,
+            original_filename=file_obj.name,
+            file_size_bytes=file_obj.size,
         )
+        pf.file = file_obj
+        pf.save()
+
         serializer = ProductFileSerializer(pf, context={'request': request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 

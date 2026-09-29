@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../services/api';
 import { appStore } from '../../services/store';
 import {
@@ -15,6 +15,10 @@ import {
   Search,
   RefreshCw,
   Phone,
+  PhoneCall,
+  Save,
+  Lock,
+  StickyNote,
   Eye,
   X,
   ArrowLeft,
@@ -34,8 +38,11 @@ import {
   Volume2,
   Mic,
   ShoppingBag,
-  ExternalLink
+  ExternalLink,
+  Bell,
+  BellRing
 } from 'lucide-react';
+import { triggerNegotiationAlert } from '../../utils/negotiationNotificationHelper';
 
 interface CustomRequestItem {
   id: number;
@@ -73,6 +80,7 @@ interface CustomRequestItem {
   logo_file?: string;
   delivery_speed_name?: string;
   client_consent_to_feature?: boolean;
+  admin_call_notes?: string;
 
   // Quick Request Details
   voice_recording?: string;
@@ -122,14 +130,27 @@ export const AdminCustomRequestsModule: React.FC = () => {
   const [quoteInput, setQuoteInput] = useState<number | ''>('');
   const [textMessageInput, setTextMessageInput] = useState<string>('');
   const [isSending, setIsSending] = useState(false);
+  const [adminNotesDraft, setAdminNotesDraft] = useState<string>('');
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const [notesSaveStatus, setNotesSaveStatus] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'new' | 'negotiating' | 'agreed'>('all');
   const [modeTab, setModeTab] = useState<'all' | 'quick' | 'step_by_step'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [mobileViewDetail, setMobileViewDetail] = useState(false);
+  const [adminNegotiationAlert, setAdminNegotiationAlert] = useState<{
+    reqId: number;
+    clientName: string;
+    offeredPrice?: number;
+    message?: string;
+  } | null>(null);
+  const lastClientMsgIdRef = useRef<{ [reqId: number]: number }>({});
+  const initialAdminFetchRef = useRef<boolean>(false);
 
-  const fetchRequests = async () => {
-    setLoading(true);
+  const fetchRequests = async (isBackground = false) => {
+    if (!isBackground) {
+      setLoading(true);
+    }
     try {
       await api.ensureAdminToken();
       let dbRequests: CustomRequestItem[] = [];
@@ -168,6 +189,7 @@ export const AdminCustomRequestsModule: React.FC = () => {
             description: loc.description || 'Bespoke CAD Design Brief',
             reference_image: loc.referenceImage || loc.reference_image,
             voice_recording_url: loc.voice_recording_url || '',
+            admin_call_notes: loc.admin_call_notes || '',
             created_at: loc.createdAt || new Date().toISOString(),
             messages: (loc.messages || []).map((m: any, idx: number) => ({
               id: idx + 1,
@@ -180,6 +202,39 @@ export const AdminCustomRequestsModule: React.FC = () => {
         }
       });
 
+      // Check for incoming client negotiation messages or counter-offers
+      combined.forEach((r) => {
+        const clientMsgs = (r.messages || []).filter((m: any) => m.sender_type === 'client' || m.sender === 'client');
+        const latestClientMsg = clientMsgs[clientMsgs.length - 1];
+        if (latestClientMsg && latestClientMsg.id) {
+          if (initialAdminFetchRef.current) {
+            const prevId = lastClientMsgIdRef.current[r.id] || 0;
+            if (latestClientMsg.id > prevId) {
+              lastClientMsgIdRef.current[r.id] = latestClientMsg.id;
+              const offerTxt = latestClientMsg.offered_price ? ` (Client Offer: ₹${Number(latestClientMsg.offered_price).toLocaleString('en-IN')})` : '';
+
+              triggerNegotiationAlert({
+                title: `Shiuli Studio: New Client Counter-Offer on REQ #${r.id}`,
+                body: `${r.contact_name || r.client_name}: "${latestClientMsg.message || 'Updated price offer'}"${offerTxt}`,
+                onClick: () => {
+                  setSelectedReqId(r.id);
+                  setMobileViewDetail(true);
+                }
+              });
+
+              setAdminNegotiationAlert({
+                reqId: r.id,
+                clientName: r.contact_name || r.client_name || 'Client',
+                offeredPrice: latestClientMsg.offered_price ? Number(latestClientMsg.offered_price) : undefined,
+                message: latestClientMsg.message || 'Submitted a price counter-offer.',
+              });
+            }
+          } else {
+            lastClientMsgIdRef.current[r.id] = latestClientMsg.id;
+          }
+        }
+      });
+
       setRequests(combined);
       if (combined.length > 0 && (!selectedReqId || !combined.some((r) => r.id === selectedReqId))) {
         setSelectedReqId(combined[0].id);
@@ -188,14 +243,57 @@ export const AdminCustomRequestsModule: React.FC = () => {
       console.warn('Error fetching custom requests:', err);
     } finally {
       setLoading(false);
+      initialAdminFetchRef.current = true;
     }
   };
 
   useEffect(() => {
-    fetchRequests();
+    fetchRequests(false);
+    const interval = setInterval(() => {
+      fetchRequests(true);
+    }, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   const activeReq = requests.find((r) => r.id === selectedReqId) || requests[0];
+
+  // Synchronize admin notes input when activeReq changes
+  useEffect(() => {
+    if (activeReq) {
+      setAdminNotesDraft(activeReq.admin_call_notes || '');
+      setNotesSaveStatus(null);
+    }
+  }, [activeReq?.id, activeReq?.admin_call_notes]);
+
+  const handleSaveAdminNotes = async () => {
+    if (!activeReq) return;
+    setIsSavingNotes(true);
+    setNotesSaveStatus(null);
+    try {
+      // 1. Save to Django backend API
+      try {
+        await api.updateCustomRequestAdminNotes(activeReq.id, adminNotesDraft);
+      } catch (apiErr) {
+        console.warn('Backend custom request notes save notice:', apiErr);
+      }
+
+      // 2. Save to appStore local persistence
+      appStore.updateCustomRequestNotes(activeReq.id, adminNotesDraft);
+
+      // 3. Update local state
+      setRequests((prev) =>
+        prev.map((r) => (r.id === activeReq.id ? { ...r, admin_call_notes: adminNotesDraft } : r))
+      );
+
+      setNotesSaveStatus('Saved to database');
+      setTimeout(() => setNotesSaveStatus(null), 3500);
+    } catch (err) {
+      console.error('Failed to save notes:', err);
+      setNotesSaveStatus('Failed to save');
+    } finally {
+      setIsSavingNotes(false);
+    }
+  };
 
   // Filtering requests
   const filteredRequests = requests.filter((req) => {
@@ -307,6 +405,54 @@ export const AdminCustomRequestsModule: React.FC = () => {
 
   return (
     <div className="space-y-4">
+      {/* REAL-TIME CLIENT NEGOTIATION OFFER ALERT BANNER */}
+      {adminNegotiationAlert && (
+        <div className="p-3.5 rounded-2xl bg-amber-50 border-2 border-amber-400 text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md animate-in fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-200/80 border border-amber-400 flex items-center justify-center text-amber-900 shrink-0">
+              <BellRing className="w-5 h-5 text-amber-800 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded bg-amber-500 text-slate-950 text-[10px] font-mono font-black uppercase">
+                  CLIENT COUNTER-OFFER
+                </span>
+                <span className="font-bold text-xs text-amber-900">
+                  Request #{adminNegotiationAlert.reqId} • {adminNegotiationAlert.clientName}
+                </span>
+              </div>
+              <p className="text-xs text-amber-900 mt-0.5">
+                {adminNegotiationAlert.message}
+                {adminNegotiationAlert.offeredPrice && (
+                  <span className="font-bold ml-1 font-mono text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">
+                    Client Target: ₹{Number(adminNegotiationAlert.offeredPrice).toLocaleString('en-IN')}
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => {
+                setSelectedReqId(adminNegotiationAlert.reqId);
+                setMobileViewDetail(true);
+                setAdminNegotiationAlert(null);
+              }}
+              className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition-all shadow cursor-pointer"
+            >
+              Review Offer →
+            </button>
+            <button
+              onClick={() => setAdminNegotiationAlert(null)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-black/5"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* COMPACT SAAS HEADER & TOOLBAR */}
       <div className="bg-white p-3.5 rounded-2xl border border-[#E5E7EF] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
         {/* Title + Stats Strip */}
@@ -978,6 +1124,156 @@ export const AdminCustomRequestsModule: React.FC = () => {
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* 5B. ADMIN CALL & CUSTOMER CONSULTATION NOTES (FOR THIS PARTICULAR ORDER) */}
+              <div className="bg-gradient-to-br from-amber-500/10 via-amber-50/70 to-slate-50 border-2 border-amber-300/80 rounded-xl p-4 space-y-3 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-200/80 pb-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-amber-800 shrink-0">
+                      <PhoneCall className="w-4 h-4 text-amber-700" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-xs uppercase tracking-wider text-amber-950 font-mono">
+                          Admin Call &amp; Customer Consultation Notes
+                        </span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200/70 text-amber-900 border border-amber-300/90 flex items-center gap-1">
+                          <Lock className="w-2.5 h-2.5" /> Internal CRM • REQ #{activeReq.id}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-amber-900/70 mt-0.5">
+                        Private notes from phone calls, WhatsApp messages, or customer consultations. Automatically saved for this particular order.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Actions & Call Links */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {activeReq.contact_phone && (
+                      <div className="flex items-center gap-1.5">
+                        <a
+                          href={`tel:${activeReq.contact_phone}`}
+                          className="text-[10px] font-mono font-bold text-amber-900 bg-white hover:bg-amber-100/80 border border-amber-300 px-2 py-1 rounded-md flex items-center gap-1 transition-colors"
+                          title="Call client directly"
+                        >
+                          <Phone className="w-3 h-3 text-amber-700" /> {activeReq.contact_phone}
+                        </a>
+                        <a
+                          href={`https://wa.me/${activeReq.contact_phone.replace(/\D/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2 py-1 rounded-md flex items-center gap-1 transition-colors"
+                          title="Open WhatsApp chat with client"
+                        >
+                          WhatsApp
+                        </a>
+                      </div>
+                    )}
+
+                    {notesSaveStatus && (
+                      <span className={`text-[11px] font-mono font-bold flex items-center gap-1 px-2.5 py-1 rounded-md ${
+                        notesSaveStatus.includes('Saved') 
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                          : 'bg-rose-100 text-rose-800 border border-rose-300'
+                      }`}>
+                        <Check className="w-3.5 h-3.5" /> {notesSaveStatus}
+                      </span>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={handleSaveAdminNotes}
+                      disabled={isSavingNotes}
+                      className="px-3.5 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white text-xs font-bold font-mono flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95 ml-auto"
+                    >
+                      {isSavingNotes ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-3.5 h-3.5" />
+                          <span>Save Notes</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Quick Timestamp / Template Pills */}
+                <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                  <span className="text-[10px] font-mono text-amber-900/60 uppercase font-bold">Quick Tag:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const stamp = `\n[📞 Phone Call (${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})]: `;
+                      setAdminNotesDraft(prev => (prev ? prev.trim() + '\n' + stamp : stamp.trimStart()));
+                    }}
+                    className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white hover:bg-amber-100/80 border border-amber-300 text-amber-900 transition-colors cursor-pointer"
+                  >
+                    + Call Log
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const stamp = `\n[💬 WhatsApp (${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})]: `;
+                      setAdminNotesDraft(prev => (prev ? prev.trim() + '\n' + stamp : stamp.trimStart()));
+                    }}
+                    className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white hover:bg-amber-100/80 border border-amber-300 text-amber-900 transition-colors cursor-pointer"
+                  >
+                    + WhatsApp Chat
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const stamp = `\n[📝 Customer Spec Preference]: `;
+                      setAdminNotesDraft(prev => (prev ? prev.trim() + '\n' + stamp : stamp.trimStart()));
+                    }}
+                    className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white hover:bg-amber-100/80 border border-amber-300 text-amber-900 transition-colors cursor-pointer"
+                  >
+                    + Spec Change
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const stamp = `\n[⏰ Promised Delivery Commitment]: `;
+                      setAdminNotesDraft(prev => (prev ? prev.trim() + '\n' + stamp : stamp.trimStart()));
+                    }}
+                    className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white hover:bg-amber-100/80 border border-amber-300 text-amber-900 transition-colors cursor-pointer"
+                  >
+                    + Deadline Promise
+                  </button>
+                </div>
+
+                {/* Notes Textarea */}
+                <div className="relative">
+                  <textarea
+                    rows={4}
+                    value={adminNotesDraft}
+                    onChange={(e) => setAdminNotesDraft(e.target.value)}
+                    placeholder={`Write private notes about REQ #${activeReq.id} here (e.g. Spoke with ${activeReq.contact_name || activeReq.client_name} on call: wants prong height slightly lower, prefers delivery by Friday, agreed on ₹2,500 total price)...`}
+                    className="w-full text-xs font-mono p-3 rounded-xl border border-amber-300/80 bg-white text-[#1E2230] focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 leading-relaxed placeholder:text-slate-400 resize-y"
+                  />
+                </div>
+
+                {/* Footer status / info */}
+                <div className="flex items-center justify-between text-[10px] text-amber-900/60 font-mono pt-0.5">
+                  <span className="flex items-center gap-1">
+                    <StickyNote className="w-3 h-3 text-amber-700" />
+                    Notes are saved specifically for <strong>REQ #{activeReq.id} ({activeReq.contact_name || activeReq.client_name})</strong>
+                  </span>
+                  {activeReq.admin_call_notes ? (
+                    <span className="text-emerald-700 font-bold">
+                      ✓ Active Saved Notes in Database
+                    </span>
+                  ) : (
+                    <span className="text-amber-800/70">
+                      Unsaved changes or empty notes
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* 6. NEGOTIATION LOG */}

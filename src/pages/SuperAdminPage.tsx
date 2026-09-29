@@ -48,27 +48,49 @@ export const SuperAdminPage: React.FC<SuperAdminPageProps> = ({ onNavigate, init
   const [notifications, setNotifications] = useState<AdminNotification[]>(() => appStore.getNotifications());
   const [activityLogs, setActivityLogs] = useState<ActivityLogItem[]>(() => appStore.getActivityLogs());
 
+  // Real-time synchronization when staff updates profile photo or details
+  useEffect(() => {
+    const handleStaffSync = (e: any) => {
+      const updatedList = e?.detail || appStore.getStaffList();
+      if (Array.isArray(updatedList) && updatedList.length > 0) {
+        setStaffList(updatedList);
+      }
+    };
+    window.addEventListener('shiuli_staff_updated', handleStaffSync);
+    window.addEventListener('storage', handleStaffSync);
+    return () => {
+      window.removeEventListener('shiuli_staff_updated', handleStaffSync);
+      window.removeEventListener('storage', handleStaffSync);
+    };
+  }, []);
+
   // Fetch live staff on mount to keep all admin modules synchronized
   useEffect(() => {
     api.getStaffList()
       .then((data: any) => {
         const rawList = Array.isArray(data) ? data : (data?.results || []);
+        const stored = appStore.getStaffList();
         if (rawList.length > 0) {
-          const mapped: StaffMember[] = rawList.map((item: any) => ({
-            id: item.id.toString(),
-            name: `${item.first_name || ''} ${item.last_name || ''}`.trim() || item.username,
-            email: item.email,
-            phone: item.phone_number || '+91 98765 00000',
-            avatar: item.profile_photo || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
-            role: item.specialty_tags || 'CAD Modeller',
-            status: item.is_active_staff ? 'active' : 'inactive',
-            maxJobLimit: item.max_concurrent_jobs || 2,
-            currentLoad: item.current_load || 0,
-            jobsCompleted: item.total_jobs_completed || 0,
-            rating: item.rating_average ? parseFloat(item.rating_average) : 5.0,
-            totalEarnings: 0,
-            activeJobs: item.active_jobs || [],
-          }));
+          const mapped: StaffMember[] = rawList.map((item: any) => {
+            const localMatch = stored.find(
+              (s) => s.id === item.id?.toString() || (s.email && s.email.toLowerCase() === item.email?.toLowerCase())
+            );
+            return {
+              id: item.id.toString(),
+              name: `${item.first_name || ''} ${item.last_name || ''}`.trim() || item.username,
+              email: item.email,
+              phone: item.phone_number || '+91 98765 00000',
+              avatar: item.profile_photo || localMatch?.avatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
+              role: item.specialty_tags || 'CAD Modeller',
+              status: item.is_active_staff ? 'active' : 'inactive',
+              maxJobLimit: item.max_concurrent_jobs || 2,
+              currentLoad: item.current_load || 0,
+              jobsCompleted: item.total_jobs_completed || 0,
+              rating: item.rating_average ? parseFloat(item.rating_average) : 5.0,
+              totalEarnings: 0,
+              activeJobs: item.active_jobs || [],
+            };
+          });
           setStaffList(mapped);
           appStore.saveStaffList(mapped);
         }

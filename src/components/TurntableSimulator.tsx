@@ -16,8 +16,8 @@ export const TurntableSimulator: React.FC<TurntableSimulatorProps> = ({ images, 
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [activeLayer, setActiveLayer] = useState<'render' | 'wireframe' | 'stl'>('render');
-  const [zoomLevel, setZoomLevel] = useState(1.1);
-  const [fitMode, setFitMode] = useState<'cover' | 'contain'>('cover');
+  const [zoomLevel, setZoomLevel] = useState(1.0);
+  const [fitMode, setFitMode] = useState<'cover' | 'contain'>('contain');
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Active target image URL
@@ -188,7 +188,7 @@ export const TurntableSimulator: React.FC<TurntableSimulatorProps> = ({ images, 
             onError={handleImageError}
             alt={title}
             referrerPolicy="no-referrer"
-            className={`w-full h-full ${
+            className={`w-full h-full p-4 sm:p-6 ${
               fitMode === 'cover' ? 'object-cover' : 'object-contain'
             } rounded-lg transition-all duration-300 drop-shadow-[0_20px_50px_rgba(0,0,0,0.9)] ${
               activeLayer === 'wireframe'

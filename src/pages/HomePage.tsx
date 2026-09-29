@@ -27,8 +27,63 @@ import {
 import { RevealOnScroll } from '../components/motion/RevealOnScroll';
 import { StaggerGrid, StaggerItem } from '../components/motion/StaggerGrid';
 import { LazyImage } from '../components/motion/LazyImage';
+import { formatINR, formatRupee } from '../utils/currencyHelper';
+import { getMainShowcaseCategories, getSanitizedCategories, formatCategoryName } from '../utils/categoryHelper';
+import { getOptimizedImageUrl, handleImgError } from '../utils/imageHelper';
 
 // Dynamic Category Box with slowly moving product slideshow + hover/touch selector
+// Curated category design presets to ensure rich, distinct previews for each category
+const CATEGORY_DESIGN_PRESETS: Record<string, { title: string; price: number; image: string }[]> = {
+  rings: [
+    { title: 'Solitaire Emerald Diamond Ring', price: 2499, image: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=800&q=85' },
+    { title: 'Royal Halo Pavé Engagement Ring', price: 1899, image: 'https://images.unsplash.com/photo-1603561591411-07134e71a2a9?auto=format&fit=crop&w=800&q=85' },
+    { title: 'Baguette Diamond Eternity Band', price: 1499, image: 'https://images.unsplash.com/photo-1602751584552-8ba73aad10e1?auto=format&fit=crop&w=800&q=85' },
+    { title: 'Vintage Gents Signet Crown Ring', price: 2199, image: 'https://images.unsplash.com/photo-1598560917505-59a3ad559071?auto=format&fit=crop&w=800&q=85' },
+  ],
+  earrings: [
+    { title: 'Royal Chandelier Drop Earrings', price: 2899, image: 'https://images.unsplash.com/photo-1630019852942-f89202989a59?auto=format&fit=crop&w=800&q=85' },
+    { title: 'Diamond Studded Huggie Hoops', price: 1699, image: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=800&q=85' },
+    { title: 'Heritage Antique Temple Jhumka', price: 3499, image: 'https://images.unsplash.com/photo-1589674781759-c21c37956a44?auto=format&fit=crop&w=800&q=85' },
+    { title: 'Teardrop Solitaire Diamond Dangle', price: 1999, image: 'https://images.unsplash.com/photo-1588444837495-c6cfeb53f32d?auto=format&fit=crop&w=800&q=85' },
+  ],
+  necklaces: [
+    { title: 'Royal Kundan Choker Necklace', price: 4999, image: 'https://images.unsplash.com/photo-1599643477877-530eb83abc8e?auto=format&fit=crop&w=800&q=85' },
+    { title: 'Riviera Diamond Collar Necklace', price: 5899, image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=800&q=85' },
+    { title: 'Contemporary Diamond Waterfall', price: 4499, image: 'https://images.unsplash.com/photo-1611591475140-be38b638ed3d?auto=format&fit=crop&w=800&q=85' },
+    { title: 'Imperial Princess Filigree Chain', price: 3899, image: 'https://images.unsplash.com/photo-1576053139778-7e32f2ae3cfd?auto=format&fit=crop&w=800&q=85' },
+  ],
+  pendants: [
+    { title: 'Antique Peacock Kundan Pendant', price: 2299, image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=800&q=85' },
+    { title: 'Solitaire Pear Diamond Pendant', price: 1899, image: 'https://images.unsplash.com/photo-1600003014755-ba31aa59c4b6?auto=format&fit=crop&w=800&q=85' },
+    { title: 'Lotus Floral Diamond Medallion', price: 2199, image: 'https://images.unsplash.com/photo-1617038220319-276d3cfab638?auto=format&fit=crop&w=800&q=85' },
+    { title: 'Celestial Sunburst Halo Pendant', price: 2499, image: 'https://images.unsplash.com/photo-1602173574767-37ac01994b2a?auto=format&fit=crop&w=800&q=85' },
+  ],
+  'bracelets-bangles': [
+    { title: 'Modern Baguette Diamond Kada', price: 3199, image: 'https://images.unsplash.com/photo-1573408301185-9146fe634ad0?auto=format&fit=crop&w=800&q=85' },
+    { title: 'Diamond Tennis Link Bracelet', price: 2799, image: 'https://images.unsplash.com/photo-1603561591411-07134e71a2a9?auto=format&fit=crop&w=800&q=85' },
+    { title: 'Geometric Solid Gold Bangle', price: 2499, image: 'https://images.unsplash.com/photo-1602751584552-8ba73aad10e1?auto=format&fit=crop&w=800&q=85' },
+    { title: 'Filigree Interlocking Cuff Bracelet', price: 3599, image: 'https://images.unsplash.com/photo-1598560917505-59a3ad559071?auto=format&fit=crop&w=800&q=85' },
+  ],
+  mangalsutra: [
+    { title: 'Dual-Strand Royal Tanmaniya', price: 2999, image: 'https://images.unsplash.com/photo-1601121141461-9d6647bca1ed?auto=format&fit=crop&w=800&q=85' },
+    { title: 'Infinity Diamond Mangalsutra', price: 2499, image: 'https://images.unsplash.com/photo-1539185441755-769473a23570?auto=format&fit=crop&w=800&q=85' },
+    { title: 'Auspicious Floral Cluster Cord', price: 2799, image: 'https://images.unsplash.com/photo-1600003014755-ba31aa59c4b6?auto=format&fit=crop&w=800&q=85' },
+    { title: 'Minimalist Solitaire Mangalsutra', price: 2199, image: 'https://images.unsplash.com/photo-1617038220319-276d3cfab638?auto=format&fit=crop&w=800&q=85' },
+  ],
+  nosepins: [
+    { title: 'Solitaire Diamond Nose Stud', price: 999, image: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=800&q=85' },
+    { title: 'Floral 7-Stone Diamond Nosepin', price: 1299, image: 'https://images.unsplash.com/photo-1589674781759-c21c37956a44?auto=format&fit=crop&w=800&q=85' },
+    { title: 'Traditional Bridal Gold Nath', price: 1899, image: 'https://images.unsplash.com/photo-1588444837495-c6cfeb53f32d?auto=format&fit=crop&w=800&q=85' },
+    { title: 'Star Cluster Diamond Screw Pin', price: 1199, image: 'https://images.unsplash.com/photo-1602173574767-37ac01994b2a?auto=format&fit=crop&w=800&q=85' },
+  ],
+  'polki-jewellery': [
+    { title: 'Mughal Heritage Polki Choker', price: 5499, image: 'https://images.unsplash.com/photo-1543290108-01ca9d329143?auto=format&fit=crop&w=800&q=85' },
+    { title: 'Royal Jadau Polki Chandbali', price: 3999, image: 'https://images.unsplash.com/photo-1599643477877-530eb83abc8e?auto=format&fit=crop&w=800&q=85' },
+    { title: 'Uncut Diamond Antique Kada', price: 4699, image: 'https://images.unsplash.com/photo-1576053139778-7e32f2ae3cfd?auto=format&fit=crop&w=800&q=85' },
+    { title: 'Royal Polki Tika & Earring Suite', price: 4899, image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=800&q=85' },
+  ],
+};
+
 interface CategoryBoxCardProps {
   cat: any;
   idx: number;
@@ -44,118 +99,143 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
   onNavigate,
   onQuickView,
 }) => {
-  const fallbackImages = [
-    'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1630019852942-f89202989a59?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1599643477877-530eb83abc8e?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1603561591411-07134e71a2a9?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1598560917505-59a3ad559071?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=800&q=80',
-    'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=800&q=80',
-  ];
+  const cSlug = (cat.slug || cat.id || '').toLowerCase().trim();
+  const cName = (cat.name || '').toLowerCase().trim();
 
+  // 1. Gather all strictly matching products from live inventory
   const categoryProducts = React.useMemo(() => {
     const matched = allProducts.filter((p) => {
       const pCat = (p.category || '').toLowerCase();
       const pCatName = (p.categoryName || '').toLowerCase();
-      const cSlug = (cat.slug || cat.id || '').toLowerCase();
-      const cName = (cat.name || '').toLowerCase();
+      const pTitle = (p.title || '').toLowerCase();
 
-      return (
-        pCat === cSlug ||
-        pCatName === cName ||
-        (cSlug.includes('ring') && (pCat.includes('ring') || pCatName.includes('ring'))) ||
-        (cSlug.includes('necklace') && (pCat.includes('necklace') || pCat.includes('pendant') || pCatName.includes('necklace') || pCatName.includes('pendant'))) ||
-        (cSlug.includes('earring') && (pCat.includes('earring') || pCatName.includes('earring'))) ||
-        (cSlug.includes('bracelet') && (pCat.includes('bracelet') || pCat.includes('bangle') || pCatName.includes('bracelet') || pCatName.includes('bangle')))
-      );
+      if (pCat === cSlug || pCatName === cName) return true;
+
+      // 1. Check EARRINGS first so 'earrings' never falsely matches 'ring' substring!
+      if (cSlug.includes('earring') || cName.includes('earring')) {
+        return (
+          pCat.includes('earring') || pCatName.includes('earring') || pTitle.includes('earring') || pTitle.includes('jhumka') || pTitle.includes('stud')
+        );
+      }
+
+      // 2. RINGS strictly check for ring, and exclude earrings
+      if (
+        (cSlug.includes('ring') || cName.includes('ring')) &&
+        !cSlug.includes('earring') && !cName.includes('earring')
+      ) {
+        return (
+          (pCat.includes('ring') || pCatName.includes('ring') || pTitle.includes('ring')) &&
+          !pCat.includes('earring') && !pCatName.includes('earring') && !pTitle.includes('earring')
+        );
+      }
+
+      if (cSlug.includes('necklace') || cName.includes('necklace')) {
+        return pCat.includes('necklace') || pCatName.includes('necklace') || pTitle.includes('necklace') || pTitle.includes('choker');
+      }
+
+      if (cSlug.includes('pendant') || cName.includes('pendant') || cSlug.includes('pandent') || cName.includes('pandent')) {
+        return pCat.includes('pendant') || pCatName.includes('pendant') || pTitle.includes('pendant') || pCat.includes('pandent') || pTitle.includes('pandent');
+      }
+
+      if (cSlug.includes('bracelet') || cName.includes('bracelet') || cSlug.includes('bangle') || cName.includes('bangle')) {
+        return (
+          pCat.includes('bracelet') || pCatName.includes('bracelet') || pTitle.includes('bracelet') ||
+          pCat.includes('bangle') || pCatName.includes('bangle') || pTitle.includes('bangle') || pTitle.includes('kada')
+        );
+      }
+
+      if (cSlug.includes('mangal') || cName.includes('mangal')) {
+        return pCat.includes('mangal') || pCatName.includes('mangal') || pTitle.includes('mangal') || pTitle.includes('tanmaniya');
+      }
+
+      if (cSlug.includes('nose') || cName.includes('nose')) {
+        return pCat.includes('nose') || pCatName.includes('nose') || pTitle.includes('nose') || pTitle.includes('nath');
+      }
+
+      if (cSlug.includes('polki') || cName.includes('polki')) {
+        return pCat.includes('polki') || pCatName.includes('polki') || pTitle.includes('polki') || pTitle.includes('jadau');
+      }
+
+      return false;
     });
 
-    if (matched.length > 0) return matched;
+    // Strictly deduplicate matched live products by ID or Title
+    const uniqueMap = new Map<string, Product>();
+    for (const p of matched) {
+      const key = (p.id || p.title || '').trim().toLowerCase();
+      if (key && !uniqueMap.has(key)) {
+        uniqueMap.set(key, p);
+      }
+    }
+    const uniqueList = Array.from(uniqueMap.values());
 
-    const defaultImg = cat.image || fallbackImages[idx % fallbackImages.length];
-    return [
-      {
-        id: `${cat.id || idx}-1`,
-        title: `${cat.name} Solitaire`,
-        category: cat.slug || cat.id,
-        categoryName: cat.name,
-        price: 1499,
-        image: defaultImg,
-        images: [defaultImg],
-        description: `Watertight ${cat.name} 3D CAD File`,
-        rating: 4.9,
-        reviewsCount: 24,
-      } as unknown as Product,
-      {
-        id: `${cat.id || idx}-2`,
-        title: `Royal Halo ${cat.name}`,
-        category: cat.slug || cat.id,
-        categoryName: cat.name,
-        price: 1899,
-        image: fallbackImages[(idx + 1) % fallbackImages.length],
-        images: [fallbackImages[(idx + 1) % fallbackImages.length]],
-        description: `Precision ${cat.name} 3D CAD File`,
-        rating: 5.0,
-        reviewsCount: 38,
-      } as unknown as Product,
-      {
-        id: `${cat.id || idx}-3`,
-        title: `Pavilion ${cat.name} Master`,
-        category: cat.slug || cat.id,
-        categoryName: cat.name,
-        price: 2199,
-        image: fallbackImages[(idx + 2) % fallbackImages.length],
-        images: [fallbackImages[(idx + 2) % fallbackImages.length]],
-        description: `Watertight ${cat.name} 3D CAD File`,
-        rating: 4.8,
-        reviewsCount: 19,
-      } as unknown as Product,
-      {
-        id: `${cat.id || idx}-4`,
-        title: `Atelier ${cat.name} Edition`,
-        category: cat.slug || cat.id,
-        categoryName: cat.name,
-        price: 2499,
-        image: fallbackImages[(idx + 3) % fallbackImages.length],
-        images: [fallbackImages[(idx + 3) % fallbackImages.length]],
-        description: `Watertight ${cat.name} 3D CAD File`,
-        rating: 4.9,
-        reviewsCount: 42,
-      } as unknown as Product,
-    ];
-  }, [allProducts, cat, idx]);
+    // If live inventory has products, use ONLY the real products from the database
+    if (uniqueList.length > 0) {
+      return uniqueList;
+    }
 
-  const [activeProductIdx, setActiveProductIdx] = useState(0);
+    // Only if a category has 0 products in the database, supplement with curated preview designs
+    let presetKey = 'rings';
+    if (cSlug.includes('earring') || cName.includes('earring')) presetKey = 'earrings';
+    else if (cSlug.includes('necklace') || cName.includes('necklace')) presetKey = 'necklaces';
+    else if (cSlug.includes('pendant') || cName.includes('pendant') || cSlug.includes('pandent')) presetKey = 'pendants';
+    else if (cSlug.includes('bracelet') || cSlug.includes('bangle') || cName.includes('bracelet') || cName.includes('bangle')) presetKey = 'bracelets-bangles';
+    else if (cSlug.includes('mangal') || cName.includes('mangal')) presetKey = 'mangalsutra';
+    else if (cSlug.includes('nose') || cName.includes('nose')) presetKey = 'nosepins';
+    else if (cSlug.includes('polki') || cName.includes('polki')) presetKey = 'polki-jewellery';
+
+    const presets = CATEGORY_DESIGN_PRESETS[presetKey];
+    if (presets && presets.length > 0) {
+      return presets.slice(0, 4).map((preset, pIdx) => ({
+        id: `${cat.id || cSlug}-preset-${pIdx + 1}`,
+        title: preset.title,
+        category: cat.name,
+        categoryName: cat.name,
+        price: preset.price,
+        image: preset.image,
+        images: [preset.image],
+        primaryImage: preset.image,
+        description: `Precision engineered ${cat.name} 3D CAD deliverable. Watertight mesh ready for 3D wax printing.`,
+        rating: 4.9,
+        reviewsCount: 28,
+        formats: ['3DM', 'STL', 'Render'] as any,
+        specs: {
+          metalWeight18k: '4.80 gm',
+          metalWeight14k: '4.10 gm',
+          diamondCount: 24,
+          diamondTotalWeight: '0.45 ct',
+          dimensions: '18.2 x 2.1 mm',
+          meshTriangles: '124,000',
+          tolerance: '±0.02 mm',
+        },
+      } as unknown as Product));
+    }
+
+    return [];
+  }, [allProducts, cat, cSlug, cName]);
+
+  // 1. Resolve Category Banner Cover image (set by admin via file upload or URL)
+  const categoryBannerImg = (cat as any).image_display || cat.image || (cat as any).image_url;
+
+  const [hoveredProductIdx, setHoveredProductIdx] = useState<number | null>(null);
   const [isPaused, setIsPaused] = useState(false);
 
-  // Auto slow slideshow on desktop viewports when not paused
-  useEffect(() => {
-    if (isPaused || categoryProducts.length <= 1) return;
-    if (typeof window !== 'undefined' && window.innerWidth < 768) return; // Prevent background timer load on mobile
-    const timer = setInterval(() => {
-      setActiveProductIdx((prev) => (prev + 1) % categoryProducts.length);
-    }, 3800);
-    return () => clearInterval(timer);
-  }, [isPaused, categoryProducts.length]);
+  const hoveredProduct = hoveredProductIdx !== null ? categoryProducts[hoveredProductIdx] : null;
 
   const getImg = (p: any) => {
-    if (!p) return fallbackImages[idx % fallbackImages.length];
-    return p.primaryImage || p.image || (Array.isArray(p.images) && p.images[0]) || fallbackImages[idx % fallbackImages.length];
+    if (!p) return categoryBannerImg || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=800&q=80';
+    return getOptimizedImageUrl(p.primaryImage || p.image || (Array.isArray(p.images) && p.images[0]), cat.name);
   };
 
-  const baseItems = React.useMemo(() => {
-    if (!categoryProducts || categoryProducts.length === 0) return [];
-    let items = [...categoryProducts];
-    while (items.length < 5) {
-      items = [...items, ...categoryProducts];
-    }
-    return items;
+  // Calculate minimum price for "From ₹X" badge
+  const minPrice = React.useMemo(() => {
+    if (!categoryProducts.length) return null;
+    const prices = categoryProducts.map((p) => Number(p.price) || 0).filter((p) => p > 0);
+    return prices.length > 0 ? Math.min(...prices) : null;
   }, [categoryProducts]);
 
-  const activeProduct = categoryProducts[activeProductIdx] || categoryProducts[0];
-  const count = cat.product_count ?? cat.count ?? categoryProducts.length;
+  const count = cat.product_count ?? categoryProducts.length;
+  const isMarqueeMode = categoryProducts.length > 3;
 
   return (
     <StaggerItem key={cat.id || idx}>
@@ -163,136 +243,192 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
         whileHover={{ y: -6, scale: 1.01 }}
         transition={{ duration: 0.3 }}
         onMouseEnter={() => setIsPaused(true)}
-        onMouseLeave={() => setIsPaused(false)}
-        className="group relative rounded-2xl overflow-hidden aspect-[4/5.2] bg-[#0E183D] border border-[#D4AF37]/30 cursor-pointer shadow-2xl transition-all hover:border-[#D4AF37] flex flex-col justify-between"
+        onMouseLeave={() => {
+          setIsPaused(false);
+          setHoveredProductIdx(null);
+        }}
+        className="group relative rounded-2xl overflow-hidden min-h-[460px] sm:min-h-[490px] bg-[#0A1333] border border-[#D4AF37]/30 hover:border-[#D4AF37] cursor-pointer shadow-2xl transition-all duration-300 flex flex-col justify-between"
       >
-        {/* Main Background Image displaying current active product */}
+        {/* TOP DEDICATED SHOWCASE: Always displays the Category Banner Image uploaded by admin */}
         <div 
           onClick={() => onNavigate('collections', cat.slug)}
-          className="absolute inset-0 w-full h-full"
+          className="relative w-full h-[260px] sm:h-[280px] bg-gradient-to-b from-[#0E1A42] via-[#091333] to-[#070D24] p-3 sm:p-4 flex items-center justify-center overflow-hidden"
         >
+          {/* Subtle gold spotlight backdrop behind jewel */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.12)_0%,transparent_70%)] pointer-events-none" />
+
           <img
-            key={activeProduct?.id || activeProductIdx}
-            src={getImg(activeProduct)}
-            alt={activeProduct?.title || cat.name}
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            key={`cat-banner-${cat.id || cat.slug}-${categoryBannerImg}`}
+            src={getOptimizedImageUrl(categoryBannerImg, cat.name)}
+            alt={cat.name}
+            className="w-full h-full object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.85)] transition-transform duration-700 group-hover:scale-105"
             loading="lazy"
+            onError={(e) => handleImgError(e, cat.slug)}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0B1330] via-[#0B1330]/40 to-transparent z-10" />
+
+          {/* Discreet luxury tag */}
+          <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5">
+            <span className="px-2 py-0.5 rounded-md bg-[#080E24]/85 backdrop-blur-md border border-[#D4AF37]/35 text-[10px] font-mono uppercase tracking-wider text-[#F5E7A3]">
+              {cat.tagline || 'Category Collection'}
+            </span>
+          </div>
         </div>
 
-        {/* Bottom Panel anchored at down side of category card */}
-        <div className="absolute bottom-0 inset-x-0 z-20 p-4 sm:p-5 space-y-2.5 bg-gradient-to-t from-[#060D24] via-[#060D24]/90 to-transparent pt-12">
+        {/* BOTTOM METADATA & SELECTOR PANEL: Solid, structured, with distinct unique thumbnails */}
+        <div className="p-4 sm:p-5 bg-gradient-to-b from-[#070D24] to-[#050A1C] border-t border-[#D4AF37]/25 space-y-3 flex-1 flex flex-col justify-between">
 
-          {/* Category Name ONLY */}
+          {/* Category Title & Count */}
           <div 
             onClick={() => onNavigate('collections', cat.slug)}
-            className="cursor-pointer"
+            className="cursor-pointer flex items-center justify-between"
           >
-            <h3 className="font-serif text-xl sm:text-3xl text-[#FAF8F3] font-bold group-hover:text-[#F5E7A3] transition-colors leading-tight line-clamp-1">
+            <h3 className="font-serif text-xl sm:text-2xl text-[#FAF8F3] font-bold group-hover:text-[#F5E7A3] transition-colors leading-tight line-clamp-1">
               {cat.name}
             </h3>
+            <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-[#121F4D] border border-[#D4AF37]/30 text-[#F5E7A3] shrink-0">
+              {count} Designs
+            </span>
           </div>
 
-          {/* Interactive Products Marquee Strip (Right to Left flow) */}
+          {/* Interactive Products Marquee / Selector Strip (ONLY PRODUCTS, NEVER CATEGORY IMAGE) */}
           <div className="pt-0.5 relative overflow-hidden w-full marquee-pause-hover select-none">
-            {/* Subtle luxury edge fade overlays for smooth entrance and exit */}
-            <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-3 bg-gradient-to-r from-[#060D24] to-transparent z-10" />
-            <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-3 bg-gradient-to-l from-[#060D24] to-transparent z-10" />
+            {isMarqueeMode ? (
+              <>
+                {/* Subtle luxury edge fade overlays for smooth entrance and exit */}
+                <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-3 bg-gradient-to-r from-[#070D24] to-transparent z-10" />
+                <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-3 bg-gradient-to-l from-[#070D24] to-transparent z-10" />
 
-            <div className="flex items-center gap-2 w-max py-1">
-              {/* Primary Track */}
-              <div className="flex items-center gap-2 shrink-0 animate-marquee-track">
-                {baseItems.map((prod, pIdx) => {
-                  const originalIdx = pIdx % categoryProducts.length;
-                  const isActive = (prod.id && activeProduct?.id) ? prod.id === activeProduct.id : originalIdx === activeProductIdx;
+                <div className="flex items-center gap-2 w-max py-1">
+                  {/* Primary Track with UNIQUE products */}
+                  <div className="flex items-center gap-2 shrink-0 animate-marquee-track">
+                    {categoryProducts.map((prod, pIdx) => {
+                      const isActive = pIdx === hoveredProductIdx;
+                      const imgUrl = getImg(prod);
+                      return (
+                        <button
+                          key={`track1-${prod.id || pIdx}`}
+                          type="button"
+                          onMouseEnter={() => {
+                            setIsPaused(true);
+                            setHoveredProductIdx(pIdx);
+                          }}
+                          onTouchStart={() => {
+                            setIsPaused(true);
+                            setHoveredProductIdx(pIdx);
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onQuickView(prod);
+                          }}
+                          title={`View ${prod.title} (₹${formatINR(prod.price)})`}
+                          className={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden shrink-0 border p-0.5 bg-[#09112B] transition-all duration-300 cursor-pointer ${
+                            isActive
+                              ? 'border-[#D4AF37] ring-2 ring-[#D4AF37] scale-105 shadow-[0_0_12px_rgba(212,175,55,0.6)] z-10'
+                              : 'border-white/20 opacity-70 hover:opacity-100 hover:border-white/50'
+                          }`}
+                        >
+                          <img
+                            src={imgUrl}
+                            alt={prod.title}
+                            className="w-full h-full object-contain"
+                            loading="lazy"
+                            onError={(e) => handleImgError(e, cat.slug)}
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Loop Duplicate Track for Infinite Seamless Flow */}
+                  <div className="flex items-center gap-2 shrink-0 animate-marquee-track" aria-hidden="true">
+                    {categoryProducts.map((prod, pIdx) => {
+                      const isActive = pIdx === hoveredProductIdx;
+                      const imgUrl = getImg(prod);
+                      return (
+                        <button
+                          key={`track2-${prod.id || pIdx}`}
+                          type="button"
+                          onMouseEnter={() => {
+                            setIsPaused(true);
+                            setHoveredProductIdx(pIdx);
+                          }}
+                          onTouchStart={() => {
+                            setIsPaused(true);
+                            setHoveredProductIdx(pIdx);
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onQuickView(prod);
+                          }}
+                          title={`View ${prod.title} (₹${formatINR(prod.price)})`}
+                          className={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden shrink-0 border p-0.5 bg-[#09112B] transition-all duration-300 cursor-pointer ${
+                            isActive
+                              ? 'border-[#D4AF37] ring-2 ring-[#D4AF37] scale-105 shadow-[0_0_12px_rgba(212,175,55,0.6)] z-10'
+                              : 'border-white/20 opacity-70 hover:opacity-100 hover:border-white/50'
+                          }`}
+                        >
+                          <img
+                            src={imgUrl}
+                            alt={prod.title}
+                            className="w-full h-full object-contain"
+                            loading="lazy"
+                            onError={(e) => handleImgError(e, cat.slug)}
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            ) : categoryProducts.length > 0 ? (
+              /* Centered Distinct Unique Designs Row */
+              <div className="flex items-center justify-center gap-2 py-1">
+                {categoryProducts.map((prod, pIdx) => {
+                  const isActive = pIdx === hoveredProductIdx;
                   const imgUrl = getImg(prod);
                   return (
                     <button
-                      key={`track1-${prod.id || pIdx}-${pIdx}`}
+                      key={`static-${prod.id || pIdx}`}
                       type="button"
                       onMouseEnter={() => {
                         setIsPaused(true);
-                        setActiveProductIdx(originalIdx);
+                        setHoveredProductIdx(pIdx);
                       }}
                       onTouchStart={() => {
                         setIsPaused(true);
-                        setActiveProductIdx(originalIdx);
+                        setHoveredProductIdx(pIdx);
                       }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        setActiveProductIdx(originalIdx);
                         onQuickView(prod);
                       }}
-                      title={`View ${prod.title}`}
-                      className={`relative w-9 h-9 sm:w-11 sm:h-11 rounded-xl overflow-hidden shrink-0 border transition-all duration-300 cursor-pointer ${
+                      title={`View ${prod.title} (₹${formatINR(prod.price)})`}
+                      className={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden shrink-0 border p-0.5 bg-[#09112B] transition-all duration-300 cursor-pointer ${
                         isActive
                           ? 'border-[#D4AF37] ring-2 ring-[#D4AF37] scale-105 shadow-[0_0_12px_rgba(212,175,55,0.6)] z-10'
-                          : 'border-white/20 opacity-60 hover:opacity-100 hover:border-white/50'
+                          : 'border-white/20 opacity-70 hover:opacity-100 hover:border-white/50'
                       }`}
                     >
                       <img
                         src={imgUrl}
                         alt={prod.title}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain"
                         loading="lazy"
+                        onError={(e) => handleImgError(e, cat.slug)}
                       />
-                      {isActive && (
-                        <div className="absolute inset-0 bg-[#D4AF37]/15 border border-[#F5E7A3]/50 pointer-events-none" />
-                      )}
                     </button>
                   );
                 })}
               </div>
-
-              {/* Loop Duplicate Track for Infinite Seamless Flow */}
-              <div className="flex items-center gap-2 shrink-0 animate-marquee-track" aria-hidden="true">
-                {baseItems.map((prod, pIdx) => {
-                  const originalIdx = pIdx % categoryProducts.length;
-                  const isActive = (prod.id && activeProduct?.id) ? prod.id === activeProduct.id : originalIdx === activeProductIdx;
-                  const imgUrl = getImg(prod);
-                  return (
-                    <button
-                      key={`track2-${prod.id || pIdx}-${pIdx}`}
-                      type="button"
-                      onMouseEnter={() => {
-                        setIsPaused(true);
-                        setActiveProductIdx(originalIdx);
-                      }}
-                      onTouchStart={() => {
-                        setIsPaused(true);
-                        setActiveProductIdx(originalIdx);
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveProductIdx(originalIdx);
-                        onQuickView(prod);
-                      }}
-                      title={`View ${prod.title}`}
-                      className={`relative w-9 h-9 sm:w-11 sm:h-11 rounded-xl overflow-hidden shrink-0 border transition-all duration-300 cursor-pointer ${
-                        isActive
-                          ? 'border-[#D4AF37] ring-2 ring-[#D4AF37] scale-105 shadow-[0_0_12px_rgba(212,175,55,0.6)] z-10'
-                          : 'border-white/20 opacity-60 hover:opacity-100 hover:border-white/50'
-                      }`}
-                    >
-                      <img
-                        src={imgUrl}
-                        alt={prod.title}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                      {isActive && (
-                        <div className="absolute inset-0 bg-[#D4AF37]/15 border border-[#F5E7A3]/50 pointer-events-none" />
-                      )}
-                    </button>
-                  );
-                })}
+            ) : (
+              <div className="flex items-center justify-center py-2 text-[10px] text-[#C9C2A6]/80 tracking-wider uppercase font-medium">
+                Curating Archive Designs
               </div>
-            </div>
+            )}
           </div>
 
-          {/* Action Row */}
-          <div className="pt-1 flex items-center justify-between text-[11px] text-[#F5E7A3]">
+          {/* Action Row with Indian Rupee (₹) Price Badge */}
+          <div className="pt-2 flex items-center justify-between text-[11px] text-[#F5E7A3] border-t border-white/5">
             <button
               type="button"
               onClick={() => onNavigate('collections', cat.slug)}
@@ -302,17 +438,27 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
               <ArrowRight className="w-3 h-3 text-[#D4AF37]" />
             </button>
 
-            {activeProduct && (
+            {hoveredProduct ? (
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onQuickView(activeProduct);
+                  onQuickView(hoveredProduct);
                 }}
-                className="px-2 py-0.5 rounded-md bg-[#121F4D] border border-[#D4AF37]/30 text-[10px] text-[#C9C2A6] hover:text-[#FAF8F3] hover:border-[#D4AF37] transition-all flex items-center gap-1"
+                className="px-2.5 py-1 rounded-md bg-[#121F4D] border border-[#D4AF37]/35 text-[10px] text-[#F5E7A3] hover:text-[#FAF8F3] hover:border-[#D4AF37] transition-all flex items-center gap-1.5 shadow-sm"
               >
-                <Eye className="w-3 h-3 text-[#D4AF37]" /> Quick View
+                <Eye className="w-3 h-3 text-[#D4AF37]" />
+                <span>₹{formatINR(hoveredProduct.price)}</span>
               </button>
+            ) : minPrice && minPrice > 0 ? (
+              <div className="px-2.5 py-1 rounded-md bg-[#121F4D] border border-[#D4AF37]/35 text-[10px] text-[#F5E7A3] flex items-center gap-1.5 shadow-sm">
+                <Sparkles className="w-3 h-3 text-[#D4AF37]" />
+                <span>From ₹{formatINR(minPrice)}</span>
+              </div>
+            ) : (
+              <span className="px-2.5 py-0.5 rounded-full bg-[#121F4D]/60 border border-[#D4AF37]/25 text-[10px] font-mono text-[#F5E7A3]/75">
+                Bespoke Order
+              </span>
             )}
           </div>
         </div>
@@ -379,20 +525,48 @@ export const HomePage: React.FC<HomePageProps> = ({
     [liveProducts]
   );
 
-  // Filter products for section 6
-  // A product matches if:
-  //   - its category_slug equals the filter (direct sub-cat match), OR
-  //   - its parent_slug equals the filter (sub-cat product shown under parent tab)
+  // Main categories only for Section 3 (guarantees the 8 canonical luxury fine jewellery categories)
+  const mainCategories = React.useMemo(
+    () => getMainShowcaseCategories(categories),
+    [categories]
+  );
+
+  // Clean categories for Section 6 filter bar (filters out test, duplicate, and junk categories)
+  const filterCategories = React.useMemo(() => {
+    const sanitized = getSanitizedCategories(categories);
+    const list = sanitized.length > 0 ? sanitized : getMainShowcaseCategories([]);
+    return [
+      { id: 'all', label: 'All Designs' },
+      ...list.map((c) => ({ id: c.slug, label: c.name })),
+    ];
+  }, [categories]);
+
+  // Robust matching for Section 6 filter
   const filteredProducts: Product[] = React.useMemo(() => {
     const source = liveProducts.map(toProductShape);
     if (selectedFilter === 'all') return source;
-    return liveProducts
-      .filter((p) => {
-        const cs = (p as any).category_slug || '';
-        const ps = (p as any).parent_slug || '';
-        return cs === selectedFilter || ps === selectedFilter;
-      })
-      .map(toProductShape);
+
+    const sFilter = selectedFilter.toLowerCase().trim();
+
+    return source.filter((p) => {
+      const pCat = (p.category || '').toLowerCase();
+      const pCatSlug = ((p as any).category_slug || '').toLowerCase();
+      const pParentSlug = ((p as any).parent_slug || '').toLowerCase();
+      const pTitle = (p.title || '').toLowerCase();
+
+      if (pCatSlug === sFilter || pParentSlug === sFilter || pCat === sFilter) return true;
+
+      if (sFilter === 'rings' && (pCat.includes('ring') || pTitle.includes('ring')) && !pCat.includes('earring') && !pTitle.includes('earring')) return true;
+      if (sFilter === 'earrings' && (pCat.includes('earring') || pTitle.includes('earring') || pTitle.includes('jhumka') || pTitle.includes('stud'))) return true;
+      if (sFilter === 'necklaces' && (pCat.includes('necklace') || pTitle.includes('necklace') || pTitle.includes('choker') || pTitle.includes('collar'))) return true;
+      if (sFilter === 'pendants' && (pCat.includes('pendant') || pCat.includes('pandent') || pTitle.includes('pendant') || pTitle.includes('pandent'))) return true;
+      if (sFilter.includes('bracelet') && (pCat.includes('bracelet') || pCat.includes('bangle') || pTitle.includes('bracelet') || pTitle.includes('bangle') || pTitle.includes('kada'))) return true;
+      if (sFilter === 'mangalsutra' && (pCat.includes('mangal') || pTitle.includes('mangal') || pTitle.includes('tanmaniya'))) return true;
+      if (sFilter.includes('nose') && (pCat.includes('nose') || pTitle.includes('nose') || pTitle.includes('nath'))) return true;
+      if (sFilter.includes('polki') && (pCat.includes('polki') || pTitle.includes('polki') || pTitle.includes('jadau'))) return true;
+
+      return false;
+    });
   }, [liveProducts, selectedFilter]);
 
   return (
@@ -611,9 +785,9 @@ export const HomePage: React.FC<HomePageProps> = ({
 
           {/* Category Cards Grid with Slowly Moving Slideshow & Hover/Touch Product Switcher */}
           <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            {(categories || []).map((cat: any, idx: number) => (
+            {mainCategories.map((cat: any, idx: number) => (
               <CategoryBoxCard
-                key={cat.id || idx}
+                key={cat.id || cat.slug || idx}
                 cat={cat}
                 idx={idx}
                 allProducts={allProducts}
@@ -772,18 +946,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
           {/* Sticky Category Filter Bar — stays pinned below navbar when scrolling products */}
           <div className="sticky top-[64px] sm:top-[84px] z-30 py-2.5 sm:py-3 px-3 sm:px-6 rounded-2xl bg-[#080E24]/95 backdrop-blur-2xl border border-[#D4AF37]/35 shadow-[0_12px_40px_rgba(0,0,0,0.85)] flex overflow-x-auto no-scrollbar sm:flex-wrap items-center justify-start sm:justify-center gap-1.5 sm:gap-2 max-w-5xl mx-auto transition-all">
-            {[
-              { id: 'all', label: 'All Designs' },
-              ...(categories.length > 0
-                ? categories.map((c) => ({ id: c.slug, label: c.name }))
-                : [
-                    { id: 'rings', label: 'Rings' },
-                    { id: 'pendants', label: 'Pendants' },
-                    { id: 'earrings', label: 'Earrings' },
-                    { id: 'necklaces', label: 'Necklaces' },
-                    { id: 'bangles', label: 'Bangles' },
-                  ]),
-            ].map((filter) => (
+            {filterCategories.map((filter) => (
               <button
                 key={filter.id}
                 onClick={() => setSelectedFilter(filter.id)}
@@ -837,12 +1000,12 @@ export const HomePage: React.FC<HomePageProps> = ({
                       onClick={() => onNavigate('product-detail', product.id)}
                       className="group rounded-2xl bg-[#0B1330] border border-[#D4AF37]/20 overflow-hidden shadow-xl hover:border-[#D4AF37]/60 transition-all flex flex-col justify-between cursor-pointer"
                     >
-                      {/* Image Frame */}
-                      <div className="relative aspect-square overflow-hidden bg-[#070D22]">
+                      {/* Image Frame (object-contain with padding prevents edge cutting) */}
+                      <div className="relative aspect-square overflow-hidden bg-gradient-to-b from-[#0c163b] to-[#070D22] flex items-center justify-center p-3">
                         <LazyImage
-                          src={product.primaryImage}
+                          src={getOptimizedImageUrl(product.primaryImage, product.category)}
                           alt={product.title}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          className="w-full h-full object-contain drop-shadow-[0_8px_20px_rgba(0,0,0,0.7)] transition-transform duration-500 group-hover:scale-105"
                         />
 
                         {/* Badges */}
@@ -901,11 +1064,11 @@ export const HomePage: React.FC<HomePageProps> = ({
                         <div className="flex items-center justify-between pt-2">
                           <div>
                             <span className="text-xl font-serif font-bold text-[#F5E7A3]">
-                              ${product.price}
+                              ₹{formatINR(product.price)}
                             </span>
                             {product.originalPrice && (
                               <span className="text-xs text-[#C9C2A6] line-through ml-1.5">
-                                ${product.originalPrice}
+                                ₹{formatINR(product.originalPrice)}
                               </span>
                             )}
                           </div>

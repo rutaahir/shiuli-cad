@@ -95,6 +95,9 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
               let url = typeof img === 'string' ? img : (img.image_url || img.image);
               if (url && typeof url === 'string') {
                 if (url.startsWith('/media/')) {
+                  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                    return url;
+                  }
                   return `http://localhost:8000${url}`;
                 }
                 return url.trim();
@@ -453,7 +456,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
               <div className="flex items-baseline justify-between">
                 <div>
                   <div className="text-3xl sm:text-4xl font-serif font-bold text-[#F5E7A3]">
-                    ₹{currentPriceINR.toLocaleString('en-IN')} <span className="text-xs font-sans text-[#C9C2A6] font-normal">INR (${currentPriceUSD} USD)</span>
+                    ₹{currentPriceINR.toLocaleString('en-IN')}
                   </div>
                 </div>
                 {product.originalPrice && (
@@ -476,7 +479,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                   className="w-full py-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-bold tracking-wider uppercase text-xs flex items-center justify-center gap-2 shadow-[0_8px_32px_rgba(212,175,55,0.35)] hover:shadow-[0_8px_40px_rgba(212,175,55,0.5)] transition-all disabled:opacity-50"
                 >
                   <ShieldCheck className="w-4 h-4 text-zinc-950" />
-                  <span>{purchasing ? 'Initiating Secure Purchase...' : `Buy Now & Verify OTP — ₹${currentPriceINR.toLocaleString('en-IN')} INR`}</span>
+                  <span>{purchasing ? 'Initiating Secure Purchase...' : `Buy Now & Verify OTP — ₹${currentPriceINR.toLocaleString('en-IN')}`}</span>
                 </button>
 
                 <div className="flex gap-2">
@@ -735,12 +738,12 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
             <LazyImage
               src={product.primaryImage}
               alt={product.title}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain p-1"
             />
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-xs font-serif text-[#FAF8F3] truncate">{product.title}</div>
-            <div className="text-sm font-bold text-[#F5E7A3] font-serif">${currentPrice}</div>
+            <div className="text-sm font-bold text-[#F5E7A3] font-serif">₹{currentPriceINR.toLocaleString('en-IN')}</div>
           </div>
           <button
             onClick={handleBuyNow}

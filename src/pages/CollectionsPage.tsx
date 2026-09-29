@@ -12,14 +12,18 @@ import {
   ArrowUpDown,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   ChevronsLeft,
   ChevronsRight,
   Loader2,
+  Layers,
 } from 'lucide-react';
 import { RevealOnScroll } from '../components/motion/RevealOnScroll';
 import { StaggerGrid, StaggerItem } from '../components/motion/StaggerGrid';
 import { LazyImage } from '../components/motion/LazyImage';
 import { useCatalog, toProductShape, fetchCatalog } from '../hooks/useCatalog';
+import { formatINR } from '../utils/currencyHelper';
+import { getOptimizedImageUrl } from '../utils/imageHelper';
 
 interface CollectionsPageProps {
   initialCategory?: string;
@@ -84,95 +88,122 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
     return Math.max(...products.map((p) => Number(p.price) || 0), 100);
   }, [products]);
 
-  // ── Build sidebar category list with per-category product counts ──────────
-  // Each entry is a top-level or sub-category with a real count from the filtered product set
-  const categoryFilters = useMemo(() => {
-    // Build a slug → product count map
-    const countBySlug = new Map<string, number>();
+  // ── State for expanded parent categories in sidebar ──
+  const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({});
+
+  // Auto-expand the parent category that contains selectedSlug
+  useEffect(() => {
+    if (selectedSlug !== 'all') {
+      const selectedLower = selectedSlug.toLowerCase();
+      const parent = categories.find(
+        (c) =>
+          c.slug.toLowerCase() === selectedLower ||
+          (c.subcategories || []).some((sc) => sc.slug.toLowerCase() === selectedLower)
+      );
+      if (parent) {
+        setExpandedCats((prev) => ({ ...prev, [parent.slug]: true }));
+      }
+    }
+  }, [selectedSlug, categories]);
+
+  const toggleExpand = (catSlug: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedCats((prev) => ({ ...prev, [catSlug]: !prev[catSlug] }));
+  };
+
+  // ── Build structured categories with accurate counts ─────────────────────
+  const categoryTree = useMemo(() => {
+    const directCountById = new Map<number, number>();
+    const directCountBySlug = new Map<string, number>();
+
     products.forEach((p) => {
+      const catId = Number(p.category);
+      if (catId) {
+        directCountById.set(catId, (directCountById.get(catId) || 0) + 1);
+      }
       if (p.category_slug) {
-        countBySlug.set(p.category_slug, (countBySlug.get(p.category_slug) || 0) + 1);
+        const slugLower = p.category_slug.toLowerCase();
+        directCountBySlug.set(slugLower, (directCountBySlug.get(slugLower) || 0) + 1);
       }
     });
 
-    // Build full flat list: top-level categories first, then sub-cats indented
-    const result: { slug: string; name: string; count: number; isSubcat: boolean }[] = [];
-
-    categories.forEach((cat) => {
-      const getMatchingCount = (slug: string) => {
-        const s = slug.toLowerCase();
-        return products.filter((p) => {
-          const pCatSlug = (p.category_slug || '').toLowerCase();
-          const pParentSlug = ((p as any).parent_slug || '').toLowerCase();
-          const pCatName = (p.category_name || '').toLowerCase();
-
-          return (
-            pCatSlug === s ||
-            pParentSlug === s ||
-            pCatName === s ||
-            (s.includes('ring') && (pCatSlug.includes('ring') || pParentSlug.includes('ring'))) ||
-            (s.includes('necklace') && (pCatSlug.includes('necklace') || pCatSlug.includes('pendant') || pParentSlug.includes('necklace'))) ||
-            (s.includes('earring') && (pCatSlug.includes('earring') || pParentSlug.includes('earring'))) ||
-            (s.includes('bracelet') && (pCatSlug.includes('bracelet') || pCatSlug.includes('bangle') || pParentSlug.includes('bracelet')))
-          );
-        }).length;
-      };
-
-      const directCount = getMatchingCount(cat.slug);
-      const subCount = (cat.subcategories || []).reduce(
-        (sum, sc) => sum + getMatchingCount(sc.slug),
-        0
-      );
-      const totalCount = Math.max(directCount, subCount);
-      result.push({ slug: cat.slug, name: cat.name, count: totalCount > 0 ? totalCount : directCount + subCount, isSubcat: false });
-
-      (cat.subcategories || []).forEach((sc) => {
-        result.push({
+    return categories.map((cat) => {
+      const subcats = (cat.subcategories || []).map((sc) => {
+        const count =
+          directCountById.get(Number(sc.id)) ??
+          directCountBySlug.get(sc.slug.toLowerCase()) ??
+          0;
+        return {
+          id: sc.id,
           slug: sc.slug,
           name: sc.name,
-          count: getMatchingCount(sc.slug),
-          isSubcat: true,
-        });
+          count,
+        };
       });
+
+      const parentDirect =
+        directCountById.get(Number(cat.id)) ??
+        directCountBySlug.get(cat.slug.toLowerCase()) ??
+        0;
+      const subTotal = subcats.reduce((sum, sc) => sum + sc.count, 0);
+      const totalCount = parentDirect + subTotal;
+
+      return {
+        id: cat.id,
+        slug: cat.slug,
+        name: cat.name,
+        totalCount,
+        subcategories: subcats,
+      };
     });
-
-    return result;
   }, [categories, products]);
-
-  // ── Get slugs that match the selected filter (include parent + children or just self) ──
-  const matchingSlugs = useMemo(() => {
-    if (selectedSlug === 'all') return null; // null = all products
-
-    // Is it a top-level category? Include its subcategories too
-    const topLevel = categories.find((c) => c.slug === selectedSlug);
-    if (topLevel) {
-      const subSlugs = (topLevel.subcategories || []).map((sc) => sc.slug);
-      return new Set([topLevel.slug, ...subSlugs]);
-    }
-
-    // Otherwise just this slug (sub-category)
-    return new Set([selectedSlug]);
-  }, [selectedSlug, categories]);
 
   // ── Filtered & sorted product list ──────────────────────────────────────
   const filteredProducts = useMemo(() => {
     return products
       .filter((p) => {
-        // Category filter: match if:
-        //  - no filter selected (all)
-        //  - product's own category_slug matches (e.g. sub-category selected directly)
-        //  - product's parent_slug matches (e.g. top-level "Rings" selected, product is in "Solitaire Rings")
+        // Category filter
         if (selectedSlug !== 'all') {
-          const exactMatch = (p.category_slug || '').toLowerCase() === selectedSlug.toLowerCase();
-          const parentMatch = ((p as any).parent_slug || '').toLowerCase() === selectedSlug.toLowerCase();
-          const catNameMatch = (p.category_name || '').toLowerCase().includes(selectedSlug.toLowerCase()) || selectedSlug.toLowerCase().includes((p.category_name || '').toLowerCase());
-          const flexibleMatch =
-            (selectedSlug.includes('ring') && ((p.category_slug || '').includes('ring') || ((p as any).parent_slug || '').includes('ring'))) ||
-            (selectedSlug.includes('necklace') && ((p.category_slug || '').includes('necklace') || (p.category_slug || '').includes('pendant') || ((p as any).parent_slug || '').includes('necklace'))) ||
-            (selectedSlug.includes('earring') && ((p.category_slug || '').includes('earring') || ((p as any).parent_slug || '').includes('earring'))) ||
-            (selectedSlug.includes('bracelet') && ((p.category_slug || '').includes('bracelet') || (p.category_slug || '').includes('bangle') || ((p as any).parent_slug || '').includes('bracelet')));
+          const selectedLower = selectedSlug.toLowerCase();
+          const pCatSlug = (p.category_slug || '').toLowerCase();
+          const pParentSlug = ((p as any).parent_slug || '').toLowerCase();
+          const pCatId = Number(p.category);
+          const pParentId = Number((p as any).parent_category_id);
 
-          if (!exactMatch && !parentMatch && !catNameMatch && !flexibleMatch) return false;
+          // Find if selectedSlug is a top-level category
+          const topLevel = categories.find((c) => c.slug.toLowerCase() === selectedLower);
+          if (topLevel) {
+            const subSlugs = (topLevel.subcategories || []).map((sc) => sc.slug.toLowerCase());
+            const subIds = (topLevel.subcategories || []).map((sc) => Number(sc.id));
+
+            const isDirectMatch =
+              pCatSlug === selectedLower ||
+              pCatId === Number(topLevel.id) ||
+              pParentSlug === selectedLower ||
+              pParentId === Number(topLevel.id);
+
+            const isSubcatMatch = subSlugs.includes(pCatSlug) || subIds.includes(pCatId);
+
+            if (!isDirectMatch && !isSubcatMatch) return false;
+          } else {
+            // Selected slug is a specific subcategory
+            const exactSubMatch =
+              pCatSlug === selectedLower ||
+              p.category_name?.toLowerCase() === selectedLower;
+
+            if (!exactSubMatch) return false;
+          }
+        }
+
+        // Style filter
+        if (selectedStyleId !== 'all') {
+          const sId = Number(selectedStyleId);
+          const hasStyle = (p.style_tags || []).some((st: any) =>
+            typeof st === 'number'
+              ? st === sId
+              : st.id === sId || st.name?.toLowerCase() === selectedStyleId.toLowerCase()
+          );
+          if (!hasStyle) return false;
         }
 
         // Price filter
@@ -184,7 +215,8 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
           if (
             !p.title.toLowerCase().includes(q) &&
             !p.category_name?.toLowerCase().includes(q) &&
-            !(p.category_slug || '').includes(q)
+            !(p.category_slug || '').toLowerCase().includes(q) &&
+            !(p.description || '').toLowerCase().includes(q)
           ) {
             return false;
           }
@@ -198,7 +230,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
         if (sortBy === 'newest') return (b.is_new ? 1 : 0) - (a.is_new ? 1 : 0);
         return (b.is_bestseller ? 1 : 0) - (a.is_bestseller ? 1 : 0);
       });
-  }, [products, matchingSlugs, maxPrice, searchQuery, sortBy]);
+  }, [products, categories, selectedSlug, selectedStyleId, maxPrice, searchQuery, sortBy]);
 
   // Reset page to 1 whenever any filter or sort option changes
   useEffect(() => {
@@ -255,7 +287,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
       </div>
 
       {/* Category Filter */}
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         <span className="text-[11px] uppercase tracking-wider text-[#D4AF37] font-semibold block">
           Jewellery Category
         </span>
@@ -266,41 +298,127 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
             Loading categories…
           </div>
         ) : (
-          <div className="space-y-0.5 text-xs">
-            {/* All */}
+          <div className="space-y-1 text-xs">
+            {/* All Categories */}
             <button
               onClick={() => setSelectedSlug('all')}
-              className={`w-full text-left px-2.5 py-1.5 rounded-lg transition-colors flex items-center justify-between ${
+              className={`w-full text-left px-3 py-2 rounded-xl transition-all flex items-center justify-between font-medium cursor-pointer ${
                 selectedSlug === 'all'
-                  ? 'bg-[#D4AF37] text-[#0B1330] font-semibold'
-                  : 'text-[#C9C2A6] hover:bg-white/5'
+                  ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#0B1330] font-bold shadow-md shadow-[#D4AF37]/20'
+                  : 'text-[#C9C2A6] hover:bg-white/5 hover:text-[#FAF8F3]'
               }`}
             >
-              <span>All Categories</span>
-              <span className="font-mono text-[10px]">{products.length}</span>
-            </button>
-
-            {categoryFilters.map((c) => (
-              <button
-                key={c.slug}
-                onClick={() => setSelectedSlug(c.slug)}
-                className={`w-full text-left px-2.5 py-1.5 rounded-lg transition-colors flex items-center justify-between ${
-                  c.isSubcat ? 'pl-6' : ''
-                } ${
-                  selectedSlug === c.slug
-                    ? 'bg-[#D4AF37] text-[#0B1330] font-semibold'
-                    : 'text-[#C9C2A6] hover:bg-white/5'
+              <div className="flex items-center gap-2">
+                <Layers className="w-3.5 h-3.5" />
+                <span>All Categories</span>
+              </div>
+              <span
+                className={`font-mono text-[10px] px-2 py-0.5 rounded-full ${
+                  selectedSlug === 'all'
+                    ? 'bg-[#0B1330]/20 text-[#0B1330] font-bold'
+                    : 'bg-white/10 text-[#C9C2A6]'
                 }`}
               >
-                <span className="flex items-center gap-1">
-                  {c.isSubcat && (
-                    <ChevronRight className="w-3 h-3 opacity-50 shrink-0" />
-                  )}
-                  {c.name}
-                </span>
-                <span className="font-mono text-[10px]">{c.count}</span>
-              </button>
-            ))}
+                {products.length}
+              </span>
+            </button>
+
+            {/* Tree of Categories with Accordions */}
+            <div className="space-y-1 pt-1">
+              {categoryTree.map((cat) => {
+                const isSelected = selectedSlug === cat.slug;
+                const hasSubcats = cat.subcategories.length > 0;
+                const isExpanded = !!expandedCats[cat.slug];
+                const hasActiveChild = cat.subcategories.some((sc) => sc.slug === selectedSlug);
+
+                return (
+                  <div key={cat.slug} className="rounded-xl overflow-hidden transition-colors">
+                    {/* Top Level Category Row */}
+                    <div
+                      onClick={() => setSelectedSlug(cat.slug)}
+                      className={`group w-full text-left px-3 py-2 rounded-xl transition-all flex items-center justify-between cursor-pointer ${
+                        isSelected
+                          ? 'bg-[#D4AF37] text-[#0B1330] font-bold shadow-md'
+                          : hasActiveChild
+                          ? 'bg-white/5 text-[#F5E7A3] font-semibold border border-[#D4AF37]/30'
+                          : 'text-[#C9C2A6] hover:bg-white/5 hover:text-[#FAF8F3]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        {hasSubcats ? (
+                          <button
+                            type="button"
+                            onClick={(e) => toggleExpand(cat.slug, e)}
+                            className="p-1 -ml-1 rounded-md hover:bg-white/10 transition-colors"
+                            title={isExpanded ? 'Collapse' : 'Expand'}
+                          >
+                            <ChevronDown
+                              className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                                isExpanded ? 'transform rotate-180' : ''
+                              } ${isSelected ? 'text-[#0B1330]' : 'text-[#D4AF37]'}`}
+                            />
+                          </button>
+                        ) : (
+                          <span className="w-3" />
+                        )}
+                        <span className="truncate">{cat.name}</span>
+                      </div>
+                      <span
+                        className={`font-mono text-[10px] px-2 py-0.5 rounded-full shrink-0 ml-2 ${
+                          isSelected
+                            ? 'bg-[#0B1330]/25 text-[#0B1330] font-bold'
+                            : cat.totalCount > 0
+                            ? 'bg-white/10 text-[#FAF8F3]'
+                            : 'bg-white/5 text-[#C9C2A6]/40'
+                        }`}
+                      >
+                        {cat.totalCount}
+                      </span>
+                    </div>
+
+                    {/* Subcategories (Indented Accordion) */}
+                    {hasSubcats && isExpanded && (
+                      <div className="mt-1 ml-4 pl-3 border-l-2 border-[#D4AF37]/25 space-y-0.5 py-1">
+                        {cat.subcategories.map((sc) => {
+                          const isSubSelected = selectedSlug === sc.slug;
+                          return (
+                            <button
+                              key={sc.slug}
+                              onClick={() => setSelectedSlug(sc.slug)}
+                              className={`w-full text-left px-2.5 py-1.5 rounded-lg transition-colors flex items-center justify-between text-[11px] cursor-pointer ${
+                                isSubSelected
+                                  ? 'bg-[#D4AF37]/25 text-[#F5E7A3] font-bold border border-[#D4AF37]/40'
+                                  : 'text-[#C9C2A6] hover:text-[#FAF8F3] hover:bg-white/5'
+                              }`}
+                            >
+                              <span className="flex items-center gap-1.5 truncate">
+                                <span
+                                  className={`w-1 h-1 rounded-full ${
+                                    isSubSelected ? 'bg-[#D4AF37]' : 'bg-[#C9C2A6]/50'
+                                  }`}
+                                />
+                                <span className="truncate">{sc.name}</span>
+                              </span>
+                              <span
+                                className={`font-mono text-[9px] px-1.5 py-0.2 rounded-full shrink-0 ml-1.5 ${
+                                  isSubSelected
+                                    ? 'bg-[#D4AF37]/30 text-[#F5E7A3] font-bold'
+                                    : sc.count > 0
+                                    ? 'bg-white/10 text-[#FAF8F3]'
+                                    : 'text-[#C9C2A6]/30'
+                                }`}
+                              >
+                                {sc.count}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
@@ -336,7 +454,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
             Max Price Range
           </span>
           <span className="font-mono text-[#F5E7A3] font-bold">
-            ${maxPrice >= globalMaxPrice ? 'Any' : maxPrice}
+            {maxPrice >= globalMaxPrice ? 'Any' : `₹${formatINR(maxPrice)}`}
           </span>
         </div>
         <input
@@ -349,8 +467,8 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
           className="w-full accent-[#D4AF37] cursor-pointer"
         />
         <div className="flex justify-between text-[10px] text-[#C9C2A6]/50 font-mono">
-          <span>$0</span>
-          <span>${globalMaxPrice}</span>
+          <span>₹0</span>
+          <span>₹{formatINR(globalMaxPrice)}</span>
         </div>
       </div>
     </div>
@@ -546,9 +664,9 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                           {/* Image */}
                           <div className="relative aspect-square overflow-hidden bg-[#070D22]">
                             <LazyImage
-                              src={product.primaryImage}
+                              src={getOptimizedImageUrl(product.primaryImage, product.category)}
                               alt={product.title}
-                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                              className="w-full h-full object-contain p-3 drop-shadow-[0_8px_20px_rgba(0,0,0,0.7)] transition-transform duration-500 group-hover:scale-105"
                             />
 
                             {/* Badges */}
@@ -603,10 +721,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                             <div className="flex items-center justify-between pt-2">
                               <div>
                                 <span className="text-lg font-serif font-bold text-[#F5E7A3] block">
-                                  ₹{Math.round(product.price * 84).toLocaleString('en-IN')}
-                                </span>
-                                <span className="text-[10px] text-[#C9C2A6] block font-sans">
-                                  (${product.price} USD)
+                                  ₹{formatINR(product.price)}
                                 </span>
                               </div>
                               <button

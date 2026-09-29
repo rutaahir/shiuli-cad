@@ -54,30 +54,56 @@ class ProductImageSerializer(serializers.ModelSerializer):
 
 class ProductFileSerializer(serializers.ModelSerializer):
     file_url = serializers.SerializerMethodField()
+    file_size_mb = serializers.SerializerMethodField()
 
     class Meta:
         model = ProductFile
-        fields = ['id', 'file_type', 'file', 'file_url']
+        fields = ['id', 'file_type', 'file', 'file_url', 'original_filename', 'file_size_bytes', 'file_size_mb', 'uploaded_at']
 
     def get_file_url(self, obj):
-        if obj.file:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.file.url)
-            return obj.file.url
+        try:
+            if obj.file:
+                if obj.file_type in ['render', 'video']:
+                    try:
+                        request = self.context.get('request')
+                        return request.build_absolute_uri(obj.file.url) if request else obj.file.url
+                    except Exception:
+                        pass
+                # CAD files (3dm, stl, zip) use secure download endpoint
+                request = self.context.get('request')
+                download_path = f"/api/catalog/products/download/{obj.id}/"
+                return request.build_absolute_uri(download_path) if request else download_path
+        except Exception:
+            return None
+        return None
+
+    def get_file_size_mb(self, obj):
+        if obj.file_size_bytes:
+            return round(obj.file_size_bytes / (1024 * 1024), 2)
+        try:
+            if obj.file:
+                return round(obj.file.size / (1024 * 1024), 2)
+        except Exception:
+            pass
         return None
 
 class ProductListSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
+    category_slug = serializers.CharField(source='category.slug', read_only=True)
+    parent_category_id = serializers.IntegerField(source='category.parent_id', read_only=True, allow_null=True)
+    parent_category_slug = serializers.CharField(source='category.parent.slug', read_only=True, default='')
+    parent_category_name = serializers.CharField(source='category.parent.name', read_only=True, default='')
     primary_image = serializers.SerializerMethodField()
     uploaded_by_name = serializers.SerializerMethodField()
+    uploaded_by_avatar = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
         fields = [
-            'id', 'title', 'slug', 'category', 'category_name',
+            'id', 'title', 'slug', 'category', 'category_name', 'category_slug',
+            'parent_category_id', 'parent_category_slug', 'parent_category_name',
             'price', 'compare_at_price', 'staff_price', 'commission_rate', 'commission_amount',
-            'is_active', 'agreed_terms', 'uploaded_by', 'uploaded_by_name',
+            'is_active', 'agreed_terms', 'uploaded_by', 'uploaded_by_name', 'uploaded_by_avatar',
             'metal_weight_grams', 'stone_count',
             'status', 'is_bestseller', 'is_new', 'is_featured', 'primary_image', 'created_at'
         ]
@@ -87,6 +113,17 @@ class ProductListSerializer(serializers.ModelSerializer):
             name = f"{obj.uploaded_by.first_name} {obj.uploaded_by.last_name}".strip()
             return name or obj.uploaded_by.username
         return "Studio Atelier"
+
+    def get_uploaded_by_avatar(self, obj):
+        if obj.uploaded_by and obj.uploaded_by.profile_photo:
+            try:
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(obj.uploaded_by.profile_photo.url)
+                return obj.uploaded_by.profile_photo.url
+            except Exception:
+                return str(obj.uploaded_by.profile_photo)
+        return None
 
     def get_primary_image(self, obj):
         primary = obj.images.filter(is_primary=True).first() or obj.images.first()
@@ -105,11 +142,14 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     images = ProductImageSerializer(many=True, read_only=True)
     files = serializers.SerializerMethodField()
     has_purchased = serializers.SerializerMethodField()
+    uploaded_by_name = serializers.SerializerMethodField()
+    uploaded_by_avatar = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
         fields = [
             'id', 'title', 'slug', 'category', 'style_tags', 'uploaded_by',
+            'uploaded_by_name', 'uploaded_by_avatar',
             'price', 'compare_at_price', 'staff_price', 'commission_rate', 'commission_amount',
             'is_active', 'agreed_terms',
             'commercial_price_markup',
@@ -119,6 +159,23 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'is_new', 'is_featured', 'casting_tips', 'specs', 'formats_available',
             'images', 'files', 'has_purchased', 'created_at', 'approved_at'
         ]
+
+    def get_uploaded_by_name(self, obj):
+        if obj.uploaded_by:
+            name = f"{obj.uploaded_by.first_name} {obj.uploaded_by.last_name}".strip()
+            return name or obj.uploaded_by.username
+        return "Studio Atelier"
+
+    def get_uploaded_by_avatar(self, obj):
+        if obj.uploaded_by and obj.uploaded_by.profile_photo:
+            try:
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(obj.uploaded_by.profile_photo.url)
+                return obj.uploaded_by.profile_photo.url
+            except Exception:
+                return str(obj.uploaded_by.profile_photo)
+        return None
 
     def get_has_purchased(self, obj):
         request = self.context.get('request')

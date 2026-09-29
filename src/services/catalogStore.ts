@@ -17,6 +17,10 @@ export interface BackendCategory {
   display_order: number;
   subcategories: BackendCategory[];
   product_count: number;
+  image?: string | null;
+  image_url?: string | null;
+  image_display?: string | null;
+  tagline?: string | null;
 }
 
 export interface BackendProduct {
@@ -35,6 +39,8 @@ export interface BackendProduct {
   is_bestseller: boolean;
   is_new: boolean;
   status: string;
+  style_tags?: any[];
+  parent_category_id?: number | null;
   primary_image?: string | null;
   created_at: string;
 }
@@ -94,26 +100,27 @@ function flattenCategories(cats: BackendCategory[]): BackendCategory[] {
 function enrichProducts(products: BackendProduct[], flat: BackendCategory[]): BackendProduct[] {
   // Build map: category id → category object
   const catMap = new Map<number, BackendCategory>();
-  flat.forEach((c) => catMap.set(c.id, c));
+  flat.forEach((c) => catMap.set(Number(c.id), c));
 
   // Build map: category id → parent category
   const parentMap = new Map<number, BackendCategory>();
   flat.forEach((c) => {
-    if (c.parent !== null) {
-      const parent = catMap.get(c.parent as number);
-      if (parent) parentMap.set(c.id, parent);
+    if (c.parent !== null && c.parent !== undefined) {
+      const parent = catMap.get(Number(c.parent));
+      if (parent) parentMap.set(Number(c.id), parent);
     }
   });
 
   return products.map((p) => {
-    const cat = catMap.get(p.category);
-    const parent = parentMap.get(p.category); // parent of the sub-category (if any)
-    const topLevelCat = parent ?? cat; // if this is already top-level, use itself
+    const cat = catMap.get(Number(p.category));
+    const parent = parentMap.get(Number(p.category));
+    const topLevelCat = parent ?? cat;
     return {
       ...p,
-      category_slug: cat?.slug ?? '',          // exact category slug (may be sub-cat)
-      parent_slug: topLevelCat?.slug ?? '',    // top-level parent slug
-      category_name: cat?.name ?? p.category_name ?? '',
+      category_slug: p.category_slug || cat?.slug || '',
+      parent_slug: (p as any).parent_category_slug || parent?.slug || (cat && !cat.parent ? cat.slug : ''),
+      category_name: p.category_name || cat?.name || '',
+      parent_category_id: (p as any).parent_category_id ?? (parent ? parent.id : null),
     };
   });
 }
@@ -228,7 +235,7 @@ export async function fetchCatalog(force = false): Promise<void> {
       const [catsRaw, stylesRaw, prodsRaw] = await Promise.all([
         api.getCategories(false).catch(() => null),
         api.getDesignStyles().catch(() => null),
-        api.getProducts().catch(() => null),
+        api.getProducts({ page_size: '500' }).catch(() => null),
       ]);
 
       let cats: BackendCategory[] = Array.isArray(catsRaw)
@@ -294,7 +301,8 @@ export function getSnapshot(): CatalogState {
   return { ...state };
 }
 
-/** Invalidate cache so the next subscribe/fetchCatalog re-fetches */
+/** Invalidate cache and immediately re-fetch to notify all subscribers */
 export function invalidateCatalog() {
   state = { ...state, lastFetchedAt: null };
+  fetchCatalog(true);
 }

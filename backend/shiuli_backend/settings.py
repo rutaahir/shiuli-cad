@@ -138,9 +138,9 @@ PROTECTED_MEDIA_ROOT = BASE_DIR / 'protected_media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Upload limits (50 MB for large 3DM / STL CAD files)
-DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800
-FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800
+# Upload limits (250 MB for large 3DM / STL CAD models and 360° videos)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 262144000
+FILE_UPLOAD_MAX_MEMORY_SIZE = 262144000
 
 # CORS & Security settings
 if PRODUCTION:

@@ -602,12 +602,30 @@ class ApiClient {
     parent?: number | null;
     display_order?: number;
     commission_percentage?: number;
-  }) {
+    image_url?: string;
+    image?: File | null;
+    tagline?: string;
+  } | FormData) {
     await this.ensureAdminToken();
+    let body: any;
+    if (typeof FormData !== 'undefined' && categoryData instanceof FormData) {
+      body = categoryData;
+    } else if (categoryData && (categoryData as any).image instanceof File) {
+      const fd = new FormData();
+      Object.entries(categoryData).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) {
+          fd.append(k, v instanceof File ? v : String(v));
+        }
+      });
+      body = fd;
+    } else {
+      body = JSON.stringify(categoryData);
+    }
+
     try {
       return await this.request<any>('/catalog/categories/', {
         method: 'POST',
-        body: JSON.stringify(categoryData),
+        body,
       });
     } catch (err: any) {
       if (err.status === 401 || err.status === 403) {
@@ -615,7 +633,7 @@ class ApiClient {
         await this.ensureAdminToken();
         return await this.request<any>('/catalog/categories/', {
           method: 'POST',
-          body: JSON.stringify(categoryData),
+          body,
         });
       }
       throw err;
@@ -628,12 +646,30 @@ class ApiClient {
     parent?: number | null;
     display_order?: number;
     commission_percentage?: number;
-  }) {
+    image_url?: string;
+    image?: File | null;
+    tagline?: string;
+  } | FormData) {
     await this.ensureAdminToken();
+    let body: any;
+    if (typeof FormData !== 'undefined' && categoryData instanceof FormData) {
+      body = categoryData;
+    } else if (categoryData && (categoryData as any).image instanceof File) {
+      const fd = new FormData();
+      Object.entries(categoryData).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) {
+          fd.append(k, v instanceof File ? v : String(v));
+        }
+      });
+      body = fd;
+    } else {
+      body = JSON.stringify(categoryData);
+    }
+
     try {
       return await this.request<any>(`/catalog/categories/${categoryId}/`, {
         method: 'PATCH',
-        body: JSON.stringify(categoryData),
+        body,
       });
     } catch (err: any) {
       if (err.status === 401 || err.status === 403) {
@@ -641,7 +677,7 @@ class ApiClient {
         await this.ensureAdminToken();
         return await this.request<any>(`/catalog/categories/${categoryId}/`, {
           method: 'PATCH',
-          body: JSON.stringify(categoryData),
+          body,
         });
       }
       throw err;
@@ -850,40 +886,81 @@ class ApiClient {
   async uploadProductFile(
     slug: string,
     file: File,
-    fileType: '3dm' | 'stl' | 'render' | 'video'
-  ) {
+    fileType: '3dm' | 'stl' | 'render' | 'video' | 'zip',
+    onProgress?: (percent: number) => void
+  ): Promise<any> {
     await this.ensureAdminToken();
     let token = localStorage.getItem('shiuli_access_token');
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('file_type', fileType);
 
-    let response = await fetch(`${API_BASE_URL}/catalog/products/${slug}/upload-file/`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    });
+    // Use XMLHttpRequest to support upload progress events for large files
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
 
-    if (response.status === 401 || response.status === 403) {
-      localStorage.removeItem('shiuli_access_token');
-      await this.ensureAdminToken();
-      token = localStorage.getItem('shiuli_access_token');
-      response = await fetch(`${API_BASE_URL}/catalog/products/${slug}/upload-file/`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable && onProgress) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          onProgress(percent);
+        }
       });
-    }
 
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.error || errData.detail || 'CAD File upload failed.');
-    }
-    return response.json();
+      xhr.addEventListener('load', async () => {
+        if (xhr.status === 401 || xhr.status === 403) {
+          // Retry once with fresh token
+          try {
+            localStorage.removeItem('shiuli_access_token');
+            await this.ensureAdminToken();
+            token = localStorage.getItem('shiuli_access_token');
+            const retryXhr = new XMLHttpRequest();
+            retryXhr.upload.addEventListener('progress', (e) => {
+              if (e.lengthComputable && onProgress) {
+                onProgress(Math.round((e.loaded / e.total) * 100));
+              }
+            });
+            retryXhr.addEventListener('load', () => {
+              if (retryXhr.status >= 200 && retryXhr.status < 300) {
+                resolve(JSON.parse(retryXhr.responseText));
+              } else {
+                const errData = JSON.parse(retryXhr.responseText || '{}');
+                reject(new Error(errData.error || errData.detail || 'CAD File upload failed.'));
+              }
+            });
+            retryXhr.addEventListener('error', () => reject(new Error('Network error during CAD file upload.')));
+            retryXhr.open('POST', `${API_BASE_URL}/catalog/products/${slug}/upload-file/`);
+            retryXhr.setRequestHeader('Authorization', `Bearer ${token}`);
+            retryXhr.send(formData);
+          } catch (retryErr) {
+            reject(retryErr);
+          }
+          return;
+        }
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            resolve(JSON.parse(xhr.responseText));
+          } catch {
+            resolve({});
+          }
+        } else {
+          try {
+            const errData = JSON.parse(xhr.responseText || '{}');
+            reject(new Error(errData.error || errData.detail || `CAD File upload failed (${xhr.status}).`));
+          } catch {
+            reject(new Error(`CAD File upload failed (${xhr.status}).`));
+          }
+        }
+      });
+
+      xhr.addEventListener('error', () => reject(new Error('Network error during CAD file upload. Check your connection.')));
+      xhr.addEventListener('timeout', () => reject(new Error('CAD file upload timed out. The file may be too large.')));
+      xhr.timeout = 30 * 60 * 1000; // 30 minutes timeout for very large files
+
+      xhr.open('POST', `${API_BASE_URL}/catalog/products/${slug}/upload-file/`);
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.send(formData);
+    });
   }
 
   async deleteProductFile(slug: string, fileId: number) {
@@ -938,6 +1015,22 @@ class ApiClient {
   // Custom Orders & Job Pool Endpoints
   async getCustomRequests() {
     return this.get<any[]>('/custom-requests/');
+  }
+
+  async updateCustomRequestAdminNotes(requestId: number | string, notes: string) {
+    await this.ensureAdminToken();
+    return this.request<any>(`/custom-requests/${requestId}/update-notes/`, {
+      method: 'POST',
+      body: JSON.stringify({ admin_call_notes: notes }),
+    });
+  }
+
+  async updateOrderAdminNotes(orderId: number | string, notes: string) {
+    await this.ensureAdminToken();
+    return this.request<any>(`/orders/${orderId}/update-notes/`, {
+      method: 'POST',
+      body: JSON.stringify({ admin_call_notes: notes }),
+    });
   }
 
   async getJobPool() {

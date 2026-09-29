@@ -7,6 +7,7 @@ import { OTPVerificationModal } from './delivery/OTPVerificationModal';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { sendCadDownloadEmail } from '../services/emailService';
+import { formatINR } from '../utils/currencyHelper';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -305,7 +306,7 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                         src={item.product.primaryImage}
                         alt={item.product.title}
                         referrerPolicy="no-referrer"
-                        className="w-16 h-16 rounded-lg object-cover border border-[#D4AF37]/20 flex-shrink-0"
+                        className="w-16 h-16 rounded-lg object-contain p-1 bg-[#09112B] border border-[#D4AF37]/20 flex-shrink-0"
                       />
                       <div className="flex-1 min-w-0">
                         <h4 className="text-xs font-medium text-[#FAF8F3] line-clamp-1">
@@ -319,7 +320,7 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                             3DM + STL
                           </span>
                           <span className="text-xs font-semibold text-[#F5E7A3]">
-                            ₹{Math.round(currentPrice * 84).toLocaleString('en-IN')} <span className="text-[10px] text-[#C9C2A6] font-normal font-sans">(${currentPrice.toFixed(0)} USD)</span>
+                            ₹{formatINR(currentPrice)}
                           </span>
                         </div>
                       </div>
@@ -364,17 +365,17 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
               <div className="space-y-1.5 text-xs">
                 <div className="flex justify-between text-[#C9C2A6]">
                   <span>Subtotal:</span>
-                  <span>₹{Math.round(subtotal * 84).toLocaleString('en-IN')} (${subtotal.toFixed(0)} USD)</span>
+                  <span>₹{formatINR(subtotal)}</span>
                 </div>
                 {discountAmount > 0 && (
                   <div className="flex justify-between text-emerald-400">
                     <span>Discount (10%):</span>
-                    <span>-₹{Math.round(discountAmount * 84).toLocaleString('en-IN')} (-${discountAmount.toFixed(0)})</span>
+                    <span>-₹{formatINR(discountAmount)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm font-semibold text-[#FAF8F3] pt-2 border-t border-white/5">
                   <span className="font-serif">Total Payable:</span>
-                  <span className="text-[#F5E7A3]">₹{Math.round(total * 84).toLocaleString('en-IN')} INR <span className="text-xs font-sans text-[#C9C2A6] font-normal">(${total.toFixed(0)} USD)</span></span>
+                  <span className="text-[#F5E7A3]">₹{formatINR(total)}</span>
                 </div>
               </div>
 

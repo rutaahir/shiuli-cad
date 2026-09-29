@@ -130,6 +130,25 @@ export const appStore = {
     });
     const uniqueList = Array.from(uniqueMap.values());
     setStored(KEYS.STAFF_LIST, uniqueList);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('shiuli_staff_updated', { detail: uniqueList }));
+    }
+  },
+  updateStaff(updatedStaff: StaffMember) {
+    return this.addStaff(updatedStaff);
+  },
+  updateStaffAvatar(staffIdOrEmail: string, avatarUrl: string) {
+    const list = this.getStaffList().map((s) => {
+      if (
+        s.id.toString() === staffIdOrEmail.toString() ||
+        (s.email && s.email.toLowerCase() === staffIdOrEmail.toLowerCase())
+      ) {
+        return { ...s, avatar: avatarUrl };
+      }
+      return s;
+    });
+    this.saveStaffList(list);
+    return list;
   },
   updateStaffLimit(staffId: string, limit: number) {
     const list = this.getStaffList().map((s) =>
@@ -154,7 +173,7 @@ export const appStore = {
     );
     if (exists) {
       const updated = current.map((s) =>
-        s.id === newStaff.id || (s.email && s.email.toLowerCase() === newStaff.email.toLowerCase()) ? newStaff : s
+        s.id === newStaff.id || (s.email && s.email.toLowerCase() === newStaff.email.toLowerCase()) ? { ...s, ...newStaff } : s
       );
       this.saveStaffList(updated);
       return updated;
@@ -235,6 +254,16 @@ export const appStore = {
     this.saveCustomRequests(list);
     return list;
   },
+  updateCustomRequestNotes(requestId: string | number, notes: string) {
+    const list = this.getCustomRequests().map((r: any) => {
+      if (String(r.id) === String(requestId)) {
+        return { ...r, admin_call_notes: notes };
+      }
+      return r;
+    });
+    this.saveCustomRequests(list);
+    return list;
+  },
 
   // Job Pool & Active Jobs
   getAvailableJobs(): AvailableJob[] {
@@ -266,6 +295,11 @@ export const appStore = {
   saveNotifications(notes: AdminNotification[]) {
     setStored(KEYS.NOTIFICATIONS, notes);
   },
+  addNotification(note: AdminNotification) {
+    const list = [note, ...this.getNotifications()];
+    this.saveNotifications(list);
+    return list;
+  },
 
   // Activity Logs
   getActivityLogs(): ActivityLogItem[] {
@@ -273,6 +307,11 @@ export const appStore = {
   },
   saveActivityLogs(logs: ActivityLogItem[]) {
     setStored(KEYS.ACTIVITY_LOGS, logs);
+  },
+  addActivityLog(log: ActivityLogItem) {
+    const list = [log, ...this.getActivityLogs()];
+    this.saveActivityLogs(list);
+    return list;
   },
 
   // Settings

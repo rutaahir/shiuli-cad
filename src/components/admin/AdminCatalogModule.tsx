@@ -24,6 +24,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { ProductModal } from '../common/ProductModal';
+import { invalidateCatalog } from '../../services/catalogStore';
 
 interface CategoryItem {
   id: number;
@@ -35,6 +36,10 @@ interface CategoryItem {
   subcategories: CategoryItem[];
   product_count: number;
   commission_percentage?: number | string;
+  image?: string;
+  image_url?: string;
+  image_display?: string;
+  tagline?: string;
 }
 
 interface DesignStyleItem {
@@ -66,6 +71,9 @@ interface BackendProduct {
 export const AdminCatalogModule: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'products' | 'categories'>('products');
   const [products, setProducts] = useState<BackendProduct[]>([]);
+  const [totalProductCount, setTotalProductCount] = useState<number>(0);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [itemsPerPage, setItemsPerPage] = useState<number>(50);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [designStyles, setDesignStyles] = useState<DesignStyleItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -109,6 +117,15 @@ export const AdminCatalogModule: React.FC = () => {
   const [fileStl, setFileStl] = useState<File | null>(null);
   const [fileRender, setFileRender] = useState<File | null>(null);
   const [fileVideo, setFileVideo] = useState<File | null>(null);
+  const [fileZip, setFileZip] = useState<File | null>(null);
+  const [uploadProgressMap, setUploadProgressMap] = useState<Record<string, number>>({});
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  };
 
   // Category Drawers/Modals
   const [showAddCategoryDrawer, setShowAddCategoryDrawer] = useState(false);
@@ -116,7 +133,24 @@ export const AdminCatalogModule: React.FC = () => {
   const [newCatSlug, setNewCatSlug] = useState('');
   const [newCatDisplayOrder, setNewCatDisplayOrder] = useState<number>(0);
   const [newCatCommission, setNewCatCommission] = useState<string>('20.00');
+  const [newCatImageUrl, setNewCatImageUrl] = useState('');
+  const [newCatImageFile, setNewCatImageFile] = useState<File | null>(null);
+  const [newCatImagePreview, setNewCatImagePreview] = useState<string | null>(null);
+  const [newCatTagline, setNewCatTagline] = useState('');
   const [catSubmitError, setCatSubmitError] = useState<string | null>(null);
+
+  // Full Edit Category Modal State
+  const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null);
+  const [editCatName, setEditCatName] = useState('');
+  const [editCatSlug, setEditCatSlug] = useState('');
+  const [editCatDisplayOrder, setEditCatDisplayOrder] = useState<number>(0);
+  const [editCatCommission, setEditCatCommission] = useState<string>('20.00');
+  const [editCatImageUrl, setEditCatImageUrl] = useState('');
+  const [editCatImageFile, setEditCatImageFile] = useState<File | null>(null);
+  const [editCatImagePreview, setEditCatImagePreview] = useState<string | null>(null);
+  const [editCatTagline, setEditCatTagline] = useState('');
+  const [editCatError, setEditCatError] = useState<string | null>(null);
+  const [isUpdatingCat, setIsUpdatingCat] = useState(false);
 
   // Dynamic Category Commission Quick-Edit State
   const [editingCatCommissionId, setEditingCatCommissionId] = useState<number | null>(null);
@@ -165,20 +199,49 @@ export const AdminCatalogModule: React.FC = () => {
     }
   };
 
-  // Load Catalog Data from Backend
+  // Load Catalog Data from Backend — fetches ALL products across all pages
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [catsRes, stylesRes, prodsRes] = await Promise.all([
+      const PAGE_SIZE = 200;
+
+      const [catsRes, stylesRes, firstPage] = await Promise.all([
         api.getCategories(false),
         api.getDesignStyles(),
-        api.getProducts(statusFilter !== 'all' ? { status: statusFilter } : {}),
+        api.getProducts({
+          page_size: String(PAGE_SIZE),
+          ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
+        }),
       ]);
       setCategories(Array.isArray(catsRes) ? catsRes : (catsRes as any)?.results || []);
       setDesignStyles(Array.isArray(stylesRes) ? stylesRes : (stylesRes as any)?.results || []);
-      
-      const prodData = prodsRes?.results ? prodsRes.results : Array.isArray(prodsRes) ? prodsRes : [];
-      setProducts(prodData);
+
+      const totalCount: number = firstPage?.count ?? 0;
+      const firstBatch: BackendProduct[] = firstPage?.results ?? (Array.isArray(firstPage) ? firstPage : []);
+
+      // If backend returned a paginated response AND there are more pages, fetch them all
+      let allProducts = [...firstBatch];
+      if (totalCount > firstBatch.length) {
+        const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+        const pagePromises = [];
+        for (let page = 2; page <= totalPages; page++) {
+          pagePromises.push(
+            api.getProducts({
+              page: String(page),
+              page_size: String(PAGE_SIZE),
+              ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
+            })
+          );
+        }
+        const otherPages = await Promise.all(pagePromises);
+        for (const pg of otherPages) {
+          const pgData = pg?.results ?? (Array.isArray(pg) ? pg : []);
+          allProducts = [...allProducts, ...pgData];
+        }
+      }
+
+      setProducts(allProducts);
+      setTotalProductCount(totalCount || allProducts.length);
     } catch (err: any) {
       console.error('Failed to load catalog data:', err);
     } finally {
@@ -216,16 +279,68 @@ export const AdminCatalogModule: React.FC = () => {
         parent: null,
         display_order: Number(newCatDisplayOrder),
         commission_percentage: Number(newCatCommission) || 20,
+        image_url: newCatImageUrl || undefined,
+        image: newCatImageFile || undefined,
+        tagline: newCatTagline || undefined,
       });
+      invalidateCatalog();
       showToast(`Category "${created.name}" created successfully!`);
       setShowAddCategoryDrawer(false);
       setNewCatName('');
       setNewCatSlug('');
       setNewCatDisplayOrder(0);
       setNewCatCommission('20.00');
+      setNewCatImageUrl('');
+      setNewCatImageFile(null);
+      setNewCatImagePreview(null);
+      setNewCatTagline('');
       loadData();
     } catch (err: any) {
       setCatSubmitError(err.message || 'Failed to create category.');
+    }
+  };
+
+  // Open Edit Category Drawer
+  const handleOpenEditCategory = (cat: CategoryItem) => {
+    setEditingCategory(cat);
+    setEditCatName(cat.name);
+    setEditCatSlug(cat.slug);
+    setEditCatDisplayOrder(cat.display_order ?? 0);
+    setEditCatCommission(String(cat.commission_percentage != null ? cat.commission_percentage : 20));
+    const currentImg = (cat as any).image_display || cat.image || cat.image_url || '';
+    setEditCatImageUrl(cat.image_url || '');
+    setEditCatImageFile(null);
+    setEditCatImagePreview(currentImg || null);
+    setEditCatTagline(cat.tagline || '');
+    setEditCatError(null);
+  };
+
+  // Save Edited Category
+  const handleSaveEditCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCategory) return;
+    setEditCatError(null);
+    setIsUpdatingCat(true);
+    try {
+      await api.updateCategory(editingCategory.id, {
+        name: editCatName,
+        slug: editCatSlug || undefined,
+        display_order: Number(editCatDisplayOrder),
+        commission_percentage: Number(editCatCommission) || 20,
+        image_url: editCatImageUrl || undefined,
+        image: editCatImageFile || undefined,
+        tagline: editCatTagline || undefined,
+      });
+      invalidateCatalog();
+      showToast(`Category "${editCatName}" updated successfully!`);
+      setEditingCategory(null);
+      setEditCatImageFile(null);
+      setEditCatImagePreview(null);
+      loadData();
+    } catch (err: any) {
+      setEditCatError(err.message || 'Failed to update category.');
+    } finally {
+      setIsUpdatingCat(false);
     }
   };
 
@@ -384,25 +499,23 @@ export const AdminCatalogModule: React.FC = () => {
         }
       }
 
-      // Step C: Upload CAD Files
-      if (file3dm) {
-        setUploadProgressText('Uploading .3DM Rhino File...');
-        await api.uploadProductFile(productSlug, file3dm, '3dm');
-      }
+      // Step C: Upload CAD Files (with per-file progress tracking)
+      const cadUploads: { file: File; type: '3dm' | 'stl' | 'render' | 'video' | 'zip'; label: string }[] = [];
+      if (file3dm) cadUploads.push({ file: file3dm, type: '3dm', label: '.3DM Rhino File' });
+      if (fileStl) cadUploads.push({ file: fileStl, type: 'stl', label: '.STL Print File' });
+      if (fileRender) cadUploads.push({ file: fileRender, type: 'render', label: 'Render Image' });
+      if (fileVideo) cadUploads.push({ file: fileVideo, type: 'video', label: '360° Video' });
+      if (fileZip) cadUploads.push({ file: fileZip, type: 'zip', label: 'ZIP Archive' });
 
-      if (fileStl) {
-        setUploadProgressText('Uploading .STL Print File...');
-        await api.uploadProductFile(productSlug, fileStl, 'stl');
-      }
-
-      if (fileRender) {
-        setUploadProgressText('Uploading High-Res Render File...');
-        await api.uploadProductFile(productSlug, fileRender, 'render');
-      }
-
-      if (fileVideo) {
-        setUploadProgressText('Uploading 360° Video File...');
-        await api.uploadProductFile(productSlug, fileVideo, 'video');
+      for (let ci = 0; ci < cadUploads.length; ci++) {
+        const { file, type, label } = cadUploads[ci];
+        setUploadProgressText(`Uploading ${label} (${ci + 1}/${cadUploads.length})...`);
+        setUploadProgressMap((prev) => ({ ...prev, [type]: 0 }));
+        await api.uploadProductFile(productSlug, file, type, (pct) => {
+          setUploadProgressMap((prev) => ({ ...prev, [type]: pct }));
+          setUploadProgressText(`Uploading ${label}: ${pct}% (${ci + 1}/${cadUploads.length})`);
+        });
+        setUploadProgressMap((prev) => ({ ...prev, [type]: 100 }));
       }
 
       // Final Step: Transition to APPROVED status for Admin
@@ -428,6 +541,8 @@ export const AdminCatalogModule: React.FC = () => {
       setFileStl(null);
       setFileRender(null);
       setFileVideo(null);
+      setFileZip(null);
+      setUploadProgressMap({});
       setCurrentStep(1);
 
       loadData();
@@ -437,9 +552,20 @@ export const AdminCatalogModule: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter]);
+
   const filteredProducts = products.filter((p) =>
     p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (p.category_name && p.category_name.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage) || 1;
+  const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const paginatedProducts = filteredProducts.slice(
+    (validCurrentPage - 1) * itemsPerPage,
+    validCurrentPage * itemsPerPage
   );
 
   return (
@@ -477,7 +603,7 @@ export const AdminCatalogModule: React.FC = () => {
                 activeTab === 'products' ? 'bg-[#09112B] text-white shadow-sm' : 'text-[#6B7280] hover:text-[#1E2230]'
               }`}
             >
-              Products ({products.length})
+              Products ({totalProductCount || products.length})
             </button>
             <button
               onClick={() => setActiveTab('categories')}
@@ -547,7 +673,7 @@ export const AdminCatalogModule: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E5E7EF] text-xs">
-                {filteredProducts.map((prod) => (
+                {paginatedProducts.map((prod) => (
                   <tr key={prod.id} className="hover:bg-slate-50 transition-colors">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
@@ -582,16 +708,16 @@ export const AdminCatalogModule: React.FC = () => {
 
                     <td className="p-4 font-mono font-bold text-[#1E2230]">
                       <div>
-                        ${prod.price}
+                        ₹{prod.price}
                         {prod.compare_at_price && (
                           <span className="text-[10px] text-[#9CA3AF] line-through ml-1.5">
-                            ${prod.compare_at_price}
+                            ₹{prod.compare_at_price}
                           </span>
                         )}
                       </div>
                       {prod.staff_price != null && (
                         <div className="text-[10px] text-emerald-700 font-semibold font-mono">
-                          Staff: ${prod.staff_price} ({100 - (Number(prod.commission_rate) || 20)}%)
+                          Staff: ₹{prod.staff_price} ({100 - (Number(prod.commission_rate) || 20)}%)
                         </div>
                       )}
                     </td>
@@ -659,7 +785,7 @@ export const AdminCatalogModule: React.FC = () => {
                               await loadData();
                             } catch (err: any) {
                               console.error('Delete product failed:', err);
-                              showToast(err.message || 'Failed to delete product. Please try again.', 'error');
+                              showToast(err.message || 'Failed to delete product. Please try again.');
                             }
                           }
                         }}
@@ -681,6 +807,62 @@ export const AdminCatalogModule: React.FC = () => {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Table Footer with Pagination & Page Size */}
+          <div className="p-4 border-t border-[#E5E7EF] flex flex-col sm:flex-row items-center justify-between gap-3 bg-[#FAF9F5] text-xs text-[#6B7280]">
+            <div className="flex items-center gap-2">
+              <span>Show</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="px-2.5 py-1 rounded-lg bg-white border border-[#E5E7EF] text-[#1E2230] font-semibold focus:outline-none"
+              >
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={200}>200</option>
+              </select>
+              <span>products per page</span>
+              <span className="text-slate-400">|</span>
+              <span>
+                Showing{' '}
+                <strong className="text-[#1E2230]">
+                  {filteredProducts.length === 0
+                    ? 0
+                    : `${(validCurrentPage - 1) * itemsPerPage + 1}–${Math.min(
+                        validCurrentPage * itemsPerPage,
+                        filteredProducts.length
+                      )}`}
+                </strong>{' '}
+                of <strong className="text-[#1E2230]">{totalProductCount || filteredProducts.length}</strong> total
+              </span>
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1.5 font-medium">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={validCurrentPage === 1}
+                  className="px-3 py-1.5 rounded-lg border border-[#E5E7EF] bg-white text-[#1E2230] hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                >
+                  Previous
+                </button>
+                <span className="px-3 py-1 font-mono text-slate-700">
+                  Page {validCurrentPage} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={validCurrentPage === totalPages}
+                  className="px-3 py-1.5 rounded-lg border border-[#E5E7EF] bg-white text-[#1E2230] hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
         </div>
       ) : (
@@ -717,15 +899,38 @@ export const AdminCatalogModule: React.FC = () => {
 
           <div className="space-y-4 text-xs">
             {parentCategories.map((cat) => (
-              <div key={cat.id} className="p-5 rounded-2xl bg-[#FAF9F5] border border-[#E5E7EF] space-y-3 shadow-sm">
-                <div className="flex items-center justify-between font-bold text-sm text-[#09112B]">
-                  <div className="flex items-center gap-2">
-                    <Layers className="w-4.5 h-4.5 text-[#C9A227]" />
-                    <span className="font-serif text-base font-bold">{cat.name}</span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-[#09112B] text-[#F5E7A3] text-[10px] font-mono">
-                      {cat.product_count} Products
-                    </span>
+              <div key={cat.id} className="p-5 rounded-2xl bg-[#FAF9F5] border border-[#E5E7EF] space-y-3 shadow-sm hover:border-[#D4AF37]/50 transition-all">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    {/* Category Image Thumbnail */}
+                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-[#0A1333] border border-[#D4AF37]/40 flex items-center justify-center shrink-0 p-1 shadow-sm">
+                      <img
+                        src={(cat as any).image_display || (cat as any).image_url || cat.image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=200&q=80'}
+                        alt={cat.name}
+                        className="w-full h-full object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=200&q=80';
+                        }}
+                      />
+                    </div>
 
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-serif text-base font-bold text-[#09112B]">{cat.name}</span>
+                        <span className="px-2 py-0.5 rounded-full bg-[#09112B] text-[#F5E7A3] text-[10px] font-mono font-bold shadow-xs">
+                          Order #{cat.display_order ?? 0}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-800 text-[10px] font-mono">
+                          {cat.product_count} Products
+                        </span>
+                      </div>
+                      {cat.tagline && (
+                        <p className="text-[11px] text-slate-500 font-light mt-0.5">{cat.tagline}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
                     {/* Category Commission Badge & Inline Editor */}
                     {editingCatCommissionId === cat.id ? (
                       <div className="flex items-center gap-1 bg-white border border-[#C9A227] px-2 py-0.5 rounded-lg shadow-xs">
@@ -772,23 +977,35 @@ export const AdminCatalogModule: React.FC = () => {
                         </button>
                       </div>
                     )}
-                  </div>
 
-                  <div className="flex items-center gap-2">
+                    {/* Full Edit Category Button */}
                     <button
+                      type="button"
+                      onClick={() => handleOpenEditCategory(cat)}
+                      className="px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 hover:bg-amber-100 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all shadow-xs"
+                      title="Edit Category Details, Display Order & Cover Image"
+                    >
+                      <Edit2 className="w-3.5 h-3.5 text-amber-700" />
+                      <span>Edit</span>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => {
                         setAddingSubCatParentId(addingSubCatParentId === cat.id ? null : cat.id);
                         setNewSubCatName('');
                         setNewSubCatSlug('');
                       }}
-                      className="text-xs text-[#2856C7] font-semibold hover:underline flex items-center gap-1"
+                      className="text-xs text-[#2856C7] font-semibold hover:underline flex items-center gap-1 px-1.5"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      Add Sub-category
+                      Add Sub
                     </button>
+
                     <button
+                      type="button"
                       onClick={() => handleDeleteCategory(cat)}
-                      className="p-1 rounded text-rose-500 hover:bg-rose-100"
+                      className="p-1.5 rounded text-rose-500 hover:bg-rose-100 cursor-pointer"
                       title="Delete Category"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -892,13 +1109,133 @@ export const AdminCatalogModule: React.FC = () => {
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Display Order</label>
+                <label className="font-semibold text-[#1E2230] block mb-1">Display Order (Homepage Priority)</label>
                 <input
                   type="number"
                   value={newCatDisplayOrder}
                   onChange={(e) => setNewCatDisplayOrder(Number(e.target.value))}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] focus:outline-none focus:border-[#C9A227]"
                 />
+                <span className="text-[10px] text-slate-500 mt-1 block">
+                  Determines card sequence on Homepage showcase (1 = first, 2 = second, etc.).
+                </span>
+              </div>
+
+              <div>
+                <label className="font-semibold text-[#1E2230] block mb-1">Tagline</label>
+                <input
+                  type="text"
+                  value={newCatTagline}
+                  onChange={(e) => setNewCatTagline(e.target.value)}
+                  placeholder="e.g. Solitaires, Bands & Halos"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] focus:outline-none focus:border-[#C9A227]"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-[#1E2230] block mb-1">
+                  Category Cover Image
+                </label>
+                <p className="text-xs text-slate-500 mb-2">
+                  Upload high-resolution category banner/thumbnail (PNG, JPG, WEBP).
+                </p>
+
+                {newCatImagePreview ? (
+                  <div className="relative group rounded-2xl border-2 border-dashed border-[#C9A227]/40 bg-[#0F1422] p-3 overflow-hidden shadow-md">
+                    <div className="w-full h-40 rounded-xl overflow-hidden bg-gradient-to-b from-[#1E2538] to-[#0A0D14] flex items-center justify-center relative">
+                      <img
+                        src={newCatImagePreview}
+                        alt="Category preview"
+                        className="w-full h-full object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.5)] transition-transform duration-300 group-hover:scale-105"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=400&q=80';
+                        }}
+                      />
+                      {newCatImageFile && (
+                        <div className="absolute top-2 left-2 px-2.5 py-1 rounded-full bg-[#C9A227] text-white text-[11px] font-bold tracking-wide shadow-md flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Ready to upload: {newCatImageFile.name.length > 20 ? newCatImageFile.name.substring(0, 18) + '...' : newCatImageFile.name}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between gap-2">
+                      <label className="flex-1 cursor-pointer flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-[#C9A227]/10 hover:bg-[#C9A227]/20 text-[#C9A227] text-xs font-semibold border border-[#C9A227]/30 transition-all">
+                        <UploadCloud className="w-4 h-4" />
+                        <span>{newCatImageFile ? 'Change File' : 'Upload New Image'}</span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/jpg,image/svg+xml"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setNewCatImageFile(file);
+                              setNewCatImagePreview(URL.createObjectURL(file));
+                            }
+                          }}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewCatImageFile(null);
+                          setNewCatImagePreview(null);
+                          setNewCatImageUrl('');
+                        }}
+                        className="px-3 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold border border-red-200 transition-all flex items-center gap-1"
+                        title="Remove image"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="cursor-pointer block border-2 border-dashed border-[#D1D5DB] hover:border-[#C9A227] bg-[#FAF9F5] hover:bg-[#F3EFE6]/40 rounded-2xl p-6 text-center transition-all group">
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/jpg,image/svg+xml"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setNewCatImageFile(file);
+                          setNewCatImagePreview(URL.createObjectURL(file));
+                        }
+                      }}
+                    />
+                    <div className="w-12 h-12 rounded-full bg-[#C9A227]/10 group-hover:bg-[#C9A227]/20 text-[#C9A227] flex items-center justify-center mx-auto mb-2 transition-all">
+                      <UploadCloud className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-bold text-[#1E2230] block">
+                      Click to upload category image
+                    </span>
+                    <span className="text-[11px] text-slate-500 mt-1 block">
+                      Drag and drop PNG, JPG, or WEBP (Max 10MB)
+                    </span>
+                  </label>
+                )}
+
+                <details className="mt-2 text-xs text-slate-500 group">
+                  <summary className="cursor-pointer hover:text-[#C9A227] font-medium inline-flex items-center gap-1">
+                    <span>Or use an image web link (optional)</span>
+                  </summary>
+                  <div className="mt-2 pl-2 border-l-2 border-slate-200">
+                    <input
+                      type="url"
+                      value={newCatImageUrl}
+                      onChange={(e) => {
+                        setNewCatImageUrl(e.target.value);
+                        if (!newCatImageFile && e.target.value) {
+                          setNewCatImagePreview(e.target.value);
+                        }
+                      }}
+                      placeholder="https://images.unsplash.com/..."
+                      className="w-full px-3 py-2 text-xs rounded-lg bg-white border border-[#E5E7EF] focus:outline-none focus:border-[#C9A227]"
+                    />
+                  </div>
+                </details>
               </div>
 
               <div>
@@ -929,6 +1266,220 @@ export const AdminCatalogModule: React.FC = () => {
                 </button>
                 <button type="submit" className="btn-gold-luxury px-5 py-2 rounded-xl text-xs font-bold uppercase">
                   Save Category
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Top-Level Edit Category Drawer */}
+      {editingCategory && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-end">
+          <div className="w-full max-w-md bg-white h-full shadow-2xl p-6 overflow-y-auto space-y-6 animate-in slide-in-from-right duration-200">
+            <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-4">
+              <div>
+                <span className="text-[10px] font-mono uppercase text-[#C9A227] font-bold">Category #{editingCategory.id}</span>
+                <h3 className="font-serif text-lg font-bold text-[#1E2230]">Edit Category</h3>
+              </div>
+              <button onClick={() => setEditingCategory(null)} className="p-1 text-slate-400 hover:text-slate-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {editCatError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+                {editCatError}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveEditCategory} className="space-y-4 text-xs">
+              <div>
+                <label className="font-semibold text-[#1E2230] block mb-1">Category Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={editCatName}
+                  onChange={(e) => setEditCatName(e.target.value)}
+                  placeholder="e.g. Rings"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] focus:outline-none focus:border-[#C9A227]"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-[#1E2230] block mb-1">Slug (URL Keyword)</label>
+                <input
+                  type="text"
+                  value={editCatSlug}
+                  onChange={(e) => setEditCatSlug(e.target.value)}
+                  placeholder="rings"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] focus:outline-none focus:border-[#C9A227]"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-[#1E2230] block mb-1">Display Order (Homepage Priority)</label>
+                <input
+                  type="number"
+                  value={editCatDisplayOrder}
+                  onChange={(e) => setEditCatDisplayOrder(Number(e.target.value))}
+                  placeholder="1, 2, 3..."
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] focus:outline-none focus:border-[#C9A227]"
+                />
+                <span className="text-[10px] text-slate-500 mt-1 block">
+                  Determines the card sequence on the Homepage showcase. Change to 1, 2, 3 to reorder categories live!
+                </span>
+              </div>
+
+              <div>
+                <label className="font-semibold text-[#1E2230] block mb-1">Tagline</label>
+                <input
+                  type="text"
+                  value={editCatTagline}
+                  onChange={(e) => setEditCatTagline(e.target.value)}
+                  placeholder="e.g. Solitaires, Bands & Halos"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] focus:outline-none focus:border-[#C9A227]"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold text-[#1E2230] block mb-1">
+                  Category Cover Image
+                </label>
+                <p className="text-xs text-slate-500 mb-2">
+                  Upload high-resolution category banner/thumbnail (PNG, JPG, WEBP).
+                </p>
+
+                {editCatImagePreview ? (
+                  <div className="relative group rounded-2xl border-2 border-dashed border-[#C9A227]/40 bg-[#0F1422] p-3 overflow-hidden shadow-md">
+                    <div className="w-full h-44 rounded-xl overflow-hidden bg-gradient-to-b from-[#1E2538] to-[#0A0D14] flex items-center justify-center relative">
+                      <img
+                        src={editCatImagePreview}
+                        alt="Category preview"
+                        className="w-full h-full object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)] transition-transform duration-300 group-hover:scale-105"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=400&q=80';
+                        }}
+                      />
+                      {editCatImageFile ? (
+                        <div className="absolute top-2 left-2 px-2.5 py-1 rounded-full bg-[#C9A227] text-white text-[11px] font-bold tracking-wide shadow-md flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Ready to upload: {editCatImageFile.name.length > 20 ? editCatImageFile.name.substring(0, 18) + '...' : editCatImageFile.name}
+                        </div>
+                      ) : (
+                        <div className="absolute top-2 left-2 px-2.5 py-1 rounded-full bg-slate-800/80 backdrop-blur text-slate-200 text-[10px] font-medium tracking-wide shadow border border-white/10">
+                          Current Category Image
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between gap-2">
+                      <label className="flex-1 cursor-pointer flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-[#C9A227]/10 hover:bg-[#C9A227]/20 text-[#C9A227] text-xs font-semibold border border-[#C9A227]/30 transition-all">
+                        <UploadCloud className="w-4 h-4" />
+                        <span>{editCatImageFile ? 'Change File' : 'Upload New Image'}</span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/jpg,image/svg+xml"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setEditCatImageFile(file);
+                              setEditCatImagePreview(URL.createObjectURL(file));
+                            }
+                          }}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditCatImageFile(null);
+                          setEditCatImagePreview(null);
+                          setEditCatImageUrl('');
+                        }}
+                        className="px-3 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold border border-red-200 transition-all flex items-center gap-1"
+                        title="Remove image"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="cursor-pointer block border-2 border-dashed border-[#D1D5DB] hover:border-[#C9A227] bg-[#FAF9F5] hover:bg-[#F3EFE6]/40 rounded-2xl p-6 text-center transition-all group">
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/jpg,image/svg+xml"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setEditCatImageFile(file);
+                          setEditCatImagePreview(URL.createObjectURL(file));
+                        }
+                      }}
+                    />
+                    <div className="w-12 h-12 rounded-full bg-[#C9A227]/10 group-hover:bg-[#C9A227]/20 text-[#C9A227] flex items-center justify-center mx-auto mb-2 transition-all">
+                      <UploadCloud className="w-6 h-6" />
+                    </div>
+                    <span className="text-xs font-bold text-[#1E2230] block">
+                      Click to upload category image
+                    </span>
+                    <span className="text-[11px] text-slate-500 mt-1 block">
+                      Drag and drop PNG, JPG, or WEBP (Max 10MB)
+                    </span>
+                  </label>
+                )}
+
+                <details className="mt-2 text-xs text-slate-500 group">
+                  <summary className="cursor-pointer hover:text-[#C9A227] font-medium inline-flex items-center gap-1">
+                    <span>Or use an image web link (optional)</span>
+                  </summary>
+                  <div className="mt-2 pl-2 border-l-2 border-slate-200">
+                    <input
+                      type="url"
+                      value={editCatImageUrl}
+                      onChange={(e) => {
+                        setEditCatImageUrl(e.target.value);
+                        if (!editCatImageFile && e.target.value) {
+                          setEditCatImagePreview(e.target.value);
+                        }
+                      }}
+                      placeholder="https://images.unsplash.com/..."
+                      className="w-full px-3 py-2 text-xs rounded-lg bg-white border border-[#E5E7EF] focus:outline-none focus:border-[#C9A227]"
+                    />
+                  </div>
+                </details>
+              </div>
+
+              <div>
+                <label className="font-semibold text-[#1E2230] block mb-1">Platform Commission Rate (%) *</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  max="100"
+                  required
+                  value={editCatCommission}
+                  onChange={(e) => setEditCatCommission(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] font-mono font-bold focus:outline-none focus:border-[#C9A227]"
+                />
+              </div>
+
+              <div className="pt-4 flex justify-end gap-2 border-t border-[#E5E7EF]">
+                <button
+                  type="button"
+                  onClick={() => setEditingCategory(null)}
+                  className="px-4 py-2 rounded-xl border border-[#E5E7EF] text-[#1E2230]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingCat}
+                  className="btn-gold-luxury px-5 py-2 rounded-xl text-xs font-bold uppercase disabled:opacity-50"
+                >
+                  {isUpdatingCat ? 'Saving...' : 'Update Category'}
                 </button>
               </div>
             </form>
@@ -1149,24 +1700,24 @@ export const AdminCatalogModule: React.FC = () => {
               <div className="space-y-4 text-xs">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="font-semibold text-[#1E2230] block mb-1">Standard Price ($) *</label>
+                    <label className="font-semibold text-[#1E2230] block mb-1">Standard Price (₹) *</label>
                     <input
                       type="number"
                       required
                       value={prodPrice}
                       onChange={(e) => setProdPrice(e.target.value)}
-                      placeholder="79"
+                      placeholder="1499"
                       className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
                     />
                   </div>
 
                   <div>
-                    <label className="font-semibold text-[#1E2230] block mb-1">Compare-at Price ($)</label>
+                    <label className="font-semibold text-[#1E2230] block mb-1">Compare-at Price (₹)</label>
                     <input
                       type="number"
                       value={prodComparePrice}
                       onChange={(e) => setProdComparePrice(e.target.value)}
-                      placeholder="99 (Must be greater than Price)"
+                      placeholder="1999 (Must be greater than Price)"
                       className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
                     />
                   </div>
