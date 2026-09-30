@@ -142,6 +142,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 DATA_UPLOAD_MAX_MEMORY_SIZE = 262144000
 FILE_UPLOAD_MAX_MEMORY_SIZE = 262144000
 
+# Application-level file upload caps (enforced in views & frontend)
+MAX_CAD_FILE_UPLOAD_SIZE = 250 * 1024 * 1024   # 250 MB for .3DM, .STL, .ZIP, video
+MAX_IMAGE_FILE_UPLOAD_SIZE = 25 * 1024 * 1024   # 25 MB for render and gallery photos
+
 # CORS & Security settings
 if PRODUCTION:
     CORS_ALLOW_ALL_ORIGINS = False
