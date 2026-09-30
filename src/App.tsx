@@ -165,7 +165,7 @@ function getInitialRouteState() {
 
 function MainApp() {
   const initialRoute = getInitialRouteState();
-  const { isLoggedIn, user, requireAuth, openAuthModal } = useAuth();
+  const { isLoggedIn, user, isLoading, requireAuth, openAuthModal } = useAuth();
 
   // Navigation State
   const [currentPage, setCurrentPage] = useState<PageId>(initialRoute.page);
@@ -401,11 +401,45 @@ function MainApp() {
     );
   };
 
+  // Strict Route Guard for Admin
   if (currentPage === 'admin') {
+    if (isLoading) {
+      return (
+        <div className="min-h-screen bg-[#060B1E] flex flex-col items-center justify-center text-[#F5E7A3]">
+          <div className="w-10 h-10 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="font-serif text-sm tracking-wider uppercase">Verifying Authorization...</p>
+        </div>
+      );
+    }
+    if (!isLoggedIn) {
+      handleNavigate('login');
+      return null;
+    }
+    if (user?.role !== 'admin' && !user?.is_superuser) {
+      handleNavigate('home');
+      return null;
+    }
     return <SuperAdminPage onNavigate={handleNavigate} initialTab={initialSubTab as any} />;
   }
 
+  // Strict Route Guard for Staff Portal
   if (currentPage === 'staff-portal') {
+    if (isLoading) {
+      return (
+        <div className="min-h-screen bg-[#060B1E] flex flex-col items-center justify-center text-[#F5E7A3]">
+          <div className="w-10 h-10 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="font-serif text-sm tracking-wider uppercase">Verifying Authorization...</p>
+        </div>
+      );
+    }
+    if (!isLoggedIn) {
+      handleNavigate('login');
+      return null;
+    }
+    if (user?.role !== 'staff' && user?.role !== 'admin' && !user?.is_superuser) {
+      handleNavigate('home');
+      return null;
+    }
     return <StaffPortalPage onNavigate={handleNavigate} onBackToMain={() => handleNavigate('home')} initialTab={initialSubTab as any} />;
   }
 

@@ -564,7 +564,7 @@ class ChangePasswordView(APIView):
 
 class LogoutView(APIView):
     """Logout endpoint to invalidate refresh token."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request):
         try:
@@ -579,7 +579,7 @@ class LogoutView(APIView):
 
 class AdminClientsListView(APIView):
     """Retrieve list of registered clients with lifetime spend & order histories for SuperAdmin CRM."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsAdmin]
 
     def get(self, request):
         from django.db.models import Sum

@@ -29,7 +29,7 @@ interface AuthContextType {
   register: (fields: { name: string; email: string; password: string; phone_number?: string }) => Promise<any>;
   sendRegistrationOtp: (email: string, name?: string) => Promise<any>;
   verifyRegistrationOtp: (fields: { email: string; code: string; name: string; password: string; phone_number?: string }) => Promise<any>;
-  logout: () => Promise<void>;
+  logout: (redirectTo?: string) => Promise<void>;
   updateUser: (updatedUser: UserProfile) => void;
   refreshUser: () => Promise<UserProfile | null>;
   requireAuth: (actionFn: () => void | Promise<void>, options?: { intent?: AuthIntentType; message?: string; productId?: string; formData?: any }) => boolean;
@@ -41,13 +41,30 @@ interface AuthContextType {
   executePendingIntent: () => Promise<void>;
 }
 
+function isTokenExpired(token: string | null): boolean {
+  if (!token) return true;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return true;
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    if (!payload.exp) return false;
+    return payload.exp * 1000 < Date.now();
+  } catch {
+    return true;
+  }
+}
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(() => {
     const token = localStorage.getItem('shiuli_access_token');
+    if (!token || isTokenExpired(token)) {
+      api.clearSession();
+      return null;
+    }
     const saved = localStorage.getItem('shiuli_user');
-    if (token && saved) {
+    if (saved) {
       try {
         return JSON.parse(saved);
       } catch {}
@@ -55,7 +72,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return null;
   });
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
-    return !!localStorage.getItem('shiuli_access_token');
+    const token = localStorage.getItem('shiuli_access_token');
+    return Boolean(token && !isTokenExpired(token));
   });
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -81,12 +99,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // Restore session silently on initial load
+  // Restore session silently on initial load with token validation
   useEffect(() => {
     let isMounted = true;
     const restoreSession = async () => {
       const token = localStorage.getItem('shiuli_access_token');
-      if (!token) {
+      if (!token || isTokenExpired(token)) {
+        api.clearSession();
         if (isMounted) {
           setIsLoggedIn(false);
           setUser(null);
@@ -102,14 +121,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setIsLoggedIn(true);
           localStorage.setItem('shiuli_user', JSON.stringify(currentUser));
         }
-      } catch (err: any) {
-        // Token invalid or network error
+      } catch {
+        // Token invalid or rejected by backend
         if (isMounted) {
-          if (err?.status === 401) {
-            api.clearSession();
-            setIsLoggedIn(false);
-            setUser(null);
-          }
+          api.clearSession();
+          setIsLoggedIn(false);
+          setUser(null);
         }
       } finally {
         if (isMounted) setIsLoading(false);
@@ -132,6 +149,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       window.removeEventListener('shiuli:auth_expired', handleAuthExpired);
     };
+  }, []);
+
+  // Multi-tab sync: listen for storage events to immediately logout if token removed in another tab
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'shiuli_access_token' && !e.newValue) {
+        setUser(null);
+        setIsLoggedIn(false);
+        setPendingIntent(null);
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   const login = async (username: string, password: string) => {
@@ -165,12 +195,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return data;
   };
 
-  const logout = async () => {
-    await api.logout();
-    setUser(null);
-    setIsLoggedIn(false);
-    setPendingIntent(null);
-  };
+  const logout = useCallback(async (redirectTo: string = '/login') => {
+    try {
+      await api.logout();
+    } catch {
+      // Ignore network failure during logout
+    } finally {
+      api.clearSession();
+      setUser(null);
+      setIsLoggedIn(false);
+      setPendingIntent(null);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('shiuli:logout'));
+        if (redirectTo) {
+          window.location.replace(redirectTo);
+        }
+      }
+    }
+  }, []);
 
   const openAuthModal = useCallback((message?: string) => {
     setAuthModalMessage(message || null);

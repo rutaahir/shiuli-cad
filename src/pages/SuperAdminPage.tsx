@@ -22,6 +22,7 @@ import { AdminFileEditsModule } from '../components/admin/AdminFileEditsModule';
 import { AdminPortfolioModule } from '../components/admin/AdminPortfolioModule';
 import { AdminContactModule } from '../components/admin/AdminContactModule';
 import { AuthModal } from '../components/AuthModal';
+import { useAuth } from '../context/AuthContext';
 
 interface SuperAdminPageProps {
   onNavigate: (page: PageId, extraId?: string) => void;
@@ -29,6 +30,7 @@ interface SuperAdminPageProps {
 }
 
 export const SuperAdminPage: React.FC<SuperAdminPageProps> = ({ onNavigate, initialTab }) => {
+  const { logout } = useAuth();
   const [activeModule, setActiveModuleState] = useState<AdminModuleId>(initialTab || 'overview');
 
   // Sync state from URL tab param if initialTab changes
@@ -171,7 +173,7 @@ export const SuperAdminPage: React.FC<SuperAdminPageProps> = ({ onNavigate, init
       notifications={notifications}
       onMarkNotificationRead={handleMarkNotificationRead}
       onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
-      onExitAdmin={() => onNavigate('home')}
+      onExitAdmin={() => logout()}
     >
       {activeModule === 'overview' && (
         <AdminOverviewModule

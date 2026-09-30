@@ -533,9 +533,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                       )}
 
                       <button
-                        onClick={() => {
-                          logout();
+                        onClick={async () => {
                           setAccountDropdownOpen(false);
+                          await logout();
                         }}
                         className="w-full text-left px-3 py-2 text-xs font-bold text-rose-400 hover:bg-rose-900/30 rounded-xl border-t border-white/10 mt-1"
                       >

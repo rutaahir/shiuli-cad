@@ -236,6 +236,12 @@ class ApiClient {
     localStorage.removeItem('shiuli_access_token');
     localStorage.removeItem('shiuli_refresh_token');
     localStorage.removeItem('shiuli_user');
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('token');
+    localStorage.removeItem('shiuli_contact_email');
+    localStorage.removeItem('shiuli_last_submitted_req_id');
+    localStorage.removeItem('shiuli_store_user_accounts');
+    sessionStorage.clear();
   }
 
   // Generic Request Method with automatic 401 token refresh
@@ -475,10 +481,7 @@ class ApiClient {
   }
 
   ensureAdminToken() {
-    const token =
-      localStorage.getItem('shiuli_access_token') ||
-      localStorage.getItem('access_token') ||
-      localStorage.getItem('token');
+    const token = localStorage.getItem('shiuli_access_token');
     const userStr = localStorage.getItem('shiuli_user');
     let user: any = null;
     try {
@@ -489,22 +492,9 @@ class ApiClient {
     const isStaffOrAdmin =
       ['admin', 'staff', 'superadmin', 'administrator'].includes(role) ||
       Boolean(user?.is_staff) ||
-      Boolean(user?.is_superuser) ||
-      Boolean(token);
+      Boolean(user?.is_superuser);
 
     if (!isStaffOrAdmin || !token) {
-      // If we are currently in an admin route context, auto-initialize admin session in localStorage
-      if (
-        typeof window !== 'undefined' &&
-        (window.location.pathname.includes('/admin') ||
-          window.location.search.includes('admin') ||
-          window.location.search.includes('staff'))
-      ) {
-        const adminUser = { id: 1, username: 'admin', role: 'admin', is_staff: true, is_superuser: true };
-        localStorage.setItem('shiuli_access_token', token || 'admin-session-token');
-        localStorage.setItem('shiuli_user', JSON.stringify(user || adminUser));
-        return;
-      }
       throw new Error('Administrator or Staff authentication required.');
     }
   }
@@ -622,22 +612,10 @@ class ApiClient {
       body = JSON.stringify(categoryData);
     }
 
-    try {
-      return await this.request<any>('/catalog/categories/', {
-        method: 'POST',
-        body,
-      });
-    } catch (err: any) {
-      if (err.status === 401 || err.status === 403) {
-        localStorage.removeItem('shiuli_access_token');
-        await this.ensureAdminToken();
-        return await this.request<any>('/catalog/categories/', {
-          method: 'POST',
-          body,
-        });
-      }
-      throw err;
-    }
+    return await this.request<any>('/catalog/categories/', {
+      method: 'POST',
+      body,
+    });
   }
 
   async updateCategory(categoryId: number | string, categoryData: {
@@ -666,22 +644,10 @@ class ApiClient {
       body = JSON.stringify(categoryData);
     }
 
-    try {
-      return await this.request<any>(`/catalog/categories/${categoryId}/`, {
-        method: 'PATCH',
-        body,
-      });
-    } catch (err: any) {
-      if (err.status === 401 || err.status === 403) {
-        localStorage.removeItem('shiuli_access_token');
-        await this.ensureAdminToken();
-        return await this.request<any>(`/catalog/categories/${categoryId}/`, {
-          method: 'PATCH',
-          body,
-        });
-      }
-      throw err;
-    }
+    return await this.request<any>(`/catalog/categories/${categoryId}/`, {
+      method: 'PATCH',
+      body,
+    });
   }
 
   async deleteCategory(categoryId: number | string, force: boolean = false, reassign: boolean = false) {
@@ -691,20 +657,9 @@ class ApiClient {
     if (reassign) params.append('reassign', 'true');
     const queryString = params.toString() ? `?${params.toString()}` : '';
     const endpoint = `/catalog/categories/${categoryId}/${queryString}`;
-    try {
-      return await this.request<any>(endpoint, {
-        method: 'DELETE',
-      });
-    } catch (err: any) {
-      if (err.status === 401 || err.status === 403) {
-        localStorage.removeItem('shiuli_access_token');
-        await this.ensureAdminToken();
-        return await this.request<any>(endpoint, {
-          method: 'DELETE',
-        });
-      }
-      throw err;
-    }
+    return await this.request<any>(endpoint, {
+      method: 'DELETE',
+    });
   }
 
   async getDesignStyles() {
@@ -713,22 +668,10 @@ class ApiClient {
 
   async createDesignStyle(name: string) {
     await this.ensureAdminToken();
-    try {
-      return await this.request<any>('/catalog/styles/', {
-        method: 'POST',
-        body: JSON.stringify({ name }),
-      });
-    } catch (err: any) {
-      if (err.status === 401 || err.status === 403) {
-        localStorage.removeItem('shiuli_access_token');
-        await this.ensureAdminToken();
-        return await this.request<any>('/catalog/styles/', {
-          method: 'POST',
-          body: JSON.stringify({ name }),
-        });
-      }
-      throw err;
-    }
+    return await this.request<any>('/catalog/styles/', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
   }
 
   async getProducts(params: Record<string, string> = {}) {
@@ -770,22 +713,10 @@ class ApiClient {
     is_new?: boolean;
   }) {
     await this.ensureAdminToken();
-    try {
-      return await this.request<any>('/catalog/products/', {
-        method: 'POST',
-        body: JSON.stringify(productData),
-      });
-    } catch (err: any) {
-      if (err.status === 401 || err.status === 403) {
-        localStorage.removeItem('shiuli_access_token');
-        await this.ensureAdminToken();
-        return await this.request<any>('/catalog/products/', {
-          method: 'POST',
-          body: JSON.stringify(productData),
-        });
-      }
-      throw err;
-    }
+    return await this.request<any>('/catalog/products/', {
+      method: 'POST',
+      body: JSON.stringify(productData),
+    });
   }
 
   async updateProduct(
@@ -817,22 +748,10 @@ class ApiClient {
     }
   ) {
     await this.ensureAdminToken();
-    try {
-      return await this.request<any>(`/catalog/products/${slug}/`, {
-        method: 'PATCH',
-        body: JSON.stringify(productData),
-      });
-    } catch (err: any) {
-      if (err.status === 401 || err.status === 403) {
-        localStorage.removeItem('shiuli_access_token');
-        await this.ensureAdminToken();
-        return await this.request<any>(`/catalog/products/${slug}/`, {
-          method: 'PATCH',
-          body: JSON.stringify(productData),
-        });
-      }
-      throw err;
-    }
+    return await this.request<any>(`/catalog/products/${slug}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(productData),
+    });
   }
 
   async uploadProductImage(
@@ -842,38 +761,15 @@ class ApiClient {
     displayOrder: number = 0
   ) {
     await this.ensureAdminToken();
-    let token = localStorage.getItem('shiuli_access_token');
     const formData = new FormData();
     formData.append('image', file);
     formData.append('is_primary', String(isPrimary));
     formData.append('display_order', String(displayOrder));
 
-    let response = await fetch(`${API_BASE_URL}/catalog/products/${slug}/upload-image/`, {
+    return this.request<any>(`/catalog/products/${slug}/upload-image/`, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
       body: formData,
     });
-
-    if (response.status === 401 || response.status === 403) {
-      localStorage.removeItem('shiuli_access_token');
-      await this.ensureAdminToken();
-      token = localStorage.getItem('shiuli_access_token');
-      response = await fetch(`${API_BASE_URL}/catalog/products/${slug}/upload-image/`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-    }
-
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.error || errData.detail || 'Image upload failed.');
-    }
-    return response.json();
   }
 
   async deleteProductImage(slug: string, imageId: number) {
@@ -908,35 +804,6 @@ class ApiClient {
       });
 
       xhr.addEventListener('load', async () => {
-        if (xhr.status === 401 || xhr.status === 403) {
-          // Retry once with fresh token
-          try {
-            localStorage.removeItem('shiuli_access_token');
-            await this.ensureAdminToken();
-            token = localStorage.getItem('shiuli_access_token');
-            const retryXhr = new XMLHttpRequest();
-            retryXhr.upload.addEventListener('progress', (e) => {
-              if (e.lengthComputable && onProgress) {
-                onProgress(Math.round((e.loaded / e.total) * 100));
-              }
-            });
-            retryXhr.addEventListener('load', () => {
-              if (retryXhr.status >= 200 && retryXhr.status < 300) {
-                resolve(JSON.parse(retryXhr.responseText));
-              } else {
-                const errData = JSON.parse(retryXhr.responseText || '{}');
-                reject(new Error(errData.error || errData.detail || 'CAD File upload failed.'));
-              }
-            });
-            retryXhr.addEventListener('error', () => reject(new Error('Network error during CAD file upload.')));
-            retryXhr.open('POST', `${API_BASE_URL}/catalog/products/${slug}/upload-file/`);
-            retryXhr.setRequestHeader('Authorization', `Bearer ${token}`);
-            retryXhr.send(formData);
-          } catch (retryErr) {
-            reject(retryErr);
-          }
-          return;
-        }
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
             resolve(JSON.parse(xhr.responseText));
@@ -996,20 +863,9 @@ class ApiClient {
   async deleteProduct(slug: string | number) {
     await this.ensureAdminToken();
     const encoded = encodeURIComponent(slug);
-    try {
-      return await this.request<any>(`/catalog/products/${encoded}/`, {
-        method: 'DELETE',
-      });
-    } catch (err: any) {
-      if (err.status === 401 || err.status === 403) {
-        localStorage.removeItem('shiuli_access_token');
-        await this.ensureAdminToken();
-        return await this.request<any>(`/catalog/products/${encoded}/`, {
-          method: 'DELETE',
-        });
-      }
-      throw err;
-    }
+    return await this.request<any>(`/catalog/products/${encoded}/`, {
+      method: 'DELETE',
+    });
   }
 
   // Custom Orders & Job Pool Endpoints
