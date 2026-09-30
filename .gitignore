@@ -30,3 +30,8 @@ env/
 backend/.env
 backend/.env.*
 !backend/.env.example
+db.sqlite3
+*.bak
+node_modules/
+dist/
+.env
