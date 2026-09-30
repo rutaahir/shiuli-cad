@@ -193,7 +193,27 @@ select::-moz-selection,
 
 /* Respect reduced-motion preference */
 @media (prefers-reduced-motion: reduce) {
-  .hero-video-bg { display: none; }
+  .hero-video-bg {
+    display: none;
+  }
+  .hero-btn-shimmer {
+    display: none !important;
+  }
+  .hero-anim-1,
+  .hero-anim-2,
+  .hero-anim-3,
+  .hero-anim-4,
+  .hero-anim-5,
+  .hero-anim-6,
+  .hero-anim-7,
+  .hero-line-reveal-1,
+  .hero-line-reveal-2 {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    clip-path: none !important;
+  }
 }
 
 /* ═══════════════════════════════════════════
@@ -285,21 +305,15 @@ select::-moz-selection,
 
 /* ── Gold royal title ── */
 .hero-gold-title {
-  background: linear-gradient(90deg,
-    #8B6914 0%, #C29618 15%, #D4AF37 30%,
-    #F5E7A3 45%, #FFFDE7 50%, #F5E7A3 55%,
-    #D4AF37 70%, #C29618 85%, #8B6914 100%
-  );
-  background-size: 300% auto;
+  background: linear-gradient(135deg, #FFFDE7 0%, #F5E7A3 30%, #D4AF37 70%, #C29618 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: goldShimmer 5s linear 1.5s infinite;
 }
 
 /* ── Badge glow ring ── */
 .hero-badge-ring {
-  animation: badgeGlow 2.5s ease-in-out 0.8s infinite;
+  box-shadow: 0 0 12px 2px rgba(212, 175, 55, 0.35);
   border-radius: 9999px;
 }
 .hero-badge-dot {
@@ -322,14 +336,13 @@ select::-moz-selection,
   position: absolute;
   inset: 0;
   background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
-  animation: btnShimmer 3.5s ease-in-out 2s infinite;
+  opacity: 0;
 }
 
 /* ── Secondary CTA ── */
 .hero-btn-secondary {
   border: 1px solid rgba(212,175,55,0.4);
-  backdrop-filter: blur(12px);
-  background: rgba(9,17,43,0.4);
+  background: rgba(9,17,43,0.85);
   transition: all 0.35s cubic-bezier(0.16,1,0.3,1);
 }
 .hero-btn-secondary:hover {

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence, useScroll, useTransform, useSpring } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { PageId, Product } from '../types';
 import { useCatalog, toProductShape } from '../hooks/useCatalog';
 import { api } from '../services/api';
@@ -510,13 +510,27 @@ export const HomePage: React.FC<HomePageProps> = ({
 
   // Parallax Scroll for Hero
   const heroRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress: heroScrollProgress } = useScroll({
-    target: heroRef,
-    offset: ['start start', 'end start'],
-  });
+  const videoRef = useRef<HTMLVideoElement>(null);
 
-  const heroY = useTransform(heroScrollProgress, [0, 1], [0, 120]);
-  const heroOpacity = useTransform(heroScrollProgress, [0, 0.8], [1, 0]);
+  // Pause video when hero is scrolled off-screen to eliminate background GPU/CPU drain
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          video.play().catch(() => {});
+        } else {
+          video.pause();
+        }
+      },
+      { threshold: 0.05 }
+    );
+
+    observer.observe(video);
+    return () => observer.disconnect();
+  }, []);
 
   const { products: liveProducts, categories, isLoading } = useCatalog();
 
@@ -577,7 +591,8 @@ export const HomePage: React.FC<HomePageProps> = ({
         {/* BACKGROUND MEDIA: LIGHTWEIGHT OPTIMIZED POSTER ON MOBILE / DATA-SAVER OR MP4 VIDEO ON DESKTOP */}
         {!isSaveData && (
           <video
-            className="hero-video-bg absolute inset-0 w-full h-full object-cover hidden sm:block"
+            ref={videoRef}
+            className="hero-video-bg absolute inset-0 w-full h-full object-cover hidden sm:block will-change-transform"
             src="/assets/hero.mp4"
             poster="/assets/hero-poster.jpg"
             autoPlay
@@ -605,13 +620,19 @@ export const HomePage: React.FC<HomePageProps> = ({
           }}
         />
 
-        {/* Ambient glow orbs */}
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-[#1E4FA3]/15 blur-[120px] pointer-events-none" style={{ zIndex: 2 }} />
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-60 rounded-full bg-[#D4AF37]/12 blur-[80px] pointer-events-none" style={{ zIndex: 2 }} />
+        {/* Ambient glow orbs (zero-cost radial gradients instead of heavy blur filters) */}
+        <div
+          className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(30,79,163,0.2) 0%, transparent 70%)', zIndex: 2 }}
+        />
+        <div
+          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-60 rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse at bottom, rgba(212,175,55,0.16) 0%, transparent 70%)', zIndex: 2 }}
+        />
 
         {/* HERO CONTENT WITH HIGH CONTRAST BRIGHT TYPOGRAPHY */}
-        <motion.div
-          style={{ y: heroY, opacity: heroOpacity, zIndex: 10, maxWidth: '880px' }}
+        <div
+          style={{ zIndex: 10, maxWidth: '880px' }}
           className="relative flex flex-col items-start pt-28 sm:pt-36 pb-16 sm:pb-28 px-4 sm:px-12 lg:px-20 xl:px-28 w-full"
         >
           {/* Vertical gold rule */}
@@ -642,7 +663,7 @@ export const HomePage: React.FC<HomePageProps> = ({
           {/* BADGE */}
           <div className="hero-anim-1 relative mb-6 sm:mb-8 max-w-full">
             <div className="hero-badge-ring absolute -inset-[3px] rounded-full" />
-            <div className="relative inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-2.5 rounded-full border border-[#D4AF37]/60 bg-[#060E22]/90 backdrop-blur-xl shadow-[0_0_20px_rgba(212,175,55,0.25)]">
+            <div className="relative inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-2.5 rounded-full border border-[#D4AF37]/60 bg-[#060E22]/96 shadow-[0_0_15px_rgba(212,175,55,0.2)]">
               <span className="hero-badge-dot w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#F5E7A3] flex-shrink-0 shadow-[0_0_8px_#F5E7A3]" />
               <span className="text-[10px] sm:text-[11px] uppercase tracking-[0.2em] sm:tracking-[0.3em] font-extrabold text-[#FFF099] drop-shadow-md">Official Luxury CAD Atelier</span>
               <span className="w-px h-3.5 bg-[#D4AF37]/50" />
@@ -718,13 +739,13 @@ export const HomePage: React.FC<HomePageProps> = ({
               { icon: <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-300" />, label: 'Castable Ready' },
               { icon: <Award className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#F5E7A3]" />, label: '±0.02 mm' },
             ].map(({ icon, label }) => (
-              <div key={label} className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 px-3 py-1.5 rounded-xl bg-[#080E24]/90 border border-[#D4AF37]/35 text-[11px] sm:text-xs text-[#FAF8F3] font-bold shadow-lg backdrop-blur-md">
+              <div key={label} className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 px-3 py-1.5 rounded-xl bg-[#080E24]/96 border border-[#D4AF37]/35 text-[11px] sm:text-xs text-[#FAF8F3] font-bold shadow-md">
                 {icon}
                 <span>{label}</span>
               </div>
             ))}
           </div>
-        </motion.div>
+        </div>
 
         {/* Scroll indicator */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 hero-anim-7" style={{ zIndex: 10 }}>
