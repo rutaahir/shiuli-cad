@@ -487,7 +487,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </button>
                 ) : (
                   <button
-                    onClick={onOpenAuth}
+                    onClick={() => onNavigate('login')}
                     className="btn-gold-luxury px-2.5 sm:px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1"
                   >
                     <User className="w-3.5 h-3.5" />
@@ -598,7 +598,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               ) : (
                 <button
-                  onClick={() => { onOpenAuth(); setMobileMenuOpen(false); }}
+                  onClick={() => { onNavigate('login'); setMobileMenuOpen(false); }}
                   className="px-3 py-1.5 text-xs font-bold bg-[#D4AF37] text-[#0B1330] rounded-xl hover:bg-[#F5E7A3]"
                 >
                   Sign In

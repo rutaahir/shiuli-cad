@@ -52,17 +52,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
     try {
       const res = await login(email, password);
       const role = (res?.role || res?.user?.role || 'client').toLowerCase();
+      const isSuper = Boolean(res?.user?.is_superuser);
 
       setIsLoading(false);
-      if (role === 'admin') {
-        onNavigate('admin');
-      } else if (role === 'staff') {
-        onNavigate('staff-portal');
-      } else {
-        onNavigate('account');
-      }
       if (onSuccess) {
         onSuccess();
+      } else {
+        if (role === 'admin' || isSuper) {
+          onNavigate('admin');
+        } else if (role === 'staff') {
+          onNavigate('staff-portal');
+        } else {
+          onNavigate('account');
+        }
       }
     } catch (err: any) {
       setIsLoading(false);
@@ -77,9 +79,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
     try {
       const res = await login(demoEmail, demoPass);
       setIsLoading(false);
-      if (role === 'admin') onNavigate('admin');
-      else if (role === 'staff') onNavigate('staff-portal');
-      else onNavigate('account');
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        if (role === 'admin') onNavigate('admin');
+        else if (role === 'staff') onNavigate('staff-portal');
+        else onNavigate('account');
+      }
     } catch (err: any) {
       setIsLoading(false);
       setErrorMessage(`Demo login failed: ${err.message}`);

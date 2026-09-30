@@ -412,11 +412,21 @@ function MainApp() {
         </div>
       );
     }
-    if (!isLoggedIn) {
+    const token = localStorage.getItem('shiuli_access_token');
+    const currentUser = user || (() => {
+      try {
+        const u = localStorage.getItem('shiuli_user');
+        return u ? JSON.parse(u) : null;
+      } catch {
+        return null;
+      }
+    })();
+    const authed = isLoggedIn || Boolean(token);
+    if (!authed) {
       handleNavigate('login');
       return null;
     }
-    if (user?.role !== 'admin' && !user?.is_superuser) {
+    if (currentUser?.role !== 'admin' && !currentUser?.is_superuser) {
       handleNavigate('home');
       return null;
     }
@@ -433,11 +443,21 @@ function MainApp() {
         </div>
       );
     }
-    if (!isLoggedIn) {
+    const token = localStorage.getItem('shiuli_access_token');
+    const currentUser = user || (() => {
+      try {
+        const u = localStorage.getItem('shiuli_user');
+        return u ? JSON.parse(u) : null;
+      } catch {
+        return null;
+      }
+    })();
+    const authed = isLoggedIn || Boolean(token);
+    if (!authed) {
       handleNavigate('login');
       return null;
     }
-    if (user?.role !== 'staff' && user?.role !== 'admin' && !user?.is_superuser) {
+    if (currentUser?.role !== 'staff' && currentUser?.role !== 'admin' && !currentUser?.is_superuser) {
       handleNavigate('home');
       return null;
     }
@@ -462,7 +482,7 @@ function MainApp() {
           cartCount={cartItems.reduce((acc, it) => acc + it.quantity, 0)}
           wishlistCount={wishlistIds.length}
           onOpenCart={() => setCartOpen(true)}
-          onOpenAuth={() => openAuthModal()}
+          onOpenAuth={() => handleNavigate('login')}
           isLoggedIn={isLoggedIn}
         />
       )}
@@ -514,13 +534,15 @@ function MainApp() {
               onSuccess={() => {
                 const userStr = localStorage.getItem('shiuli_user');
                 let role = 'client';
+                let isSuper = false;
                 if (userStr) {
                   try {
                     const u = JSON.parse(userStr);
-                    role = u.role || 'client';
+                    role = (u.role || 'client').toLowerCase();
+                    isSuper = Boolean(u.is_superuser);
                   } catch {}
                 }
-                if (role === 'admin') {
+                if (role === 'admin' || isSuper) {
                   handleNavigate('admin');
                 } else if (role === 'staff') {
                   handleNavigate('staff-portal');
