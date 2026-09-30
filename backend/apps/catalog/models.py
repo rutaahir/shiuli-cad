@@ -107,6 +107,9 @@ class Product(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     approved_at = models.DateTimeField(null=True, blank=True)
 
+    class Meta:
+        ordering = ['-created_at']
+
     def __str__(self):
         return f"{self.title} (₹{self.price})"
 

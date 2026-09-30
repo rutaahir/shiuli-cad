@@ -775,6 +775,25 @@ export const AdminCatalogModule: React.FC = () => {
                         <span>Edit</span>
                       </button>
 
+                      {prod.status !== 'approved' && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              await api.approveProduct(prod.slug);
+                              showToast(`"${prod.title}" is now Published Live!`);
+                              await loadData();
+                            } catch (err: any) {
+                              showToast(err.message || 'Failed to publish product. Please try again.');
+                            }
+                          }}
+                          className="p-2 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors inline-flex items-center gap-1 text-[11px] font-semibold"
+                          title="Publish — approve and make live on store"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Publish</span>
+                        </button>
+                      )}
+
                       <button
                         onClick={async () => {
                           const identifier = prod.slug || prod.id;
