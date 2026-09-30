@@ -87,10 +87,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
   };
 
   return (
-    <div className="min-h-screen bg-[#060B1E] text-[#F5F1E8] flex flex-col lg:flex-row relative overflow-hidden pt-20 lg:pt-0">
+    <div className="min-h-[calc(100vh-53px)] bg-[#060B1E] text-[#F5F1E8] flex flex-col lg:flex-row relative overflow-hidden">
       
       {/* LEFT SIDE PANEL (45% DESKTOP): Rich Dark Royal Navy + Looping Gold Ribbon Motif */}
-      <div className="lg:w-[45%] bg-[#080E24] relative flex flex-col justify-between p-8 sm:p-12 lg:p-16 border-b lg:border-b-0 lg:border-r border-[#D4AF37]/20 overflow-hidden min-h-[320px] lg:min-h-screen">
+      <div className="lg:w-[45%] bg-[#080E24] relative flex flex-col justify-between p-8 sm:p-12 lg:p-16 border-b lg:border-b-0 lg:border-r border-[#D4AF37]/20 overflow-hidden min-h-[320px] lg:min-h-full">
         {/* Ambient Glows */}
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-[#1E4FA3]/15 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-10 left-10 w-72 h-72 bg-[#D4AF37]/10 rounded-full blur-2xl pointer-events-none" />

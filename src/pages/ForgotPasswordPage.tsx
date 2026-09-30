@@ -86,7 +86,7 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
   };
 
   return (
-    <div className="min-h-screen bg-[#060B1E] text-[#F5F1E8] flex items-center justify-center p-6 sm:p-12 relative overflow-hidden pt-28 pb-20">
+    <div className="min-h-[calc(100vh-53px)] bg-[#060B1E] text-[#F5F1E8] flex items-center justify-center p-6 sm:p-12 relative overflow-hidden py-12">
       {/* Background Ambient Glows */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-[#1E4FA3]/15 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-10 right-10 w-[400px] h-[400px] bg-[#D4AF37]/10 rounded-full blur-3xl pointer-events-none" />

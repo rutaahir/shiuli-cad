@@ -232,10 +232,10 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onSucces
   };
 
   return (
-    <div className="min-h-screen bg-[#060B1E] text-[#F5F1E8] flex flex-col lg:flex-row relative overflow-hidden pt-20 lg:pt-0">
+    <div className="min-h-[calc(100vh-53px)] bg-[#060B1E] text-[#F5F1E8] flex flex-col lg:flex-row relative overflow-hidden">
       
       {/* LEFT SIDE PANEL (45% DESKTOP) */}
-      <div className="lg:w-[45%] bg-[#080E24] relative flex flex-col justify-between p-8 sm:p-12 lg:p-16 border-b lg:border-b-0 lg:border-r border-[#D4AF37]/20 overflow-hidden min-h-[320px] lg:min-h-screen">
+      <div className="lg:w-[45%] bg-[#080E24] relative flex flex-col justify-between p-8 sm:p-12 lg:p-16 border-b lg:border-b-0 lg:border-r border-[#D4AF37]/20 overflow-hidden min-h-[320px] lg:min-h-full">
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-96 h-96 bg-[#D4AF37]/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Ribbon Pattern Overlay */}

@@ -169,6 +169,7 @@ function MainApp() {
 
   // Navigation State
   const [currentPage, setCurrentPage] = useState<PageId>(initialRoute.page);
+  const isAuthPage = ['login', 'register', 'forgot-password'].includes(currentPage);
   const [initialSubTab, setInitialSubTab] = useState<string | undefined>(initialRoute.tab);
   const [selectedProductId, setSelectedProductId] = useState<string>(initialRoute.productId);
   const [customRequestProductId, setCustomRequestProductId] = useState<string | undefined>(initialRoute.customProductId);
@@ -454,15 +455,17 @@ function MainApp() {
       <BackgroundAnimations />
 
       {/* Global Navigation Bar */}
-      <Navbar
-        activePage={currentPage}
-        onNavigate={handleNavigate}
-        cartCount={cartItems.reduce((acc, it) => acc + it.quantity, 0)}
-        wishlistCount={wishlistIds.length}
-        onOpenCart={() => setCartOpen(true)}
-        onOpenAuth={() => openAuthModal()}
-        isLoggedIn={isLoggedIn}
-      />
+      {!isAuthPage && (
+        <Navbar
+          activePage={currentPage}
+          onNavigate={handleNavigate}
+          cartCount={cartItems.reduce((acc, it) => acc + it.quantity, 0)}
+          wishlistCount={wishlistIds.length}
+          onOpenCart={() => setCartOpen(true)}
+          onOpenAuth={() => openAuthModal()}
+          isLoggedIn={isLoggedIn}
+        />
+      )}
 
       {/* Page Routing wrapped in snappy route transitions */}
       <main className="w-full">
@@ -600,7 +603,23 @@ function MainApp() {
       </main>
 
       {/* Master Site Footer */}
-      <Footer onNavigate={handleNavigate} />
+      {isAuthPage ? (
+        <footer className="w-full py-4 px-4 text-center text-xs text-[#C9C2A6] border-t border-[#D4AF37]/20 bg-[#060B1E] relative z-20">
+          <span className="tracking-wide">
+            © 2026 SHIULI ALL RIGHTS RESERVED DEVELOPED BY{' '}
+            <a
+              href="https://technoadviser.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#D4AF37] hover:text-[#F5E7A3] font-semibold underline underline-offset-2 transition-colors"
+            >
+              TECHNOADVISER
+            </a>
+          </span>
+        </footer>
+      ) : (
+        <Footer onNavigate={handleNavigate} />
+      )}
 
       {/* Slide-over Cart Drawer */}
       <CartDrawer
@@ -632,7 +651,7 @@ function MainApp() {
       />
 
       {/* Floating Quick Menu + Scroll-to-Top */}
-      <FloatingQuickMenu onNavigate={handleNavigate} />
+      {!isAuthPage && <FloatingQuickMenu onNavigate={handleNavigate} />}
 
       {/* Toast Notification */}
       {toastMessage && (
