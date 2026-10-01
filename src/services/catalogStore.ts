@@ -50,6 +50,12 @@ export interface BackendStyle {
   name: string;
 }
 
+export interface CatalogErrorDetails {
+  categories?: string | null;
+  styles?: string | null;
+  products?: string | null;
+}
+
 export interface CatalogState {
   categories: BackendCategory[];      // top-level only, with subcategories[]
   allCategories: BackendCategory[];   // flat list of every category/sub
@@ -58,6 +64,7 @@ export interface CatalogState {
   isLoading: boolean;
   isError: boolean;
   errorMessage: string | null;
+  errorDetails?: CatalogErrorDetails | null;
   lastFetchedAt: number | null;
 }
 
@@ -73,6 +80,7 @@ let state: CatalogState = {
   isLoading: true,
   isError: false,
   errorMessage: null,
+  errorDetails: null,
   lastFetchedAt: null,
 };
 
@@ -114,7 +122,6 @@ function enrichProducts(products: BackendProduct[], flat: BackendCategory[]): Ba
   return products.map((p) => {
     const cat = catMap.get(Number(p.category));
     const parent = parentMap.get(Number(p.category));
-    const topLevelCat = parent ?? cat;
     return {
       ...p,
       category_slug: p.category_slug || cat?.slug || '',
@@ -125,7 +132,7 @@ function enrichProducts(products: BackendProduct[], flat: BackendCategory[]): Ba
   });
 }
 
-const FALLBACK_CATEGORIES: BackendCategory[] = [
+export const FALLBACK_CATEGORIES: BackendCategory[] = [
   {
     id: 1,
     name: 'Rings',
@@ -213,11 +220,26 @@ const FALLBACK_CATEGORIES: BackendCategory[] = [
   }
 ];
 
+function formatErrorReason(reason: unknown): string {
+  if (!reason) return 'Unknown error';
+  if (typeof reason === 'string') return reason;
+  if (typeof reason === 'object') {
+    const err = reason as Record<string, unknown>;
+    const status = err.status || (err.response as Record<string, unknown> | undefined)?.status;
+    const msg = (err.message as string) || (err.statusText as string) || '';
+    if (status && msg) return `HTTP ${status}: ${msg}`;
+    if (status) return `HTTP ${status}`;
+    if (msg) return msg;
+  }
+  return String(reason);
+}
+
 export async function fetchCatalog(force = false): Promise<void> {
   const CACHE_TTL = 60_000; // 1 minute
   const now = Date.now();
   if (
     !force &&
+    !state.isError &&
     state.lastFetchedAt &&
     now - state.lastFetchedAt < CACHE_TTL &&
     state.products.length > 0
@@ -227,60 +249,118 @@ export async function fetchCatalog(force = false): Promise<void> {
 
   if (fetchPromise) return fetchPromise;
 
-  state = { ...state, isLoading: true };
+  // On retry/force, clear any prior error message immediately to show in-flight retry
+  state = {
+    ...state,
+    isLoading: true,
+    ...(force ? { isError: false, errorMessage: null, errorDetails: null } : {}),
+  };
   notify();
 
   fetchPromise = (async () => {
     try {
-      const [catsRaw, stylesRaw, prodsRaw] = await Promise.all([
-        api.getCategories(false).catch(() => null),
-        api.getDesignStyles().catch(() => null),
-        api.getProducts({ page_size: '500' }).catch(() => null),
+      const [catsResult, stylesResult, prodsResult] = await Promise.allSettled([
+        api.getCategories(false),
+        api.getDesignStyles(),
+        api.getProducts({ page_size: '500' }),
       ]);
 
-      let cats: BackendCategory[] = Array.isArray(catsRaw)
-        ? catsRaw
-        : (catsRaw as any)?.results ?? [];
+      const errors: CatalogErrorDetails = {};
+      const errorMessages: string[] = [];
 
-      if (!cats || cats.length === 0) {
-        cats = FALLBACK_CATEGORIES;
+      if (catsResult.status === 'rejected') {
+        const formatted = formatErrorReason(catsResult.reason);
+        errors.categories = formatted;
+        errorMessages.push(`Categories: ${formatted}`);
       }
 
-      const styles: BackendStyle[] = Array.isArray(stylesRaw)
-        ? stylesRaw
-        : (stylesRaw as any)?.results ?? [];
+      if (stylesResult.status === 'rejected') {
+        const formatted = formatErrorReason(stylesResult.reason);
+        errors.styles = formatted;
+        errorMessages.push(`Styles: ${formatted}`);
+      }
 
-      const rawProds: BackendProduct[] = prodsRaw?.results
-        ? prodsRaw.results
-        : Array.isArray(prodsRaw)
-        ? prodsRaw
-        : [];
+      if (prodsResult.status === 'rejected') {
+        const formatted = formatErrorReason(prodsResult.reason);
+        errors.products = formatted;
+        errorMessages.push(`Products: ${formatted}`);
+      }
 
-      const flat = flattenCategories(cats);
-      const products = enrichProducts(rawProds, flat);
+      // Handle categories: update on success, keep stale on error. Never inject dummy data on failure.
+      let nextCategories = state.categories;
+      let nextAllCategories = state.allCategories;
+
+      if (catsResult.status === 'fulfilled') {
+        const catsRaw = catsResult.value;
+        const parsedCats: BackendCategory[] = Array.isArray(catsRaw)
+          ? catsRaw
+          : (catsRaw as any)?.results ?? [];
+        nextCategories = parsedCats;
+        nextAllCategories = flattenCategories(parsedCats);
+      } else {
+        // Optional explicit flag for offline dev mode only; default is disabled
+        const meta = typeof import.meta !== 'undefined' ? (import.meta as unknown as { env?: Record<string, string | undefined> }) : undefined;
+        const enableDevFallback = meta?.env?.VITE_ENABLE_CATALOG_FALLBACK === 'true';
+        if (enableDevFallback && nextCategories.length === 0) {
+          nextCategories = FALLBACK_CATEGORIES;
+          nextAllCategories = flattenCategories(FALLBACK_CATEGORIES);
+        }
+      }
+
+      // Handle styles: update on success, keep stale on error
+      let nextStyles = state.styles;
+      if (stylesResult.status === 'fulfilled') {
+        const stylesRaw = stylesResult.value;
+        nextStyles = Array.isArray(stylesRaw)
+          ? stylesRaw
+          : (stylesRaw as any)?.results ?? [];
+      }
+
+      // Handle products: update and enrich on success, keep stale on error
+      let nextProducts = state.products;
+      if (prodsResult.status === 'fulfilled') {
+        const prodsRaw = prodsResult.value;
+        const rawProds: BackendProduct[] = prodsRaw?.results
+          ? prodsRaw.results
+          : Array.isArray(prodsRaw)
+          ? prodsRaw
+          : [];
+        nextProducts = enrichProducts(rawProds, nextAllCategories);
+      }
+
+      const hasError = errorMessages.length > 0;
+      const combinedErrorMessage = hasError ? errorMessages.join('; ') : null;
 
       state = {
-        categories: cats,
-        allCategories: flat,
-        products,
-        styles,
+        categories: nextCategories,
+        allCategories: nextAllCategories,
+        products: nextProducts,
+        styles: nextStyles,
         isLoading: false,
-        isError: false,
-        errorMessage: null,
-        lastFetchedAt: Date.now(),
+        isError: hasError,
+        errorMessage: combinedErrorMessage,
+        errorDetails: hasError ? errors : null,
+        lastFetchedAt: !hasError || (catsResult.status === 'fulfilled' || prodsResult.status === 'fulfilled') ? Date.now() : state.lastFetchedAt,
       };
-    } catch (err: any) {
-      console.warn('[catalogStore] using resilient fallback catalog:', err?.message);
-      const flat = flattenCategories(FALLBACK_CATEGORIES);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[catalogStore] unexpected fetchCatalog error:', message);
       state = {
         ...state,
-        categories: state.categories.length > 0 ? state.categories : FALLBACK_CATEGORIES,
-        allCategories: state.allCategories.length > 0 ? state.allCategories : flat,
         isLoading: false,
-        isError: false,
-        errorMessage: null,
+        isError: true,
+        errorMessage: `Catalog service error: ${message}`,
+        errorDetails: {
+          categories: message,
+          styles: message,
+          products: message,
+        },
       };
     } finally {
+      state = {
+        ...state,
+        isLoading: false,
+      };
       fetchPromise = null;
       notify();
     }
@@ -289,6 +369,9 @@ export async function fetchCatalog(force = false): Promise<void> {
   return fetchPromise;
 }
 
+export function retryCatalog(): Promise<void> {
+  return fetchCatalog(true);
+}
 
 export function subscribe(fn: Listener): () => void {
   listeners.add(fn);

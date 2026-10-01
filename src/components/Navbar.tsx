@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
-import { useCatalog, toProductShape } from '../hooks/useCatalog';
+import { useCatalog, toProductShape, fetchCatalog } from '../hooks/useCatalog';
 import { useAuth } from '../context/AuthContext';
 import { BrandLogo } from './BrandLogo';
 import { PageId } from '../types';
@@ -33,7 +33,8 @@ import {
   Cpu,
   Edit2,
   Ruler,
-  Scale
+  Scale,
+  RotateCcw,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -68,7 +69,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
   const [searchOverlayOpen, setSearchOverlayOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const { categories, products } = useCatalog();
+  const { categories, products, isError, isLoading } = useCatalog();
 
   const [hoveredCategorySlug, setHoveredCategorySlug] = useState<string>('');
 
@@ -307,27 +308,45 @@ export const Navbar: React.FC<NavbarProps> = ({
                         <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest block mb-2 px-1">
                           Ready-Made CAD Categories
                         </span>
-                        {categories.map(cat => {
-                          const isHovered = (hoveredCategorySlug || categories[0]?.slug) === cat.slug;
-                          return (
+                        {isLoading && categories.length === 0 ? (
+                          <div className="py-8 text-center text-xs text-[#C9C2A6]">Loading categories…</div>
+                        ) : isError && categories.length === 0 ? (
+                          <div className="py-6 px-3 rounded-xl bg-red-950/40 border border-red-500/30 text-center space-y-2">
+                            <p className="text-xs text-red-300">Unable to load categories</p>
                             <button
-                              key={cat.id}
-                              onMouseEnter={() => setHoveredCategorySlug(cat.slug)}
-                              onClick={() => {
-                                onNavigate('collections', cat.slug);
-                                setActiveDropdown(null);
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                fetchCatalog(true);
                               }}
-                              className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between ${
-                                isHovered
-                                  ? 'bg-gradient-to-r from-[#D4AF37] to-[#E6C65B] text-[#080E24] font-bold shadow-lg shadow-[#D4AF37]/20 translate-x-1'
-                                  : 'text-[#FAF8F3]/80 hover:text-[#FAF8F3] hover:bg-[#121F4D]/70'
-                              }`}
+                              className="px-3 py-1 rounded-lg bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-[11px] font-medium text-red-200 inline-flex items-center gap-1 cursor-pointer transition-colors"
                             >
-                              <span>{cat.name}</span>
-                              <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isHovered ? 'translate-x-0.5 text-[#080E24]' : 'opacity-50'}`} />
+                              <RotateCcw className="w-3 h-3" />
+                              Retry
                             </button>
-                          );
-                        })}
+                          </div>
+                        ) : (
+                          categories.map(cat => {
+                            const isHovered = (hoveredCategorySlug || categories[0]?.slug) === cat.slug;
+                            return (
+                              <button
+                                key={cat.id}
+                                onMouseEnter={() => setHoveredCategorySlug(cat.slug)}
+                                onClick={() => {
+                                  onNavigate('collections', cat.slug);
+                                  setActiveDropdown(null);
+                                }}
+                                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between ${
+                                  isHovered
+                                    ? 'bg-gradient-to-r from-[#D4AF37] to-[#E6C65B] text-[#080E24] font-bold shadow-lg shadow-[#D4AF37]/20 translate-x-1'
+                                    : 'text-[#FAF8F3]/80 hover:text-[#FAF8F3] hover:bg-[#121F4D]/70'
+                                }`}
+                              >
+                                <span>{cat.name}</span>
+                                <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isHovered ? 'translate-x-0.5 text-[#080E24]' : 'opacity-50'}`} />
+                              </button>
+                            );
+                          })
+                        )}
                       </div>
 
                       {/* Right: Featured products matching hovered category */}

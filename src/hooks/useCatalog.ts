@@ -8,12 +8,14 @@ import {
   subscribe,
   getSnapshot,
   fetchCatalog,
+  retryCatalog,
   CatalogState,
+  CatalogErrorDetails,
   BackendProduct,
   BackendCategory,
 } from '../services/catalogStore';
 
-export type { CatalogState, BackendProduct, BackendCategory };
+export type { CatalogState, CatalogErrorDetails, BackendProduct, BackendCategory };
 
 export function useCatalog(): CatalogState {
   const [state, setState] = useState<CatalogState>(getSnapshot);
@@ -59,4 +61,4 @@ export function toProductShape(bp: BackendProduct) {
   };
 }
 
-export { fetchCatalog };
+export { fetchCatalog, retryCatalog };

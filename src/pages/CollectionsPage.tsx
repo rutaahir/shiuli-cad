@@ -17,6 +17,7 @@ import {
   ChevronsRight,
   Loader2,
   Layers,
+  AlertTriangle,
 } from 'lucide-react';
 import { RevealOnScroll } from '../components/motion/RevealOnScroll';
 import { StaggerGrid, StaggerItem } from '../components/motion/StaggerGrid';
@@ -62,7 +63,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
   onToggleWishlist,
   wishlistIds,
 }) => {
-  const { categories, allCategories, products, styles, isLoading, isError } = useCatalog();
+  const { categories, allCategories, products, styles, isLoading, isError, errorMessage } = useCatalog();
 
   const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [selectedSlug, setSelectedSlug] = useState<string>(initialCategory);
@@ -292,10 +293,21 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
           Jewellery Category
         </span>
 
-        {isLoading ? (
+        {isLoading && categories.length === 0 ? (
           <div className="flex items-center gap-2 text-xs text-[#C9C2A6] py-2">
             <Loader2 className="w-3 h-3 animate-spin text-[#D4AF37]" />
             Loading categories…
+          </div>
+        ) : isError && categories.length === 0 ? (
+          <div className="p-3 rounded-xl bg-[#2A1515]/60 border border-red-500/30 text-xs space-y-2">
+            <p className="text-red-300 text-[11px]">Failed to load categories.</p>
+            <button
+              onClick={() => fetchCatalog(true)}
+              className="px-2.5 py-1 rounded-lg bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-[10px] font-semibold text-red-200 flex items-center gap-1 transition-colors cursor-pointer"
+            >
+              <RotateCcw className="w-3 h-3" />
+              Retry Categories
+            </button>
           </div>
         ) : (
           <div className="space-y-1 text-xs">
@@ -525,16 +537,21 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
         {isError && (
           <div className="p-4 rounded-2xl bg-[#2A1515] border border-red-500/40 text-[#FAF8F3] flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
             <div className="flex items-center gap-3">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-400 animate-ping" />
-              <span className="text-xs font-medium text-red-200">
-                {products.length > 0
-                  ? 'Showing cached catalog — live connection unavailable.'
-                  : 'Unable to connect to live catalogue server. Please verify backend service.'}
-              </span>
+              <span className="w-2.5 h-2.5 rounded-full bg-red-400 animate-ping shrink-0" />
+              <div className="text-xs">
+                <span className="font-semibold text-red-200">
+                  {products.length > 0
+                    ? 'Showing cached catalog — live connection unavailable.'
+                    : 'Unable to connect to live catalogue server.'}
+                </span>
+                {errorMessage && (
+                  <p className="text-[11px] text-red-300/80 mt-0.5 font-mono">{errorMessage}</p>
+                )}
+              </div>
             </div>
             <button
               onClick={() => fetchCatalog(true)}
-              className="px-4 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-xs font-semibold text-red-100 flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-4 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-xs font-semibold text-red-100 flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               Retry Connection
@@ -618,6 +635,28 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
               <div className="rounded-3xl bg-[#080E24] border border-[#D4AF37]/20 p-16 text-center">
                 <Loader2 className="w-8 h-8 mx-auto text-[#D4AF37] animate-spin mb-4" />
                 <p className="text-[#C9C2A6] text-sm">Loading CAD collection…</p>
+              </div>
+            ) : isError && products.length === 0 ? (
+              /* Error State */
+              <div className="rounded-3xl bg-[#080E24] border border-red-500/30 p-16 text-center space-y-4">
+                <div className="w-16 h-16 mx-auto rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400">
+                  <AlertTriangle className="w-7 h-7" />
+                </div>
+                <h3 className="font-serif text-2xl text-[#FAF8F3]">
+                  Unable to Load Catalog
+                </h3>
+                <p className="text-xs text-[#C9C2A6] max-w-sm mx-auto">
+                  {errorMessage || 'The server could not be reached. Please verify your connection or try again.'}
+                </p>
+                <div className="flex justify-center gap-3 pt-2">
+                  <button
+                    onClick={() => fetchCatalog(true)}
+                    className="btn-gold-luxury px-6 py-2.5 rounded-full text-xs font-semibold uppercase tracking-wider flex items-center gap-2 cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Retry Connection
+                  </button>
+                </div>
               </div>
             ) : filteredProducts.length === 0 ? (
               /* Empty State */

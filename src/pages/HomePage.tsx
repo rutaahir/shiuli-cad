@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PageId, Product } from '../types';
-import { useCatalog, toProductShape } from '../hooks/useCatalog';
+import { useCatalog, toProductShape, fetchCatalog } from '../hooks/useCatalog';
 import { api } from '../services/api';
 import { BrandLogo } from '../components/BrandLogo';
 import { BeforeAfterSlider } from '../components/BeforeAfterSlider';
@@ -9,7 +9,7 @@ import {
   Sparkles, 
   ArrowRight, 
   ChevronRight, 
-  ChevronLeft,
+  ChevronLeft, 
   Layers, 
   ShieldCheck, 
   Clock, 
@@ -20,9 +20,12 @@ import {
   Star, 
   Check, 
   FileCheck2, 
-  Zap,
-  Gem,
-  Award
+  Zap, 
+  Gem, 
+  Award,
+  RotateCcw,
+  AlertTriangle,
+  Loader2,
 } from 'lucide-react';
 import { RevealOnScroll } from '../components/motion/RevealOnScroll';
 import { StaggerGrid, StaggerItem } from '../components/motion/StaggerGrid';
@@ -532,7 +535,7 @@ export const HomePage: React.FC<HomePageProps> = ({
     return () => observer.disconnect();
   }, []);
 
-  const { products: liveProducts, categories, isLoading } = useCatalog();
+  const { products: liveProducts, categories, isLoading, isError, errorMessage } = useCatalog();
 
   const allProducts: Product[] = React.useMemo(
     () => liveProducts.map(toProductShape),
@@ -804,6 +807,28 @@ export const HomePage: React.FC<HomePageProps> = ({
             </motion.button>
           </RevealOnScroll>
 
+          {/* Categories Error Notice */}
+          {isError && categories.length === 0 && (
+            <div className="p-4 rounded-2xl bg-[#2A1515] border border-red-500/40 text-[#FAF8F3] flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg mb-6">
+              <div className="flex items-center gap-3">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-400 animate-ping shrink-0" />
+                <div className="text-xs">
+                  <span className="font-semibold text-red-200">Unable to load live categories.</span>
+                  {errorMessage && (
+                    <p className="text-[11px] text-red-300/80 mt-0.5 font-mono">{errorMessage}</p>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => fetchCatalog(true)}
+                className="px-4 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-xs font-semibold text-red-100 flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Retry
+              </button>
+            </div>
+          )}
+
           {/* Category Cards Grid with Slowly Moving Slideshow & Hover/Touch Product Switcher */}
           <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {mainCategories.map((cat: any, idx: number) => (
@@ -982,8 +1007,53 @@ export const HomePage: React.FC<HomePageProps> = ({
             ))}
           </div>
 
+          {/* Offline / Stale Data Banner */}
+          {isError && liveProducts.length > 0 && (
+            <div className="p-3.5 rounded-2xl bg-[#2A1515] border border-red-500/40 text-[#FAF8F3] flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg mb-6">
+              <div className="flex items-center gap-2.5">
+                <span className="w-2 h-2 rounded-full bg-red-400 animate-ping shrink-0" />
+                <span className="text-xs text-red-200">
+                  Showing cached catalog — live catalogue server unavailable.
+                </span>
+              </div>
+              <button
+                onClick={() => fetchCatalog(true)}
+                className="px-3.5 py-1 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-xs font-semibold text-red-100 flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+              >
+                <RotateCcw className="w-3 h-3" />
+                Retry Connection
+              </button>
+            </div>
+          )}
+
           {/* Product Grid */}
-          {filteredProducts.length === 0 ? (
+          {isLoading && liveProducts.length === 0 ? (
+            <div className="rounded-3xl bg-[#091029] border border-[#D4AF37]/20 p-16 text-center">
+              <Loader2 className="w-8 h-8 mx-auto text-[#D4AF37] animate-spin mb-4" />
+              <p className="text-[#C9C2A6] text-sm">Loading ready-made designs…</p>
+            </div>
+          ) : isError && liveProducts.length === 0 ? (
+            <div className="rounded-3xl bg-[#091029] border border-red-500/30 p-12 text-center space-y-4 max-w-lg mx-auto">
+              <div className="w-14 h-14 mx-auto rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400">
+                <AlertTriangle className="w-7 h-7" />
+              </div>
+              <h3 className="font-serif text-2xl text-[#FAF8F3]">
+                Unable to Load Catalog
+              </h3>
+              <p className="text-xs text-[#C9C2A6] leading-relaxed">
+                {errorMessage || 'The server could not be reached. Please verify your connection or try again.'}
+              </p>
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <button
+                  onClick={() => fetchCatalog(true)}
+                  className="btn-gold-luxury px-6 py-2.5 rounded-full text-xs font-semibold uppercase tracking-wider flex items-center gap-2 cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Retry Connection
+                </button>
+              </div>
+            </div>
+          ) : filteredProducts.length === 0 ? (
             <div className="rounded-3xl bg-[#091029] border border-[#D4AF37]/20 p-12 text-center space-y-4 max-w-lg mx-auto">
               <div className="w-12 h-12 mx-auto rounded-full bg-[#121F4D] border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37]">
                 <Sparkles className="w-6 h-6" />

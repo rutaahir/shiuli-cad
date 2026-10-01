@@ -35,3 +35,5 @@ db.sqlite3
 node_modules/
 dist/
 .env
+
+project_status_report.xlsx
