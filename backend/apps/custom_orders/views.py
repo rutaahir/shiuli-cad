@@ -476,6 +476,140 @@ class CustomRequestViewSet(viewsets.ModelViewSet):
 
         return Response(AdminOrderSerializer(order, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
+    # ADMIN UPDATE CONSULTATION & TELEGRAM / WHATSAPP NOTES
+    @action(detail=True, methods=['post', 'patch'], permission_classes=[permissions.IsAuthenticated], url_path='update-notes')
+    def update_notes(self, request, pk=None):
+        custom_req = self.get_object()
+        notes = request.data.get('admin_call_notes', request.data.get('notes', ''))
+        custom_req.admin_call_notes = notes
+        custom_req.save(update_fields=['admin_call_notes'])
+        if hasattr(custom_req, 'order') and custom_req.order:
+            try:
+                custom_req.order.admin_call_notes = notes
+                custom_req.order.save(update_fields=['admin_call_notes'])
+            except Exception:
+                pass
+        return Response({
+            "status": "success",
+            "id": custom_req.id,
+            "admin_call_notes": custom_req.admin_call_notes,
+            "message": f"Admin notes saved for Custom Request #{custom_req.id}"
+        })
+
+    # ADMIN EDIT ALL CUSTOM REQUEST DETAILS
+    @action(detail=True, methods=['patch', 'put', 'post'], permission_classes=[IsAdmin], url_path='admin-update')
+    def admin_update(self, request, pk=None):
+        from apps.catalog.models import Category
+        custom_req = self.get_object()
+        data = request.data
+
+        if 'contact_name' in data or 'client_name' in data:
+            custom_req.contact_name = data.get('contact_name') or data.get('client_name')
+        if 'contact_phone' in data or 'client_phone' in data:
+            custom_req.contact_phone = data.get('contact_phone') or data.get('client_phone')
+        if 'contact_email' in data or 'client_email' in data:
+            custom_req.contact_email = data.get('contact_email') or data.get('client_email')
+        if 'description' in data:
+            custom_req.description = data.get('description', '')
+        if 'special_instructions' in data:
+            custom_req.special_instructions = data.get('special_instructions', '')
+        if 'category' in data or 'category_id' in data:
+            cat_id = data.get('category') or data.get('category_id')
+            if cat_id:
+                if str(cat_id).isdigit():
+                    custom_req.category = Category.objects.filter(id=int(cat_id)).first() or custom_req.category
+                else:
+                    custom_req.category = Category.objects.filter(name__iexact=str(cat_id)).first() or custom_req.category
+        if 'metal_alloy' in data or 'metal_alloy_id' in data:
+            metal_id = data.get('metal_alloy') or data.get('metal_alloy_id')
+            if metal_id:
+                if str(metal_id).isdigit():
+                    custom_req.metal_alloy = MetalAlloy.objects.filter(id=int(metal_id)).first() or custom_req.metal_alloy
+                else:
+                    custom_req.metal_alloy = MetalAlloy.objects.filter(name__iexact=str(metal_id)).first() or custom_req.metal_alloy
+        if 'ring_size' in data:
+            custom_req.ring_size = data.get('ring_size', '')
+        if 'ring_size_standard' in data:
+            custom_req.ring_size_standard = data.get('ring_size_standard', 'US')
+        if 'target_weight_grams' in data:
+            val = data.get('target_weight_grams')
+            custom_req.target_weight_grams = Decimal(str(val)) if val else None
+        if 'needed_by_date' in data:
+            custom_req.needed_by_date = data.get('needed_by_date') or None
+        if 'budget_range' in data:
+            custom_req.budget_range = data.get('budget_range', '')
+        if 'status' in data and data['status']:
+            custom_req.status = data['status']
+        if 'agreed_price' in data and data['agreed_price'] is not None:
+            try:
+                custom_req.agreed_price = Decimal(str(data['agreed_price']))
+            except Exception:
+                pass
+        if 'admin_call_notes' in data:
+            custom_req.admin_call_notes = data.get('admin_call_notes', '')
+
+        custom_req.save()
+
+        # Sync back to linked order if any
+        if hasattr(custom_req, 'order') and custom_req.order:
+            ord_obj = custom_req.order
+            if 'agreed_price' in data and data['agreed_price'] is not None:
+                try:
+                    ord_obj.total_price = Decimal(str(data['agreed_price']))
+                    ord_obj.staff_payout_price = ord_obj.calculate_staff_payout()
+                except Exception:
+                    pass
+            if 'admin_call_notes' in data:
+                ord_obj.admin_call_notes = data.get('admin_call_notes', '')
+            ord_obj.save()
+
+        return Response(CustomRequestSerializer(custom_req, context={'request': request}).data)
+
+    # ADMIN CANCEL / REJECT CUSTOM REQUEST
+    @action(detail=True, methods=['post'], permission_classes=[IsAdmin], url_path='cancel')
+    def cancel_request(self, request, pk=None):
+        custom_req = self.get_object()
+        reason = request.data.get('reason', 'Cancelled by Studio Super Admin.')
+        custom_req.status = CustomRequest.Status.REJECTED
+        stamp = f"\n[🚫 Cancelled by Admin ({timezone.now().strftime('%d %b %H:%M')})]: {reason}"
+        if custom_req.admin_call_notes:
+            custom_req.admin_call_notes += stamp
+        else:
+            custom_req.admin_call_notes = stamp.strip()
+        custom_req.save(update_fields=['status', 'admin_call_notes'])
+
+        if hasattr(custom_req, 'order') and custom_req.order:
+            custom_req.order.status = Order.Status.CANCELLED
+            custom_req.order.save(update_fields=['status'])
+            OrderMilestone.objects.create(
+                order=custom_req.order,
+                stage=f"Custom Request & Order Cancelled: {reason[:120]}"
+            )
+
+        return Response({
+            "message": f"Custom Request #{custom_req.id} cancelled.",
+            "request": CustomRequestSerializer(custom_req, context={'request': request}).data
+        })
+
+    # ADMIN PERMANENTLY DELETE CUSTOM REQUEST
+    def destroy(self, request, *args, **kwargs):
+        if getattr(request.user, 'role', '') != 'admin' and not getattr(request.user, 'is_superuser', False):
+            return Response({"error": "Forbidden. Only Studio Super Admins can permanently delete custom requests."}, status=status.HTTP_403_FORBIDDEN)
+        instance = self.get_object()
+        req_id = instance.id
+        try:
+            if hasattr(instance, 'order') and instance.order:
+                order = instance.order
+                instance.order = None
+                instance.save(update_fields=['order'])
+                order.custom_request = None
+                order.save(update_fields=['custom_request'])
+            instance.delete()
+            return Response({"message": f"Custom Request #{req_id} permanently deleted from database."}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": f"Failed to delete request: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 class OrderViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
@@ -1317,6 +1451,469 @@ class OrderViewSet(viewsets.ModelViewSet):
             "download_token": raw_token,
             "download_url": download_url
         })
+
+    # ADMIN PLACE / CREATE ORDER FOR CUSTOMER
+    @action(detail=False, methods=['post'], permission_classes=[IsAdmin], url_path='admin-create')
+    def admin_create(self, request):
+        from apps.catalog.models import Category
+        from apps.payments.models import Payment
+
+        data = request.data
+        client_id = data.get('client_id')
+        client_name = str(data.get('client_name', '')).strip()
+        client_email = str(data.get('client_email', '')).strip()
+        client_phone = str(data.get('client_phone', '')).strip()
+
+        # 1. Resolve or create customer user
+        client = None
+        if client_id and str(client_id).isdigit():
+            client = User.objects.filter(id=int(client_id)).first()
+
+        if not client and client_email:
+            client = User.objects.filter(email__iexact=client_email).first()
+            if not client:
+                base_username = client_email.split('@')[0].lower().replace('.', '_').replace('-', '_')
+                username = base_username
+                counter = 1
+                while User.objects.filter(username=username).exists():
+                    username = f"{base_username}_{counter}"
+                    counter += 1
+
+                names = client_name.split(' ', 1) if client_name else ['Client', '']
+                client = User.objects.create(
+                    username=username,
+                    email=client_email,
+                    first_name=names[0],
+                    last_name=names[1] if len(names) > 1 else '',
+                    phone_number=client_phone,
+                    role=User.Role.CLIENT
+                )
+                client.set_password('client123')
+                client.save()
+
+        if not client:
+            return Response(
+                {"error": "Customer email or existing customer selection is required to place an order."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 2. Extract jewelry specifications
+        title = data.get('title') or data.get('item_name') or 'Custom Bespoke Jewellery CAD'
+        category_id = data.get('category_id') or data.get('category')
+        category = Category.objects.filter(id=int(category_id)).first() if category_id and str(category_id).isdigit() else None
+        if not category and category_id:
+            category = Category.objects.filter(name__iexact=str(category_id)).first()
+
+        metal_alloy_id = data.get('metal_alloy_id') or data.get('metal_alloy')
+        metal_alloy = MetalAlloy.objects.filter(id=int(metal_alloy_id)).first() if metal_alloy_id and str(metal_alloy_id).isdigit() else None
+        if not metal_alloy and metal_alloy_id:
+            metal_alloy = MetalAlloy.objects.filter(name__iexact=str(metal_alloy_id)).first()
+
+        ring_size = data.get('ring_size', '')
+        ring_size_standard = data.get('ring_size_standard', 'US')
+        target_weight_grams = data.get('target_weight_grams')
+        description = data.get('description', '') or data.get('design_brief', '')
+        special_instructions = data.get('special_instructions', '') or title
+        needed_by_date = data.get('needed_by_date')
+        admin_call_notes = data.get('admin_call_notes', '')
+
+        # Telegram, Address & Company extra details
+        client_telegram = str(data.get('client_telegram') or data.get('telegram_handle') or '').strip()
+        client_address = str(data.get('client_address') or data.get('address') or '').strip()
+        company_name = str(data.get('company_name') or '').strip()
+
+        extra_info_lines = []
+        if company_name: extra_info_lines.append(f"🏢 Company/Brand: {company_name}")
+        if client_telegram: extra_info_lines.append(f"✈️ Telegram: {client_telegram}")
+        if client_address: extra_info_lines.append(f"📍 Address: {client_address}")
+
+        if extra_info_lines:
+            header = "\n".join(extra_info_lines)
+            admin_call_notes = f"{header}\n\n{admin_call_notes}".strip()
+
+        # 3. Commercials
+        try:
+            total_price = Decimal(str(data.get('total_price', '250.00')))
+        except Exception:
+            total_price = Decimal('250.00')
+
+        commission_pct = Decimal(str(data.get('admin_commission_percentage', '20.00')))
+        multiplier = max(Decimal('0.00'), (Decimal('100.00') - commission_pct) / Decimal('100.00'))
+        staff_payout_price = round(total_price * multiplier, 2)
+
+        advance_amount = Decimal(str(data.get('advance_amount', round(total_price * Decimal('0.10'), 2))))
+        advance_paid = bool(data.get('advance_paid', True))
+        deadline_hours = int(data.get('deadline_hours', 72))
+        due_at = timezone.now() + timedelta(hours=deadline_hours)
+
+        # 4. Assigned staff check
+        assigned_staff_id = data.get('assigned_staff_id')
+        assigned_staff = None
+        if assigned_staff_id and str(assigned_staff_id).isdigit() and int(assigned_staff_id) > 0:
+            assigned_staff = User.objects.filter(id=int(assigned_staff_id), role=User.Role.STAFF).first()
+
+        order_status = Order.Status.WITH_DESIGNER if assigned_staff else Order.Status.IN_DESIGN
+
+        # 5. Create CustomRequest
+        custom_req = CustomRequest.objects.create(
+            client=client,
+            request_mode='direct',
+            status=CustomRequest.Status.AGREED,
+            category=category,
+            metal_alloy=metal_alloy,
+            ring_size=ring_size,
+            ring_size_standard=ring_size_standard,
+            target_weight_grams=Decimal(str(target_weight_grams)) if target_weight_grams else None,
+            description=description,
+            special_instructions=special_instructions,
+            needed_by_date=needed_by_date if needed_by_date else None,
+            agreed_price=total_price,
+            contact_name=client_name or client.get_full_name() or client.username,
+            contact_email=client_email or client.email,
+            contact_phone=client_phone or client.phone_number,
+            admin_call_notes=admin_call_notes
+        )
+
+        # 6. Create Order
+        order = Order.objects.create(
+            client=client,
+            order_type=Order.OrderType.CUSTOM,
+            custom_request=custom_req,
+            assigned_staff=assigned_staff,
+            total_price=total_price,
+            admin_commission_percentage=commission_pct,
+            staff_payout_price=staff_payout_price,
+            advance_amount=advance_amount,
+            advance_paid=advance_paid,
+            deadline_hours=deadline_hours,
+            due_at=due_at,
+            status=order_status,
+            admin_call_notes=admin_call_notes,
+            assigned_at=timezone.now() if assigned_staff else None,
+            unassigned_since=None if assigned_staff else timezone.now()
+        )
+
+        # 7. Payment Stages
+        stage0_status = OrderPaymentStage.Status.PAID if advance_paid else OrderPaymentStage.Status.DUE
+        OrderPaymentStage.objects.create(
+            order=order,
+            label="Booking Confirmation Deposit",
+            percentage=round((advance_amount / total_price) * 100, 2) if total_price > 0 else Decimal('10.00'),
+            amount=advance_amount,
+            order_index=0,
+            trigger_type="immediate",
+            status=stage0_status,
+            paid_at=timezone.now() if advance_paid else None
+        )
+        rem_stage1 = round(total_price * Decimal('0.30'), 2)
+        OrderPaymentStage.objects.create(
+            order=order,
+            label="Design Approval Milestone",
+            percentage=30.00,
+            amount=rem_stage1,
+            order_index=1,
+            trigger_type="on_design_approval",
+            status=OrderPaymentStage.Status.LOCKED
+        )
+        rem_stage2 = max(Decimal('0.00'), total_price - advance_amount - rem_stage1)
+        OrderPaymentStage.objects.create(
+            order=order,
+            label="Final CAD Delivery",
+            percentage=round((rem_stage2 / total_price) * 100, 2) if total_price > 0 else Decimal('60.00'),
+            amount=rem_stage2,
+            order_index=2,
+            trigger_type="on_final_delivery",
+            status=OrderPaymentStage.Status.LOCKED
+        )
+
+        if advance_paid:
+            Payment.objects.create(
+                order=order,
+                payment_type=Payment.PaymentType.ADVANCE,
+                amount=advance_amount,
+                gateway_transaction_id="ADMIN_BOOKING_RECORD",
+                payment_method="admin_manual",
+                status=Payment.Status.SUCCESS,
+                admin_verified_at=timezone.now(),
+                admin_verified_by=request.user
+            )
+
+        # 8. Initial milestone
+        OrderMilestone.objects.create(
+            order=order,
+            stage=f"Order Placed by Studio Admin for Customer {client.get_full_name() or client.username}"
+        )
+        if assigned_staff:
+            OrderMilestone.objects.create(
+                order=order,
+                stage=f"Assigned to Modeller: {assigned_staff.get_full_name() or assigned_staff.username}"
+            )
+            create_notification(
+                recipient=assigned_staff,
+                title=f"New CAD Order Assigned: #{order.id}",
+                body=f"Admin created and assigned Order #{order.id} ({title}) to your workbench.",
+                notification_type="general",
+                related_order=order
+            )
+
+        return Response(AdminOrderSerializer(order, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+    # ADMIN EDIT ALL ORDER DETAILS
+    @action(detail=True, methods=['patch', 'put', 'post'], permission_classes=[IsAdmin], url_path='admin-update')
+    def admin_update(self, request, pk=None):
+        return self._perform_admin_order_update(request, pk)
+
+    def update(self, request, *args, **kwargs):
+        if getattr(request.user, 'role', '') == 'admin' or getattr(request.user, 'is_superuser', False):
+            return self._perform_admin_order_update(request, kwargs.get('pk'))
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        if getattr(request.user, 'role', '') == 'admin' or getattr(request.user, 'is_superuser', False):
+            return self._perform_admin_order_update(request, kwargs.get('pk'))
+        return super().partial_update(request, *args, **kwargs)
+
+    def _perform_admin_order_update(self, request, order_id):
+        from apps.catalog.models import Category
+
+        order = self.get_object()
+        data = request.data
+        req = order.custom_request
+
+        # 1. Update Title & Descriptions
+        title = data.get('title') or data.get('item_name')
+        if req and title:
+            req.special_instructions = title
+
+        description = data.get('description') or data.get('design_brief')
+        if req and description is not None:
+            req.description = description
+
+        # 2. Update Category & Specs
+        category_id = data.get('category_id') or data.get('category')
+        if req and category_id:
+            if str(category_id).isdigit():
+                req.category = Category.objects.filter(id=int(category_id)).first() or req.category
+            else:
+                req.category = Category.objects.filter(name__iexact=str(category_id)).first() or req.category
+
+        metal_alloy_id = data.get('metal_alloy_id') or data.get('metal_alloy')
+        if req and metal_alloy_id:
+            if str(metal_alloy_id).isdigit():
+                req.metal_alloy = MetalAlloy.objects.filter(id=int(metal_alloy_id)).first() or req.metal_alloy
+            else:
+                req.metal_alloy = MetalAlloy.objects.filter(name__iexact=str(metal_alloy_id)).first() or req.metal_alloy
+
+        if req and 'ring_size' in data:
+            req.ring_size = data.get('ring_size', '')
+        if req and 'ring_size_standard' in data:
+            req.ring_size_standard = data.get('ring_size_standard', 'US')
+        if req and 'target_weight_grams' in data:
+            val = data.get('target_weight_grams')
+            req.target_weight_grams = Decimal(str(val)) if val else None
+        if req and 'needed_by_date' in data:
+            req.needed_by_date = data.get('needed_by_date') or None
+
+        # 3. Customer Info Updates
+        client_name = data.get('client_name')
+        client_email = data.get('client_email')
+        client_phone = data.get('client_phone')
+        if req:
+            if client_name: req.contact_name = client_name
+            if client_email: req.contact_email = client_email
+            if client_phone: req.contact_phone = client_phone
+        if order.client:
+            if client_phone:
+                order.client.phone_number = client_phone
+            if client_name:
+                parts = client_name.split(' ', 1)
+                order.client.first_name = parts[0]
+                if len(parts) > 1:
+                    order.client.last_name = parts[1]
+            order.client.save()
+
+        # 4. Pricing & Commission
+        if 'total_price' in data and data['total_price'] is not None:
+            try:
+                order.total_price = Decimal(str(data['total_price']))
+                if req:
+                    req.agreed_price = order.total_price
+            except Exception:
+                pass
+
+        if 'admin_commission_percentage' in data and data['admin_commission_percentage'] is not None:
+            try:
+                order.admin_commission_percentage = Decimal(str(data['admin_commission_percentage']))
+            except Exception:
+                pass
+
+        order.staff_payout_price = order.calculate_staff_payout()
+
+        if 'advance_amount' in data and data['advance_amount'] is not None:
+            try:
+                order.advance_amount = Decimal(str(data['advance_amount']))
+            except Exception:
+                pass
+
+        if 'advance_paid' in data:
+            order.advance_paid = bool(data['advance_paid'])
+
+        # 5. Deadlines & Schedule
+        if 'deadline_hours' in data and data['deadline_hours'] is not None:
+            try:
+                order.deadline_hours = int(data['deadline_hours'])
+                order.due_at = (order.assigned_at or order.created_at or timezone.now()) + timedelta(hours=order.deadline_hours)
+            except Exception:
+                pass
+
+        if 'due_at' in data and data['due_at']:
+            order.due_at = data['due_at']
+
+        # 6. Status
+        old_status = order.status
+        if 'status' in data and data['status']:
+            order.status = data['status']
+            if old_status != order.status:
+                OrderMilestone.objects.create(
+                    order=order,
+                    stage=f"Status updated to '{order.status.replace('_', ' ').title()}' by Studio Admin"
+                )
+
+        # 7. Assigned Staff
+        if 'assigned_staff_id' in data:
+            new_staff_id = data['assigned_staff_id']
+            if not new_staff_id or str(new_staff_id).strip() in ['', 'null', '0', 'unassigned']:
+                old_staff = order.assigned_staff
+                order.assigned_staff = None
+                if order.status == Order.Status.WITH_DESIGNER:
+                    order.status = Order.Status.IN_DESIGN
+                order.unassigned_since = timezone.now()
+                order.assigned_at = None
+                OrderMilestone.objects.create(
+                    order=order,
+                    stage=f"Unassigned to Open Pool by Studio Admin (Previously: {old_staff.username if old_staff else 'None'})"
+                )
+            else:
+                staff_user = User.objects.filter(id=int(new_staff_id), role=User.Role.STAFF).first() if str(new_staff_id).isdigit() else None
+                if staff_user and staff_user != order.assigned_staff:
+                    order.assigned_staff = staff_user
+                    order.assigned_at = timezone.now()
+                    order.unassigned_since = None
+                    if order.status in [Order.Status.IN_DESIGN, Order.Status.AWAITING_PAYMENT]:
+                        order.status = Order.Status.WITH_DESIGNER
+                    OrderMilestone.objects.create(
+                        order=order,
+                        stage=f"Assigned to Modeller: {staff_user.get_full_name() or staff_user.username}"
+                    )
+                    create_notification(
+                        recipient=staff_user,
+                        title=f"Order Updated & Assigned: #{order.id}",
+                        body=f"Studio Admin assigned Order #{order.id} to you.",
+                        notification_type="general",
+                        related_order=order
+                    )
+
+        # 8. Notes
+        if 'admin_call_notes' in data:
+            order.admin_call_notes = data['admin_call_notes']
+            if req:
+                req.admin_call_notes = data['admin_call_notes']
+
+        if 'admin_review_notes' in data:
+            order.admin_review_notes = data['admin_review_notes']
+
+        order.save()
+        if req:
+            req.save()
+
+        return Response(AdminOrderSerializer(order, context={'request': request}).data)
+
+    # ADMIN CANCEL ORDER
+    @action(detail=True, methods=['post'], permission_classes=[IsAdmin], url_path='cancel')
+    def cancel_order(self, request, pk=None):
+        order = self.get_object()
+        reason = request.data.get('reason', 'Cancelled by Studio Super Admin.')
+
+        order.status = Order.Status.CANCELLED
+        order.save(update_fields=['status'])
+
+        OrderMilestone.objects.create(
+            order=order,
+            stage=f"Order Cancelled: {reason[:120]}"
+        )
+
+        # Notify client
+        if order.client:
+            create_notification(
+                recipient=order.client,
+                title=f"Order #{order.id} Cancelled",
+                body=f"Your order #{order.id} has been cancelled by the studio. Reason: {reason}",
+                notification_type="general",
+                related_order=order
+            )
+
+        # Notify assigned staff
+        if order.assigned_staff:
+            create_notification(
+                recipient=order.assigned_staff,
+                title=f"Assignment Cancelled: Order #{order.id}",
+                body=f"Order #{order.id} on your workbench has been cancelled.",
+                notification_type="general",
+                related_order=order
+            )
+
+        return Response({
+            "message": f"Order #{order.id} has been successfully cancelled.",
+            "order": AdminOrderSerializer(order, context={'request': request}).data
+        })
+
+    # ADMIN DELETE ORDER PERMANENTLY
+    def destroy(self, request, *args, **kwargs):
+        if getattr(request.user, 'role', '') != 'admin' and not getattr(request.user, 'is_superuser', False):
+            return Response({"error": "Forbidden. Only Studio Super Admins can permanently delete orders."}, status=status.HTTP_403_FORBIDDEN)
+
+        instance = self.get_object()
+        order_id = instance.id
+
+        try:
+            # 1. Delete protected deliverables files
+            from apps.catalog.models import protected_cad_storage
+            for deliverable in instance.deliverables.all():
+                if deliverable.file:
+                    try:
+                        if protected_cad_storage.exists(deliverable.file.name):
+                            protected_cad_storage.delete(deliverable.file.name)
+                        else:
+                            deliverable.file.delete(save=False)
+                    except Exception:
+                        pass
+
+            # 2. Clean up associated payments and stages
+            instance.payments.all().delete()
+            instance.payment_stages.all().delete()
+            instance.deliverables.all().delete()
+            instance.milestones.all().delete()
+            instance.revision_requests.all().delete()
+
+            # Clean up linked custom request if direct admin created
+            custom_req = instance.custom_request
+            instance.custom_request = None
+            instance.save(update_fields=['custom_request'])
+
+            if custom_req and custom_req.request_mode == 'direct':
+                custom_req.delete()
+
+            instance.delete()
+
+            return Response(
+                {"message": f"Order #{order_id} has been permanently deleted from the database."},
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to permanently delete order #{order_id}: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class RevisionRequestViewSet(viewsets.ModelViewSet):

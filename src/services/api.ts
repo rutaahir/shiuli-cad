@@ -581,6 +581,38 @@ class ApiClient {
     return this.request<any>('/staff/me/dashboard/');
   }
 
+  // Admin Order Placement & Management Endpoints
+  async adminCreateOrder(orderData: any) {
+    this.ensureAdminToken();
+    return await this.request<any>('/orders/admin-create/', {
+      method: 'POST',
+      body: JSON.stringify(orderData),
+    });
+  }
+
+  async adminUpdateOrder(orderId: number | string, orderData: any) {
+    this.ensureAdminToken();
+    return await this.request<any>(`/orders/${orderId}/admin-update/`, {
+      method: 'PATCH',
+      body: JSON.stringify(orderData),
+    });
+  }
+
+  async cancelOrder(orderId: number | string, reason?: string) {
+    this.ensureAdminToken();
+    return await this.request<any>(`/orders/${orderId}/cancel/`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason || 'Cancelled by Studio Super Admin.' }),
+    });
+  }
+
+  async deleteOrder(orderId: number | string) {
+    this.ensureAdminToken();
+    return await this.request<any>(`/orders/${orderId}/`, {
+      method: 'DELETE',
+    });
+  }
+
   // Catalog Endpoints
   async getCategories(flat: boolean = false) {
     return this.request<any[]>(`/catalog/categories/${flat ? '?flat=true' : ''}`);
@@ -878,6 +910,29 @@ class ApiClient {
     return this.request<any>(`/custom-requests/${requestId}/update-notes/`, {
       method: 'POST',
       body: JSON.stringify({ admin_call_notes: notes }),
+    });
+  }
+
+  async updateCustomRequest(requestId: number | string, data: any) {
+    await this.ensureAdminToken();
+    return this.request<any>(`/custom-requests/${requestId}/admin-update/`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async cancelCustomRequest(requestId: number | string, reason?: string) {
+    await this.ensureAdminToken();
+    return this.request<any>(`/custom-requests/${requestId}/cancel/`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason || 'Cancelled by Studio Super Admin.' }),
+    });
+  }
+
+  async deleteCustomRequest(requestId: number | string) {
+    await this.ensureAdminToken();
+    return this.request<any>(`/custom-requests/${requestId}/`, {
+      method: 'DELETE',
     });
   }
 

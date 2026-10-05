@@ -122,15 +122,19 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
               <div className="grid grid-cols-2 gap-2 p-3 rounded-xl bg-[#121F4D]/30 border border-[#D4AF37]/15 text-xs">
                 <div>
                   <span className="text-[#C9C2A6]/70 block text-[10px] uppercase">18K Gold Weight</span>
-                  <span className="font-medium text-[#FAF8F3]">{product.specs.metalWeight18k}</span>
+                  <span className="font-medium text-[#FAF8F3]">{product.specs?.metalWeight18k || '—'}</span>
                 </div>
                 <div>
                   <span className="text-[#C9C2A6]/70 block text-[10px] uppercase">Stone Setting</span>
-                  <span className="font-medium text-[#FAF8F3]">{product.specs.diamondCount} Gems ({product.specs.diamondTotalWeight})</span>
+                  <span className="font-medium text-[#FAF8F3]">
+                    {product.specs?.diamondCount && product.specs.diamondCount > 0
+                      ? `${product.specs.diamondCount} Gems ${product.specs.diamondTotalWeight ? `(${product.specs.diamondTotalWeight})` : ''}`
+                      : 'Solid Metal (No Stones)'}
+                  </span>
                 </div>
                 <div>
                   <span className="text-[#C9C2A6]/70 block text-[10px] uppercase">Tolerance</span>
-                  <span className="font-medium text-[#FAF8F3]">{product.specs.tolerance}</span>
+                  <span className="font-medium text-[#FAF8F3]">{product.specs?.tolerance || '±0.01 mm'}</span>
                 </div>
                 <div>
                   <span className="text-[#C9C2A6]/70 block text-[10px] uppercase">Mesh Quality</span>

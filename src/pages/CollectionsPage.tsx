@@ -754,8 +754,8 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                               {product.title}
                             </h3>
                             <div className="grid grid-cols-2 gap-1 text-[11px] text-[#C9C2A6] py-1 border-y border-white/5">
-                              <span>18K: {product.specs.metalWeight18k}</span>
-                              <span>Stones: {product.specs.diamondCount}</span>
+                              <span>18K: {product.specs?.metalWeight18k || '—'}</span>
+                              <span>{product.specs?.diamondCount ? `Stones: ${product.specs.diamondCount}` : 'Solid Metal'}</span>
                             </div>
                             <div className="flex items-center justify-between pt-2">
                               <div>

@@ -27,6 +27,18 @@ import {
   UserMinus,
   UserCheck,
   Trash2,
+  Phone,
+  Mail,
+  MapPin,
+  Calendar,
+  ExternalLink,
+  Download,
+  FileText,
+  ShieldCheck,
+  X,
+  Globe,
+  Star,
+  MessageSquare,
 } from 'lucide-react';
 
 interface AdminStaffModuleProps {
@@ -84,6 +96,16 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
   const [isReassignSubmitting, setIsReassignSubmitting] = useState(false);
   const [updatingLimitId, setUpdatingLimitId] = useState<string | null>(null);
 
+  // Staff Profile Dossier Right Sidebar State
+  const [inspectingStaff, setInspectingStaff] = useState<StaffMember | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const handleCopyText = (text: string, fieldName: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldName);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
   const handleConfirmDelete = async () => {
     if (!deletingStaff || isDeleting) return;
     setIsDeleting(true);
@@ -95,6 +117,9 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
       const updated = appStore.deleteStaff(targetId);
       setStaffMembers(updated);
       if (onDeleteStaff) onDeleteStaff(targetId);
+      if (inspectingStaff?.id === targetId) {
+        setInspectingStaff(null);
+      }
 
       // 2. Call backend API endpoint if connected
       try {
@@ -170,6 +195,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
           );
           return {
             id: item.id.toString(),
+            username: item.username,
             name: `${item.first_name || ''} ${item.last_name || ''}`.trim() || item.username,
             email: item.email,
             phone: item.phone_number || '+91 98765 00000',
@@ -181,6 +207,9 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
             jobsCompleted: item.total_jobs_completed || 0,
             rating: item.rating_average ? parseFloat(item.rating_average) : 5.0,
             totalEarnings: 0,
+            dateJoined: item.date_joined,
+            bio: item.bio,
+            registrationDetails: item.registration_details,
             activeJobs: item.active_jobs || [],
           };
         });
@@ -362,6 +391,9 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
       s.id === staff.id ? { ...s, status: newStatusStr as 'active' | 'inactive' } : s
     );
     setStaffMembers(updatedStaff);
+    if (inspectingStaff?.id === staff.id) {
+      setInspectingStaff((prev) => (prev ? { ...prev, status: newStatusStr as 'active' | 'inactive' } : null));
+    }
     appStore.saveStaffList(updatedStaff);
     onToggleStaffStatus(staff.id);
 
@@ -370,6 +402,9 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
     } catch (err) {
       console.warn('Backend toggle status failed, reverting:', err);
       setStaffMembers(previousStaff);
+      if (inspectingStaff?.id === staff.id) {
+        setInspectingStaff((prev) => (prev ? { ...prev, status: staff.status } : null));
+      }
       appStore.saveStaffList(previousStaff);
       onToggleStaffStatus(staff.id);
     }
@@ -388,6 +423,9 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
       s.id === staffId ? { ...s, maxJobLimit: safeLimit } : s
     );
     setStaffMembers(updatedStaff);
+    if (inspectingStaff?.id === staffId) {
+      setInspectingStaff((prev) => (prev ? { ...prev, maxJobLimit: safeLimit } : null));
+    }
     appStore.saveStaffList(updatedStaff);
     // 2. Notify SuperAdminPage parent state
     onUpdateStaffLimit(staffId, safeLimit);
@@ -616,26 +654,44 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
               return (
                 <div
                   key={staff.id}
-                  className="bg-white rounded-2xl border border-[#E5E7EF] p-5 shadow-sm space-y-4 hover:border-[#C9A227]/50 transition-all flex flex-col justify-between"
+                  className="bg-white rounded-2xl border border-[#E5E7EF] p-5 shadow-sm space-y-4 hover:border-[#C9A227] hover:shadow-md transition-all flex flex-col justify-between group"
                 >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={getOptimizedImageUrl(staff.avatar)}
-                          alt={staff.name}
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80';
-                          }}
-                          className="w-10 h-10 rounded-full object-cover border-2 border-[#0D1B4C]"
-                        />
-                        <div>
-                          <h3 className="font-bold text-sm text-[#1E2230]">{staff.name}</h3>
-                          <p className="text-[11px] text-[#6B7280]">{staff.role}</p>
+                      {/* Clickable Profile Card Header to open dossier sidebar */}
+                      <button
+                        type="button"
+                        onClick={() => setInspectingStaff(staff)}
+                        className="flex items-center gap-3 text-left group/profile focus:outline-hidden cursor-pointer flex-1 mr-2"
+                        title="Click to view full registration details & dossier"
+                      >
+                        <div className="relative flex-shrink-0">
+                          <img
+                            src={getOptimizedImageUrl(staff.avatar)}
+                            alt={staff.name}
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80';
+                            }}
+                            className="w-11 h-11 rounded-full object-cover border-2 border-[#0D1B4C] group-hover/profile:border-[#C9A227] group-hover/profile:scale-105 transition-all shadow-sm"
+                          />
+                          <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#C9A227] text-[#0D1B4C] rounded-full flex items-center justify-center text-[9px] shadow-sm">
+                            <Eye className="w-2.5 h-2.5" />
+                          </span>
                         </div>
-                      </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h3 className="font-bold text-sm text-[#1E2230] group-hover/profile:text-[#C9A227] transition-colors truncate">
+                              {staff.name}
+                            </h3>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#FAF9F5] border border-[#E5E7EF] text-[#6B7280] group-hover/profile:border-[#C9A227]/70 group-hover/profile:text-[#0D1B4C] font-semibold tracking-wide flex items-center gap-0.5">
+                              DETAILS →
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#6B7280] truncate">{staff.role}</p>
+                        </div>
+                      </button>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         {isFull ? (
                           <span className="px-2.5 py-1 rounded-full bg-[#D14343]/10 text-[#D14343] font-bold text-[10px] uppercase">
                             🔴 FULL
@@ -754,7 +810,12 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
               </thead>
               <tbody className="divide-y divide-[#E5E7EF]">
                 {staffMembers.map((staff) => (
-                  <tr key={staff.id} className="hover:bg-[#F6F7FB]/50 transition-colors">
+                  <tr
+                    key={staff.id}
+                    onClick={() => setInspectingStaff(staff)}
+                    className="hover:bg-[#F6F7FB]/70 transition-colors cursor-pointer group"
+                    title="Click row to view staff registration dossier"
+                  >
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
                         <img
@@ -763,11 +824,16 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80';
                           }}
-                          className="w-9 h-9 rounded-full object-cover border border-[#E5E7EF]"
+                          className="w-9 h-9 rounded-full object-cover border border-[#E5E7EF] group-hover:border-[#C9A227] transition-colors"
                         />
                         <div>
-                          <div className="font-bold text-[#1E2230]">{staff.name}</div>
-                          <div className="text-[10px] text-[#6B7280]">ID: #{staff.id}</div>
+                          <div className="font-bold text-[#1E2230] group-hover:text-[#C9A227] transition-colors flex items-center gap-1.5">
+                            <span>{staff.name}</span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#FAF9F5] border border-[#E5E7EF] text-[#6B7280] font-mono">
+                              PROFILE →
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-[#6B7280]">ID: #{staff.id} • @{staff.username || 'staff'}</div>
                         </div>
                       </div>
                     </td>
@@ -1229,6 +1295,572 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
               >
                 Done
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* STAFF PROFILE & REGISTRATION DOSSIER RIGHT SIDEBAR DRAWER */}
+      {/* ======================================================== */}
+      {inspectingStaff && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex justify-end animate-in fade-in duration-200"
+          onClick={() => setInspectingStaff(null)}
+        >
+          <div
+            className="w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 border-l border-[#C9A227]/30 text-[#1E2230] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Top Navy & Gold Luxury Header */}
+            <div className="bg-[#0D1B4C] text-[#FAF8F3] p-6 border-b border-[#C9A227]/30 relative flex-shrink-0">
+              {/* Close Button */}
+              <button
+                onClick={() => setInspectingStaff(null)}
+                className="absolute top-5 right-5 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-[#FAF8F3] flex items-center justify-center transition-all cursor-pointer border border-white/10"
+                title="Close Sidebar (Esc)"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="flex items-center gap-2 mb-3">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#C9A227]/20 border border-[#C9A227]/40 text-[#C9A227] text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <ShieldCheck className="w-3 h-3 text-[#C9A227]" />
+                  Staff Registration Dossier
+                </span>
+                <span className="text-[10px] font-mono text-white/50">
+                  ID: #{inspectingStaff.id}
+                </span>
+              </div>
+
+              {/* Profile Card Summary */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <img
+                      src={getOptimizedImageUrl(inspectingStaff.avatar)}
+                      alt={inspectingStaff.name}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80';
+                      }}
+                      className="w-16 h-16 rounded-2xl object-cover border-2 border-[#C9A227] shadow-xl"
+                    />
+                    <span
+                      className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-[#0D1B4C] ${
+                        inspectingStaff.status === 'active' ? 'bg-[#1F9D66]' : 'bg-rose-500'
+                      }`}
+                      title={inspectingStaff.status === 'active' ? 'Active Modeller' : 'Inactive'}
+                    />
+                  </div>
+                  <div>
+                    <h2 className="font-serif text-xl font-bold text-[#FAF8F3] leading-tight">
+                      {inspectingStaff.name}
+                    </h2>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs text-[#C9A227] font-mono font-medium">
+                        @{inspectingStaff.username || `modeller_${inspectingStaff.id}`}
+                      </span>
+                      <span className="text-white/30">•</span>
+                      <span className="text-xs text-white/70">
+                        {inspectingStaff.role}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status Toggle & Quick WhatsApp / Email */}
+                <div className="flex sm:flex-col items-end gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => handleToggleStatus(inspectingStaff)}
+                    className={`px-3 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-sm cursor-pointer ${
+                      inspectingStaff.status === 'active'
+                        ? 'bg-[#1F9D66]/20 border border-[#1F9D66]/50 text-[#34D399] hover:bg-[#1F9D66]/30'
+                        : 'bg-rose-500/20 border border-rose-500/50 text-rose-300 hover:bg-rose-500/30'
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
+                    <span>{inspectingStaff.status === 'active' ? 'Status: Active' : 'Status: Inactive'}</span>
+                  </button>
+
+                  <div className="flex items-center gap-1.5">
+                    {inspectingStaff.phone && (
+                      <a
+                        href={`https://wa.me/${inspectingStaff.phone.replace(/[^0-9]/g, '')}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-2.5 py-1 rounded-lg bg-[#25D366]/20 hover:bg-[#25D366]/30 border border-[#25D366]/40 text-[#25D366] text-[10px] font-semibold flex items-center gap-1 transition-all"
+                        title="Open WhatsApp Chat"
+                      >
+                        <MessageSquare className="w-3 h-3" />
+                        <span>WhatsApp</span>
+                      </a>
+                    )}
+                    {inspectingStaff.email && (
+                      <a
+                        href={`mailto:${inspectingStaff.email}`}
+                        className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white text-[10px] font-semibold flex items-center gap-1 transition-all"
+                        title="Send Direct Email"
+                      >
+                        <Mail className="w-3 h-3" />
+                        <span>Email</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Scrollable Content Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#FAF9F5]">
+              {/* CAPACITY & JOB LIMIT CONTROLLER */}
+              <div className="bg-white rounded-2xl border border-[#E5E7EF] p-5 shadow-xs space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sliders className="w-4 h-4 text-[#C9A227]" />
+                    <h3 className="font-bold text-xs uppercase tracking-wider text-[#1E2230]">
+                      Live Capacity & Concurrent Job Limit
+                    </h3>
+                  </div>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                    inspectingStaff.currentLoad >= inspectingStaff.maxJobLimit
+                      ? 'bg-rose-100 text-rose-700'
+                      : 'bg-emerald-100 text-emerald-700'
+                  }`}>
+                    {inspectingStaff.currentLoad >= inspectingStaff.maxJobLimit ? 'Max Capacity Reached' : 'Slots Available'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center bg-[#F6F7FB] p-4 rounded-xl border border-[#E5E7EF]">
+                  <div className="space-y-1.5">
+                    <div className="text-xs text-[#6B7280] font-mono">
+                      Current Load: <strong className="text-[#1E2230]">{inspectingStaff.currentLoad}</strong> / {inspectingStaff.maxJobLimit} orders
+                    </div>
+                    {/* Dots indicator */}
+                    <div className="flex items-center gap-1.5 pt-1">
+                      {Array.from({ length: inspectingStaff.maxJobLimit }).map((_, idx) => {
+                        const isFilled = idx < inspectingStaff.currentLoad;
+                        return (
+                          <div
+                            key={idx}
+                            className={`w-6 h-6 rounded-full flex items-center justify-center font-mono text-[10px] font-bold transition-all ${
+                              isFilled
+                                ? 'bg-[#0D1B4C] text-[#C9A227] shadow-xs border-2 border-[#C9A227]'
+                                : 'bg-white border-2 border-[#E5E7EF] text-[#6B7280]'
+                            }`}
+                          >
+                            {isFilled ? '●' : '○'}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:items-end gap-1.5">
+                    <span className="text-[11px] text-[#6B7280] font-medium">Adjust Max Concurrency:</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleUpdateLimit(inspectingStaff.id, inspectingStaff.maxJobLimit - 1)}
+                        disabled={inspectingStaff.maxJobLimit <= 1 || updatingLimitId === inspectingStaff.id}
+                        className="w-8 h-8 rounded-lg bg-white border border-[#E5E7EF] font-bold text-sm hover:bg-[#0D1B4C] hover:text-white hover:border-[#0D1B4C] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-xs flex items-center justify-center active:scale-95"
+                        title="Decrease Limit"
+                      >
+                        −
+                      </button>
+                      <span className="font-mono font-bold text-base min-w-[32px] text-center text-[#1E2230]">
+                        {inspectingStaff.maxJobLimit}
+                      </span>
+                      <button
+                        onClick={() => handleUpdateLimit(inspectingStaff.id, inspectingStaff.maxJobLimit + 1)}
+                        disabled={inspectingStaff.maxJobLimit >= 20 || updatingLimitId === inspectingStaff.id}
+                        className="w-8 h-8 rounded-lg bg-white border border-[#E5E7EF] font-bold text-sm hover:bg-[#0D1B4C] hover:text-white hover:border-[#0D1B4C] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-xs flex items-center justify-center active:scale-95"
+                        title="Increase Limit"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Metrics ribbon */}
+                <div className="grid grid-cols-3 gap-3 pt-1">
+                  <div className="bg-[#FAF9F5] p-3 rounded-xl border border-[#E5E7EF] text-center">
+                    <div className="text-[10px] text-[#6B7280] uppercase tracking-wider font-semibold">Jobs Finished</div>
+                    <div className="font-mono font-bold text-base text-[#1E2230] mt-0.5">
+                      {inspectingStaff.jobsCompleted}
+                    </div>
+                  </div>
+                  <div className="bg-[#FAF9F5] p-3 rounded-xl border border-[#E5E7EF] text-center">
+                    <div className="text-[10px] text-[#6B7280] uppercase tracking-wider font-semibold">Client Rating</div>
+                    <div className="font-mono font-bold text-base text-[#1E2230] mt-0.5 flex items-center justify-center gap-1">
+                      <Star className="w-3.5 h-3.5 fill-[#C9A227] text-[#C9A227]" />
+                      <span>{inspectingStaff.rating.toFixed(1)}</span>
+                    </div>
+                  </div>
+                  <div className="bg-[#FAF9F5] p-3 rounded-xl border border-[#E5E7EF] text-center">
+                    <div className="text-[10px] text-[#6B7280] uppercase tracking-wider font-semibold">Active In Flight</div>
+                    <div className="font-mono font-bold text-base text-[#0D1B4C] mt-0.5">
+                      {inspectingStaff.currentLoad}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* REGISTRATION DOSSIER: PERSONAL & CONTACT */}
+              <div className="bg-white rounded-2xl border border-[#E5E7EF] p-5 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-3">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-[#C9A227]" />
+                    <h3 className="font-bold text-xs uppercase tracking-wider text-[#1E2230]">
+                      Registration Record & Contact Details
+                    </h3>
+                  </div>
+                  <span className="text-[11px] font-mono text-[#6B7280]">
+                    Registered: {inspectingStaff.registrationDetails?.applied_at
+                      ? new Date(inspectingStaff.registrationDetails.applied_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+                      : inspectingStaff.dateJoined
+                        ? new Date(inspectingStaff.dateJoined).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+                        : 'Verified Atelier Staff'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  {/* First Name & Last Name */}
+                  <div className="space-y-1">
+                    <div className="text-[11px] font-semibold text-[#6B7280] uppercase">Legal First Name</div>
+                    <div className="font-medium text-[#1E2230] bg-[#F6F7FB] px-3 py-2 rounded-xl border border-[#E5E7EF] flex items-center justify-between">
+                      <span>{inspectingStaff.registrationDetails?.first_name || inspectingStaff.name.split(' ')[0] || '—'}</span>
+                      <button
+                        onClick={() => handleCopyText(inspectingStaff.registrationDetails?.first_name || inspectingStaff.name.split(' ')[0] || '', 'first_name')}
+                        className="text-[#6B7280] hover:text-[#0D1B4C]"
+                        title="Copy"
+                      >
+                        {copiedField === 'first_name' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="text-[11px] font-semibold text-[#6B7280] uppercase">Legal Last Name</div>
+                    <div className="font-medium text-[#1E2230] bg-[#F6F7FB] px-3 py-2 rounded-xl border border-[#E5E7EF] flex items-center justify-between">
+                      <span>{inspectingStaff.registrationDetails?.last_name || inspectingStaff.name.split(' ').slice(1).join(' ') || '—'}</span>
+                      <button
+                        onClick={() => handleCopyText(inspectingStaff.registrationDetails?.last_name || inspectingStaff.name.split(' ').slice(1).join(' ') || '', 'last_name')}
+                        className="text-[#6B7280] hover:text-[#0D1B4C]"
+                        title="Copy"
+                      >
+                        {copiedField === 'last_name' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Email */}
+                  <div className="space-y-1">
+                    <div className="text-[11px] font-semibold text-[#6B7280] uppercase flex items-center gap-1.5">
+                      <Mail className="w-3 h-3 text-[#C9A227]" />
+                      <span>Official Email</span>
+                    </div>
+                    <div className="font-medium text-[#1E2230] bg-[#F6F7FB] px-3 py-2 rounded-xl border border-[#E5E7EF] flex items-center justify-between break-all">
+                      <a href={`mailto:${inspectingStaff.registrationDetails?.email || inspectingStaff.email}`} className="hover:text-[#C9A227] transition-colors">
+                        {inspectingStaff.registrationDetails?.email || inspectingStaff.email}
+                      </a>
+                      <button
+                        onClick={() => handleCopyText(inspectingStaff.registrationDetails?.email || inspectingStaff.email, 'email')}
+                        className="text-[#6B7280] hover:text-[#0D1B4C] ml-2 flex-shrink-0"
+                        title="Copy email"
+                      >
+                        {copiedField === 'email' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Phone */}
+                  <div className="space-y-1">
+                    <div className="text-[11px] font-semibold text-[#6B7280] uppercase flex items-center gap-1.5">
+                      <Phone className="w-3 h-3 text-[#C9A227]" />
+                      <span>Phone Number</span>
+                    </div>
+                    <div className="font-medium text-[#1E2230] bg-[#F6F7FB] px-3 py-2 rounded-xl border border-[#E5E7EF] flex items-center justify-between">
+                      <a href={`tel:${inspectingStaff.registrationDetails?.phone_number || inspectingStaff.phone}`} className="hover:text-[#C9A227] transition-colors">
+                        {inspectingStaff.registrationDetails?.phone_number || inspectingStaff.phone}
+                      </a>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleCopyText(inspectingStaff.registrationDetails?.phone_number || inspectingStaff.phone, 'phone')}
+                          className="text-[#6B7280] hover:text-[#0D1B4C]"
+                          title="Copy phone"
+                        >
+                          {copiedField === 'phone' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Username */}
+                  <div className="space-y-1">
+                    <div className="text-[11px] font-semibold text-[#6B7280] uppercase">Workbench Username</div>
+                    <div className="font-mono text-[#0D1B4C] font-semibold bg-[#F6F7FB] px-3 py-2 rounded-xl border border-[#E5E7EF] flex items-center justify-between">
+                      <span>@{inspectingStaff.username || 'staff'}</span>
+                      <button
+                        onClick={() => handleCopyText(inspectingStaff.username || '', 'username')}
+                        className="text-[#6B7280] hover:text-[#0D1B4C]"
+                        title="Copy username"
+                      >
+                        {copiedField === 'username' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Specialization / Role */}
+                  <div className="space-y-1">
+                    <div className="text-[11px] font-semibold text-[#6B7280] uppercase">Modeller Specialization</div>
+                    <div className="font-medium text-[#1E2230] bg-[#F6F7FB] px-3 py-2 rounded-xl border border-[#E5E7EF]">
+                      {inspectingStaff.role}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* REGISTRATION DOSSIER: ADDRESS & RESIDENCE */}
+              <div className="bg-white rounded-2xl border border-[#E5E7EF] p-5 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-3">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-[#C9A227]" />
+                    <h3 className="font-bold text-xs uppercase tracking-wider text-[#1E2230]">
+                      Registered Residence & Studio Address
+                    </h3>
+                  </div>
+                  <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    Address Verified
+                  </span>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <div className="p-3 bg-[#F6F7FB] rounded-xl border border-[#E5E7EF] space-y-1">
+                    <div className="text-[11px] text-[#6B7280] font-semibold uppercase">Street Address / Premises</div>
+                    <div className="font-medium text-[#1E2230]">
+                      {inspectingStaff.registrationDetails?.address || 'Atelier Jewellery Quarter, Studio Suite 4B'}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-3 bg-[#F6F7FB] rounded-xl border border-[#E5E7EF]">
+                      <div className="text-[10px] text-[#6B7280] font-semibold uppercase">City</div>
+                      <div className="font-medium text-[#1E2230] mt-0.5">
+                        {inspectingStaff.registrationDetails?.city || 'Mumbai'}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-[#F6F7FB] rounded-xl border border-[#E5E7EF]">
+                      <div className="text-[10px] text-[#6B7280] font-semibold uppercase">State</div>
+                      <div className="font-medium text-[#1E2230] mt-0.5">
+                        {inspectingStaff.registrationDetails?.state || 'Maharashtra'}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-[#F6F7FB] rounded-xl border border-[#E5E7EF]">
+                      <div className="text-[10px] text-[#6B7280] font-semibold uppercase">Country</div>
+                      <div className="font-medium text-[#1E2230] mt-0.5">
+                        {inspectingStaff.registrationDetails?.country || 'India'}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-[#F6F7FB] rounded-xl border border-[#E5E7EF]">
+                      <div className="text-[10px] text-[#6B7280] font-semibold uppercase">Postal Code</div>
+                      <div className="font-mono font-medium text-[#1E2230] mt-0.5">
+                        {inspectingStaff.registrationDetails?.pincode || '400002'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* REGISTRATION DOSSIER: CAD EXPERIENCE & SOFTWARE BACKGROUND */}
+              <div className="bg-white rounded-2xl border border-[#E5E7EF] p-5 shadow-xs space-y-4">
+                <div className="flex items-center gap-2 border-b border-[#E5E7EF] pb-3">
+                  <Award className="w-4 h-4 text-[#C9A227]" />
+                  <h3 className="font-bold text-xs uppercase tracking-wider text-[#1E2230]">
+                    CAD Experience & Software Background
+                  </h3>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <div className="p-3.5 bg-[#FAF9F5] rounded-xl border border-[#E5E7EF] text-[#1E2230] leading-relaxed whitespace-pre-wrap">
+                    {inspectingStaff.registrationDetails?.experience || inspectingStaff.bio || 'Experienced 3D jewellery CAD modeller specializing in MatrixGold, Rhino 3D, and sub-micron casting tolerances for rings, necklaces, and bespoke bridal pieces.'}
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {['MatrixGold', 'Rhino 3D', 'ZBrush', 'KeyShot', 'Sub-micron Tolerances', 'Watertight Mesh'].map((tag) => (
+                      <span key={tag} className="px-2.5 py-1 rounded-lg bg-[#F6F7FB] border border-[#E5E7EF] text-[11px] font-medium text-[#0D1B4C]">
+                        ✓ {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* REGISTRATION DOSSIER: PORTFOLIO & SAMPLE WORK ARCHIVE */}
+              <div className="bg-white rounded-2xl border border-[#E5E7EF] p-5 shadow-xs space-y-4">
+                <div className="flex items-center gap-2 border-b border-[#E5E7EF] pb-3">
+                  <Globe className="w-4 h-4 text-[#C9A227]" />
+                  <h3 className="font-bold text-xs uppercase tracking-wider text-[#1E2230]">
+                    Portfolio & Uploaded Sample Work
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  {/* Portfolio Link */}
+                  <div className="p-4 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] space-y-2 flex flex-col justify-between">
+                    <div>
+                      <div className="text-[11px] font-semibold text-[#6B7280] uppercase flex items-center gap-1.5">
+                        <ExternalLink className="w-3.5 h-3.5 text-[#C9A227]" />
+                        <span>Online Portfolio Link</span>
+                      </div>
+                      <p className="text-[11px] text-[#6B7280] mt-1">
+                        Behance, ArtStation, Instagram, or Drive showcase submitted during registration.
+                      </p>
+                    </div>
+
+                    {inspectingStaff.registrationDetails?.portfolio_link ? (
+                      <a
+                        href={inspectingStaff.registrationDetails.portfolio_link.startsWith('http')
+                          ? inspectingStaff.registrationDetails.portfolio_link
+                          : `https://${inspectingStaff.registrationDetails.portfolio_link}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-[#0D1B4C] hover:bg-[#C9A227] hover:text-[#0D1B4C] text-[#FAF8F3] font-semibold text-xs transition-colors shadow-xs"
+                      >
+                        <span>Open Live Portfolio</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    ) : (
+                      <div className="mt-2 text-[11px] italic text-[#6B7280] p-2 bg-white rounded-lg border border-[#E5E7EF] text-center">
+                        Portfolio link not provided at registration
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Sample Work Zip Archive */}
+                  <div className="p-4 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] space-y-2 flex flex-col justify-between">
+                    <div>
+                      <div className="text-[11px] font-semibold text-[#6B7280] uppercase flex items-center gap-1.5">
+                        <Download className="w-3.5 h-3.5 text-[#C9A227]" />
+                        <span>Uploaded CAD Samples (.ZIP)</span>
+                      </div>
+                      <p className="text-[11px] text-[#6B7280] mt-1">
+                        Original .3DM / .STL 3D geometry sample archive uploaded during registration.
+                      </p>
+                    </div>
+
+                    {inspectingStaff.registrationDetails?.work_zip_url ? (
+                      <a
+                        href={inspectingStaff.registrationDetails.work_zip_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download
+                        className="mt-2 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs transition-colors shadow-xs"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Download Sample Archive (.ZIP)</span>
+                      </a>
+                    ) : (
+                      <div className="mt-2 text-[11px] italic text-[#6B7280] p-2 bg-white rounded-lg border border-[#E5E7EF] text-center">
+                        No archive file attached
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* CURRENTLY ASSIGNED ACTIVE ORDERS */}
+              <div className="bg-white rounded-2xl border border-[#E5E7EF] p-5 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-3">
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="w-4 h-4 text-[#C9A227]" />
+                    <h3 className="font-bold text-xs uppercase tracking-wider text-[#1E2230]">
+                      Active Assigned Workbench Jobs ({inspectingStaff.currentLoad})
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const target = inspectingStaff;
+                      setInspectingStaff(null);
+                      handleOpenStaffJobs(target);
+                    }}
+                    className="text-xs font-semibold text-[#0D1B4C] hover:text-[#C9A227] transition-colors flex items-center gap-1"
+                  >
+                    <span>Manage / Reassign</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {inspectingStaff.activeJobs && inspectingStaff.activeJobs.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {inspectingStaff.activeJobs.map((job: any, idx: number) => (
+                      <div
+                        key={job.id || job.orderId || idx}
+                        className="p-3 bg-[#F6F7FB] rounded-xl border border-[#E5E7EF] flex items-center justify-between text-xs"
+                      >
+                        <div className="space-y-0.5">
+                          <div className="font-bold text-[#1E2230] flex items-center gap-2">
+                            <span>#{job.orderId || job.id}</span>
+                            <span className="text-[#6B7280] font-normal">•</span>
+                            <span className="font-medium">{job.designTitle || job.title || 'Custom CAD Design'}</span>
+                          </div>
+                          <div className="text-[11px] text-[#6B7280]">
+                            Client: {job.client_name || job.client_email || 'Valued Client'}
+                          </div>
+                        </div>
+                        <span className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold uppercase">
+                          {job.status || 'In Progress'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-6 bg-[#FAF9F5] rounded-xl border border-[#E5E7EF] text-center space-y-1 text-xs">
+                    <CheckCircle2 className="w-6 h-6 text-emerald-600 mx-auto" />
+                    <p className="font-bold text-[#1E2230]">No Active Jobs In Flight</p>
+                    <p className="text-[11px] text-[#6B7280]">
+                      Modeller has {inspectingStaff.maxJobLimit} available slots to accept new CAD orders.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Bottom Footer Actions */}
+            <div className="bg-white p-5 border-t border-[#E5E7EF] flex items-center justify-between gap-3 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  const target = inspectingStaff;
+                  setInspectingStaff(null);
+                  setDeletingStaff(target);
+                }}
+                className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-200 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Staff Member</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = inspectingStaff;
+                    setInspectingStaff(null);
+                    handleOpenStaffJobs(target);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-[#0D1B4C] hover:bg-[#1E2230] text-white text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm"
+                >
+                  <Briefcase className="w-3.5 h-3.5 text-[#C9A227]" />
+                  <span>Open Job Workbench</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInspectingStaff(null)}
+                  className="px-4 py-2 rounded-xl border border-[#E5E7EF] bg-[#F6F7FB] hover:bg-[#E5E7EF] text-xs font-semibold text-[#1E2230] transition-colors"
+                >
+                  Close Dossier
+                </button>
+              </div>
             </div>
           </div>
         </div>

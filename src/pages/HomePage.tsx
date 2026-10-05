@@ -1148,7 +1148,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                         </h3>
 
                         <div className="flex items-center justify-between text-xs text-[#C9C2A6] pt-1 border-t border-white/5 font-light">
-                          <span>18K: {product.specs.metalWeight18k}</span>
+                          <span>18K: {product.specs?.metalWeight18k || '—'}</span>
                           <span className="font-mono text-emerald-400">STL Verified</span>
                         </div>
 

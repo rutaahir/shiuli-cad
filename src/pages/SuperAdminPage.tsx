@@ -195,7 +195,7 @@ export const SuperAdminPage: React.FC<SuperAdminPageProps> = ({ onNavigate, init
 
       {activeModule === 'approvals' && <AdminApprovalsModule />}
 
-      {activeModule === 'custom-requests' && <AdminCustomRequestsModule />}
+      {activeModule === 'custom-requests' && <AdminCustomRequestsModule staffList={staffList} />}
 
       {activeModule === 'custom-options' && <AdminCustomOptionsModule />}
 

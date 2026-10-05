@@ -317,6 +317,15 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                     <button
                       onClick={() => {
                         setShowQuickNew(false);
+                        onSelectModule('orders');
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-[#F6F7FB] text-[#09112B] font-semibold flex items-center gap-1.5"
+                    >
+                      <span className="text-[#C9A227] font-bold">+</span> Place Order for Customer
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowQuickNew(false);
                         onSelectModule('catalog');
                       }}
                       className="w-full text-left px-3 py-2 rounded-xl hover:bg-[#F6F7FB] text-[#1E2230]"

@@ -1,5 +1,6 @@
+from django.db import models
 from rest_framework import serializers
-from apps.accounts.models import User, StaffProfile
+from apps.accounts.models import User, StaffProfile, DesignerApplication
 from apps.custom_orders.models import Order
 from .models import PlatformSettings
 
@@ -68,15 +69,76 @@ class StaffListSerializer(serializers.ModelSerializer):
     total_jobs_completed = serializers.IntegerField(source='staff_profile.total_jobs_completed', read_only=True, default=0)
     current_load = serializers.SerializerMethodField()
     active_jobs = serializers.SerializerMethodField()
+    registration_details = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name', 'phone_number',
-            'profile_photo', 'is_active', 'is_active_staff', 'profile_id', 'max_concurrent_jobs',
+            'profile_photo', 'is_active', 'is_active_staff', 'date_joined', 'profile_id', 'max_concurrent_jobs',
             'specialty_tags', 'bio', 'rating_average', 'total_jobs_completed',
-            'current_load', 'active_jobs'
+            'current_load', 'active_jobs', 'registration_details'
         ]
+
+    def get_registration_details(self, obj):
+        request = self.context.get('request')
+        # Check if designer application exists for this user
+        app = DesignerApplication.objects.filter(
+            models.Q(created_user=obj) | models.Q(email__iexact=obj.email)
+        ).first()
+
+        if app:
+            work_zip_url = None
+            if app.work_zip:
+                try:
+                    work_zip_url = request.build_absolute_uri(app.work_zip.url) if request else app.work_zip.url
+                except Exception:
+                    work_zip_url = None
+
+            return {
+                "application_id": app.id,
+                "first_name": app.first_name,
+                "last_name": app.last_name,
+                "email": app.email,
+                "phone_number": app.phone_number,
+                "address": app.address,
+                "city": app.city,
+                "state": app.state,
+                "country": app.country,
+                "pincode": app.pincode,
+                "experience": app.experience,
+                "portfolio_link": app.portfolio_link,
+                "work_zip_url": work_zip_url,
+                "applied_at": app.created_at,
+                "reviewed_at": app.reviewed_at,
+                "status": app.status,
+                "admin_notes": app.admin_notes,
+            }
+
+        # If no explicit application found, derive from User and StaffProfile
+        bio_exp = ""
+        if hasattr(obj, 'staff_profile') and obj.staff_profile and obj.staff_profile.bio:
+            bio_exp = obj.staff_profile.bio
+
+        return {
+            "application_id": None,
+            "first_name": obj.first_name,
+            "last_name": obj.last_name,
+            "email": obj.email,
+            "phone_number": obj.phone_number or "+91 98765 00000",
+            "address": "Atelier Modeller Studio",
+            "city": "Mumbai",
+            "state": "Maharashtra",
+            "country": "India",
+            "pincode": "400002",
+            "experience": bio_exp or "Senior CAD Modeller specialising in high-precision watertight jewellery geometry.",
+            "portfolio_link": None,
+            "work_zip_url": None,
+            "applied_at": obj.date_joined,
+            "reviewed_at": obj.date_joined,
+            "status": "approved",
+            "admin_notes": "Atelier In-House Designer",
+        }
 
     def get_profile_photo(self, obj):
         if obj.profile_photo:

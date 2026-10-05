@@ -379,8 +379,14 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         is_featured: isFeatured,
         casting_tips: prodCastingTips || '',
         specs: {
-          dimensions: prodDimensions || 'Standard',
+          dimensions: prodDimensions || '',
           tolerance: prodTolerance || '±0.01 mm',
+          metalWeight18k: prodMetalWeight ? `${Number(prodMetalWeight).toFixed(2)} gm` : '',
+          metalWeight14k: prodMetalWeight ? `${(Number(prodMetalWeight) * 0.84).toFixed(2)} gm` : '',
+          metalWeightPlatinum: prodMetalWeight ? `${(Number(prodMetalWeight) * 1.32).toFixed(2)} gm` : '',
+          metalWeightSilver: prodMetalWeight ? `${(Number(prodMetalWeight) * 0.66).toFixed(2)} gm` : '',
+          diamondCount: Number(prodStoneCount) || 0,
+          fingerSize: prodDimensions || '',
         },
       };
 
@@ -668,7 +674,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   Listing Price (Customer Pays) *
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono font-bold">$ / ₹</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono font-bold text-sm">$</span>
                   <input
                     type="number"
                     step="0.01"
@@ -676,7 +682,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                     value={prodPrice}
                     onChange={(e) => setProdPrice(e.target.value)}
                     placeholder="250.00"
-                    className="w-full pl-12 pr-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-sm font-mono font-bold text-[#1E2230] focus:outline-none focus:border-[#C9A227] shadow-sm"
+                    className="w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-sm font-mono font-bold text-[#1E2230] focus:outline-none focus:border-[#C9A227] shadow-sm"
                   />
                 </div>
                 <span className="text-[10px] text-slate-500 mt-1 block">
@@ -692,12 +698,12 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   </span>
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono font-bold">$ / ₹</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono font-bold text-sm">$</span>
                   <input
                     type="text"
                     readOnly
                     value={calculatedCommissionAmount > 0 ? calculatedCommissionAmount.toFixed(2) : '0.00'}
-                    className="w-full pl-12 pr-3.5 py-2.5 rounded-xl bg-slate-100 border border-slate-200 text-sm font-mono font-bold text-rose-700 cursor-not-allowed select-none"
+                    className="w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-slate-100 border border-slate-200 text-sm font-mono font-bold text-rose-700 cursor-not-allowed select-none"
                   />
                 </div>
                 <span className="text-[10px] text-slate-500 mt-1 block">
@@ -737,14 +743,14 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             <div>
               <label className="font-semibold text-[#1E2230] block mb-1">Compare-at Price (Optional Strike-through)</label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono font-bold">$ / ₹</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono font-bold text-sm">$</span>
                 <input
                   type="number"
                   step="0.01"
                   value={prodComparePrice}
                   onChange={(e) => setProdComparePrice(e.target.value)}
                   placeholder="350.00"
-                  className="w-full pl-12 pr-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs font-mono text-[#1E2230] focus:outline-none focus:border-[#C9A227]"
+                  className="w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs font-mono text-[#1E2230] focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
             </div>

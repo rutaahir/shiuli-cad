@@ -109,33 +109,76 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
           const primaryUrl = res.primary_image || extractedImgs[0] || '/unsplash-img/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=1000&q=80';
           const galleryImgs = extractedImgs.length > 0 ? extractedImgs : [primaryUrl];
 
+          const rawSpecs = res.specs || {};
+          const metalGrams = (res.metal_weight_grams !== null && res.metal_weight_grams !== undefined && res.metal_weight_grams !== '')
+            ? Number(res.metal_weight_grams)
+            : (rawSpecs.metalWeight18k && rawSpecs.metalWeight18k !== 'undefined' ? parseFloat(rawSpecs.metalWeight18k) : null);
+
+          const hasValidMetalWeight = metalGrams !== null && !isNaN(metalGrams) && metalGrams > 0;
+          const metalWeight18k = hasValidMetalWeight
+            ? `${metalGrams.toFixed(2)} gm`
+            : (rawSpecs.metalWeight18k && rawSpecs.metalWeight18k !== 'undefined' ? rawSpecs.metalWeight18k : undefined);
+
+          const metalWeight14k = hasValidMetalWeight
+            ? `${(metalGrams * 0.84).toFixed(2)} gm`
+            : (rawSpecs.metalWeight14k && rawSpecs.metalWeight14k !== 'undefined' ? rawSpecs.metalWeight14k : undefined);
+
+          const metalWeightPlatinum = hasValidMetalWeight
+            ? `${(metalGrams * 1.32).toFixed(2)} gm`
+            : (rawSpecs.metalWeightPlatinum && rawSpecs.metalWeightPlatinum !== 'undefined' ? rawSpecs.metalWeightPlatinum : undefined);
+
+          const metalWeightSilver = hasValidMetalWeight
+            ? `${(metalGrams * 0.66).toFixed(2)} gm`
+            : (rawSpecs.metalWeightSilver && rawSpecs.metalWeightSilver !== 'undefined' ? rawSpecs.metalWeightSilver : undefined);
+
+          const rawStones = (res.stone_count !== null && res.stone_count !== undefined && res.stone_count !== '')
+            ? Number(res.stone_count)
+            : (rawSpecs.diamondCount !== undefined && rawSpecs.diamondCount !== 'undefined' ? Number(rawSpecs.diamondCount) : undefined);
+
+          const diamondCount = (rawStones !== undefined && !isNaN(rawStones)) ? rawStones : 0;
+          const dimensions = rawSpecs.dimensions || rawSpecs.fingerSize || '';
+          const tolerance = rawSpecs.tolerance || '±0.01 mm';
+
+          const fileTypesList: string[] = (res.files && res.files.length > 0)
+            ? Array.from(new Set(res.files.map((f: any) => String(f.file_type).toUpperCase())))
+            : (res.formats_available && res.formats_available.length > 0
+                ? res.formats_available.map((f: string) => f.toUpperCase())
+                : []);
+
           const formatted: Product = {
             id: res.slug || String(res.id),
             dbId: res.id,
+            sku: res.sku || (res.id ? `SKU-${res.id}` : undefined),
             title: res.title,
-            category: typeof res.category === 'object' ? (res.category?.name || 'Rings') : (res.category || 'Rings'),
+            category: typeof res.category === 'object' ? (res.category?.name || 'Jewellery') : (res.category || 'Jewellery'),
             subcategory: res.category?.parent_name || '',
             price: Number(res.price) || 0,
             originalPrice: res.compare_at_price ? Number(res.compare_at_price) : undefined,
-            formats: (res.formats_available && res.formats_available.length > 0)
-              ? res.formats_available
-              : (res.files && res.files.length > 0
-                ? Array.from(new Set(res.files.map((f: any) => f.file_type.toUpperCase())))
-                : ['3DM', 'STL', 'Render']),
+            formats: fileTypesList,
             images: galleryImgs,
             primaryImage: primaryUrl,
             description: res.description || '',
-            shortDescription: res.description ? res.description.slice(0, 120) + '...' : 'High precision 3DM + STL CAD model.',
-            tags: res.style_tags ? res.style_tags.map((s: any) => typeof s === 'string' ? s : s.name) : ['Ready-to-Cast'],
-            rating: 5.0,
-            reviewsCount: 12,
+            shortDescription: res.description ? res.description.slice(0, 120) + '...' : '',
+            tags: res.style_tags ? res.style_tags.map((s: any) => typeof s === 'string' ? s : s.name) : [],
+            rating: typeof res.rating === 'number' ? res.rating : 0,
+            reviewsCount: typeof res.reviews_count === 'number' ? res.reviews_count : 0,
             isBestseller: Boolean(res.is_bestseller),
             isNew: Boolean(res.is_new),
-            specs: res.specs && Object.keys(res.specs).length > 0 ? res.specs : {
-              metalWeight18k: res.metal_weight_grams ? `${res.metal_weight_grams} gm` : '4.50 gm',
-              diamondCount: res.stone_count || 0,
-              meshTriangles: '250,000 Triangles',
-              tolerance: '± 0.02 mm',
+            uploadedByName: res.uploaded_by_name || 'Studio Modeller',
+            uploadedByAvatar: res.uploaded_by_avatar || undefined,
+            specs: {
+              ...rawSpecs,
+              metalWeight18k,
+              metalWeight14k,
+              metalWeightPlatinum,
+              metalWeightSilver,
+              diamondCount,
+              diamondTotalWeight: rawSpecs.diamondTotalWeight || (diamondCount > 0 ? `${(diamondCount * 0.03).toFixed(2)} ct est.` : undefined),
+              dimensions: dimensions,
+              tolerance: tolerance,
+              settingType: rawSpecs.settingType,
+              minimumWallThickness: rawSpecs.minimumWallThickness,
+              fingerSize: rawSpecs.fingerSize || dimensions,
             },
             castingTips: res.casting_tips || undefined,
           };
@@ -355,24 +398,57 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
 
             {/* File Architecture */}
             <div className="p-5 rounded-2xl bg-[#080E24] border border-[#D4AF37]/20 space-y-4">
-              <h4 className="text-xs uppercase tracking-wider text-[#F5E7A3] font-semibold flex items-center gap-2">
-                <FileCode2 className="w-4 h-4 text-[#D4AF37]" />
-                Included Digital Master Deliverables (.ZIP Package)
-              </h4>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                {[
-                  { ext: '.3DM', label: 'Rhino 7/8 Native', note: 'Layered Cutters', color: 'text-[#D4AF37]' },
-                  { ext: '.STL', label: 'Watertight Solid', note: 'Direct Wax Print', color: 'text-[#7EACFC]' },
-                  { ext: '.OBJ', label: 'Universal Mesh', note: 'KeyShot Ready', color: 'text-amber-300' },
-                  { ext: '4K PNG', label: 'Studio Lighting', note: 'Client Approval', color: 'text-purple-300' },
-                ].map(({ ext, label, note, color }) => (
-                  <div key={ext} className="p-3 rounded-xl bg-[#0B1330] border border-white/5 space-y-1">
-                    <span className={`font-mono font-bold block ${color}`}>{ext}</span>
-                    <span className="text-[10px] text-[#C9C2A6] block">{label}</span>
-                    <span className="text-[9px] text-emerald-400 block">{note}</span>
-                  </div>
-                ))}
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs uppercase tracking-wider text-[#F5E7A3] font-semibold flex items-center gap-2">
+                  <FileCode2 className="w-4 h-4 text-[#D4AF37]" />
+                  Included Digital Master Deliverables (.ZIP Package)
+                </h4>
+                {uploadedFilesList.length > 0 && (
+                  <span className="text-[10px] font-mono text-emerald-400">
+                    {uploadedFilesList.length} Verified {uploadedFilesList.length === 1 ? 'Asset' : 'Assets'}
+                  </span>
+                )}
               </div>
+
+              {uploadedFilesList.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  {uploadedFilesList.map((f: any) => {
+                    const type = (f.file_type || '').toLowerCase();
+                    const config: Record<string, { ext: string; label: string; color: string; note: string }> = {
+                      '3dm': { ext: '.3DM', label: 'Rhino Native CAD', color: 'text-[#D4AF37]', note: 'Layered Cutters & Solids' },
+                      'stl': { ext: '.STL', label: 'Watertight Mesh', color: 'text-[#7EACFC]', note: 'Direct Wax 3D Print' },
+                      'render': { ext: 'Render', label: 'Studio Preview', color: 'text-purple-300', note: 'High-Res Presentation' },
+                      'video': { ext: '360° Video', label: 'Turntable Video', color: 'text-emerald-300', note: 'Interactive Inspection' },
+                      'zip': { ext: '.ZIP', label: 'Master Package', color: 'text-amber-300', note: 'All Production Files' },
+                    };
+                    const item = config[type] || {
+                      ext: `.${type.toUpperCase()}`,
+                      label: 'Production File',
+                      color: 'text-[#F5E7A3]',
+                      note: 'Atelier Geometry',
+                    };
+
+                    return (
+                      <div key={f.id} className="p-3 rounded-xl bg-[#0B1330] border border-white/5 space-y-1">
+                        <span className={`font-mono font-bold block ${item.color}`}>{item.ext}</span>
+                        <span className="text-[10px] text-[#C9C2A6] block truncate" title={f.original_filename || item.label}>
+                          {f.original_filename || item.label}
+                        </span>
+                        <span className="text-[9px] text-emerald-400 block font-mono">
+                          {f.file_size_mb ? `${f.file_size_mb} MB` : item.note}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-4 rounded-xl bg-[#0B1330] border border-white/5 text-center text-xs text-[#C9C2A6] space-y-1">
+                  <span className="text-[#D4AF37] font-semibold block">Production Package Being Prepared</span>
+                  <p className="text-[11px] font-light">
+                    Production CAD assets (.3DM, .STL) are verified directly by the studio atelier. Master assets unlocked instantly upon verified checkout.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -407,7 +483,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
 
               {/* Category Breadcrumb */}
               <div className="text-[11px] uppercase tracking-widest text-[#D4AF37] font-semibold">
-                {product.category} / {product.subcategory}
+                {product.category} {product.subcategory ? `/ ${product.subcategory}` : ''}
               </div>
 
               {/* Title */}
@@ -415,35 +491,69 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 {product.title}
               </h1>
 
-              {/* Star Rating */}
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-0.5">{renderStars(product.rating)}</div>
-                <span className="text-xs text-[#C9C2A6]">
-                  {product.rating.toFixed(1)} ({product.reviewsCount} atelier reviews)
-                </span>
+              {/* Star Rating & Modeller Attribution */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {product.reviewsCount && product.reviewsCount > 0 ? (
+                  <>
+                    <div className="flex items-center gap-0.5">{renderStars(product.rating || 5)}</div>
+                    <span className="text-xs text-[#C9C2A6]">
+                      {(product.rating || 5).toFixed(1)} ({product.reviewsCount} atelier {product.reviewsCount === 1 ? 'review' : 'reviews'})
+                    </span>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2 text-xs text-[#F5E7A3] bg-[#121F4D] px-3 py-1 rounded-full border border-[#D4AF37]/30">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#D4AF37]" />
+                    <span className="font-mono text-[11px] font-semibold">Atelier Certified Direct CAD Release</span>
+                    {product.uploadedByName && (
+                      <span className="text-[#C9C2A6] font-light">
+                        • by <strong className="text-white font-medium">{product.uploadedByName}</strong>
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Short Description */}
-              <p className="text-xs sm:text-sm text-[#C9C2A6] leading-relaxed font-light">
-                {product.description}
-              </p>
+              {product.description && (
+                <p className="text-xs sm:text-sm text-[#C9C2A6] leading-relaxed font-light">
+                  {product.description}
+                </p>
+              )}
 
               {/* Key Spec Chips */}
               <div className="flex flex-wrap gap-2">
                 {[
-                  { icon: <Package className="w-3 h-3" />, label: `18K: ${product.specs.metalWeight18k}` },
-                  { icon: <Sparkles className="w-3 h-3" />, label: `${product.specs.diamondCount} Stones` },
-                  { icon: <Layers className="w-3 h-3" />, label: product.formats.join(' + ') },
-                  { icon: <BadgeCheck className="w-3 h-3" />, label: 'Watertight STL' },
-                ].map(({ icon, label }) => (
-                  <span
-                    key={label}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#121F4D] border border-[#D4AF37]/20 text-[11px] text-[#C9C2A6]"
-                  >
-                    <span className="text-[#D4AF37]">{icon}</span>
-                    {label}
-                  </span>
-                ))}
+                  product.specs.metalWeight18k
+                    ? { icon: <Package className="w-3 h-3" />, label: `18K: ${product.specs.metalWeight18k}` }
+                    : null,
+                  product.specs.diamondCount !== undefined
+                    ? {
+                        icon: <Sparkles className="w-3 h-3" />,
+                        label: product.specs.diamondCount > 0
+                          ? `${product.specs.diamondCount} Stones`
+                          : 'Solid Metal (0 Stones)',
+                      }
+                    : null,
+                  product.specs.dimensions
+                    ? { icon: <Sliders className="w-3 h-3" />, label: `Size/Dim: ${product.specs.dimensions}` }
+                    : null,
+                  product.formats && product.formats.length > 0
+                    ? { icon: <Layers className="w-3 h-3" />, label: product.formats.join(' + ') }
+                    : null,
+                  product.specs.tolerance
+                    ? { icon: <BadgeCheck className="w-3 h-3" />, label: `Tol: ${product.specs.tolerance}` }
+                    : null,
+                ]
+                  .filter((chip): chip is { icon: React.ReactNode; label: string } => Boolean(chip && chip.label && !chip.label.includes('undefined')))
+                  .map(({ icon, label }) => (
+                    <span
+                      key={label}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#121F4D] border border-[#D4AF37]/20 text-[11px] text-[#C9C2A6]"
+                    >
+                      <span className="text-[#D4AF37]">{icon}</span>
+                      {label}
+                    </span>
+                  ))}
               </div>
             </div>
 
@@ -568,76 +678,153 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
             {/* Specs Tab */}
             {activeTab === 'specs' && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-xs">
-                {[
-                  {
-                    title: 'Estimated Metal Weights',
-                    rows: [
-                      ['18K Yellow/Rose/White Gold', product.specs.metalWeight18k],
-                      ['14K Yellow/White Gold', product.specs.metalWeight14k],
-                      ['Platinum (PT950)', product.specs.metalWeightPlatinum || '—'],
-                      ['Sterling Silver 925', product.specs.metalWeightSilver || '—'],
-                    ] as [string, string][],
-                  },
-                  {
-                    title: 'Gemstone & Setting Geometry',
-                    rows: [
-                      ['Total Gemstones', String(product.specs.diamondCount)],
-                      ['Estimated Total Weight', product.specs.diamondTotalWeight],
-                      ['Setting Style', product.specs.settingType || '—'],
-                      ['Stone Seat Angle', '42° Pre-Notched'],
-                    ] as [string, string][],
-                  },
-                  {
-                    title: 'Dimensions & Tolerances',
-                    rows: [
-                      ['Manufacturing Tolerance', product.specs.tolerance],
-                      ['Min. Wall Thickness', product.specs.minimumWallThickness || '0.5mm'],
-                      ['Default Ring Size', product.specs.fingerSize || 'US 6.5'],
-                      ['Mesh Topology', 'Manifold Solid'],
-                    ] as [string, string][],
-                  },
-                ].map(({ title, rows }) => (
-                  <div key={title} className="space-y-3 p-4 rounded-xl bg-[#0B1330] border border-white/5">
-                    <h5 className="font-serif text-sm text-[#FAF8F3] border-b border-white/5 pb-2">{title}</h5>
-                    <div className="space-y-1.5 text-[#C9C2A6]">
-                      {rows.map(([label, value]) => (
-                        <div key={label} className="flex justify-between gap-2">
-                          <span className="shrink-0">{label}:</span>
-                          <strong className="text-[#FAF8F3] text-right">{value}</strong>
+                {/* 1. Metal Weights Card */}
+                <div className="space-y-3 p-4 rounded-xl bg-[#0B1330] border border-white/5">
+                  <h5 className="font-serif text-sm text-[#FAF8F3] border-b border-white/5 pb-2">
+                    Estimated Metal Weights
+                  </h5>
+                  <div className="space-y-1.5 text-[#C9C2A6]">
+                    {product.specs.metalWeight18k ? (
+                      <>
+                        <div className="flex justify-between gap-2">
+                          <span className="shrink-0">18K Yellow/Rose/White Gold:</span>
+                          <strong className="text-[#FAF8F3] text-right">{product.specs.metalWeight18k}</strong>
                         </div>
-                      ))}
+                        {product.specs.metalWeight14k && (
+                          <div className="flex justify-between gap-2">
+                            <span className="shrink-0">14K Yellow/White Gold:</span>
+                            <strong className="text-[#FAF8F3] text-right">{product.specs.metalWeight14k}</strong>
+                          </div>
+                        )}
+                        {product.specs.metalWeightPlatinum && (
+                          <div className="flex justify-between gap-2">
+                            <span className="shrink-0">Platinum (PT950):</span>
+                            <strong className="text-[#FAF8F3] text-right">{product.specs.metalWeightPlatinum}</strong>
+                          </div>
+                        )}
+                        {product.specs.metalWeightSilver && (
+                          <div className="flex justify-between gap-2">
+                            <span className="shrink-0">Sterling Silver 925:</span>
+                            <strong className="text-[#FAF8F3] text-right">{product.specs.metalWeightSilver}</strong>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-slate-400 italic py-2">
+                        Metal weight not specified by uploader
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 2. Gemstones Card */}
+                <div className="space-y-3 p-4 rounded-xl bg-[#0B1330] border border-white/5">
+                  <h5 className="font-serif text-sm text-[#FAF8F3] border-b border-white/5 pb-2">
+                    Gemstone &amp; Setting Geometry
+                  </h5>
+                  <div className="space-y-1.5 text-[#C9C2A6]">
+                    <div className="flex justify-between gap-2">
+                      <span className="shrink-0">Total Gemstones:</span>
+                      <strong className="text-[#FAF8F3] text-right">
+                        {product.specs.diamondCount !== undefined
+                          ? (product.specs.diamondCount === 0 ? '0 (Solid Metal Only)' : product.specs.diamondCount)
+                          : '0 (Solid Metal Only)'}
+                      </strong>
+                    </div>
+                    {product.specs.diamondCount && product.specs.diamondCount > 0 ? (
+                      <>
+                        <div className="flex justify-between gap-2">
+                          <span className="shrink-0">Estimated Total Carat:</span>
+                          <strong className="text-[#FAF8F3] text-right">{product.specs.diamondTotalWeight || '—'}</strong>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="shrink-0">Setting Style:</span>
+                          <strong className="text-[#FAF8F3] text-right">{product.specs.settingType || 'Pre-Notched Seats'}</strong>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                          <span className="shrink-0">Stone Seat Angle:</span>
+                          <strong className="text-[#FAF8F3] text-right">42° Pre-Notched</strong>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-emerald-400/90 text-[11px] py-1">
+                        ✓ Metal-only model — no gemstone seats, prongs, or micro-pavé required.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 3. Dimensions & Tolerances */}
+                <div className="space-y-3 p-4 rounded-xl bg-[#0B1330] border border-white/5">
+                  <h5 className="font-serif text-sm text-[#FAF8F3] border-b border-white/5 pb-2">
+                    Dimensions &amp; Tolerances
+                  </h5>
+                  <div className="space-y-1.5 text-[#C9C2A6]">
+                    <div className="flex justify-between gap-2">
+                      <span className="shrink-0">Manufacturing Tolerance:</span>
+                      <strong className="text-[#FAF8F3] text-right">{product.specs.tolerance || '±0.01 mm'}</strong>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span className="shrink-0">Ring Size / Dimensions:</span>
+                      <strong className="text-[#FAF8F3] text-right">{product.specs.dimensions || product.specs.fingerSize || 'Standard'}</strong>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span className="shrink-0">Mesh Topology:</span>
+                      <strong className="text-[#FAF8F3] text-right">Watertight Manifold</strong>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span className="shrink-0">Quality Control:</span>
+                      <strong className="text-emerald-400 text-right">Pre-checked for Casting</strong>
                     </div>
                   </div>
-                ))}
+                </div>
               </div>
             )}
 
             {/* Casting Tab */}
             {activeTab === 'casting' && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                {[
-                  {
-                    icon: <Printer className="w-5 h-5 text-[#D4AF37]" />,
-                    title: '3D Wax Resin Printing',
-                    body: 'Optimal layer height: 25 microns (0.025mm) on DLP/SLA castable resin machines (Asiga, EnvisionTEC, Formlabs Castable Wax 40). Zero supports required inside stone seats.',
-                  },
-                  {
-                    icon: <Sliders className="w-5 h-5 text-[#7EACFC]" />,
-                    title: 'Shrinkage Compensation',
-                    body: 'This file contains an integrated +1.25% radial scale to offset the cumulative shrinkage of wax printing, investment expansion, and molten metal cooling.',
-                  },
-                  {
-                    icon: <Zap className="w-5 h-5 text-emerald-400" />,
-                    title: 'Sprue Attachment Point',
-                    body: 'Recommended main sprue gauge: 2.0mm–2.5mm attached to the thickest portion of the bottom shank or main pendant bail to prevent porosity.',
-                  },
-                ].map(({ icon, title, body }) => (
-                  <div key={title} className="p-4 rounded-xl bg-[#0B1330] border border-[#D4AF37]/20 space-y-2 text-[#C9C2A6] leading-relaxed">
-                    {icon}
-                    <h5 className="font-serif text-sm text-[#FAF8F3]">{title}</h5>
-                    <p>{body}</p>
+              <div className="space-y-5 text-xs">
+                {product.castingTips ? (
+                  <div className="p-4 rounded-xl bg-gradient-to-r from-[#121F4D] to-[#0B1330] border border-[#D4AF37]/40 space-y-2">
+                    <div className="flex items-center gap-2 text-[#F5E7A3] font-serif font-bold text-sm">
+                      <Zap className="w-4 h-4 text-[#D4AF37]" />
+                      <span>Modeller's Production &amp; Casting Notes</span>
+                    </div>
+                    <p className="text-[#FAF8F3] text-xs leading-relaxed whitespace-pre-wrap font-sans bg-black/30 p-3 rounded-lg border border-white/5">
+                      {product.castingTips}
+                    </p>
                   </div>
-                ))}
+                ) : (
+                  <div className="p-3 rounded-xl bg-[#0B1330] border border-white/5 text-[11px] text-[#C9C2A6] italic">
+                    Standard studio casting protocols apply to this piece.
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {[
+                    {
+                      icon: <Printer className="w-5 h-5 text-[#D4AF37]" />,
+                      title: '3D Wax Resin Printing',
+                      body: 'Optimal layer height: 25 microns (0.025mm) on DLP/SLA castable resin machines (Asiga, EnvisionTEC, Formlabs Castable Wax 40). Zero supports required inside stone seats.',
+                    },
+                    {
+                      icon: <Sliders className="w-5 h-5 text-[#7EACFC]" />,
+                      title: 'Shrinkage Compensation',
+                      body: 'This file contains an integrated +1.25% radial scale to offset the cumulative shrinkage of wax printing, investment expansion, and molten metal cooling.',
+                    },
+                    {
+                      icon: <Zap className="w-5 h-5 text-emerald-400" />,
+                      title: 'Sprue Attachment Point',
+                      body: 'Recommended main sprue gauge: 2.0mm–2.5mm attached to the thickest portion of the bottom shank or main pendant bail to prevent porosity.',
+                    },
+                  ].map(({ icon, title, body }) => (
+                    <div key={title} className="p-4 rounded-xl bg-[#0B1330] border border-[#D4AF37]/20 space-y-2 text-[#C9C2A6] leading-relaxed">
+                      {icon}
+                      <h5 className="font-serif text-sm text-[#FAF8F3]">{title}</h5>
+                      <p>{body}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 

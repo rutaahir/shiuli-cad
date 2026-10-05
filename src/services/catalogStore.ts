@@ -316,7 +316,6 @@ export async function fetchCatalog(force = false): Promise<void> {
           : (stylesRaw as any)?.results ?? [];
       }
 
-      // Handle products: update and enrich on success, keep stale on error
       let nextProducts = state.products;
       if (prodsResult.status === 'fulfilled') {
         const prodsRaw = prodsResult.value;
@@ -325,7 +324,12 @@ export async function fetchCatalog(force = false): Promise<void> {
           : Array.isArray(prodsRaw)
           ? prodsRaw
           : [];
-        nextProducts = enrichProducts(rawProds, nextAllCategories);
+        // Only keep approved products in public catalog store
+        const approvedProds = rawProds.filter((p: any) => {
+          const st = (p.status || '').toLowerCase();
+          return st === 'approved' || st === 'published';
+        });
+        nextProducts = enrichProducts(approvedProds, nextAllCategories);
       }
 
       const hasError = errorMessages.length > 0;

@@ -125,8 +125,29 @@ export type AdminModuleId =
   | 'notifications'
   | 'settings';
 
+export interface StaffRegistrationDetails {
+  application_id?: number | null;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone_number?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  pincode?: string;
+  experience?: string;
+  portfolio_link?: string | null;
+  work_zip_url?: string | null;
+  applied_at?: string;
+  reviewed_at?: string;
+  status?: string;
+  admin_notes?: string;
+}
+
 export interface StaffMember {
   id: string;
+  username?: string;
   name: string;
   email: string;
   phone: string;
@@ -138,12 +159,21 @@ export interface StaffMember {
   jobsCompleted: number;
   rating: number;
   totalEarnings: number;
+  dateJoined?: string;
+  bio?: string;
+  registrationDetails?: StaffRegistrationDetails;
   activeJobs: {
-    orderId: string;
-    designTitle: string;
-    category: string;
-    acceptedAt: string;
-    deadline: string;
+    orderId?: string;
+    id?: number | string;
+    designTitle?: string;
+    title?: string;
+    category?: string;
+    acceptedAt?: string;
+    deadline?: string;
+    client_name?: string;
+    client_email?: string;
+    status?: string;
+    preview_image?: string;
   }[];
 }
 
@@ -266,7 +296,7 @@ export interface Product {
   subcategory: string;
   price: number;
   originalPrice?: number;
-  formats: ('3DM' | 'STL' | 'OBJ' | 'Render' | 'Video')[];
+  formats: string[];
   images: string[];
   primaryImage: string;
   description: string;
@@ -274,10 +304,13 @@ export interface Product {
   tags: string[];
   isBestseller?: boolean;
   isNew?: boolean;
-  rating: number;
-  reviewsCount: number;
+  rating?: number;
+  reviewsCount?: number;
   specs: ProductSpecs;
   castingTips?: string;
+  uploadedByName?: string;
+  uploadedByAvatar?: string;
+  status?: string;
 }
 
 export interface Category {

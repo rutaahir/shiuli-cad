@@ -708,16 +708,16 @@ export const AdminCatalogModule: React.FC = () => {
 
                     <td className="p-4 font-mono font-bold text-[#1E2230]">
                       <div>
-                        ₹{prod.price}
+                        ${prod.price}
                         {prod.compare_at_price && (
                           <span className="text-[10px] text-[#9CA3AF] line-through ml-1.5">
-                            ₹{prod.compare_at_price}
+                            ${prod.compare_at_price}
                           </span>
                         )}
                       </div>
                       {prod.staff_price != null && (
                         <div className="text-[10px] text-emerald-700 font-semibold font-mono">
-                          Staff: ₹{prod.staff_price} ({100 - (Number(prod.commission_rate) || 20)}%)
+                          Staff: ${prod.staff_price} ({100 - (Number(prod.commission_rate) || 20)}%)
                         </div>
                       )}
                     </td>
@@ -1719,24 +1719,24 @@ export const AdminCatalogModule: React.FC = () => {
               <div className="space-y-4 text-xs">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="font-semibold text-[#1E2230] block mb-1">Standard Price (₹) *</label>
+                    <label className="font-semibold text-[#1E2230] block mb-1">Standard Price ($) *</label>
                     <input
                       type="number"
                       required
                       value={prodPrice}
                       onChange={(e) => setProdPrice(e.target.value)}
-                      placeholder="1499"
+                      placeholder="250.00"
                       className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
                     />
                   </div>
 
                   <div>
-                    <label className="font-semibold text-[#1E2230] block mb-1">Compare-at Price (₹)</label>
+                    <label className="font-semibold text-[#1E2230] block mb-1">Compare-at Price ($)</label>
                     <input
                       type="number"
                       value={prodComparePrice}
                       onChange={(e) => setProdComparePrice(e.target.value)}
-                      placeholder="1999 (Must be greater than Price)"
+                      placeholder="350.00 (Must be greater than Price)"
                       className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
                     />
                   </div>

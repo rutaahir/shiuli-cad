@@ -140,6 +140,8 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
     style_tags = DesignStyleSerializer(many=True, read_only=True)
     images = ProductImageSerializer(many=True, read_only=True)
+    primary_image = serializers.SerializerMethodField()
+    formats_available = serializers.SerializerMethodField()
     files = serializers.SerializerMethodField()
     has_purchased = serializers.SerializerMethodField()
     uploaded_by_name = serializers.SerializerMethodField()
@@ -157,8 +159,27 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'description', 'metal_weight_grams',
             'stone_count', 'status', 'rejection_reason', 'is_bestseller',
             'is_new', 'is_featured', 'casting_tips', 'specs', 'formats_available',
-            'images', 'files', 'has_purchased', 'created_at', 'approved_at'
+            'images', 'primary_image', 'files', 'has_purchased', 'created_at', 'approved_at'
         ]
+
+    def get_primary_image(self, obj):
+        primary = obj.images.filter(is_primary=True).first() or obj.images.first()
+        if primary:
+            if primary.image:
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(primary.image.url)
+                return primary.image.url
+            return primary.image_url
+        return None
+
+    def get_formats_available(self, obj):
+        if obj.formats_available and len(obj.formats_available) > 0:
+            return obj.formats_available
+        file_types = list(obj.files.values_list('file_type', flat=True))
+        if file_types:
+            return [ft.upper() for ft in file_types]
+        return []
 
     def get_uploaded_by_name(self, obj):
         if obj.uploaded_by:
@@ -197,12 +218,17 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         safe_files = []
         for pf in obj.files.all():
+            size_mb = round(pf.file_size_bytes / (1024 * 1024), 2) if pf.file_size_bytes else None
+            clean_name = pf.original_filename or (pf.file.name.split('/')[-1] if pf.file else f"{pf.file_type.upper()} File")
+            
             # Preview renders and videos are public
             if pf.file_type in ['render', 'video']:
                 url = request.build_absolute_uri(pf.file.url) if (request and pf.file) else None
                 safe_files.append({
                     'id': pf.id,
                     'file_type': pf.file_type,
+                    'original_filename': clean_name,
+                    'file_size_mb': size_mb,
                     'file_url': url
                 })
             else:
@@ -210,6 +236,8 @@ class ProductDetailSerializer(serializers.ModelSerializer):
                 safe_files.append({
                     'id': pf.id,
                     'file_type': pf.file_type,
+                    'original_filename': clean_name,
+                    'file_size_mb': size_mb,
                     'file_url': None,
                     'note': 'CAD files are delivered exclusively via secure email OTP verification link.'
                 })
@@ -240,12 +268,16 @@ class ProductWriteSerializer(serializers.ModelSerializer):
         if category and not validated_data.get('commission_rate'):
             validated_data['commission_rate'] = getattr(category, 'commission_percentage', 20.00)
 
-        # Both Admin and Staff products go live immediately on the public catalog
-        if user and (getattr(user, 'role', '') in ['admin', 'staff'] or getattr(user, 'is_superuser', False) or getattr(user, 'is_staff', False)):
-            validated_data['status'] = Product.Status.APPROVED
-            validated_data['approved_at'] = timezone.now()
+        # Only Studio Super Admin products go live immediately on the public catalog.
+        # Staff-uploaded products ALWAYS require explicit Admin Approval before going live.
+        is_admin_user = user and (getattr(user, 'role', '') == 'admin' or getattr(user, 'is_superuser', False))
+        if is_admin_user:
+            validated_data['status'] = validated_data.get('status', Product.Status.APPROVED)
+            if validated_data['status'] == Product.Status.APPROVED:
+                validated_data['approved_at'] = timezone.now()
         else:
-            validated_data['status'] = validated_data.get('status', Product.Status.PENDING)
+            validated_data['status'] = Product.Status.PENDING
+            validated_data['approved_at'] = None
 
         if user and user.is_authenticated:
             validated_data['uploaded_by'] = user
@@ -262,10 +294,14 @@ class ProductWriteSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
 
         user = self.context['request'].user if 'request' in self.context else None
-        if user and (getattr(user, 'role', '') in ['admin', 'staff'] or getattr(user, 'is_superuser', False) or getattr(user, 'is_staff', False)):
-            if not instance.status or instance.status == Product.Status.PENDING:
-                instance.status = Product.Status.APPROVED
+        is_admin_user = user and (getattr(user, 'role', '') == 'admin' or getattr(user, 'is_superuser', False))
+        if is_admin_user:
+            if instance.status == Product.Status.APPROVED and not instance.approved_at:
                 instance.approved_at = timezone.now()
+        else:
+            # When staff updates a product, it re-enters the pending queue for admin verification
+            instance.status = Product.Status.PENDING
+            instance.approved_at = None
 
         instance.save()
         if style_tags is not None:

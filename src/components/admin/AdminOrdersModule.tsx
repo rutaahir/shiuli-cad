@@ -30,18 +30,24 @@ import {
   PhoneCall,
   Save,
   Lock,
-  StickyNote
+  StickyNote,
+  Plus,
+  Edit2,
+  Trash2,
+  XCircle,
+  Send
 } from 'lucide-react';
+import { AdminCreateOrderModal, AdminEditOrderModal } from './AdminOrderModals';
 
 interface AdminOrdersModuleProps {
   staffList: StaffMember[];
 }
 
-const formatINR = (val: number | string | undefined | null) => {
-  if (val === undefined || val === null || val === '') return '₹0';
+const formatUSD = (val: number | string | undefined | null) => {
+  if (val === undefined || val === null || val === '') return '$0';
   const num = typeof val === 'number' ? val : parseFloat(val);
-  if (isNaN(num)) return '₹0';
-  return `₹${Math.round(num).toLocaleString('en-IN')}`;
+  if (isNaN(num)) return '$0';
+  return `$${num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 };
 
 export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList }) => {
@@ -51,6 +57,10 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
   const [reassignModalOrder, setReassignModalOrder] = useState<any | null>(null);
   const [newAssignedStaffId, setNewAssignedStaffId] = useState<string>('');
   
+  // Create & Edit order modal states
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
+  const [editingOrder, setEditingOrder] = useState<any | null>(null);
+
   // Rejection modal state
   const [rejectingOrderId, setRejectingOrderId] = useState<number | null>(null);
   const [rejectionNotes, setRejectionNotes] = useState<string>('');
@@ -291,11 +301,49 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
     }
   };
 
+  // Admin Cancel Order
+  const handleCancelOrder = async (order: any) => {
+    const reason = window.prompt(
+      `Are you sure you want to cancel Order #ORD-${order.id}?\n\nEnter cancellation reason:`,
+      'Client requested cancellation / Spec adjustment'
+    );
+    if (reason === null) return;
+    try {
+      await api.cancelOrder(order.id, reason);
+      alert(`Order #ORD-${order.id} has been cancelled.`);
+      await fetchOrders();
+      if (selectedOrderDrawer?.id === order.id) {
+        setSelectedOrderDrawer((prev: any) => (prev ? { ...prev, status: 'cancelled' } : null));
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Failed to cancel order.');
+    }
+  };
+
+  // Admin Delete Order Permanently
+  const handleDeleteOrderPermanently = async (order: any) => {
+    const confirmed = window.confirm(
+      `⚠️ PERMANENT DELETION WARNING:\n\nAre you sure you want to permanently delete Order #ORD-${order.id}?\n\nThis will remove all files, deliverables, milestones, and payment records from the database permanently.\n\nThis action CANNOT be undone.`
+    );
+    if (!confirmed) return;
+    try {
+      await api.deleteOrder(order.id);
+      alert(`Order #ORD-${order.id} has been permanently deleted.`);
+      if (selectedOrderDrawer?.id === order.id) {
+        setSelectedOrderDrawer(null);
+      }
+      setOrders((prev) => prev.filter((o) => o.id !== order.id));
+    } catch (err: any) {
+      alert(err?.message || 'Failed to delete order.');
+    }
+  };
+
   const filteredOrders = orders.filter((o) => {
     if (statusFilter === 'pending_review') return o.status === 'pending_review';
     if (statusFilter === 'in_design') return o.status === 'in_design';
     if (statusFilter === 'preview_ready') return o.status === 'preview_ready';
     if (statusFilter === 'completed') return o.status === 'completed';
+    if (statusFilter === 'cancelled') return o.status === 'cancelled';
     return true;
   });
 
@@ -314,18 +362,28 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
             Master Orders &amp; Quality Control Directory
           </h1>
           <p className="text-xs text-[#6B7280] mt-0.5">
-            Monitor active commissions, inspect designer CAD uploads, authorize quality releases, and toggle client download permissions.
+            Monitor active commissions, inspect designer CAD uploads, authorize quality releases, and place or edit customer orders.
           </p>
         </div>
 
-        <button
-          onClick={fetchOrders}
-          disabled={loading}
-          className="px-4 py-2 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] text-xs font-semibold text-[#1E2230] hover:bg-[#E5E7EF] flex items-center gap-1.5 transition-colors self-start sm:self-auto"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          <span>Refresh Orders</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="btn-gold-luxury px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm cursor-pointer"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>Place Order for Customer</span>
+          </button>
+
+          <button
+            onClick={fetchOrders}
+            disabled={loading}
+            className="px-4 py-2 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] text-xs font-semibold text-[#1E2230] hover:bg-[#E5E7EF] flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <span>Refresh Orders</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter Tabs */}
@@ -336,6 +394,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
           { key: 'in_design', label: `In Design (${orders.filter(o => o.status === 'in_design').length})` },
           { key: 'preview_ready', label: `Preview Ready (${orders.filter(o => o.status === 'preview_ready').length})` },
           { key: 'completed', label: `Completed (${orders.filter(o => o.status === 'completed').length})` },
+          { key: 'cancelled', label: `Cancelled (${orders.filter(o => o.status === 'cancelled').length})` },
         ].map((t) => (
           <button
             key={t.key}
@@ -465,14 +524,14 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                     {/* Price & Admin Commission & Staff Payout */}
                     <td className="p-4 font-mono">
                       <div className="font-bold text-[#1E2230] text-sm">
-                        {formatINR(ord.total_price || req?.agreed_price)}
+                        {formatUSD(ord.total_price || req?.agreed_price)}
                       </div>
                       <div className="flex items-center gap-1.5 text-[10px] mt-0.5">
                         <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 font-bold">
                           Admin: {ord.admin_commission_percentage ?? 20}%
                         </span>
                         <span className="text-emerald-700 font-bold">
-                          Staff: {formatINR(ord.staff_payout_price || (Number(ord.total_price || req?.agreed_price || 0) * 0.8))}
+                          Staff: {formatUSD(ord.staff_payout_price || (Number(ord.total_price || req?.agreed_price || 0) * 0.8))}
                         </span>
                       </div>
                       <div className="text-[10px] text-slate-500 mt-0.5">
@@ -515,13 +574,42 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                     </td>
 
                     {/* Actions */}
-                    <td className="p-4 text-right space-x-2">
-                      <button
-                        onClick={() => setSelectedOrderDrawer(ord)}
-                        className="px-3 py-1.5 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] text-[#1E2230] hover:bg-[#E5E7EF] font-semibold text-xs"
-                      >
-                        Inspect Full Brief
-                      </button>
+                    <td className="p-4 text-right">
+                      <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                        <button
+                          onClick={() => setSelectedOrderDrawer(ord)}
+                          className="px-2.5 py-1.5 rounded-lg bg-[#F6F7FB] border border-[#E5E7EF] text-[#1E2230] hover:bg-[#E5E7EF] font-semibold text-xs transition-colors cursor-pointer"
+                          title="Inspect Full Brief"
+                        >
+                          Inspect
+                        </button>
+
+                        <button
+                          onClick={() => setEditingOrder(ord)}
+                          className="p-1.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer"
+                          title="Edit Order Details"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+
+                        {ord.status !== 'cancelled' && (
+                          <button
+                            onClick={() => handleCancelOrder(ord)}
+                            className="p-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors cursor-pointer"
+                            title="Cancel Order"
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => handleDeleteOrderPermanently(ord)}
+                          className="p-1.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer"
+                          title="Permanently Delete Order"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -545,12 +633,40 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                   Master CAD Order &amp; Quality Record
                 </h3>
               </div>
-              <button
-                onClick={() => setSelectedOrderDrawer(null)}
-                className="p-1.5 rounded-xl text-[#6B7280] hover:text-[#1E2230] hover:bg-[#F6F7FB]"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setEditingOrder(selectedOrderDrawer)}
+                  className="px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                  title="Edit Order Details"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span>Edit</span>
+                </button>
+                {selectedOrderDrawer.status !== 'cancelled' && (
+                  <button
+                    onClick={() => handleCancelOrder(selectedOrderDrawer)}
+                    className="px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                    title="Cancel Order"
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    <span>Cancel</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => handleDeleteOrderPermanently(selectedOrderDrawer)}
+                  className="px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                  title="Permanently Delete Order"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete</span>
+                </button>
+                <button
+                  onClick={() => setSelectedOrderDrawer(null)}
+                  className="p-1.5 rounded-xl text-[#6B7280] hover:text-[#1E2230] hover:bg-[#F6F7FB]"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Quality Review Banner if pending review */}
@@ -595,7 +711,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                 <div className="p-3 rounded-xl bg-white/5 border border-white/10">
                   <span className="text-[10px] font-mono text-slate-400 uppercase block">Client Order Price</span>
                   <span className="text-sm font-mono font-bold text-white">
-                    {formatINR(selectedOrderDrawer.total_price)}
+                    {formatUSD(selectedOrderDrawer.total_price)}
                   </span>
                 </div>
 
@@ -622,7 +738,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                     </button>
                   </div>
                   <span className="text-[9px] font-mono text-slate-400 mt-1 block">
-                    Fee: -{formatINR((Number(selectedOrderDrawer.total_price || 0) * (drawerCommissionPct || 0)) / 100)}
+                    Fee: -{formatUSD((Number(selectedOrderDrawer.total_price || 0) * (drawerCommissionPct || 0)) / 100)}
                   </span>
                 </div>
 
@@ -630,7 +746,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                 <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/30">
                   <span className="text-[10px] font-mono text-emerald-400 uppercase block font-semibold">Staff Pool Payout</span>
                   <span className="text-sm font-mono font-bold text-emerald-300">
-                    {formatINR((Number(selectedOrderDrawer.total_price || 0) * (100 - (drawerCommissionPct || 0))) / 100)}
+                    {formatUSD((Number(selectedOrderDrawer.total_price || 0) * (100 - (drawerCommissionPct || 0))) / 100)}
                   </span>
                   <span className="text-[9px] font-mono text-emerald-500/80 mt-1 block">
                     Shown to staff in pool
@@ -886,38 +1002,86 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                 </div>
               </div>
 
-              {/* Quick Tag Templates */}
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const stamp = `\n[📞 Call (${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})]: `;
-                    setDrawerAdminNotes(prev => (prev ? prev.trim() + '\n' + stamp : stamp.trimStart()));
-                  }}
-                  className="text-[9px] font-mono px-2 py-0.5 rounded bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 cursor-pointer"
-                >
-                  + Call Log
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const stamp = `\n[💬 WhatsApp (${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})]: `;
-                    setDrawerAdminNotes(prev => (prev ? prev.trim() + '\n' + stamp : stamp.trimStart()));
-                  }}
-                  className="text-[9px] font-mono px-2 py-0.5 rounded bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 cursor-pointer"
-                >
-                  + WhatsApp
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const stamp = `\n[📝 Customer Spec Note]: `;
-                    setDrawerAdminNotes(prev => (prev ? prev.trim() + '\n' + stamp : stamp.trimStart()));
-                  }}
-                  className="text-[9px] font-mono px-2 py-0.5 rounded bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 cursor-pointer"
-                >
-                  + Spec Note
-                </button>
+              {/* Direct Messenger Actions & Quick Tag Templates */}
+              <div className="flex items-center justify-between gap-2 flex-wrap pt-0.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {(() => {
+                    const clientPhone = selectedOrderDrawer.custom_request?.phone || selectedOrderDrawer.client?.phone || '';
+                    const cleanPhone = clientPhone.replace(/[^0-9]/g, '');
+                    return clientPhone ? (
+                      <div className="flex items-center gap-1.5 mr-2">
+                        <a
+                          href={`tel:${clientPhone}`}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-50 border border-blue-200 text-blue-800 text-[10px] font-mono font-bold hover:bg-blue-100 transition-colors"
+                        >
+                          <Phone className="w-3 h-3 text-blue-600" />
+                          <span>Call</span>
+                        </a>
+                        <a
+                          href={`https://wa.me/${cleanPhone}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-50 border border-emerald-300 text-emerald-800 text-[10px] font-mono font-bold hover:bg-emerald-100 transition-colors"
+                        >
+                          <MessageSquare className="w-3 h-3 text-emerald-600" />
+                          <span>WhatsApp</span>
+                        </a>
+                        <a
+                          href={`https://t.me/+${cleanPhone}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-sky-50 border border-sky-300 text-sky-800 text-[10px] font-mono font-bold hover:bg-sky-100 transition-colors"
+                        >
+                          <Send className="w-3 h-3 text-sky-600" />
+                          <span>Telegram</span>
+                        </a>
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-wrap ml-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const stamp = `\n[📞 Call (${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})]: `;
+                      setDrawerAdminNotes(prev => (prev ? prev.trim() + '\n' + stamp : stamp.trimStart()));
+                    }}
+                    className="text-[9px] font-mono px-2 py-0.5 rounded bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 cursor-pointer"
+                  >
+                    + Call Log
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const stamp = `\n[💬 WhatsApp (${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})]: `;
+                      setDrawerAdminNotes(prev => (prev ? prev.trim() + '\n' + stamp : stamp.trimStart()));
+                    }}
+                    className="text-[9px] font-mono px-2 py-0.5 rounded bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 cursor-pointer"
+                  >
+                    + WhatsApp
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const stamp = `\n[✈️ Telegram (${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})]: `;
+                      setDrawerAdminNotes(prev => (prev ? prev.trim() + '\n' + stamp : stamp.trimStart()));
+                    }}
+                    className="text-[9px] font-mono px-2 py-0.5 rounded bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 cursor-pointer"
+                  >
+                    + Telegram
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const stamp = `\n[📝 Customer Spec Note]: `;
+                      setDrawerAdminNotes(prev => (prev ? prev.trim() + '\n' + stamp : stamp.trimStart()));
+                    }}
+                    className="text-[9px] font-mono px-2 py-0.5 rounded bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 cursor-pointer"
+                  >
+                    + Spec Note
+                  </button>
+                </div>
               </div>
 
               <textarea
@@ -941,7 +1105,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                         <span className="text-[10px] text-[#6B7280] ml-2">({st.percentage}%)</span>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="font-mono font-bold text-[#1E2230]">{formatINR(st.amount)}</span>
+                        <span className="font-mono font-bold text-[#1E2230]">{formatUSD(st.amount)}</span>
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
                           st.status === 'paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
                         }`}>
@@ -997,6 +1161,44 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
             </div>
           </div>
         </div>
+      )}
+
+      {/* ADMIN CREATE ORDER MODAL */}
+      {isCreateModalOpen && (
+        <AdminCreateOrderModal
+          isOpen={isCreateModalOpen}
+          staffList={staffList}
+          onClose={() => setIsCreateModalOpen(false)}
+          onSuccess={async () => {
+            setIsCreateModalOpen(false);
+            await fetchOrders();
+          }}
+        />
+      )}
+
+      {/* ADMIN EDIT ORDER MODAL */}
+      {editingOrder && (
+        <AdminEditOrderModal
+          isOpen={Boolean(editingOrder)}
+          order={editingOrder}
+          staffList={staffList}
+          onClose={() => setEditingOrder(null)}
+          onCancelOrder={(ord) => {
+            setEditingOrder(null);
+            handleCancelOrder(ord);
+          }}
+          onDeleteOrder={(ord) => {
+            setEditingOrder(null);
+            handleDeleteOrderPermanently(ord);
+          }}
+          onSuccess={async (updatedOrder) => {
+            setEditingOrder(null);
+            await fetchOrders();
+            if (selectedOrderDrawer?.id === updatedOrder?.id) {
+              setSelectedOrderDrawer(updatedOrder);
+            }
+          }}
+        />
       )}
 
     </div>

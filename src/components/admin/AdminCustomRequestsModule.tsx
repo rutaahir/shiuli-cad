@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../services/api';
 import { appStore } from '../../services/store';
+import { StaffMember } from '../../types';
+import {
+  AdminCreateOrderModal,
+  AdminEditCustomRequestModal,
+} from './AdminOrderModals';
 import {
   MessageSquare,
   CheckCircle2,
@@ -40,7 +45,12 @@ import {
   ShoppingBag,
   ExternalLink,
   Bell,
-  BellRing
+  BellRing,
+  Plus,
+  Trash2,
+  Edit2,
+  XCircle,
+  MessageCircle
 } from 'lucide-react';
 import { triggerNegotiationAlert } from '../../utils/negotiationNotificationHelper';
 
@@ -81,6 +91,9 @@ interface CustomRequestItem {
   delivery_speed_name?: string;
   client_consent_to_feature?: boolean;
   admin_call_notes?: string;
+  contact_telegram?: string;
+  client_address?: string;
+  company_name?: string;
 
   // Quick Request Details
   voice_recording?: string;
@@ -123,7 +136,11 @@ interface CustomRequestItem {
   messages?: Array<{ id: number; sender_type: string; message: string; offered_price?: number; created_at: string }>;
 }
 
-export const AdminCustomRequestsModule: React.FC = () => {
+interface AdminCustomRequestsModuleProps {
+  staffList?: StaffMember[];
+}
+
+export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps> = ({ staffList = [] }) => {
   const [requests, setRequests] = useState<CustomRequestItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedReqId, setSelectedReqId] = useState<number | null>(null);
@@ -138,6 +155,15 @@ export const AdminCustomRequestsModule: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [mobileViewDetail, setMobileViewDetail] = useState(false);
+
+  // Direct Order Placement & Editing states
+  const [isCreateOrderModalOpen, setIsCreateOrderModalOpen] = useState(false);
+  const [createOrderInitialValues, setCreateOrderInitialValues] = useState<any>(null);
+  const [editingRequest, setEditingRequest] = useState<CustomRequestItem | null>(null);
+  const [quickChannelNote, setQuickChannelNote] = useState('');
+
+  const effectiveStaffList = (staffList && staffList.length > 0) ? staffList : appStore.getStaffList();
+
   const [adminNegotiationAlert, setAdminNegotiationAlert] = useState<{
     reqId: number;
     clientName: string;
@@ -293,6 +319,88 @@ export const AdminCustomRequestsModule: React.FC = () => {
     } finally {
       setIsSavingNotes(false);
     }
+  };
+
+  const handlePlaceOrderForRequest = (req: CustomRequestItem) => {
+    setCreateOrderInitialValues({
+      clientId: '',
+      contact_name: req.contact_name || req.client_name,
+      contact_email: req.contact_email,
+      contact_phone: req.contact_phone,
+      contact_telegram: req.contact_telegram,
+      company_name: req.company_name,
+      client_address: req.client_address,
+      special_instructions: req.special_instructions || (req.category_name ? `Bespoke ${req.category_name}` : `Custom RFQ #${req.id}`),
+      category_name: req.category_name,
+      metal_alloy_name: req.metal_alloy_name,
+      ring_size: req.ring_size,
+      ring_size_standard: req.ring_size_standard || 'US',
+      target_weight_grams: req.target_weight_grams,
+      description: req.description,
+      needed_by_date: req.needed_by_date,
+      agreed_price: req.agreed_price || req.estimated_price_shown || '250.00',
+      admin_call_notes: req.admin_call_notes,
+    });
+    setIsCreateOrderModalOpen(true);
+  };
+
+  const handleOpenDirectOrder = () => {
+    setCreateOrderInitialValues(null);
+    setIsCreateOrderModalOpen(true);
+  };
+
+  const handleCancelRequest = async (req: CustomRequestItem) => {
+    const reason = window.prompt(
+      `Cancel / Reject Custom Request #REQ-${req.id}?\n\nEnter reason for cancellation:`,
+      'Client cancelled / Specifications updated'
+    );
+    if (reason === null) return;
+    try {
+      await api.cancelCustomRequest(req.id, reason);
+      alert(`Request #REQ-${req.id} cancelled.`);
+      setRequests((prev) =>
+        prev.map((r) =>
+          r.id === req.id
+            ? {
+                ...r,
+                status: 'rejected',
+                admin_call_notes: `${r.admin_call_notes || ''}\n[🚫 Cancelled by Admin]: ${reason}`.trim(),
+              }
+            : r
+        )
+      );
+    } catch (err: any) {
+      alert(err?.message || 'Failed to cancel request.');
+    }
+  };
+
+  const handleDeleteRequest = async (req: CustomRequestItem) => {
+    const confirmed = window.confirm(
+      `⚠️ PERMANENT DELETION WARNING:\n\nAre you sure you want to permanently delete Custom Request #REQ-${req.id}?\n\nThis will remove the request, uploaded sketches, and negotiation history from the database.\n\nThis action CANNOT be undone.`
+    );
+    if (!confirmed) return;
+    try {
+      await api.deleteCustomRequest(req.id);
+      alert(`Custom Request #REQ-${req.id} permanently deleted.`);
+      setRequests((prev) => prev.filter((r) => r.id !== req.id));
+      if (selectedReqId === req.id) {
+        setSelectedReqId(null);
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Failed to delete request.');
+    }
+  };
+
+  const handleAddChannelNote = (channel: 'telegram' | 'whatsapp') => {
+    if (!quickChannelNote.trim()) return;
+    const now = new Date();
+    const timeStr = `${now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    const stamp = channel === 'telegram'
+      ? `\n[✈️ Telegram Note (${timeStr})]: ${quickChannelNote.trim()}`
+      : `\n[💬 WhatsApp Note (${timeStr})]: ${quickChannelNote.trim()}`;
+
+    setAdminNotesDraft((prev) => (prev ? prev.trim() + stamp : stamp.trimStart()));
+    setQuickChannelNote('');
   };
 
   // Filtering requests
@@ -550,6 +658,16 @@ export const AdminCustomRequestsModule: React.FC = () => {
           </div>
 
           <button
+            type="button"
+            onClick={handleOpenDirectOrder}
+            className="btn-gold-luxury px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-sm cursor-pointer whitespace-nowrap"
+            title="Directly enter customer details and place an order"
+          >
+            <Plus className="w-3.5 h-3.5 stroke-[3]" />
+            <span>Place Order for Customer</span>
+          </button>
+
+          <button
             onClick={fetchRequests}
             title="Refresh List"
             className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#1E2230] transition-colors cursor-pointer"
@@ -654,6 +772,43 @@ export const AdminCustomRequestsModule: React.FC = () => {
                         <MessageSquare className="w-2.5 h-2.5" /> Counter Offer Received
                       </span>
                     )}
+
+                    {/* Quick Action Bar on Card */}
+                    <div className="mt-2 pt-1.5 border-t border-slate-200/50 flex items-center justify-end gap-1 opacity-80 hover:opacity-100">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePlaceOrderForRequest(req);
+                        }}
+                        className="p-1 rounded hover:bg-amber-100 text-[#C9A227] transition-colors"
+                        title="Place Master Order for this Request"
+                      >
+                        <ShoppingBag className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingRequest(req);
+                        }}
+                        className="p-1 rounded hover:bg-blue-100 text-blue-600 transition-colors"
+                        title="Edit Request Details"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteRequest(req);
+                        }}
+                        className="p-1 rounded hover:bg-red-100 text-red-500 transition-colors"
+                        title="Permanently Delete Request"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -731,7 +886,7 @@ export const AdminCustomRequestsModule: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 self-end md:self-auto shrink-0">
+                <div className="flex items-center gap-2 self-end md:self-auto shrink-0 flex-wrap justify-end">
                   {activeReq.needed_by_date && (
                     <div className="text-right px-3 py-1 bg-white rounded-lg border border-amber-200">
                       <span className="text-[9px] uppercase text-[#6B7280] block font-mono flex items-center gap-1">
@@ -749,6 +904,51 @@ export const AdminCustomRequestsModule: React.FC = () => {
                   >
                     {getStatusBadge(activeReq.status).label}
                   </span>
+
+                  {/* Direct Place Order & Request Actions */}
+                  <div className="flex items-center gap-1.5 ml-1 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => handlePlaceOrderForRequest(activeReq)}
+                      className="btn-gold-luxury px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1 shadow-sm cursor-pointer"
+                      title="Directly place master order for this customer with pre-filled specs"
+                    >
+                      <ShoppingBag className="w-3.5 h-3.5" />
+                      <span>Place Master Order</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setEditingRequest(activeReq)}
+                      className="px-2.5 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                      title="Edit Request &amp; Client Details"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Edit</span>
+                    </button>
+
+                    {activeReq.status !== 'rejected' && (
+                      <button
+                        type="button"
+                        onClick={() => handleCancelRequest(activeReq)}
+                        className="px-2.5 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 hover:bg-amber-100 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                        title="Cancel / Reject Request"
+                      >
+                        <XCircle className="w-3.5 h-3.5 text-amber-600" />
+                        <span className="hidden sm:inline">Cancel</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteRequest(activeReq)}
+                      className="px-2.5 py-1.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                      title="Delete Request Permanently"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                      <span className="hidden sm:inline">Delete</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1168,6 +1368,15 @@ export const AdminCustomRequestsModule: React.FC = () => {
                         >
                           WhatsApp
                         </a>
+                        <a
+                          href={`https://t.me/+${activeReq.contact_phone.replace(/\D/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] font-mono font-bold text-sky-800 bg-sky-50 hover:bg-sky-100 border border-sky-300 px-2 py-1 rounded-md flex items-center gap-1 transition-colors"
+                          title="Open Telegram chat with client"
+                        >
+                          <Send className="w-2.5 h-2.5 text-sky-600" /> Telegram
+                        </a>
                       </div>
                     )}
 
@@ -1228,6 +1437,16 @@ export const AdminCustomRequestsModule: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
+                      const stamp = `\n[✈️ Telegram (${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})]: `;
+                      setAdminNotesDraft(prev => (prev ? prev.trim() + '\n' + stamp : stamp.trimStart()));
+                    }}
+                    className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white hover:bg-sky-100/80 border border-sky-300 text-sky-900 transition-colors cursor-pointer"
+                  >
+                    + Telegram Chat
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
                       const stamp = `\n[📝 Customer Spec Preference]: `;
                       setAdminNotesDraft(prev => (prev ? prev.trim() + '\n' + stamp : stamp.trimStart()));
                     }}
@@ -1245,6 +1464,43 @@ export const AdminCustomRequestsModule: React.FC = () => {
                   >
                     + Deadline Promise
                   </button>
+                </div>
+
+                {/* Dedicated Quick Telegram / WhatsApp Note Adder */}
+                <div className="flex flex-col sm:flex-row items-center gap-2 pt-1 bg-amber-100/60 p-2.5 rounded-xl border border-amber-300/80">
+                  <input
+                    type="text"
+                    value={quickChannelNote}
+                    onChange={(e) => setQuickChannelNote(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddChannelNote('telegram');
+                      }
+                    }}
+                    placeholder="Quick Telegram / WhatsApp update (e.g. Client agreed on Platinum 950 via Telegram)..."
+                    className="w-full text-xs font-mono px-3 py-1.5 rounded-lg border border-amber-300 bg-white text-[#1E2230] focus:outline-none focus:ring-1 focus:ring-amber-500 placeholder:text-slate-400"
+                  />
+                  <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={() => handleAddChannelNote('telegram')}
+                      className="px-2.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-mono font-bold text-[10px] flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
+                      title="Add note with Telegram timestamp tag"
+                    >
+                      <Send className="w-3 h-3" />
+                      <span>+ Telegram Note</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddChannelNote('whatsapp')}
+                      className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-mono font-bold text-[10px] flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
+                      title="Add note with WhatsApp timestamp tag"
+                    >
+                      <MessageSquare className="w-3 h-3" />
+                      <span>+ WhatsApp Note</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Notes Textarea */}
@@ -1420,6 +1676,51 @@ export const AdminCustomRequestsModule: React.FC = () => {
             <img src={lightboxImage} alt="Sketch" className="w-full h-full object-contain" />
           </div>
         </div>
+      )}
+
+      {/* PLACE MASTER ORDER FOR CUSTOMER MODAL */}
+      {isCreateOrderModalOpen && (
+        <AdminCreateOrderModal
+          isOpen={isCreateOrderModalOpen}
+          initialValues={createOrderInitialValues}
+          staffList={effectiveStaffList}
+          onClose={() => {
+            setIsCreateOrderModalOpen(false);
+            setCreateOrderInitialValues(null);
+          }}
+          onSuccess={async (newOrder) => {
+            setIsCreateOrderModalOpen(false);
+            setCreateOrderInitialValues(null);
+            alert(`Master Order #${newOrder.id} placed successfully for customer!`);
+            await fetchRequests();
+          }}
+        />
+      )}
+
+      {/* EDIT CUSTOM REQUEST MODAL */}
+      {editingRequest && (
+        <AdminEditCustomRequestModal
+          isOpen={Boolean(editingRequest)}
+          requestItem={editingRequest}
+          onClose={() => setEditingRequest(null)}
+          onConvertToOrder={(req) => {
+            setEditingRequest(null);
+            handlePlaceOrderForRequest(req);
+          }}
+          onCancelRequest={(req) => {
+            setEditingRequest(null);
+            handleCancelRequest(req);
+          }}
+          onDeleteRequest={(req) => {
+            setEditingRequest(null);
+            handleDeleteRequest(req);
+          }}
+          onSuccess={async (updated) => {
+            setEditingRequest(null);
+            setRequests((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)));
+            alert(`Custom Request #${updated.id} updated successfully!`);
+          }}
+        />
       )}
     </div>
   );
