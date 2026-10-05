@@ -69,6 +69,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
   const [searchOverlayOpen, setSearchOverlayOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSearchCategorySlug, setSelectedSearchCategorySlug] = useState<string>('all');
   const { categories, products, isError, isLoading } = useCatalog();
 
   const [hoveredCategorySlug, setHoveredCategorySlug] = useState<string>('');
@@ -203,17 +204,66 @@ export const Navbar: React.FC<NavbarProps> = ({
     { type: 'ai', title: 'AI Projects', desc: 'Parametric AI Concepts' },
   ];
 
-  // Search Results
-  const searchResults = searchQuery.trim()
+  // Character Matching & Category Filtering for Quick Search
+  const cleanSearchQuery = searchQuery.trim().toLowerCase();
+
+  const categoryFilteredProducts = selectedSearchCategorySlug === 'all'
     ? products
-        .filter(
-          p =>
-            p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (p.category_name || '').toLowerCase().includes(searchQuery.toLowerCase())
-        )
-        .slice(0, 5)
-        .map(toProductShape)
-    : [];
+    : products.filter(p => {
+        const catObj = categories.find(c => c.slug === selectedSearchCategorySlug);
+        return (
+          p.category_slug === selectedSearchCategorySlug ||
+          (p as any).parent_slug === selectedSearchCategorySlug ||
+          (catObj && p.category === catObj.id) ||
+          (p.category_name && p.category_name.toLowerCase().includes(selectedSearchCategorySlug.replace(/-/g, ' ')))
+        );
+      });
+
+  const searchResults = (cleanSearchQuery
+    ? categoryFilteredProducts
+        .filter(p => {
+          const t = (p.title || '').toLowerCase();
+          const c = (p.category_name || '').toLowerCase();
+          const d = (p.description || '').toLowerCase();
+          const s = (p.slug || '').toLowerCase();
+          return (
+            t.includes(cleanSearchQuery) ||
+            c.includes(cleanSearchQuery) ||
+            d.includes(cleanSearchQuery) ||
+            s.includes(cleanSearchQuery)
+          );
+        })
+        .sort((a, b) => {
+          const aTitle = (a.title || '').toLowerCase();
+          const bTitle = (b.title || '').toLowerCase();
+          if (aTitle.startsWith(cleanSearchQuery) && !bTitle.startsWith(cleanSearchQuery)) return -1;
+          if (!aTitle.startsWith(cleanSearchQuery) && bTitle.startsWith(cleanSearchQuery)) return 1;
+          if (aTitle.includes(cleanSearchQuery) && !bTitle.includes(cleanSearchQuery)) return -1;
+          if (!aTitle.includes(cleanSearchQuery) && bTitle.includes(cleanSearchQuery)) return 1;
+          return 0;
+        })
+    : categoryFilteredProducts
+  ).map(toProductShape);
+
+  // Helper: highlight matched characters in text
+  const renderHighlightedMatch = (text: string, query: string) => {
+    if (!query.trim() || !text) return text;
+    const q = query.trim();
+    const regex = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    return parts.map((part, i) =>
+      regex.test(part) ? (
+        <span
+          key={i}
+          className="text-[#F5E7A3] bg-[#D4AF37]/35 font-bold px-0.5 rounded underline decoration-[#D4AF37]"
+        >
+          {part}
+        </span>
+      ) : (
+        part
+      )
+    );
+  };
 
   return (
     <>
@@ -664,57 +714,245 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* SEARCH OVERLAY MODAL */}
       {searchOverlayOpen && (
-        <div className="fixed inset-0 z-50 bg-[#060B1E]/90 backdrop-blur-xl flex items-start justify-center pt-24 px-4">
-          <div className="bg-[#09112B] border border-[#D4AF37]/40 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4">
-            <div className="flex justify-between items-center border-b border-[#D4AF37]/20 pb-3">
+        <div
+          className="fixed inset-0 z-50 bg-[#060B1E]/90 backdrop-blur-xl flex items-start justify-center pt-16 sm:pt-20 px-4 animate-in fade-in duration-200"
+          onClick={() => setSearchOverlayOpen(false)}
+        >
+          <div
+            className="bg-[#09112B] border border-[#D4AF37]/40 rounded-3xl max-w-3xl w-full p-5 sm:p-6 shadow-2xl space-y-4 text-[#FAF8F3] relative max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header: Title & Close */}
+            <div className="flex justify-between items-center border-b border-[#D4AF37]/20 pb-3 flex-shrink-0">
               <span className="text-xs font-bold text-[#D4AF37] uppercase tracking-widest flex items-center gap-2">
-                <Search className="w-4 h-4" /> Quick Search CAD Files
+                <Search className="w-4 h-4 text-[#D4AF37]" />
+                <span>Quick Search CAD Files & Categories</span>
               </span>
-              <button onClick={() => setSearchOverlayOpen(false)} className="text-slate-400 hover:text-white">
-                <X className="w-5 h-5" />
+              <button
+                onClick={() => setSearchOverlayOpen(false)}
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-white/5"
+                title="Close (Esc)"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
-            <input
-              type="text"
-              autoFocus
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search by ring, solitaire, SKU, or gemstone..."
-              className="w-full text-sm rounded-xl border border-[#D4AF37]/30 bg-[#121F4D] text-[#FAF8F3] p-3 focus:border-[#D4AF37]"
-            />
-            {searchResults.length > 0 && (
-              <div className="space-y-2 pt-2">
-                {searchResults.map(p => (
-                  <div
-                    key={p.id}
+
+            {/* Live Search Input Bar */}
+            <div className="relative flex-shrink-0">
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#D4AF37]/70" />
+              <input
+                type="text"
+                autoFocus
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={
+                  selectedSearchCategorySlug !== 'all'
+                    ? `Search in ${categories.find((c) => c.slug === selectedSearchCategorySlug)?.name || 'category'} (by title, SKU, metal, gemstone)...`
+                    : 'Search by ring, solitaire, SKU, gemstone, metal...'
+                }
+                className="w-full text-sm rounded-2xl border border-[#D4AF37]/35 bg-[#121F4D] text-[#FAF8F3] pl-10 pr-10 py-3.5 focus:outline-hidden focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]/50 shadow-inner placeholder:text-white/40"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white p-1 rounded-full hover:bg-white/10 cursor-pointer"
+                  title="Clear input"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* CATEGORIES BAR: Show all categories directly */}
+            <div className="space-y-2 flex-shrink-0 pt-0.5">
+              <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-[#D4AF37]/80">
+                <span className="flex items-center gap-1.5 font-bold">
+                  <Layers className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  <span>Categories ({categories.length})</span>
+                </span>
+                {selectedSearchCategorySlug !== 'all' && (
+                  <button
                     onClick={() => {
-                      onNavigate('product-detail', p.id);
+                      onNavigate('collections', selectedSearchCategorySlug);
                       setSearchOverlayOpen(false);
                     }}
-                    className="p-3 bg-[#121F4D]/60 hover:bg-[#121F4D] rounded-2xl border border-white/10 hover:border-[#D4AF37] cursor-pointer flex items-center justify-between transition-colors group"
+                    className="text-[#FAF8F3] hover:text-[#F5E7A3] underline font-semibold flex items-center gap-1 transition-colors cursor-pointer"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-12 h-12 rounded-xl shrink-0 bg-[#070D1F] border border-white/10 overflow-hidden flex items-center justify-center p-1">
-                        <img
-                          src={getOptimizedImageUrl(p.primaryImage, p.category)}
-                          alt={p.title}
-                          onError={(e) => handleImgError(e, p.category)}
-                          className="w-full h-full object-contain"
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-bold text-xs text-[#FAF8F3] truncate group-hover:text-[#F5E7A3]">{p.title}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] text-[#D4AF37]">{p.category}</span>
-                          <span className="text-xs font-bold text-[#E6C65B] font-mono">₹{formatINR(p.price)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-[#D4AF37] shrink-0" />
-                  </div>
-                ))}
+                    <span>Open Category Page</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
+                )}
               </div>
-            )}
+
+              {/* Scrollable Category Chips */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-1.5 pt-0.5 scrollbar-thin">
+                <button
+                  type="button"
+                  onClick={() => setSelectedSearchCategorySlug('all')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                    selectedSearchCategorySlug === 'all'
+                      ? 'bg-gradient-to-r from-[#D4AF37] to-[#E6C65B] text-[#080E24] font-bold shadow-md shadow-[#D4AF37]/20 scale-105'
+                      : 'bg-[#121F4D]/80 hover:bg-[#121F4D] text-[#FAF8F3]/80 hover:text-[#FAF8F3] border border-white/10'
+                  }`}
+                >
+                  <span>All Categories</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                      selectedSearchCategorySlug === 'all'
+                        ? 'bg-[#080E24]/20 text-[#080E24]'
+                        : 'bg-white/10 text-white/70'
+                    }`}
+                  >
+                    {products.length}
+                  </span>
+                </button>
+
+                {categories.map((cat) => {
+                  const isSelected = selectedSearchCategorySlug === cat.slug;
+                  const catProductCount = products.filter(
+                    (p) =>
+                      p.category_slug === cat.slug ||
+                      (p as any).parent_slug === cat.slug ||
+                      p.category === cat.id
+                  ).length;
+
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setSelectedSearchCategorySlug(isSelected ? 'all' : cat.slug)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                        isSelected
+                          ? 'bg-gradient-to-r from-[#D4AF37] to-[#E6C65B] text-[#080E24] font-bold shadow-md shadow-[#D4AF37]/20 scale-105'
+                          : 'bg-[#121F4D]/80 hover:bg-[#121F4D] text-[#FAF8F3]/80 hover:text-[#FAF8F3] border border-white/10'
+                      }`}
+                    >
+                      <span>{cat.name}</span>
+                      {catProductCount > 0 && (
+                        <span
+                          className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                            isSelected
+                              ? 'bg-[#080E24]/20 text-[#080E24]'
+                              : 'bg-white/10 text-white/70'
+                          }`}
+                        >
+                          {catProductCount}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* RESULTS CONTENT AREA (SCROLLABLE) */}
+            <div className="flex-1 overflow-y-auto pr-1 space-y-3 custom-scrollbar min-h-[220px]">
+              {searchResults.length > 0 ? (
+                <>
+                  <div className="flex items-center justify-between text-[11px] font-mono text-[#D4AF37] px-1">
+                    <span>
+                      {cleanSearchQuery
+                        ? `Found ${searchResults.length} CAD model${searchResults.length === 1 ? '' : 's'} matching "${searchQuery}"`
+                        : `Showing ${searchResults.length} CAD model${searchResults.length === 1 ? '' : 's'} ${
+                            selectedSearchCategorySlug !== 'all'
+                              ? `in ${categories.find((c) => c.slug === selectedSearchCategorySlug)?.name}`
+                              : 'in Atelier'
+                          }`}
+                    </span>
+                    {selectedSearchCategorySlug !== 'all' && (
+                      <button
+                        onClick={() => {
+                          onNavigate('collections', selectedSearchCategorySlug);
+                          setSearchOverlayOpen(false);
+                        }}
+                        className="text-white/60 hover:text-[#F5E7A3] flex items-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <span>Open Category View</span>
+                        <ChevronRight className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Related Products Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {searchResults.map((p) => (
+                      <div
+                        key={p.id}
+                        onClick={() => {
+                          onNavigate('product-detail', p.id);
+                          setSearchOverlayOpen(false);
+                        }}
+                        className="p-3 bg-[#121F4D]/60 hover:bg-[#121F4D] rounded-2xl border border-white/10 hover:border-[#D4AF37] cursor-pointer flex items-center justify-between transition-all group shadow-sm hover:shadow-lg hover:shadow-[#D4AF37]/10"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-14 h-14 rounded-xl shrink-0 bg-[#070D1F] border border-white/10 overflow-hidden flex items-center justify-center p-1 group-hover:border-[#D4AF37]/50 transition-colors">
+                            <img
+                              src={getOptimizedImageUrl(p.primaryImage, p.category)}
+                              alt={p.title}
+                              onError={(e) => handleImgError(e, p.category)}
+                              className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                            />
+                          </div>
+                          <div className="min-w-0 space-y-0.5">
+                            <p className="font-bold text-xs text-[#FAF8F3] truncate group-hover:text-[#F5E7A3] transition-colors">
+                              {renderHighlightedMatch(p.title, searchQuery)}
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-[#D4AF37] font-medium truncate">
+                                {renderHighlightedMatch(p.category, searchQuery)}
+                              </span>
+                              <span className="text-[10px] font-mono text-white/50">
+                                {p.specs?.metalWeight18k && p.specs.metalWeight18k !== '—'
+                                  ? p.specs.metalWeight18k
+                                  : '.3DM + .STL'}
+                              </span>
+                            </div>
+                            <div className="text-xs font-bold text-[#E6C65B] font-mono">
+                              ₹{formatINR(p.price)}
+                            </div>
+                          </div>
+                        </div>
+                        <ArrowRight className="w-4 h-4 text-[#D4AF37] shrink-0 opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all ml-2" />
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                /* No Results State */
+                <div className="py-12 text-center space-y-3 bg-[#121F4D]/30 rounded-2xl border border-white/5 p-6">
+                  <div className="w-12 h-12 rounded-full bg-[#121F4D] border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37] mx-auto">
+                    <Search className="w-5 h-5 opacity-60" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-[#FAF8F3]">
+                      No CAD models found for "{searchQuery}"
+                    </h4>
+                    <p className="text-xs text-white/50 mt-1 max-w-sm mx-auto">
+                      {selectedSearchCategorySlug !== 'all'
+                        ? 'No matches in this category. Try switching to "All Categories" or searching for another keyword.'
+                        : 'Try searching by jewellery type (e.g. Ring, Solitaire, Pendant, Necklace) or check your spelling.'}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-center gap-2 pt-2">
+                    {selectedSearchCategorySlug !== 'all' && (
+                      <button
+                        onClick={() => setSelectedSearchCategorySlug('all')}
+                        className="px-3.5 py-1.5 rounded-xl bg-[#D4AF37] text-[#080E24] text-xs font-bold shadow-md hover:bg-[#F5E7A3] transition-colors cursor-pointer"
+                      >
+                        Search All Categories
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-[#FAF8F3] text-xs font-semibold transition-colors cursor-pointer"
+                    >
+                      Clear Search
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
