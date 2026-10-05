@@ -10,6 +10,8 @@ import {
   Layers,
   ShieldCheck,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   FileCode2,
   Printer,
   Sliders,
@@ -55,6 +57,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   const [purchasing, setPurchasing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const stickyRef = useRef<HTMLDivElement>(null);
 
   const [otpModalState, setOtpModalState] = useState<{
@@ -453,7 +456,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
           </div>
 
           {/* Right Column: Pricing & Purchase (5 cols) */}
-          <div className="lg:col-span-5 space-y-5">
+          <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-24 self-start">
 
             {/* Header Block */}
             <div
@@ -513,11 +516,39 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 )}
               </div>
 
-              {/* Short Description */}
+              {/* Short Description (Clamped to 4-5 lines with Read More / Read Less) */}
               {product.description && (
-                <p className="text-xs sm:text-sm text-[#C9C2A6] leading-relaxed font-light">
-                  {product.description}
-                </p>
+                <div className="space-y-2 pt-1">
+                  <div
+                    className={`text-xs sm:text-sm text-[#C9C2A6] leading-relaxed font-light transition-all relative ${
+                      isDescriptionExpanded
+                        ? 'max-h-none'
+                        : 'line-clamp-4 sm:line-clamp-5 max-h-[6.5rem] overflow-hidden'
+                    }`}
+                  >
+                    <p className="whitespace-pre-line leading-relaxed">
+                      {product.description}
+                    </p>
+                    {!isDescriptionExpanded && product.description.length > 200 && (
+                      <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[#0B1330] via-[#0B1330]/85 to-transparent pointer-events-none" />
+                    )}
+                  </div>
+
+                  {product.description.length > 200 && (
+                    <button
+                      type="button"
+                      onClick={() => setIsDescriptionExpanded((prev) => !prev)}
+                      className="text-xs font-semibold text-[#D4AF37] hover:text-[#F5E7A3] inline-flex items-center gap-1.5 transition-colors cursor-pointer py-0.5 group/btn"
+                    >
+                      <span>{isDescriptionExpanded ? 'Read Less' : 'Read More...'}</span>
+                      {isDescriptionExpanded ? (
+                        <ChevronUp className="w-3.5 h-3.5 group-hover/btn:-translate-y-0.5 transition-transform" />
+                      ) : (
+                        <ChevronDown className="w-3.5 h-3.5 group-hover/btn:translate-y-0.5 transition-transform" />
+                      )}
+                    </button>
+                  )}
+                </div>
               )}
 
               {/* Key Spec Chips */}
@@ -559,22 +590,25 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
 
             {/* Price + Purchase Card */}
             <div
-              className={`p-5 rounded-2xl bg-[#080E24] border border-[#D4AF37]/25 space-y-5 transition-all duration-700 ${loaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+              className={`p-6 rounded-3xl bg-gradient-to-b from-[#080E24] to-[#0B1330] border border-[#D4AF37]/30 shadow-2xl space-y-5 transition-all duration-700 ${loaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
               style={{ transitionDelay: '200ms' }}
             >
               {/* Price */}
-              <div className="flex items-baseline justify-between">
+              <div className="flex items-baseline justify-between gap-3">
                 <div>
-                  <div className="text-3xl sm:text-4xl font-serif font-bold text-[#F5E7A3]">
+                  <div className="text-3xl sm:text-4xl font-serif font-bold text-[#F5E7A3] tracking-tight">
                     ₹{currentPriceINR.toLocaleString('en-IN')}
                   </div>
+                  <span className="text-[11px] text-[#C9C2A6] font-mono mt-0.5 block">
+                    Instant Deliverables (.3DM + .STL + 4K Render Pack)
+                  </span>
                 </div>
                 {product.originalPrice && (
-                  <div className="text-right">
-                    <span className="text-sm text-[#C9C2A6] line-through block">
+                  <div className="text-right flex-shrink-0">
+                    <span className="text-sm text-[#C9C2A6] line-through block font-mono">
                       ₹{originalPriceINR.toLocaleString('en-IN')}
                     </span>
-                    <span className="text-[10px] text-emerald-400 uppercase tracking-wider font-semibold">
+                    <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 uppercase tracking-wider font-bold inline-block mt-0.5">
                       Save ₹{(originalPriceINR - currentPriceINR).toLocaleString('en-IN')}
                     </span>
                   </div>
