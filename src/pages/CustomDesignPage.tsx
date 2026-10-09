@@ -874,41 +874,41 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 
   if (isSubmitted) {
     return (
-      <div className="min-h-screen bg-[#060B1E] text-[#F5F1E8] pt-24 pb-24 px-4 sm:px-8 lg:px-12 relative overflow-hidden">
-        <div className="max-w-3xl mx-auto bg-[#09112B]/90 backdrop-blur-xl rounded-3xl border border-[#D4AF37]/40 shadow-2xl p-8 sm:p-12 text-center my-8">
+      <div className="min-h-screen bg-[#FFFDF9] text-[#17243B] pt-24 pb-24 px-4 sm:px-8 lg:px-12 relative overflow-hidden">
+        <div className="max-w-3xl mx-auto bg-white/90 backdrop-blur-xl rounded-3xl border border-[#E8D7B7] shadow-2xl p-8 sm:p-12 text-center my-8">
           <div className="w-20 h-20 bg-gradient-to-br from-[#F5E7A3] via-[#D4AF37] to-[#B8860B] rounded-full flex items-center justify-center mx-auto mb-6 text-[#0B1330] shadow-[0_0_30px_rgba(212,175,55,0.4)]">
             <CheckCircle2 className="w-10 h-10 animate-pulse" />
           </div>
           <h1 className="text-3xl sm:text-4xl font-serif gold-gradient-text font-bold mb-3 tracking-wide">
             Custom 3D CAD Brief Submitted!
           </h1>
-          <p className="text-[#FAF8F3]/80 text-base sm:text-lg mb-8 max-w-xl mx-auto leading-relaxed">
-            Your custom specification brief <span className="font-mono font-bold text-[#F5E7A3] bg-[#D4AF37]/20 px-3 py-1 rounded-full border border-[#D4AF37]/30">#{submittedTicket?.ticket_id || 'CR-SUCCESS'}</span> has been sent to our Senior CAD Engineer for review. Once the official quote is issued, step-by-step stage payment options will activate in your dashboard.
+          <p className="text-[#687386] text-base sm:text-lg mb-8 max-w-xl mx-auto leading-relaxed">
+            Your custom specification brief <span className="font-mono font-bold text-[#B88732] bg-[#D4AF37]/20 px-3 py-1 rounded-full border border-[#E8D7B7]">#{submittedTicket?.ticket_id || 'CR-SUCCESS'}</span> has been sent to our Senior CAD Engineer for review. Once the official quote is issued, step-by-step stage payment options will activate in your dashboard.
           </p>
 
           {/* Specification Summary Card */}
-          <div className="bg-[#121F4D]/80 border border-[#D4AF37]/30 rounded-2xl p-6 text-left mb-8 max-w-md mx-auto space-y-3">
-            <h3 className="font-serif gold-gradient-text text-sm font-bold uppercase tracking-widest pb-2 border-b border-[#D4AF37]/20">
+          <div className="bg-[#FFF9F0]/80 border border-[#E8D7B7] rounded-2xl p-6 text-left mb-8 max-w-md mx-auto space-y-3">
+            <h3 className="font-serif gold-gradient-text text-sm font-bold uppercase tracking-widest pb-2 border-b border-[#E8D7B7]">
               Specification Details
             </h3>
-            <div className="space-y-2 text-xs text-[#FAF8F3]/80">
+            <div className="space-y-2 text-xs text-[#687386]">
               <div className="flex justify-between">
-                <span className="text-[#FAF8F3]/60">Design Category:</span>
-                <span className="font-bold text-[#FAF8F3] capitalize">{selectedCategory}</span>
+                <span className="text-[#687386]">Design Category:</span>
+                <span className="font-bold text-[#17243B] capitalize">{selectedCategory}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#FAF8F3]/60">Client Contact:</span>
-                <span className="font-bold text-[#F5E7A3]">{clientName || user?.first_name || 'Valued Client'}</span>
+                <span className="text-[#687386]">Client Contact:</span>
+                <span className="font-bold text-[#B88732]">{clientName || user?.first_name || 'Valued Client'}</span>
               </div>
               {selectedCatalogProducts.length > 0 && (
                 <div className="flex justify-between">
-                  <span className="text-[#FAF8F3]/60">Catalog Reference:</span>
-                  <span className="font-bold text-[#D4AF37]">{selectedCatalogProducts.length} Product(s) Selected</span>
+                  <span className="text-[#687386]">Catalog Reference:</span>
+                  <span className="font-bold text-[#B88732]">{selectedCatalogProducts.length} Product(s) Selected</span>
                 </div>
               )}
               <div className="flex justify-between">
-                <span className="text-[#FAF8F3]/60">Included Assets:</span>
-                <span className="font-bold text-[#D4AF37]">3DM + Printable STL + 4K Renders</span>
+                <span className="text-[#687386]">Included Assets:</span>
+                <span className="font-bold text-[#B88732]">3DM + Printable STL + 4K Renders</span>
               </div>
             </div>
           </div>
@@ -925,7 +925,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                 setIsSubmitted(false);
                 setCurrentStep(1);
               }}
-              className="px-8 py-3.5 bg-transparent border border-[#D4AF37]/40 text-[#F5E7A3] font-bold rounded-xl hover:bg-[#D4AF37]/10 transition-all"
+              className="px-8 py-3.5 bg-transparent border border-[#E8D7B7] text-[#B88732] font-bold rounded-xl hover:bg-[#D4AF37]/10 transition-all"
             >
               Start Another Custom Specification
             </button>
@@ -936,7 +936,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-[#060B1E] text-[#F5F1E8] pt-20 sm:pt-28 pb-24 px-3 sm:px-6 lg:px-8 xl:px-12 relative overflow-hidden">
+    <div className="min-h-screen bg-[#FFFDF9] text-[#17243B] pt-20 sm:pt-28 pb-24 px-3 sm:px-6 lg:px-8 xl:px-12 relative overflow-hidden">
       {/* Container aligned with site width */}
       <div className="max-w-[1600px] mx-auto space-y-6 relative z-10">
 
@@ -945,7 +945,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif gold-gradient-text font-bold tracking-tight">
             Custom Design & 3D CAD Studio
           </h1>
-          <p className="text-[#FAF8F3]/70 text-xs sm:text-sm">
+          <p className="text-[#687386] text-xs sm:text-sm">
             Configure your exact jewelry specifications for 100% 3D printability and precision casting.
           </p>
         </div>
@@ -956,13 +956,13 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
           <div
             onClick={() => setDesignMode('step_by_step')}
             className={`p-3.5 sm:p-5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden flex items-start gap-3 sm:gap-4 ${designMode === 'step_by_step'
-              ? 'bg-gradient-to-br from-[#09112B] to-[#121F4D] border-[#D4AF37] shadow-[0_0_25px_rgba(212,175,55,0.25)] ring-1 ring-[#D4AF37]'
-              : 'bg-[#09112B]/60 hover:bg-[#09112B] border-white/10 hover:border-white/20'
+              ? 'bg-gradient-to-br from-[#09112B] to-[#121F4D] border-[#D9B66F] shadow-[0_0_25px_rgba(212,175,55,0.25)] ring-1 ring-[#D4AF37]'
+              : 'bg-white/60 hover:bg-white border-[#E8D7B7] hover:border-[#E8D7B7]'
               }`}
           >
             <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0 border ${designMode === 'step_by_step'
-              ? 'bg-gradient-to-tr from-[#D4AF37] to-[#F5E7A3] text-[#09112B] border-[#D4AF37]'
-              : 'bg-white/5 text-slate-400 border-white/10'
+              ? 'bg-gradient-to-tr from-[#D4AF37] to-[#F5E7A3] text-[#09112B] border-[#D9B66F]'
+              : 'bg-white/5 text-[#687386] border-[#E8D7B7]'
               }`}>
               <Layers className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
@@ -977,7 +977,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-300 leading-relaxed">
+              <p className="text-xs text-[#687386] leading-relaxed">
                 Full 5-step configurator: choose base jewelry category, metal alloy, gemstone layout, dimensions &amp; branding.
               </p>
             </div>
@@ -987,13 +987,13 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
           <div
             onClick={() => setDesignMode('quick')}
             className={`p-3.5 sm:p-5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden flex items-start gap-3 sm:gap-4 ${designMode === 'quick'
-              ? 'bg-gradient-to-br from-[#09112B] to-[#121F4D] border-[#D4AF37] shadow-[0_0_25px_rgba(212,175,55,0.25)] ring-1 ring-[#D4AF37]'
-              : 'bg-[#09112B]/60 hover:bg-[#09112B] border-white/10 hover:border-white/20'
+              ? 'bg-gradient-to-br from-[#09112B] to-[#121F4D] border-[#D9B66F] shadow-[0_0_25px_rgba(212,175,55,0.25)] ring-1 ring-[#D4AF37]'
+              : 'bg-white/60 hover:bg-white border-[#E8D7B7] hover:border-[#E8D7B7]'
               }`}
           >
             <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0 border ${designMode === 'quick'
-              ? 'bg-gradient-to-tr from-[#D4AF37] to-[#F5E7A3] text-[#09112B] border-[#D4AF37]'
-              : 'bg-white/5 text-slate-400 border-white/10'
+              ? 'bg-gradient-to-tr from-[#D4AF37] to-[#F5E7A3] text-[#09112B] border-[#D9B66F]'
+              : 'bg-white/5 text-[#687386] border-[#E8D7B7]'
               }`}>
               <Sparkles className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
@@ -1008,7 +1008,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-300 leading-relaxed">
+              <p className="text-xs text-[#687386] leading-relaxed">
                 Fast brief: upload photos/sketches, choose catalog references, describe or record voice instructions.
               </p>
             </div>
@@ -1025,7 +1025,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
         ) : (
           <>
             {/* Stepper Header (Compact Bar) */}
-            <div className="w-full bg-[#09112B]/80 backdrop-blur-md p-3 sm:p-3.5 rounded-2xl border border-[#D4AF37]/30 shadow-xl">
+            <div className="w-full bg-white/80 backdrop-blur-md p-3 sm:p-3.5 rounded-2xl border border-[#E8D7B7] shadow-xl">
               <div className="flex justify-between items-center relative">
                 {[
                   { step: 1, title: 'Category & Specs' },
@@ -1042,19 +1042,19 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                         ? 'bg-gradient-to-r from-[#F5E7A3] via-[#D4AF37] to-[#B8860B] text-[#0B1330] shadow-[0_0_15px_rgba(212,175,55,0.5)] scale-110 font-extrabold'
                         : currentStep > s.step
                           ? 'bg-[#1E4FA3] text-white border border-[#5B8DEF]/40 cursor-pointer'
-                          : 'bg-[#121F4D]/60 text-[#FAF8F3]/40 border border-white/10 cursor-not-allowed'
+                          : 'bg-[#FFF9F0]/60 text-[#687386] border border-[#E8D7B7] cursor-not-allowed'
                         }`}
                     >
                       {currentStep > s.step ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : s.step}
                     </button>
-                    <span className={`text-[11px] font-semibold mt-1.5 hidden sm:block ${currentStep === s.step ? 'text-[#F5E7A3]' : 'text-[#FAF8F3]/50'}`}>
+                    <span className={`text-[11px] font-semibold mt-1.5 hidden sm:block ${currentStep === s.step ? 'text-[#B88732]' : 'text-[#687386]'}`}>
                       {s.title}
                     </span>
                   </div>
                 ))}
               </div>
-              <div className="sm:hidden text-center mt-2.5 pt-2 border-t border-white/5">
-                <span className="text-xs font-semibold text-[#F5E7A3]">
+              <div className="sm:hidden text-center mt-2.5 pt-2 border-t border-[#E8D7B7]">
+                <span className="text-xs font-semibold text-[#B88732]">
                   Step {currentStep} of 5: {[
                     'Category & Specs',
                     'Metal Alloy',
@@ -1069,11 +1069,11 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
             {/* Main Form Grid & Specification Summary Sidebar */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               {/* Main Content Area */}
-              <div className="lg:col-span-8 bg-[#09112B]/85 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-[#D4AF37]/30 shadow-2xl">
+              <div className="lg:col-span-8 bg-white/85 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-[#E8D7B7] shadow-2xl">
                 {optionsLoading ? (
                   <div className="py-20 text-center">
-                    <Loader2 className="w-10 h-10 text-[#D4AF37] animate-spin mx-auto mb-4" />
-                    <p className="text-[#FAF8F3]/60 font-medium text-sm">Loading studio design parameters from database...</p>
+                    <Loader2 className="w-10 h-10 text-[#B88732] animate-spin mx-auto mb-4" />
+                    <p className="text-[#687386] font-medium text-sm">Loading studio design parameters from database...</p>
                   </div>
                 ) : (
                   <>
@@ -1082,7 +1082,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                       <div className="space-y-6">
                         <div>
                           <h2 className="text-xl font-serif gold-gradient-text font-bold mb-1">Step 1: Select Jewelry Type</h2>
-                          <p className="text-xs text-[#FAF8F3]/60">Choose your base design category to reveal tailored dimension controls.</p>
+                          <p className="text-xs text-[#687386]">Choose your base design category to reveal tailored dimension controls.</p>
                         </div>
 
                         {/* Category Selector Cards */}
@@ -1104,17 +1104,17 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                   }
                                 }}
                                 className={`p-4 rounded-2xl border cursor-pointer transition-all duration-300 ${isSel
-                                  ? 'border-[#D4AF37] bg-[#121F4D]/90 shadow-[0_0_20px_rgba(212,175,55,0.2)] ring-1 ring-[#D4AF37]/50'
-                                  : 'border-white/10 hover:border-[#D4AF37]/40 bg-[#09112B]/60'
+                                  ? 'border-[#D9B66F] bg-[#FFF9F0]/90 shadow-[0_0_20px_rgba(212,175,55,0.2)] ring-1 ring-[#D4AF37]/50'
+                                  : 'border-[#E8D7B7] hover:border-[#E8D7B7] bg-white/60'
                                   }`}
                               >
                                 <div className="flex items-center gap-3 mb-2">
-                                  <div className={`p-2 rounded-xl ${isSel ? 'bg-[#D4AF37] text-[#0B1330]' : 'bg-[#121F4D] text-[#D4AF37]'}`}>
+                                  <div className={`p-2 rounded-xl ${isSel ? 'bg-[#D4AF37] text-[#0B1330]' : 'bg-[#FFF9F0] text-[#B88732]'}`}>
                                     <IconComp className="w-5 h-5" />
                                   </div>
-                                  <span className="font-bold text-[#FAF8F3] text-sm">{cat.name}</span>
+                                  <span className="font-bold text-[#17243B] text-sm">{cat.name}</span>
                                 </div>
-                                <p className="text-xs text-[#FAF8F3]/60 line-clamp-2">{cat.desc}</p>
+                                <p className="text-xs text-[#687386] line-clamp-2">{cat.desc}</p>
                               </div>
                             );
                           })}
@@ -1122,27 +1122,27 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 
                         {/* Ring Specific Dimension Options */}
                         {selectedCategory === 'rings' && (
-                          <div className="bg-[#121F4D]/50 border border-[#D4AF37]/25 rounded-2xl p-5 space-y-4">
+                          <div className="bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-5 space-y-4">
                             <div className="flex justify-between items-center">
                               <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
-                                <Ruler className="w-4 h-4 text-[#D4AF37]" /> Ring Sizing & Metal Weight Specs
+                                <Ruler className="w-4 h-4 text-[#B88732]" /> Ring Sizing & Metal Weight Specs
                               </h3>
                               <button
                                 type="button"
                                 onClick={() => setShowRingSizeModal(true)}
-                                className="text-xs font-semibold text-[#F5E7A3] hover:text-white flex items-center gap-1 underline"
+                                className="text-xs font-semibold text-[#B88732] hover:text-white flex items-center gap-1 underline"
                               >
-                                <HelpCircle className="w-3.5 h-3.5 text-[#D4AF37]" /> Size Chart & Conversion
+                                <HelpCircle className="w-3.5 h-3.5 text-[#B88732]" /> Size Chart & Conversion
                               </button>
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                               <div>
-                                <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">Sizing Standard</label>
+                                <label className="block text-xs font-semibold text-[#687386] mb-1.5">Sizing Standard</label>
                                 <select
                                   value={ringSizeStandard}
                                   onChange={e => setRingSizeStandard(e.target.value)}
-                                  className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3 focus:border-[#D4AF37] focus:ring-[#D4AF37]"
+                                  className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2.5 px-3 focus:border-[#D9B66F] focus:ring-[#D4AF37]"
                                 >
                                   <option value="MM">Inside Diameter(mm)</option>
                                   <option value="US">US / Canada</option>
@@ -1154,24 +1154,24 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                               </div>
 
                               <div>
-                                <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">Target Ring Size</label>
+                                <label className="block text-xs font-semibold text-[#687386] mb-1.5">Target Ring Size</label>
                                 <input
                                   type="text"
                                   value={ringSize}
                                   onChange={e => setRingSize(e.target.value)}
                                   placeholder="e.g. 6.5 or 16.9mm"
-                                  className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2 px-3 focus:border-[#D4AF37] focus:ring-[#D4AF37]"
+                                  className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-3 focus:border-[#D9B66F] focus:ring-[#D4AF37]"
                                 />
                               </div>
 
                               <div>
-                                <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">Target Metal Weight (g)</label>
+                                <label className="block text-xs font-semibold text-[#687386] mb-1.5">Target Metal Weight (g)</label>
                                 <input
                                   type="text"
                                   value={targetWeightGrams}
                                   onChange={e => setTargetWeightGrams(e.target.value)}
                                   placeholder="e.g. 4.5g"
-                                  className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2 px-3 focus:border-[#D4AF37] focus:ring-[#D4AF37]"
+                                  className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-3 focus:border-[#D9B66F] focus:ring-[#D4AF37]"
                                 />
                               </div>
                             </div>
@@ -1180,37 +1180,37 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 
                         {/* Pendants Specific Specs */}
                         {selectedCategory === 'pendants' && (
-                          <div className="bg-[#121F4D]/50 border border-[#D4AF37]/25 rounded-2xl p-5 space-y-4">
+                          <div className="bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-5 space-y-4">
                             <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
-                              <Ruler className="w-4 h-4 text-[#D4AF37]" /> Pendant & Necklace Dimensions
+                              <Ruler className="w-4 h-4 text-[#B88732]" /> Pendant & Necklace Dimensions
                             </h3>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                               <div>
-                                <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">Height (mm)</label>
+                                <label className="block text-xs font-semibold text-[#687386] mb-1.5">Height (mm)</label>
                                 <input
                                   type="text"
                                   value={heightMm}
                                   onChange={e => setHeightMm(e.target.value)}
                                   placeholder="e.g. 24 mm"
-                                  className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2 px-3"
+                                  className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-3"
                                 />
                               </div>
                               <div>
-                                <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">Width (mm)</label>
+                                <label className="block text-xs font-semibold text-[#687386] mb-1.5">Width (mm)</label>
                                 <input
                                   type="text"
                                   value={widthMm}
                                   onChange={e => setWidthMm(e.target.value)}
                                   placeholder="e.g. 16 mm"
-                                  className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2 px-3"
+                                  className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-3"
                                 />
                               </div>
                               <div>
-                                <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">Chain Preference</label>
+                                <label className="block text-xs font-semibold text-[#687386] mb-1.5">Chain Preference</label>
                                 <select
                                   value={chainLength}
                                   onChange={e => setChainLength(e.target.value)}
-                                  className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3"
+                                  className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2.5 px-3"
                                 >
                                   <option value="">-- Choose Chain Specification (Optional) --</option>
                                   <option value="No Chain / Pendant Only">No Chain / Pendant Only</option>
@@ -1226,27 +1226,27 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 
                         {/* Earrings Specific Specs */}
                         {selectedCategory === 'earrings' && (
-                          <div className="bg-[#121F4D]/50 border border-[#D4AF37]/25 rounded-2xl p-5 space-y-4">
+                          <div className="bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-5 space-y-4">
                             <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
-                              <Ruler className="w-4 h-4 text-[#D4AF37]" /> Earring Architecture
+                              <Ruler className="w-4 h-4 text-[#B88732]" /> Earring Architecture
                             </h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <div>
-                                <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">Drop Length / Stud Diameter (mm)</label>
+                                <label className="block text-xs font-semibold text-[#687386] mb-1.5">Drop Length / Stud Diameter (mm)</label>
                                 <input
                                   type="text"
                                   value={heightMm}
                                   onChange={e => setHeightMm(e.target.value)}
                                   placeholder="e.g. 12mm stud or 45mm drop"
-                                  className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2 px-3"
+                                  className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-3"
                                 />
                               </div>
                               <div>
-                                <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">Backing Mechanism</label>
+                                <label className="block text-xs font-semibold text-[#687386] mb-1.5">Backing Mechanism</label>
                                 <select
                                   value={earringBacking}
                                   onChange={e => setEarringBacking(e.target.value)}
-                                  className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3"
+                                  className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2.5 px-3"
                                 >
                                   <option value="">-- Choose Backing Mechanism (Optional) --</option>
                                   <option value="Push Back">Push Back (Friction Post)</option>
@@ -1262,27 +1262,27 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 
                         {/* Bracelets Specific Specs */}
                         {selectedCategory === 'bracelets' && (
-                          <div className="bg-[#121F4D]/50 border border-[#D4AF37]/25 rounded-2xl p-5 space-y-4">
+                          <div className="bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-5 space-y-4">
                             <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
-                              <Ruler className="w-4 h-4 text-[#D4AF37]" /> Wrist & Bangle Dimensions
+                              <Ruler className="w-4 h-4 text-[#B88732]" /> Wrist & Bangle Dimensions
                             </h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <div>
-                                <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">Wrist Circumference / Inner Diameter</label>
+                                <label className="block text-xs font-semibold text-[#687386] mb-1.5">Wrist Circumference / Inner Diameter</label>
                                 <input
                                   type="text"
                                   value={wristCircumference}
                                   onChange={e => setWristCircumference(e.target.value)}
                                   placeholder="e.g. 7.0 inches or 2.4 Kada size"
-                                  className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2 px-3"
+                                  className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-3"
                                 />
                               </div>
                               <div>
-                                <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">Bracelet Type</label>
+                                <label className="block text-xs font-semibold text-[#687386] mb-1.5">Bracelet Type</label>
                                 <select
                                   value={braceletStyle}
                                   onChange={e => setBraceletStyle(e.target.value)}
-                                  className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3"
+                                  className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2.5 px-3"
                                 >
                                   <option value="">-- Choose Bracelet Style (Optional) --</option>
                                   <option value="Kada">Traditional Kada</option>
@@ -1298,18 +1298,18 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 
                         {/* Custom Specs for Other */}
                         {selectedCategory === 'other' && (
-                          <div className="bg-[#121F4D]/50 border border-[#D4AF37]/25 rounded-2xl p-5 space-y-4">
+                          <div className="bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-5 space-y-4">
                             <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
-                              <Feather className="w-4 h-4 text-[#D4AF37]" /> Custom Concept Requirements
+                              <Feather className="w-4 h-4 text-[#B88732]" /> Custom Concept Requirements
                             </h3>
                             <div>
-                              <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">Dimensional & Structural Requirements</label>
+                              <label className="block text-xs font-semibold text-[#687386] mb-1.5">Dimensional & Structural Requirements</label>
                               <textarea
                                 rows={3}
                                 value={customSpecsText}
                                 onChange={e => setCustomSpecsText(e.target.value)}
                                 placeholder="Describe target dimensions, pin backings, hinges, or special structural mechanisms..."
-                                className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] p-3"
+                                className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] p-3"
                               />
                             </div>
                           </div>
@@ -1318,7 +1318,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                         {/* CAD Deliverable Format Dropdown */}
                         {groupMap['cad_file_format'] && (
                           <div>
-                            <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">Required CAD Output Format</label>
+                            <label className="block text-xs font-semibold text-[#687386] mb-1.5">Required CAD Output Format</label>
                             <select
                               value={selections['cad_file_format'] || ''}
                               onChange={e => {
@@ -1333,7 +1333,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                   return updated;
                                 });
                               }}
-                              className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3"
+                              className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2.5 px-3"
                             >
                               <option value="">-- Choose Required CAD Format (Optional) --</option>
                               {(groupMap['cad_file_format'].options || [])
@@ -1354,13 +1354,13 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                       <div className="space-y-6">
                         <div>
                           <h2 className="text-xl font-serif gold-gradient-text font-bold mb-1">Step 2: Metal Alloy Selection</h2>
-                          <p className="text-xs text-[#FAF8F3]/60">Select your target metal alloy and gold purity standard.</p>
+                          <p className="text-xs text-[#687386]">Select your target metal alloy and gold purity standard.</p>
                         </div>
 
                         {/* Metal Alloy Selector */}
                         {groupMap['metal'] && (
                           <div className="space-y-3">
-                            <label className="block text-xs font-bold text-[#F5E7A3] uppercase tracking-wider">Metal Alloy Selection</label>
+                            <label className="block text-xs font-bold text-[#B88732] uppercase tracking-wider">Metal Alloy Selection</label>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                               {(groupMap['metal'].options || [])
                                 .filter(o => o.is_active)
@@ -1374,16 +1374,16 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                         setSelections(prev => ({ ...prev, metal: opt.id }));
                                       }}
                                       className={`p-3.5 rounded-2xl border cursor-pointer flex items-center gap-3 transition-all duration-300 ${isSel
-                                        ? 'border-[#D4AF37] bg-[#121F4D] shadow-[0_0_15px_rgba(212,175,55,0.3)] ring-1 ring-[#D4AF37]/50'
-                                        : 'border-white/10 hover:border-[#D4AF37]/30 bg-[#09112B]/60'
+                                        ? 'border-[#D9B66F] bg-[#FFF9F0] shadow-[0_0_15px_rgba(212,175,55,0.3)] ring-1 ring-[#D4AF37]/50'
+                                        : 'border-[#E8D7B7] hover:border-[#E8D7B7] bg-white/60'
                                         }`}
                                     >
                                       <span
-                                        className="w-7 h-7 rounded-full border border-white/20 shadow-inner flex-shrink-0"
+                                        className="w-7 h-7 rounded-full border border-[#E8D7B7] shadow-inner flex-shrink-0"
                                         style={{ backgroundColor: opt.swatch_color || '#E5E4E2' }}
                                       />
                                       <div>
-                                        <p className="font-bold text-[#FAF8F3] text-xs">{opt.label}</p>
+                                        <p className="font-bold text-[#17243B] text-xs">{opt.label}</p>
                                       </div>
                                     </div>
                                   );
@@ -1396,25 +1396,25 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                   setSelections(prev => ({ ...prev, metal: -1 }));
                                 }}
                                 className={`p-3.5 rounded-2xl border cursor-pointer flex items-center gap-3 transition-all duration-300 ${isCustomMetalSelected
-                                  ? 'border-[#D4AF37] bg-[#121F4D] shadow-[0_0_15px_rgba(212,175,55,0.3)] ring-1 ring-[#D4AF37]/50'
-                                  : 'border-dashed border-[#D4AF37]/50 hover:border-[#D4AF37] hover:bg-[#D4AF37]/10 bg-[#09112B]/60'
+                                  ? 'border-[#D9B66F] bg-[#FFF9F0] shadow-[0_0_15px_rgba(212,175,55,0.3)] ring-1 ring-[#D4AF37]/50'
+                                  : 'border-dashed border-[#D9B66F]/50 hover:border-[#D9B66F] hover:bg-[#D4AF37]/10 bg-white/60'
                                   }`}
                               >
-                                <span className="w-7 h-7 rounded-full border border-dashed border-[#D4AF37]/60 shadow-inner flex-shrink-0 flex items-center justify-center text-[#D4AF37] text-xs font-bold">?</span>
+                                <span className="w-7 h-7 rounded-full border border-dashed border-[#D9B66F]/60 shadow-inner flex-shrink-0 flex items-center justify-center text-[#B88732] text-xs font-bold">?</span>
                                 <div>
-                                  <p className="font-bold text-[#F5E7A3] text-xs">CUSTOM / OTHER</p>
+                                  <p className="font-bold text-[#B88732] text-xs">CUSTOM / OTHER</p>
                                 </div>
                               </div>
                             </div>
 
                             {/* CUSTOM METAL ALLOY INPUT FIELD */}
                             {isCustomMetalSelected && (
-                              <div className="mt-3 pt-3 border-t border-[#D4AF37]/20 space-y-1.5">
+                              <div className="mt-3 pt-3 border-t border-[#E8D7B7] space-y-1.5">
                                 <div className="flex items-center justify-between">
-                                  <label className="block text-xs font-semibold text-[#F5E7A3] flex items-center gap-1.5">
-                                    Specify Custom Metal Alloy <span className="text-[#D4AF37]">*</span>
+                                  <label className="block text-xs font-semibold text-[#B88732] flex items-center gap-1.5">
+                                    Specify Custom Metal Alloy <span className="text-[#B88732]">*</span>
                                   </label>
-                                  <span className="text-[10px] text-[#FAF8F3]/50">Visible to Studio Admin & CAD Staff</span>
+                                  <span className="text-[10px] text-[#687386]">Visible to Studio Admin & CAD Staff</span>
                                 </div>
                                 <div className="relative">
                                   <input
@@ -1422,11 +1422,11 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                     value={customMetalInput}
                                     onChange={e => setCustomMetalInput(e.target.value)}
                                     placeholder="e.g. Titanium, Tungsten Carbide, Cobalt Chrome, Mokume-gane, Surgical Steel..."
-                                    className="w-full bg-[#080E24] border border-[#D4AF37]/60 rounded-xl px-3.5 py-2.5 text-xs text-[#FAF8F3] placeholder-white/30 focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] shadow-inner transition-all"
+                                    className="w-full bg-[#080E24] border border-[#D9B66F]/60 rounded-xl px-3.5 py-2.5 text-xs text-[#17243B] placeholder-white/30 focus:outline-none focus:border-[#D9B66F] focus:ring-1 focus:ring-[#D4AF37] shadow-inner transition-all"
                                     autoFocus
                                   />
                                 </div>
-                                <p className="text-[11px] text-[#FAF8F3]/50">
+                                <p className="text-[11px] text-[#687386]">
                                   Enter any custom or speciality alloy not listed above. Our admin and CAD team will review your request and confirm material availability.
                                 </p>
                               </div>
@@ -1436,9 +1436,9 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 
                         {/* Gold Purity Selector - Only shown if Gold is selected */}
                         {isGoldSelected && groupMap['gold_purity'] && (
-                          <div className="space-y-3 bg-[#121F4D]/50 border border-[#D4AF37]/30 rounded-2xl p-4">
-                            <label className="block text-xs font-bold text-[#F5E7A3] uppercase tracking-wider flex items-center gap-2">
-                              <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" /> Gold Purity Standard
+                          <div className="space-y-3 bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-4">
+                            <label className="block text-xs font-bold text-[#B88732] uppercase tracking-wider flex items-center gap-2">
+                              <Sparkles className="w-3.5 h-3.5 text-[#B88732]" /> Gold Purity Standard
                             </label>
                             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2">
                               {(groupMap['gold_purity'].options || [])
@@ -1455,7 +1455,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                       }}
                                       className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all ${isSel
                                         ? 'bg-[#D4AF37] text-[#0B1330] border-[#F5E7A3] shadow-md font-extrabold'
-                                        : 'bg-[#09112B] text-[#FAF8F3]/80 border-white/10 hover:border-[#D4AF37]/40'
+                                        : 'bg-white text-[#687386] border-[#E8D7B7] hover:border-[#E8D7B7]'
                                         }`}
                                     >
                                       {opt.label}
@@ -1472,7 +1472,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                 }}
                                 className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all ${isCustomPuritySelected
                                   ? 'bg-[#D4AF37] text-[#0B1330] border-[#F5E7A3] shadow-md font-extrabold ring-1 ring-[#F5E7A3]'
-                                  : 'bg-[#09112B] text-[#FAF8F3]/80 border-dashed border-[#D4AF37]/50 hover:border-[#D4AF37] hover:bg-[#D4AF37]/10'
+                                  : 'bg-white text-[#687386] border-dashed border-[#D9B66F]/50 hover:border-[#D9B66F] hover:bg-[#D4AF37]/10'
                                   }`}
                               >
                                 CUSTOM / OTHER
@@ -1481,12 +1481,12 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 
                             {/* CUSTOM PURITY INPUT FIELD */}
                             {isCustomPuritySelected && (
-                              <div className="mt-3 pt-3 border-t border-[#D4AF37]/20 space-y-1.5">
+                              <div className="mt-3 pt-3 border-t border-[#E8D7B7] space-y-1.5">
                                 <div className="flex items-center justify-between">
-                                  <label className="block text-xs font-semibold text-[#F5E7A3] flex items-center gap-1.5">
-                                    Specify Custom Gold Purity Standard <span className="text-[#D4AF37]">*</span>
+                                  <label className="block text-xs font-semibold text-[#B88732] flex items-center gap-1.5">
+                                    Specify Custom Gold Purity Standard <span className="text-[#B88732]">*</span>
                                   </label>
-                                  <span className="text-[10px] text-[#FAF8F3]/50">Visible to Studio Admin & CAD Staff</span>
+                                  <span className="text-[10px] text-[#687386]">Visible to Studio Admin & CAD Staff</span>
                                 </div>
                                 <div className="relative">
                                   <input
@@ -1494,11 +1494,11 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                     value={customPurityInput}
                                     onChange={e => setCustomPurityInput(e.target.value)}
                                     placeholder="e.g. 21K (Gulf / Arabic Standard), 19K, 916 Hallmark, 999 Fine Gold..."
-                                    className="w-full bg-[#080E24] border border-[#D4AF37]/60 rounded-xl px-3.5 py-2.5 text-xs text-[#FAF8F3] placeholder-white/30 focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] shadow-inner transition-all"
+                                    className="w-full bg-[#080E24] border border-[#D9B66F]/60 rounded-xl px-3.5 py-2.5 text-xs text-[#17243B] placeholder-white/30 focus:outline-none focus:border-[#D9B66F] focus:ring-1 focus:ring-[#D4AF37] shadow-inner transition-all"
                                     autoFocus
                                   />
                                 </div>
-                                <p className="text-[11px] text-[#FAF8F3]/50">
+                                <p className="text-[11px] text-[#687386]">
                                   Enter any custom or regional gold karat requirement here. Our admin and production staff will review and calibrate your CAD casting shrinkage values accordingly.
                                 </p>
                               </div>
@@ -1511,7 +1511,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                         {/* Ring Type Selector (if category is rings) */}
                         {selectedCategory === 'rings' && groupMap['ring_type'] && (
                           <div className="space-y-3">
-                            <label className="block text-xs font-bold text-[#F5E7A3] uppercase tracking-wider">Ring Style Profile</label>
+                            <label className="block text-xs font-bold text-[#B88732] uppercase tracking-wider">Ring Style Profile</label>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                               {(groupMap['ring_type'].options || [])
                                 .filter(o => o.is_active)
@@ -1524,7 +1524,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                       onClick={() => setSelections(prev => ({ ...prev, ring_type: opt.id }))}
                                       className={`p-2.5 text-xs font-semibold rounded-xl border text-left transition-all ${isSel
                                         ? 'bg-[#1E4FA3] text-white border-[#5B8DEF]/60 font-bold shadow-md'
-                                        : 'bg-[#09112B] text-[#FAF8F3]/70 border-white/10 hover:border-[#D4AF37]/30'
+                                        : 'bg-white text-[#687386] border-[#E8D7B7] hover:border-[#E8D7B7]'
                                         }`}
                                     >
                                       {opt.label}
@@ -1542,14 +1542,14 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                       <div className="space-y-6">
                         <div>
                           <h2 className="text-xl font-serif gold-gradient-text font-bold mb-1">Step 3: Gemstones & Setting Architecture</h2>
-                          <p className="text-xs text-[#FAF8F3]/60">Configure multi-stone arrangements, stone shapes, and precise seat clearances.</p>
+                          <p className="text-xs text-[#687386]">Configure multi-stone arrangements, stone shapes, and precise seat clearances.</p>
                         </div>
 
                         {/* Metal-only Toggle */}
-                        <div className="bg-[#121F4D]/60 border border-[#D4AF37]/30 rounded-2xl p-4 flex items-center justify-between">
+                        <div className="bg-[#FFF9F0]/60 border border-[#E8D7B7] rounded-2xl p-4 flex items-center justify-between">
                           <div>
-                            <h4 className="font-bold text-[#FAF8F3] text-sm">Solid Metal Design (No Stones)</h4>
-                            <p className="text-xs text-[#FAF8F3]/60">Enable if your design is plain gold/silver band or engraving-only piece.</p>
+                            <h4 className="font-bold text-[#17243B] text-sm">Solid Metal Design (No Stones)</h4>
+                            <p className="text-xs text-[#687386]">Enable if your design is plain gold/silver band or engraving-only piece.</p>
                           </div>
                           <label className="relative inline-flex items-center cursor-pointer">
                             <input
@@ -1565,40 +1565,40 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                         {!isMetalOnly && (
                           <div className="space-y-4">
                             <div className="flex justify-between items-center">
-                              <h3 className="text-xs font-bold text-[#F5E7A3] uppercase tracking-wider flex items-center gap-1.5">
-                                <Gem className="w-4 h-4 text-[#D4AF37]" /> Stone Layout Breakdown ({stonesList.length})
+                              <h3 className="text-xs font-bold text-[#B88732] uppercase tracking-wider flex items-center gap-1.5">
+                                <Gem className="w-4 h-4 text-[#B88732]" /> Stone Layout Breakdown ({stonesList.length})
                               </h3>
                               <button
                                 type="button"
                                 onClick={addStoneRow}
-                                className="px-3 py-1.5 bg-[#D4AF37]/15 text-[#F5E7A3] hover:bg-[#D4AF37]/25 border border-[#D4AF37]/40 rounded-xl text-xs font-bold transition-all flex items-center gap-1"
+                                className="px-3 py-1.5 bg-[#D4AF37]/15 text-[#B88732] hover:bg-[#D4AF37]/25 border border-[#E8D7B7] rounded-xl text-xs font-bold transition-all flex items-center gap-1"
                               >
                                 <Plus className="w-3.5 h-3.5" /> Add Another Stone Row
                               </button>
                             </div>
 
                             {stonesList.length === 0 ? (
-                              <div className="p-8 rounded-2xl bg-[#121F4D]/30 border border-dashed border-[#D4AF37]/35 text-center space-y-3">
-                                <Gem className="w-8 h-8 text-[#D4AF37]/60 mx-auto" />
+                              <div className="p-8 rounded-2xl bg-[#FFF9F0]/30 border border-dashed border-[#E8D7B7] text-center space-y-3">
+                                <Gem className="w-8 h-8 text-[#B88732]/60 mx-auto" />
                                 <div className="space-y-1">
-                                  <p className="text-sm font-semibold text-[#FAF8F3]">No Gemstone Rows Added</p>
-                                  <p className="text-xs text-[#FAF8F3]/60 max-w-sm mx-auto">
+                                  <p className="text-sm font-semibold text-[#17243B]">No Gemstone Rows Added</p>
+                                  <p className="text-xs text-[#687386] max-w-sm mx-auto">
                                     If your design features diamonds or gemstones, click below to specify shapes, sizes, and setting styles. Or leave empty for a metal-focused piece.
                                   </p>
                                 </div>
                                 <button
                                   type="button"
                                   onClick={addStoneRow}
-                                  className="px-4 py-2 bg-[#D4AF37]/20 hover:bg-[#D4AF37]/30 text-[#F5E7A3] border border-[#D4AF37]/50 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1.5"
+                                  className="px-4 py-2 bg-[#D4AF37]/20 hover:bg-[#D4AF37]/30 text-[#B88732] border border-[#D9B66F]/50 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1.5"
                                 >
                                   <Plus className="w-4 h-4" /> Add Diamond / Gemstone Specification
                                 </button>
                               </div>
                             ) : (
                               stonesList.map((stone, idx) => (
-                                <div key={idx} className="p-4 bg-[#121F4D]/40 border border-white/10 rounded-2xl relative space-y-3">
-                                  <div className="flex justify-between items-center pb-2 border-b border-white/10">
-                                    <span className="text-xs font-bold text-[#F5E7A3] uppercase">
+                                <div key={idx} className="p-4 bg-[#FFF9F0]/40 border border-[#E8D7B7] rounded-2xl relative space-y-3">
+                                  <div className="flex justify-between items-center pb-2 border-b border-[#E8D7B7]">
+                                    <span className="text-xs font-bold text-[#B88732] uppercase">
                                       Stone #{idx + 1} {stone.is_center_stone ? '(Main Centerpiece)' : '(Accent Stone)'}
                                     </span>
                                     <button
@@ -1612,11 +1612,11 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 
                                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                     <div>
-                                      <label className="block text-[11px] font-semibold text-[#FAF8F3]/70 mb-1">Stone Type</label>
+                                      <label className="block text-[11px] font-semibold text-[#687386] mb-1">Stone Type</label>
                                       <select
                                         value={stone.stone_type}
                                         onChange={e => updateStoneRow(idx, 'stone_type', e.target.value)}
-                                        className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2 px-2.5"
+                                        className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-2.5"
                                       >
                                         <option value="Natural Diamond">Natural Diamond</option>
                                         <option value="Lab Diamond">Lab-Grown Diamond</option>
@@ -1630,11 +1630,11 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                     </div>
 
                                     <div>
-                                      <label className="block text-[11px] font-semibold text-[#FAF8F3]/70 mb-1">Stone Shape</label>
+                                      <label className="block text-[11px] font-semibold text-[#687386] mb-1">Stone Shape</label>
                                       <select
                                         value={stone.shape}
                                         onChange={e => updateStoneRow(idx, 'shape', e.target.value)}
-                                        className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2 px-2.5"
+                                        className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-2.5"
                                       >
                                         {(groupMap['stone_shape']?.options || [])
                                           .filter(o => o.is_active)
@@ -1655,11 +1655,11 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                     </div>
 
                                     <div>
-                                      <label className="block text-[11px] font-semibold text-[#FAF8F3]/70 mb-1">Setting Style</label>
+                                      <label className="block text-[11px] font-semibold text-[#687386] mb-1">Setting Style</label>
                                       <select
                                         value={stone.setting_style}
                                         onChange={e => updateStoneRow(idx, 'setting_style', e.target.value)}
-                                        className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2 px-2.5"
+                                        className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-2.5"
                                       >
                                         {(groupMap['stone_setting']?.options || [])
                                           .filter(o => o.is_active)
@@ -1679,19 +1679,19 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                     </div>
 
                                     <div>
-                                      <label className="block text-[11px] font-semibold text-[#FAF8F3]/70 mb-1">Size Value & Unit</label>
+                                      <label className="block text-[11px] font-semibold text-[#687386] mb-1">Size Value & Unit</label>
                                       <div className="flex gap-1">
                                         <input
                                           type="text"
                                           value={stone.size_value}
                                           onChange={e => updateStoneRow(idx, 'size_value', e.target.value)}
                                           placeholder="1.0"
-                                          className="w-1/2 text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2 px-2"
+                                          className="w-1/2 text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-2"
                                         />
                                         <select
                                           value={stone.size_unit}
                                           onChange={e => updateStoneRow(idx, 'size_unit', e.target.value)}
-                                          className="w-1/2 text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2 px-1"
+                                          className="w-1/2 text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-1"
                                         >
                                           <option value="carat">carat (ct)</option>
                                           <option value="mm">mm size</option>
@@ -1700,11 +1700,11 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                     </div>
 
                                     <div>
-                                      <label className="block text-[11px] font-semibold text-[#FAF8F3]/70 mb-1">Stone Clarity Grade</label>
+                                      <label className="block text-[11px] font-semibold text-[#687386] mb-1">Stone Clarity Grade</label>
                                       <select
                                         value={stone.clarity}
                                         onChange={e => updateStoneRow(idx, 'clarity', e.target.value)}
-                                        className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2 px-2.5"
+                                        className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-2.5"
                                       >
                                         <option value="VVS1">VVS1 (Very Very Slight)</option>
                                         <option value="VVS2">VVS2</option>
@@ -1716,13 +1716,13 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                     </div>
 
                                     <div>
-                                      <label className="block text-[11px] font-semibold text-[#FAF8F3]/70 mb-1">Stone Count (Qty)</label>
+                                      <label className="block text-[11px] font-semibold text-[#687386] mb-1">Stone Count (Qty)</label>
                                       <input
                                         type="number"
                                         min={1}
                                         value={stone.quantity}
                                         onChange={e => updateStoneRow(idx, 'quantity', parseInt(e.target.value) || 1)}
-                                        className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2 px-2.5"
+                                        className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-2.5"
                                       />
                                     </div>
                                   </div>
@@ -1733,9 +1733,9 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                       id={`center_stone_${idx}`}
                                       checked={stone.is_center_stone || false}
                                       onChange={e => updateStoneRow(idx, 'is_center_stone', e.target.checked)}
-                                      className="rounded border-white/20 text-[#D4AF37] focus:ring-[#D4AF37]"
+                                      className="rounded border-[#E8D7B7] text-[#B88732] focus:ring-[#D4AF37]"
                                     />
-                                    <label htmlFor={`center_stone_${idx}`} className="text-xs font-medium text-[#FAF8F3]/80 cursor-pointer">
+                                    <label htmlFor={`center_stone_${idx}`} className="text-xs font-medium text-[#687386] cursor-pointer">
                                       Mark as Main Centerpiece Stone
                                     </label>
                                   </div>
@@ -1752,27 +1752,27 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                       <div className="space-y-6">
                         <div>
                           <h2 className="text-xl font-serif gold-gradient-text font-bold mb-1">Step 4: Branding & Reference Attachments</h2>
-                          <p className="text-xs text-[#FAF8F3]/60">Select catalog designs or upload custom reference sketches & hallmark vector logos.</p>
+                          <p className="text-xs text-[#687386]">Select catalog designs or upload custom reference sketches & hallmark vector logos.</p>
                         </div>
 
                         {/* 1. Reference Designs / Upload Custom Sketch */}
-                        <div className="bg-[#121F4D]/50 border border-[#D4AF37]/30 rounded-2xl p-5 space-y-4">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
+                        <div className="bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-5 space-y-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E8D7B7] pb-3">
                             <div>
                               <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
-                                <Grid className="w-4 h-4 text-[#D4AF37]" /> 1. Reference Designs / Upload Custom Sketch
+                                <Grid className="w-4 h-4 text-[#B88732]" /> 1. Reference Designs / Upload Custom Sketch
                               </h3>
-                              <p className="text-xs text-[#FAF8F3]/60">Choose from existing studio CAD catalog products or upload custom hand sketches.</p>
+                              <p className="text-xs text-[#687386]">Choose from existing studio CAD catalog products or upload custom hand sketches.</p>
                             </div>
 
                             {/* Dual Option Mode Tabs */}
-                            <div className="grid grid-cols-1 xs:grid-cols-2 sm:flex bg-[#09112B] p-1 rounded-xl border border-[#D4AF37]/30 w-full sm:w-auto">
+                            <div className="grid grid-cols-1 xs:grid-cols-2 sm:flex bg-white p-1 rounded-xl border border-[#E8D7B7] w-full sm:w-auto">
                               <button
                                 type="button"
                                 onClick={() => setActiveReferenceTab('catalog')}
                                 className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeReferenceTab === 'catalog'
                                   ? 'bg-gradient-to-r from-[#F5E7A3] via-[#D4AF37] to-[#B8860B] text-[#0B1330] shadow-md'
-                                  : 'text-[#FAF8F3]/70 hover:text-white'
+                                  : 'text-[#687386] hover:text-white'
                                   }`}
                               >
                                 <Grid className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Option 1: Existing Catalog</span>
@@ -1782,7 +1782,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                 onClick={() => setActiveReferenceTab('upload')}
                                 className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeReferenceTab === 'upload'
                                   ? 'bg-gradient-to-r from-[#F5E7A3] via-[#D4AF37] to-[#B8860B] text-[#0B1330] shadow-md'
-                                  : 'text-[#FAF8F3]/70 hover:text-white'
+                                  : 'text-[#687386] hover:text-white'
                                   }`}
                               >
                                 <Upload className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Option 2: Upload Sketch</span>
@@ -1792,13 +1792,13 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 
                           {/* Selected Catalog References summary bar */}
                           {selectedCatalogProducts.length > 0 && (
-                            <div className="p-3 bg-[#09112B]/90 border border-[#D4AF37]/40 rounded-xl space-y-2">
-                              <span className="text-[11px] font-bold text-[#F5E7A3] uppercase tracking-wider flex items-center gap-1">
-                                <CheckSquare className="w-3.5 h-3.5 text-[#D4AF37]" /> Selected Studio Catalog References ({selectedCatalogProducts.length})
+                            <div className="p-3 bg-white/90 border border-[#E8D7B7] rounded-xl space-y-2">
+                              <span className="text-[11px] font-bold text-[#B88732] uppercase tracking-wider flex items-center gap-1">
+                                <CheckSquare className="w-3.5 h-3.5 text-[#B88732]" /> Selected Studio Catalog References ({selectedCatalogProducts.length})
                               </span>
                               <div className="flex flex-wrap gap-2">
                                 {selectedCatalogProducts.map(p => (
-                                  <div key={p.id} className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[#121F4D] border border-[#D4AF37]/30 text-xs text-[#FAF8F3]">
+                                  <div key={p.id} className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[#FFF9F0] border border-[#E8D7B7] text-xs text-[#17243B]">
                                     <img src={p.image} alt={p.title} className="w-5 h-5 rounded object-cover" />
                                     <span className="truncate max-w-[150px] font-semibold">{p.title}</span>
                                     <button
@@ -1820,19 +1820,19 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                               {/* Search & Category Filter Controls */}
                               <div className="flex flex-col sm:flex-row gap-2">
                                 <div className="relative flex-1">
-                                  <Search className="w-4 h-4 text-[#D4AF37] absolute left-3 top-2.5" />
+                                  <Search className="w-4 h-4 text-[#B88732] absolute left-3 top-2.5" />
                                   <input
                                     type="text"
                                     value={catalogSearchQuery}
                                     onChange={e => setCatalogSearchQuery(e.target.value)}
                                     placeholder="Search studio catalog products by title or SKU..."
-                                    className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2 pl-9 pr-3"
+                                    className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 pl-9 pr-3"
                                   />
                                 </div>
                                 <select
                                   value={catalogCategoryFilter}
                                   onChange={e => setCatalogCategoryFilter(e.target.value)}
-                                  className="text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2 px-3 sm:w-44"
+                                  className="text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-3 sm:w-44"
                                 >
                                   <option value="all">All Categories</option>
                                   <option value="ring">Rings</option>
@@ -1851,8 +1851,8 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                       key={item.id}
                                       onClick={() => toggleCatalogProductRef(item)}
                                       className={`p-2.5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between relative group ${isSel
-                                        ? 'border-[#D4AF37] bg-[#121F4D] shadow-[0_0_12px_rgba(212,175,55,0.4)] ring-1 ring-[#D4AF37]'
-                                        : 'border-white/10 hover:border-[#D4AF37]/40 bg-[#09112B]/70'
+                                        ? 'border-[#D9B66F] bg-[#FFF9F0] shadow-[0_0_12px_rgba(212,175,55,0.4)] ring-1 ring-[#D4AF37]'
+                                        : 'border-[#E8D7B7] hover:border-[#E8D7B7] bg-white/70'
                                         }`}
                                     >
                                       <div className="aspect-square w-full rounded-lg overflow-hidden bg-slate-900 mb-2 relative">
@@ -1864,14 +1864,14 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                         )}
                                       </div>
                                       <div>
-                                        <p className="font-bold text-[#FAF8F3] text-xs line-clamp-1">{item.title}</p>
-                                        <span className="text-[10px] text-[#D4AF37] block">Ref SKU #{item.id}</span>
+                                        <p className="font-bold text-[#17243B] text-xs line-clamp-1">{item.title}</p>
+                                        <span className="text-[10px] text-[#B88732] block">Ref SKU #{item.id}</span>
                                       </div>
                                     </div>
                                   );
                                 })}
                                 {filteredCatalogItems.length === 0 && (
-                                  <div className="col-span-full py-8 text-center text-xs text-[#FAF8F3]/50">
+                                  <div className="col-span-full py-8 text-center text-xs text-[#687386]">
                                     No matching studio catalog products found. Try changing your search query or upload a custom sketch file.
                                   </div>
                                 )}
@@ -1882,7 +1882,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                           {/* TAB 2: UPLOAD CUSTOM SKETCHES & FILES */}
                           {activeReferenceTab === 'upload' && (
                             <div className="space-y-3">
-                              <div className="border-2 border-dashed border-[#D4AF37]/40 rounded-2xl p-6 text-center hover:border-[#D4AF37] bg-[#09112B]/60 transition-all cursor-pointer relative">
+                              <div className="border-2 border-dashed border-[#E8D7B7] rounded-2xl p-6 text-center hover:border-[#D9B66F] bg-white/60 transition-all cursor-pointer relative">
                                 <input
                                   type="file"
                                   multiple
@@ -1890,15 +1890,15 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                   onChange={handleSketchUpload}
                                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                 />
-                                <Upload className="w-8 h-8 text-[#D4AF37] mx-auto mb-2" />
-                                <p className="text-xs font-bold text-[#FAF8F3]">Click or drag custom reference sketches here</p>
-                                <p className="text-[11px] text-[#FAF8F3]/50">PNG, JPG, PDF up to 10MB each</p>
+                                <Upload className="w-8 h-8 text-[#B88732] mx-auto mb-2" />
+                                <p className="text-xs font-bold text-[#17243B]">Click or drag custom reference sketches here</p>
+                                <p className="text-[11px] text-[#687386]">PNG, JPG, PDF up to 10MB each</p>
                               </div>
 
                               {sketchPreviews.length > 0 && (
                                 <div className="grid grid-cols-4 sm:grid-cols-6 gap-3 pt-2">
                                   {sketchPreviews.map((url, i) => (
-                                    <div key={i} className="relative group rounded-xl overflow-hidden border border-white/20 aspect-square bg-slate-900">
+                                    <div key={i} className="relative group rounded-xl overflow-hidden border border-[#E8D7B7] aspect-square bg-slate-900">
                                       <img src={url} alt={`Sketch ${i}`} className="w-full h-full object-cover" />
                                       <button
                                         type="button"
@@ -1916,12 +1916,12 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                         </div>
 
                         {/* 2. Special Design Notes & Voice Instructions */}
-                        <div className="space-y-4 bg-[#121F4D]/40 border border-[#D4AF37]/30 rounded-2xl p-5">
+                        <div className="space-y-4 bg-[#FFF9F0]/40 border border-[#E8D7B7] rounded-2xl p-5">
                           <div className="flex justify-between items-center">
-                            <label className="block text-xs font-bold text-[#F5E7A3] uppercase tracking-wider flex items-center gap-1.5">
-                              <Mic className="w-4 h-4 text-[#D4AF37]" /> 2. Special Design Notes &amp; Voice Instructions
+                            <label className="block text-xs font-bold text-[#B88732] uppercase tracking-wider flex items-center gap-1.5">
+                              <Mic className="w-4 h-4 text-[#B88732]" /> 2. Special Design Notes &amp; Voice Instructions
                             </label>
-                            <span className="text-[10px] text-[#D4AF37] font-mono">Text, Speech AI &amp; Audio</span>
+                            <span className="text-[10px] text-[#B88732] font-mono">Text, Speech AI &amp; Audio</span>
                           </div>
 
                           <textarea
@@ -1929,16 +1929,16 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                             value={specialInstructions}
                             onChange={e => setSpecialInstructions(e.target.value)}
                             placeholder="Add specific instructions regarding prong thickness, metal relief, hollow interior, or stone clearance..."
-                            className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3 focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]"
+                            className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2.5 px-3 focus:border-[#D9B66F] focus:ring-1 focus:ring-[#D4AF37]"
                           />
 
                           {/* Voice Note & Speech-To-Text Controls */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                             {/* Option A: Real-Time Microphone Record & Speech Recognition */}
-                            <div className="p-3.5 rounded-xl bg-[#09112B] border border-[#D4AF37]/25 space-y-2">
+                            <div className="p-3.5 rounded-xl bg-white border border-[#E8D7B7] space-y-2">
                               <div className="flex justify-between items-center">
-                                <span className="text-xs font-bold text-[#FAF8F3] flex items-center gap-1.5">
-                                  <Mic className={`w-3.5 h-3.5 ${isRecordingVoice ? 'text-rose-500 animate-pulse' : 'text-[#D4AF37]'}`} />
+                                <span className="text-xs font-bold text-[#17243B] flex items-center gap-1.5">
+                                  <Mic className={`w-3.5 h-3.5 ${isRecordingVoice ? 'text-rose-500 animate-pulse' : 'text-[#B88732]'}`} />
                                   Record Voice Instructions
                                 </span>
                                 {isRecordingVoice && (
@@ -1948,7 +1948,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                   </span>
                                 )}
                               </div>
-                              <p className="text-[10px] text-[#FAF8F3]/60 leading-tight">
+                              <p className="text-[10px] text-[#687386] leading-tight">
                                 Click start to speak your CAD instructions. Spoken words will be transcribed &amp; audio file attached automatically.
                               </p>
                               <div className="pt-1 flex gap-2">
@@ -1956,9 +1956,9 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                   <button
                                     type="button"
                                     onClick={handleStartVoiceRecording}
-                                    className="w-full py-2.5 rounded-lg bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#F5E7A3] hover:bg-[#D4AF37]/30 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                                    className="w-full py-2.5 rounded-lg bg-[#D4AF37]/20 border border-[#E8D7B7] text-[#B88732] hover:bg-[#D4AF37]/30 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                                   >
-                                    <Mic className="w-3.5 h-3.5 text-[#D4AF37]" /> Start Recording
+                                    <Mic className="w-3.5 h-3.5 text-[#B88732]" /> Start Recording
                                   </button>
                                 ) : (
                                   <button
@@ -1974,16 +1974,16 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                             </div>
 
                             {/* Option B: Upload Voice Note Audio File */}
-                            <div className="p-3.5 rounded-xl bg-[#09112B] border border-[#D4AF37]/25 space-y-2 relative">
+                            <div className="p-3.5 rounded-xl bg-white border border-[#E8D7B7] space-y-2 relative">
                               <div className="flex justify-between items-center">
-                                <span className="text-xs font-bold text-[#FAF8F3] flex items-center gap-1.5">
-                                  <Upload className="w-3.5 h-3.5 text-[#D4AF37]" /> Upload Voice Note
+                                <span className="text-xs font-bold text-[#17243B] flex items-center gap-1.5">
+                                  <Upload className="w-3.5 h-3.5 text-[#B88732]" /> Upload Voice Note
                                 </span>
                                 {voiceAudioFile && (
                                   <span className="text-[10px] text-emerald-400 font-mono font-bold">✓ Attached</span>
                                 )}
                               </div>
-                              <p className="text-[10px] text-[#FAF8F3]/60 leading-tight">
+                              <p className="text-[10px] text-[#687386] leading-tight">
                                 Attach a pre-recorded audio file (.MP3, .WAV, .M4A, .OGG up to 25MB).
                               </p>
                               <div className="pt-1 relative">
@@ -1993,8 +1993,8 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                   onChange={handleVoiceFileUpload}
                                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                                 />
-                                <div className="w-full py-2 rounded-lg bg-[#121F4D] border border-white/10 text-xs font-semibold text-[#FAF8F3] flex items-center justify-center gap-1.5 text-center">
-                                  <Volume2 className="w-3.5 h-3.5 text-[#D4AF37]" />
+                                <div className="w-full py-2 rounded-lg bg-[#FFF9F0] border border-[#E8D7B7] text-xs font-semibold text-[#17243B] flex items-center justify-center gap-1.5 text-center">
+                                  <Volume2 className="w-3.5 h-3.5 text-[#B88732]" />
                                   <span className="truncate max-w-[150px]">
                                     {voiceAudioFile ? voiceAudioFile.name : 'Select Audio File'}
                                   </span>
@@ -2004,7 +2004,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                           </div>
 
                           {voiceAudioPreviewUrl && (
-                            <div className="p-2.5 rounded-xl bg-[#09112B] border border-emerald-500/30 flex items-center justify-between">
+                            <div className="p-2.5 rounded-xl bg-white border border-emerald-500/30 flex items-center justify-between">
                               <div className="flex items-center gap-2 text-xs text-emerald-300 font-medium">
                                 <Volume2 className="w-4 h-4 text-emerald-400" />
                                 <span>Voice Note Attached</span>
@@ -2015,27 +2015,27 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                         </div>
 
                         {/* 3. Custom Engraving Personalization */}
-                        <div className="bg-[#121F4D]/50 border border-[#D4AF37]/30 rounded-2xl p-5 space-y-4">
+                        <div className="bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-5 space-y-4">
                           <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-[#D4AF37]" /> 3. Custom Engraving Personalization
+                            <FileText className="w-4 h-4 text-[#B88732]" /> 3. Custom Engraving Personalization
                           </h3>
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div>
-                              <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">Engraving Text</label>
+                              <label className="block text-xs font-semibold text-[#687386] mb-1.5">Engraving Text</label>
                               <input
                                 type="text"
                                 value={engravingText}
                                 onChange={e => setEngravingText(e.target.value)}
                                 placeholder="e.g. Forever & Always"
-                                className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2 px-3"
+                                className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-3"
                               />
                             </div>
                             <div>
-                              <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">Font Style</label>
+                              <label className="block text-xs font-semibold text-[#687386] mb-1.5">Font Style</label>
                               <select
                                 value={engravingFont}
                                 onChange={e => setEngravingFont(e.target.value)}
-                                className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3"
+                                className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2.5 px-3"
                               >
                                 <option value="Script">Calligraphy Script</option>
                                 <option value="Block">Modern Block Sans</option>
@@ -2044,11 +2044,11 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                               </select>
                             </div>
                             <div>
-                              <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">Placement</label>
+                              <label className="block text-xs font-semibold text-[#687386] mb-1.5">Placement</label>
                               <select
                                 value={engravingPlacement}
                                 onChange={e => setEngravingPlacement(e.target.value)}
-                                className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3"
+                                className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2.5 px-3"
                               >
                                 <option value="Inside Shank">Inside Shank / Band</option>
                                 <option value="Outside Shank">Outside Shank</option>
@@ -2060,13 +2060,13 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                         </div>
 
                         {/* 4. Studio Hallmark & Vector Logo */}
-                        <div className="bg-[#121F4D]/50 border border-[#D4AF37]/30 rounded-2xl p-5 space-y-3">
+                        <div className="bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-5 space-y-3">
                           <div className="flex justify-between items-center">
                             <div>
                               <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
-                                <ShieldCheck className="w-4 h-4 text-[#D4AF37]" /> 4. Studio Hallmark &amp; Vector Logo
+                                <ShieldCheck className="w-4 h-4 text-[#B88732]" /> 4. Studio Hallmark &amp; Vector Logo
                               </h3>
-                              <p className="text-xs text-[#FAF8F3]/60">Stamp your studio hallmark directly onto 3D model geometry.</p>
+                              <p className="text-xs text-[#687386]">Stamp your studio hallmark directly onto 3D model geometry.</p>
                             </div>
                             <label className="relative inline-flex items-center cursor-pointer">
                               <input
@@ -2081,14 +2081,14 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 
                           {hasLogo && (
                             <div className="pt-2">
-                              <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5">
+                              <label className="block text-xs font-semibold text-[#687386] mb-1.5">
                                 Upload Vector Logo (.svg, .ai, .eps, .pdf, .png, .jpg)
                               </label>
                               <input
                                 type="file"
                                 accept=".svg,.ai,.eps,.pdf,.png,.jpg,.jpeg"
                                 onChange={handleLogoUpload}
-                                className="block w-full text-xs text-[#FAF8F3]/70 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#D4AF37] file:text-[#0B1330] hover:file:bg-[#F5E7A3]"
+                                className="block w-full text-xs text-[#687386] file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#D4AF37] file:text-[#0B1330] hover:file:bg-[#F5E7A3]"
                               />
                               {logoError && (
                                 <p className="text-xs text-rose-400 font-semibold mt-1.5 flex items-center gap-1">
@@ -2105,40 +2105,40 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                         </div>
 
                         {/* 5. Reference Design Preview */}
-                        <div className="bg-[#121F4D]/50 border border-[#D4AF37]/30 rounded-2xl p-5 space-y-4">
+                        <div className="bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-5 space-y-4">
                           <div className="flex items-center justify-between">
                             <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
-                              <ImageIcon className="w-4 h-4 text-[#D4AF37]" /> 5. Reference Design Preview
+                              <ImageIcon className="w-4 h-4 text-[#B88732]" /> 5. Reference Design Preview
                             </h3>
-                            <span className="text-[10px] text-[#D4AF37] font-mono">
+                            <span className="text-[10px] text-[#B88732] font-mono">
                               {selectedCatalogProducts.length + sketchPreviews.length + (voiceAudioFile ? 1 : 0)} Attachment(s)
                             </span>
                           </div>
 
                           {selectedCatalogProducts.length === 0 && sketchPreviews.length === 0 && !voiceAudioFile ? (
-                            <div className="p-6 rounded-xl bg-[#09112B]/70 border border-dashed border-white/15 text-center space-y-1.5">
-                              <ImageIcon className="w-7 h-7 text-[#D4AF37]/40 mx-auto" />
-                              <p className="text-xs font-medium text-[#FAF8F3]/70">No reference sketches or catalog designs selected yet</p>
-                              <p className="text-[11px] text-[#FAF8F3]/40">Choose from existing studio designs or upload custom sketches above to preview them here.</p>
+                            <div className="p-6 rounded-xl bg-white/70 border border-dashed border-white/15 text-center space-y-1.5">
+                              <ImageIcon className="w-7 h-7 text-[#B88732]/40 mx-auto" />
+                              <p className="text-xs font-medium text-[#687386]">No reference sketches or catalog designs selected yet</p>
+                              <p className="text-[11px] text-[#687386]">Choose from existing studio designs or upload custom sketches above to preview them here.</p>
                             </div>
                           ) : (
                             <div className="space-y-4">
                               {/* Catalog Product Previews */}
                               {selectedCatalogProducts.length > 0 && (
                                 <div>
-                                  <p className="text-[11px] font-bold text-[#F5E7A3] mb-2 uppercase tracking-wide">
+                                  <p className="text-[11px] font-bold text-[#B88732] mb-2 uppercase tracking-wide">
                                     Studio Catalog Reference Designs ({selectedCatalogProducts.length})
                                   </p>
                                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                                     {selectedCatalogProducts.map(p => (
-                                      <div key={p.id} className="relative rounded-xl overflow-hidden border border-[#D4AF37]/40 bg-[#09112B] group shadow-md flex flex-col justify-between">
+                                      <div key={p.id} className="relative rounded-xl overflow-hidden border border-[#E8D7B7] bg-white group shadow-md flex flex-col justify-between">
                                         <div className="aspect-square w-full overflow-hidden bg-slate-900">
                                           <img src={p.image} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                                         </div>
                                         <div className="p-2 flex items-center justify-between gap-1">
                                           <div className="truncate">
                                             <p className="text-[11px] font-bold text-white truncate">{p.title}</p>
-                                            <span className="text-[9px] text-[#D4AF37]">SKU #{p.id}</span>
+                                            <span className="text-[9px] text-[#B88732]">SKU #{p.id}</span>
                                           </div>
                                           <button
                                             type="button"
@@ -2158,12 +2158,12 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                               {/* Uploaded Sketches Previews */}
                               {sketchPreviews.length > 0 && (
                                 <div>
-                                  <p className="text-[11px] font-bold text-[#F5E7A3] mb-2 uppercase tracking-wide">
+                                  <p className="text-[11px] font-bold text-[#B88732] mb-2 uppercase tracking-wide">
                                     Custom Hand Sketches &amp; Reference Files ({sketchPreviews.length})
                                   </p>
                                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
                                     {sketchPreviews.map((url, i) => (
-                                      <div key={i} className="relative group rounded-xl overflow-hidden border border-white/20 aspect-square bg-slate-900 shadow-md">
+                                      <div key={i} className="relative group rounded-xl overflow-hidden border border-[#E8D7B7] aspect-square bg-slate-900 shadow-md">
                                         <img src={url} alt={`Sketch ${i + 1}`} className="w-full h-full object-cover" />
                                         <button
                                           type="button"
@@ -2181,7 +2181,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 
                               {/* Attached Voice Note Audio Preview */}
                               {voiceAudioPreviewUrl && (
-                                <div className="p-3 rounded-xl bg-[#09112B] border border-emerald-500/30 flex items-center justify-between flex-wrap gap-2">
+                                <div className="p-3 rounded-xl bg-white border border-emerald-500/30 flex items-center justify-between flex-wrap gap-2">
                                   <div className="flex items-center gap-2 text-xs text-emerald-300 font-medium">
                                     <Volume2 className="w-4 h-4 text-emerald-400" />
                                     <span>Attached Voice Note ({voiceAudioFile?.name || 'Voice Instruction'})</span>
@@ -2194,21 +2194,21 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                         </div>
 
                         {/* 6. Configured Parameters / Final Summary */}
-                        <div className="bg-[#121F4D]/50 border border-[#D4AF37]/30 rounded-2xl p-5 space-y-4">
+                        <div className="bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-5 space-y-4">
                           <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
-                            <Award className="w-4 h-4 text-[#D4AF37]" /> 6. Configured Parameters / Final Summary
+                            <Award className="w-4 h-4 text-[#B88732]" /> 6. Configured Parameters / Final Summary
                           </h3>
 
                           {/* Complexity Tier & Timeline */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                              <label className="block text-xs font-semibold text-[#FAF8F3]/80 mb-1.5 flex items-center gap-1">
-                                <Award className="w-3.5 h-3.5 text-[#D4AF37]" /> Production Complexity Tier
+                              <label className="block text-xs font-semibold text-[#687386] mb-1.5 flex items-center gap-1">
+                                <Award className="w-3.5 h-3.5 text-[#B88732]" /> Production Complexity Tier
                               </label>
                               <select
                                 value={projectTier}
                                 onChange={e => setProjectTier(e.target.value)}
-                                className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2.5 px-3"
+                                className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2.5 px-3"
                               >
                                 <option value="">-- Choose Project Tier (Optional) --</option>
                                 <option value="Standard Commercial CAD">Standard Commercial CAD</option>
@@ -2222,9 +2222,9 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                               <div className="flex items-center justify-between">
                                 <label 
                                   onClick={openCalendarPicker}
-                                  className="text-xs font-semibold text-[#FAF8F3]/80 flex items-center gap-1.5 cursor-pointer hover:text-[#D4AF37] transition-colors select-none"
+                                  className="text-xs font-semibold text-[#687386] flex items-center gap-1.5 cursor-pointer hover:text-[#B88732] transition-colors select-none"
                                 >
-                                  <Calendar className="w-3.5 h-3.5 text-[#D4AF37]" /> Target Completion Date (Optional)
+                                  <Calendar className="w-3.5 h-3.5 text-[#B88732]" /> Target Completion Date (Optional)
                                 </label>
                                 {neededByDate && (
                                   <button
@@ -2240,10 +2240,10 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                               {/* Interactive Calendar Input Box - Click anywhere to open picker */}
                               <div
                                 onClick={openCalendarPicker}
-                                className="relative flex items-center w-full rounded-xl border border-[#D4AF37]/40 hover:border-[#D4AF37] focus-within:border-[#D4AF37] focus-within:ring-2 focus-within:ring-[#D4AF37]/30 bg-[#09112B] transition-all cursor-pointer group shadow-sm hover:shadow-[0_0_15px_rgba(212,175,55,0.15)] px-3 py-2"
+                                className="relative flex items-center w-full rounded-xl border border-[#E8D7B7] hover:border-[#D9B66F] focus-within:border-[#D9B66F] focus-within:ring-2 focus-within:ring-[#D4AF37]/30 bg-white transition-all cursor-pointer group shadow-sm hover:shadow-[0_0_15px_rgba(212,175,55,0.15)] px-3 py-2"
                               >
-                                <div className="flex items-center gap-2 pointer-events-none text-[#D4AF37] mr-2 shrink-0">
-                                  <Calendar className="w-4 h-4 text-[#D4AF37] group-hover:scale-110 transition-transform" />
+                                <div className="flex items-center gap-2 pointer-events-none text-[#B88732] mr-2 shrink-0">
+                                  <Calendar className="w-4 h-4 text-[#B88732] group-hover:scale-110 transition-transform" />
                                 </div>
                                 <input
                                   ref={dateInputRef}
@@ -2261,7 +2261,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                       openCalendarPicker();
                                     }
                                   }}
-                                  className="w-full text-xs bg-transparent text-[#FAF8F3] font-mono focus:outline-none cursor-pointer [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-80 hover:[&::-webkit-calendar-picker-indicator]:opacity-100"
+                                  className="w-full text-xs bg-transparent text-[#17243B] font-mono focus:outline-none cursor-pointer [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-80 hover:[&::-webkit-calendar-picker-indicator]:opacity-100"
                                 />
                                 {neededByDate && (
                                   <button
@@ -2270,7 +2270,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                       e.stopPropagation();
                                       setNeededByDate('');
                                     }}
-                                    className="ml-2 p-1 rounded-lg text-[#FAF8F3]/40 hover:text-rose-400 hover:bg-rose-500/10 transition-colors shrink-0 cursor-pointer"
+                                    className="ml-2 p-1 rounded-lg text-[#687386] hover:text-rose-400 hover:bg-rose-500/10 transition-colors shrink-0 cursor-pointer"
                                     title="Clear Date"
                                   >
                                     <X className="w-3.5 h-3.5" />
@@ -2280,14 +2280,14 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 
                               {/* Quick Presets for Target Deadline: +3d, +5d, +7d */}
                               <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
-                                <span className="text-[10px] font-mono text-[#FAF8F3]/50">Quick Pick:</span>
+                                <span className="text-[10px] font-mono text-[#687386]">Quick Pick:</span>
                                 <button
                                   type="button"
                                   onClick={() => setNeededByDate(quick3d)}
                                   className={`text-[10px] font-mono px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
                                     neededByDate === quick3d
-                                      ? 'bg-[#D4AF37]/25 border-[#D4AF37] text-[#F5E7A3] font-bold shadow-[0_0_8px_rgba(212,175,55,0.25)]'
-                                      : 'bg-white/5 hover:bg-[#D4AF37]/20 border-white/10 hover:border-[#D4AF37]/40 text-[#FAF8F3]/80'
+                                      ? 'bg-[#D4AF37]/25 border-[#D9B66F] text-[#B88732] font-bold shadow-[0_0_8px_rgba(212,175,55,0.25)]'
+                                      : 'bg-white/5 hover:bg-[#D4AF37]/20 border-[#E8D7B7] hover:border-[#E8D7B7] text-[#687386]'
                                   }`}
                                 >
                                   +3d (Rush)
@@ -2297,8 +2297,8 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                   onClick={() => setNeededByDate(quick5d)}
                                   className={`text-[10px] font-mono px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
                                     neededByDate === quick5d
-                                      ? 'bg-[#D4AF37]/25 border-[#D4AF37] text-[#F5E7A3] font-bold shadow-[0_0_8px_rgba(212,175,55,0.25)]'
-                                      : 'bg-white/5 hover:bg-[#D4AF37]/20 border-white/10 hover:border-[#D4AF37]/40 text-[#FAF8F3]/80'
+                                      ? 'bg-[#D4AF37]/25 border-[#D9B66F] text-[#B88732] font-bold shadow-[0_0_8px_rgba(212,175,55,0.25)]'
+                                      : 'bg-white/5 hover:bg-[#D4AF37]/20 border-[#E8D7B7] hover:border-[#E8D7B7] text-[#687386]'
                                   }`}
                                 >
                                   +5d (Standard)
@@ -2308,8 +2308,8 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                   onClick={() => setNeededByDate(quick7d)}
                                   className={`text-[10px] font-mono px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
                                     neededByDate === quick7d
-                                      ? 'bg-[#D4AF37]/25 border-[#D4AF37] text-[#F5E7A3] font-bold shadow-[0_0_8px_rgba(212,175,55,0.25)]'
-                                      : 'bg-white/5 hover:bg-[#D4AF37]/20 border-white/10 hover:border-[#D4AF37]/40 text-[#FAF8F3]/80'
+                                      ? 'bg-[#D4AF37]/25 border-[#D9B66F] text-[#B88732] font-bold shadow-[0_0_8px_rgba(212,175,55,0.25)]'
+                                      : 'bg-white/5 hover:bg-[#D4AF37]/20 border-[#E8D7B7] hover:border-[#E8D7B7] text-[#687386]'
                                   }`}
                                 >
                                   +7d (Relaxed)
@@ -2317,9 +2317,9 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                               </div>
 
                               {neededByDate && (
-                                <div className="p-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37]/15 to-[#D4AF37]/5 border border-[#D4AF37]/35 text-xs text-[#F5E7A3] flex items-center justify-between font-mono animate-fadeIn">
+                                <div className="p-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37]/15 to-[#D4AF37]/5 border border-[#E8D7B7] text-xs text-[#B88732] flex items-center justify-between font-mono animate-fadeIn">
                                   <span className="flex items-center gap-2">
-                                    <Sparkles className="w-3.5 h-3.5 text-[#D4AF37] animate-pulse shrink-0" />
+                                    <Sparkles className="w-3.5 h-3.5 text-[#B88732] animate-pulse shrink-0" />
                                     <span>
                                       Target Deadline: <strong className="text-white">{new Date(neededByDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</strong>
                                     </span>
@@ -2337,20 +2337,20 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 
                           {/* Quick Spec Parameter Chips */}
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 text-xs">
-                            <div className="p-2.5 rounded-xl bg-[#09112B] border border-white/10">
-                              <span className="text-[10px] text-[#FAF8F3]/50 block uppercase">Category</span>
-                              <span className="font-bold text-[#F5E7A3] capitalize truncate block">{selectedCategory || 'Not Selected'}</span>
+                            <div className="p-2.5 rounded-xl bg-white border border-[#E8D7B7]">
+                              <span className="text-[10px] text-[#687386] block uppercase">Category</span>
+                              <span className="font-bold text-[#B88732] capitalize truncate block">{selectedCategory || 'Not Selected'}</span>
                             </div>
-                            <div className="p-2.5 rounded-xl bg-[#09112B] border border-white/10">
-                              <span className="text-[10px] text-[#FAF8F3]/50 block uppercase">Engraving</span>
+                            <div className="p-2.5 rounded-xl bg-white border border-[#E8D7B7]">
+                              <span className="text-[10px] text-[#687386] block uppercase">Engraving</span>
                               <span className="font-bold text-white truncate block">{engravingText ? `"${engravingText}"` : 'None'}</span>
                             </div>
-                            <div className="p-2.5 rounded-xl bg-[#09112B] border border-white/10">
-                              <span className="text-[10px] text-[#FAF8F3]/50 block uppercase">Logo Stamp</span>
+                            <div className="p-2.5 rounded-xl bg-white border border-[#E8D7B7]">
+                              <span className="text-[10px] text-[#687386] block uppercase">Logo Stamp</span>
                               <span className="font-bold text-white block">{hasLogo ? 'Requested' : 'Standard'}</span>
                             </div>
-                            <div className="p-2.5 rounded-xl bg-[#09112B] border border-white/10">
-                              <span className="text-[10px] text-[#FAF8F3]/50 block uppercase">Gemstones</span>
+                            <div className="p-2.5 rounded-xl bg-white border border-[#E8D7B7]">
+                              <span className="text-[10px] text-[#687386] block uppercase">Gemstones</span>
                               <span className="font-bold text-white block">{isMetalOnly ? 'Plain Metal' : `${stonesList.length} Stone Row(s)`}</span>
                             </div>
                           </div>
@@ -2363,43 +2363,43 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                       <div className="space-y-6">
                         <div>
                           <h2 className="text-xl font-serif gold-gradient-text font-bold mb-1">Step 5: Final Review & Dispatch</h2>
-                          <p className="text-xs text-[#FAF8F3]/60">Verify your details before choosing whether to Request a Free Quote or Submit Custom CAD Order directly.</p>
+                          <p className="text-xs text-[#687386]">Verify your details before choosing whether to Request a Free Quote or Submit Custom CAD Order directly.</p>
                         </div>
 
                         {/* Contact Information */}
-                        <div className="bg-[#121F4D]/50 border border-[#D4AF37]/30 rounded-2xl p-5 space-y-3">
+                        <div className="bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-5 space-y-3">
                           <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
                             Client & Studio Contact Info
                           </h3>
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div>
-                              <label className="block text-[11px] font-semibold text-[#FAF8F3]/70 mb-1">Full Name</label>
+                              <label className="block text-[11px] font-semibold text-[#687386] mb-1">Full Name</label>
                               <input
                                 type="text"
                                 value={clientName}
                                 onChange={e => setClientName(e.target.value)}
                                 placeholder="Client Name"
-                                className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2 px-3"
+                                className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-3"
                               />
                             </div>
                             <div>
-                              <label className="block text-[11px] font-semibold text-[#FAF8F3]/70 mb-1">Email Address</label>
+                              <label className="block text-[11px] font-semibold text-[#687386] mb-1">Email Address</label>
                               <input
                                 type="email"
                                 value={clientEmail}
                                 onChange={e => setClientEmail(e.target.value)}
                                 placeholder="email@studio.com"
-                                className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2 px-3"
+                                className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-3"
                               />
                             </div>
                             <div>
-                              <label className="block text-[11px] font-semibold text-[#FAF8F3]/70 mb-1">Phone Number</label>
+                              <label className="block text-[11px] font-semibold text-[#687386] mb-1">Phone Number</label>
                               <input
                                 type="text"
                                 value={clientPhone}
                                 onChange={e => setClientPhone(e.target.value)}
                                 placeholder="+1 / +91 phone"
-                                className="w-full text-xs rounded-xl border border-[#D4AF37]/30 bg-[#09112B] text-[#FAF8F3] py-2 px-3"
+                                className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-3"
                               />
                             </div>
                           </div>
@@ -2407,17 +2407,17 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 
                         {/* Selected References Review */}
                         {selectedCatalogProducts.length > 0 && (
-                          <div className="bg-[#121F4D]/50 border border-[#D4AF37]/30 rounded-2xl p-4 space-y-2">
-                            <span className="text-xs font-bold text-[#F5E7A3] uppercase tracking-wider flex items-center gap-1.5">
-                              <CheckCircle2 className="w-4 h-4 text-[#D4AF37]" /> Selected Studio Catalog References ({selectedCatalogProducts.length})
+                          <div className="bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-4 space-y-2">
+                            <span className="text-xs font-bold text-[#B88732] uppercase tracking-wider flex items-center gap-1.5">
+                              <CheckCircle2 className="w-4 h-4 text-[#B88732]" /> Selected Studio Catalog References ({selectedCatalogProducts.length})
                             </span>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                               {selectedCatalogProducts.map(p => (
-                                <div key={p.id} className="flex items-center gap-3 p-2 bg-[#09112B] rounded-xl border border-white/10">
+                                <div key={p.id} className="flex items-center gap-3 p-2 bg-white rounded-xl border border-[#E8D7B7]">
                                   <img src={p.image} alt={p.title} className="w-10 h-10 rounded-lg object-cover" />
                                   <div className="overflow-hidden">
-                                    <p className="font-bold text-xs text-[#FAF8F3] truncate">{p.title}</p>
-                                    <span className="text-[10px] text-[#D4AF37]">SKU #{p.id}</span>
+                                    <p className="font-bold text-xs text-[#17243B] truncate">{p.title}</p>
+                                    <span className="text-[10px] text-[#B88732]">SKU #{p.id}</span>
                                   </div>
                                 </div>
                               ))}
@@ -2428,8 +2428,8 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                         {/* Delivery Turnaround Option */}
                         {groupMap['delivery_speed'] && (
                           <div className="space-y-2">
-                            <label className="block text-xs font-bold text-[#F5E7A3] uppercase tracking-wider flex items-center gap-1.5">
-                              <Clock className="w-4 h-4 text-[#D4AF37]" /> Turnaround Speed
+                            <label className="block text-xs font-bold text-[#B88732] uppercase tracking-wider flex items-center gap-1.5">
+                              <Clock className="w-4 h-4 text-[#B88732]" /> Turnaround Speed
                             </label>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                               {(groupMap['delivery_speed'].options || [])
@@ -2441,12 +2441,12 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                                       key={opt.id}
                                       onClick={() => setSelectedDeliverySpeedId(opt.id)}
                                       className={`p-3.5 rounded-2xl border cursor-pointer transition-all duration-300 ${isSel
-                                        ? 'border-[#D4AF37] bg-[#121F4D] shadow-[0_0_15px_rgba(212,175,55,0.3)] ring-1 ring-[#D4AF37]/50'
-                                        : 'border-white/10 hover:border-[#D4AF37]/30 bg-[#09112B]/60'
+                                        ? 'border-[#D9B66F] bg-[#FFF9F0] shadow-[0_0_15px_rgba(212,175,55,0.3)] ring-1 ring-[#D4AF37]/50'
+                                        : 'border-[#E8D7B7] hover:border-[#E8D7B7] bg-white/60'
                                         }`}
                                     >
-                                      <p className="font-bold text-[#FAF8F3] text-xs">{opt.label}</p>
-                                      <p className="text-[11px] text-[#FAF8F3]/60">{opt.description}</p>
+                                      <p className="font-bold text-[#17243B] text-xs">{opt.label}</p>
+                                      <p className="text-[11px] text-[#687386]">{opt.description}</p>
                                     </div>
                                   );
                                 })}
@@ -2455,16 +2455,16 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                         )}
 
                         {/* Portfolio Feature Consent Checkbox */}
-                        <div className="p-4 bg-[#121F4D]/40 border border-[#D4AF37]/30 rounded-2xl flex items-start gap-3">
+                        <div className="p-4 bg-[#FFF9F0]/40 border border-[#E8D7B7] rounded-2xl flex items-start gap-3">
                           <input
                             type="checkbox"
                             id="clientConsent"
                             checked={clientConsent}
                             onChange={(e) => setClientConsent(e.target.checked)}
-                            className="mt-1 rounded border-[#D4AF37]/50 text-[#D4AF37] focus:ring-0 cursor-pointer"
+                            className="mt-1 rounded border-[#D9B66F]/50 text-[#B88732] focus:ring-0 cursor-pointer"
                           />
-                          <label htmlFor="clientConsent" className="text-xs text-[#FAF8F3]/90 leading-relaxed cursor-pointer">
-                            <span className="font-bold text-[#F5E7A3] block mb-0.5">Allow Public Portfolio Showcase (Optional)</span>
+                          <label htmlFor="clientConsent" className="text-xs text-[#17243B]/90 leading-relaxed cursor-pointer">
+                            <span className="font-bold text-[#B88732] block mb-0.5">Allow Public Portfolio Showcase (Optional)</span>
                             I grant Shiuli CAD Studio permission to feature this finished 3D CAD design in the public portfolio showcase upon completion. (Your name, contact details, and private notes will <strong className="text-white">never</strong> be shown).
                           </label>
                         </div>
@@ -2497,14 +2497,14 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                     )}
 
                     {/* Navigation Controls */}
-                    <div className="flex flex-col-reverse xs:flex-row justify-between items-stretch xs:items-center gap-3 pt-6 sm:pt-8 border-t border-white/10 mt-6 sm:mt-8">
+                    <div className="flex flex-col-reverse xs:flex-row justify-between items-stretch xs:items-center gap-3 pt-6 sm:pt-8 border-t border-[#E8D7B7] mt-6 sm:mt-8">
                       <button
                         type="button"
                         onClick={() => setCurrentStep(prev => Math.max(prev - 1, 1))}
                         disabled={currentStep === 1}
                         className={`w-full xs:w-auto px-5 py-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${currentStep === 1
-                          ? 'border-white/10 text-white/20 cursor-not-allowed'
-                          : 'border-white/20 text-[#FAF8F3] hover:bg-white/5 cursor-pointer'
+                          ? 'border-[#E8D7B7] text-white/20 cursor-not-allowed'
+                          : 'border-[#E8D7B7] text-[#17243B] hover:bg-white/5 cursor-pointer'
                           }`}
                       >
                         <ArrowLeft className="w-4 h-4" /> Previous Step
@@ -2540,22 +2540,22 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 
               {/* Real-time Sticky Specification Summary Sidebar */}
               <div className="lg:col-span-4 space-y-6">
-                <div className="bg-[#09112B]/95 backdrop-blur-2xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-[0_20px_60px_rgba(0,0,0,0.6)] border border-[#D4AF37]/35 lg:sticky top-28 space-y-5">
+                <div className="bg-white/95 backdrop-blur-2xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-[0_20px_60px_rgba(0,0,0,0.6)] border border-[#E8D7B7] lg:sticky top-28 space-y-5">
 
                   {/* Header Badge */}
-                  <div className="flex items-center justify-between pb-3.5 border-b border-[#D4AF37]/25">
+                  <div className="flex items-center justify-between pb-3.5 border-b border-[#E8D7B7]">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37] flex items-center justify-center text-[#F5E7A3]">
-                        <Sliders className="w-4 h-4 text-[#D4AF37]" />
+                      <div className="w-8 h-8 rounded-full bg-[#D4AF37]/20 border border-[#D9B66F] flex items-center justify-center text-[#B88732]">
+                        <Sliders className="w-4 h-4 text-[#B88732]" />
                       </div>
                       <div>
                         <h3 className="font-serif gold-gradient-text font-bold text-base leading-tight">
                           Specification Summary
                         </h3>
-                        <p className="text-[10px] text-[#FAF8F3]/50">Real-time studio configuration</p>
+                        <p className="text-[10px] text-[#687386]">Real-time studio configuration</p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-mono px-2.5 py-1 rounded-full bg-[#D4AF37]/20 text-[#F5E7A3] border border-[#D4AF37]/40 font-bold uppercase tracking-wider">
+                    <span className="text-[10px] font-mono px-2.5 py-1 rounded-full bg-[#D4AF37]/20 text-[#B88732] border border-[#E8D7B7] font-bold uppercase tracking-wider">
                       {selectedCategory || 'Unselected'}
                     </span>
                   </div>
@@ -2563,8 +2563,8 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                   {/* Configured Parameters Stream */}
                   <div className="space-y-2.5">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-[11px] font-bold text-[#F5E7A3] uppercase tracking-wider flex items-center gap-1.5">
-                        <Layers className="w-3.5 h-3.5 text-[#D4AF37]" /> Configured Parameters
+                      <h4 className="text-[11px] font-bold text-[#B88732] uppercase tracking-wider flex items-center gap-1.5">
+                        <Layers className="w-3.5 h-3.5 text-[#B88732]" /> Configured Parameters
                       </h4>
                       <span className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
@@ -2574,65 +2574,65 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 
                     <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1 text-xs">
                       {/* Category */}
-                      <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
-                        <span className="text-[#FAF8F3]/60 font-medium">Design Type:</span>
-                        <span className="font-bold text-[#FAF8F3] capitalize">{selectedCategory || 'Unselected'}</span>
+                      <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
+                        <span className="text-[#687386] font-medium">Design Type:</span>
+                        <span className="font-bold text-[#17243B] capitalize">{selectedCategory || 'Unselected'}</span>
                       </div>
 
                       {/* Ring Size */}
                       {selectedCategory === 'rings' && ringSize && (
-                        <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
-                          <span className="text-[#FAF8F3]/60 font-medium">Target Ring Size:</span>
-                          <span className="font-bold text-[#F5E7A3]">{ringSize} ({ringSizeStandard})</span>
+                        <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
+                          <span className="text-[#687386] font-medium">Target Ring Size:</span>
+                          <span className="font-bold text-[#B88732]">{ringSize} ({ringSizeStandard})</span>
                         </div>
                       )}
 
                       {/* Ring Metal Weight */}
                       {selectedCategory === 'rings' && targetWeightGrams && (
-                        <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
-                          <span className="text-[#FAF8F3]/60 font-medium">Target Metal Weight:</span>
-                          <span className="font-bold text-[#FAF8F3]">{targetWeightGrams} grams</span>
+                        <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
+                          <span className="text-[#687386] font-medium">Target Metal Weight:</span>
+                          <span className="font-bold text-[#17243B]">{targetWeightGrams} grams</span>
                         </div>
                       )}
 
                       {/* Height & Width dimensions */}
                       {(heightMm || widthMm) && (
-                        <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
-                          <span className="text-[#FAF8F3]/60 font-medium">Target Dimensions:</span>
-                          <span className="font-bold text-[#FAF8F3]">{heightMm ? `H: ${heightMm}mm ` : ''}{widthMm ? `W: ${widthMm}mm` : ''}</span>
+                        <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
+                          <span className="text-[#687386] font-medium">Target Dimensions:</span>
+                          <span className="font-bold text-[#17243B]">{heightMm ? `H: ${heightMm}mm ` : ''}{widthMm ? `W: ${widthMm}mm` : ''}</span>
                         </div>
                       )}
 
                       {/* Chain length / Earring backing / Wrist size */}
                       {selectedCategory === 'pendants' && chainLength && (
-                        <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
-                          <span className="text-[#FAF8F3]/60 font-medium">Chain Specification:</span>
-                          <span className="font-bold text-[#FAF8F3]">{chainLength}</span>
+                        <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
+                          <span className="text-[#687386] font-medium">Chain Specification:</span>
+                          <span className="font-bold text-[#17243B]">{chainLength}</span>
                         </div>
                       )}
                       {selectedCategory === 'earrings' && earringBacking && (
-                        <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
-                          <span className="text-[#FAF8F3]/60 font-medium">Earring Backing:</span>
-                          <span className="font-bold text-[#FAF8F3]">{earringBacking}</span>
+                        <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
+                          <span className="text-[#687386] font-medium">Earring Backing:</span>
+                          <span className="font-bold text-[#17243B]">{earringBacking}</span>
                         </div>
                       )}
                       {selectedCategory === 'bracelets' && (wristCircumference || braceletStyle) && (
-                        <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
-                          <span className="text-[#FAF8F3]/60 font-medium">Style & Wrist:</span>
-                          <span className="font-bold text-[#FAF8F3]">{braceletStyle} {wristCircumference ? `(${wristCircumference})` : ''}</span>
+                        <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
+                          <span className="text-[#687386] font-medium">Style & Wrist:</span>
+                          <span className="font-bold text-[#17243B]">{braceletStyle} {wristCircumference ? `(${wristCircumference})` : ''}</span>
                         </div>
                       )}
 
                       {/* Catalog References */}
                       {selectedCatalogProducts.length > 0 && (
-                        <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-[#D4AF37]/35 space-y-1.5">
+                        <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] space-y-1.5">
                           <div className="flex justify-between items-center">
-                            <span className="text-[#FAF8F3]/60 font-medium">Catalog References:</span>
-                            <span className="font-bold text-[#D4AF37]">{selectedCatalogProducts.length} Selected</span>
+                            <span className="text-[#687386] font-medium">Catalog References:</span>
+                            <span className="font-bold text-[#B88732]">{selectedCatalogProducts.length} Selected</span>
                           </div>
                           <div className="flex flex-wrap gap-1 pt-1">
                             {selectedCatalogProducts.map(p => (
-                              <span key={p.id} className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#D4AF37]/20 text-[#F5E7A3] border border-[#D4AF37]/30">
+                              <span key={p.id} className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#D4AF37]/20 text-[#B88732] border border-[#E8D7B7]">
                                 {p.title}
                               </span>
                             ))}
@@ -2642,9 +2642,9 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 
                       {/* Dynamic Option Selections from Backend API */}
                       {selectedValuesSummary.map((item, idx) => (
-                        <div key={idx} className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
-                          <span className="text-[#FAF8F3]/60 font-medium truncate max-w-[130px]">{item.group}:</span>
-                          <span className="font-bold text-[#FAF8F3] flex items-center gap-1.5">
+                        <div key={idx} className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
+                          <span className="text-[#687386] font-medium truncate max-w-[130px]">{item.group}:</span>
+                          <span className="font-bold text-[#17243B] flex items-center gap-1.5">
                             {item.color && (
                               <span className="w-3 h-3 rounded-full border border-white/30" style={{ backgroundColor: item.color }} />
                             )}
@@ -2654,19 +2654,19 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                       ))}
 
                       {/* Gemstone Layout */}
-                      <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
-                        <span className="text-[#FAF8F3]/60 font-medium">Gemstone Layout:</span>
-                        <span className="font-bold text-[#FAF8F3]">
+                      <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
+                        <span className="text-[#687386] font-medium">Gemstone Layout:</span>
+                        <span className="font-bold text-[#17243B]">
                           {isMetalOnly ? 'Plain Metal (No Stones)' : `${stonesList.length} Stone Row(s)`}
                         </span>
                       </div>
 
                       {!isMetalOnly && stonesList.length > 0 && (
-                        <div className="p-2.5 rounded-2xl bg-[#09112B]/80 border border-white/5 space-y-1 text-[11px]">
+                        <div className="p-2.5 rounded-2xl bg-white/80 border border-[#E8D7B7] space-y-1 text-[11px]">
                           {stonesList.map((st, i) => (
-                            <div key={i} className="flex justify-between text-[#FAF8F3]/80">
+                            <div key={i} className="flex justify-between text-[#687386]">
                               <span>Row {i + 1}: {st.shape} {st.stone_type} ({st.quantity}x)</span>
-                              <span className="font-bold text-[#F5E7A3]">{st.size_value} {st.size_unit}</span>
+                              <span className="font-bold text-[#B88732]">{st.size_value} {st.size_unit}</span>
                             </div>
                           ))}
                         </div>
@@ -2674,56 +2674,56 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 
                       {/* Personalization & Engraving */}
                       {engravingText && (
-                        <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
-                          <span className="text-[#FAF8F3]/60 font-medium">Inside Engraving:</span>
-                          <span className="font-bold text-[#F5E7A3] italic">"{engravingText}"</span>
+                        <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
+                          <span className="text-[#687386] font-medium">Inside Engraving:</span>
+                          <span className="font-bold text-[#B88732] italic">"{engravingText}"</span>
                         </div>
                       )}
 
                       {/* Logo Stamp */}
                       {hasLogo && (
-                        <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
-                          <span className="text-[#FAF8F3]/60 font-medium">Vector Hallmark:</span>
-                          <span className="font-bold text-[#D4AF37]">Custom Logo Stamp</span>
+                        <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
+                          <span className="text-[#687386] font-medium">Vector Hallmark:</span>
+                          <span className="font-bold text-[#B88732]">Custom Logo Stamp</span>
                         </div>
                       )}
 
                       {/* Sketches */}
                       {sketchFiles.length > 0 && (
-                        <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
-                          <span className="text-[#FAF8F3]/60 font-medium">Uploaded Sketches:</span>
+                        <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
+                          <span className="text-[#687386] font-medium">Uploaded Sketches:</span>
                           <span className="font-bold text-emerald-400">{sketchFiles.length} File(s) Attached</span>
                         </div>
                       )}
 
                       {/* Target Date */}
                       {neededByDate && (
-                        <div className="p-3 rounded-2xl bg-[#121F4D]/70 border border-white/10 flex justify-between items-center">
-                          <span className="text-[#FAF8F3]/60 font-medium">Required By:</span>
-                          <span className="font-bold text-[#F5E7A3]">{neededByDate}</span>
+                        <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
+                          <span className="text-[#687386] font-medium">Required By:</span>
+                          <span className="font-bold text-[#B88732]">{neededByDate}</span>
                         </div>
                       )}
                     </div>
                   </div>
 
                   {/* Master CAD Deliverables Guarantee Card */}
-                  <div className="p-4 bg-[#121F4D]/80 border border-[#D4AF37]/35 rounded-2xl text-xs space-y-2">
-                    <h4 className="font-bold text-[#F5E7A3] flex items-center gap-1.5">
-                      <Box className="w-4 h-4 text-[#D4AF37]" /> Master CAD Deliverables
+                  <div className="p-4 bg-[#FFF9F0]/80 border border-[#E8D7B7] rounded-2xl text-xs space-y-2">
+                    <h4 className="font-bold text-[#B88732] flex items-center gap-1.5">
+                      <Box className="w-4 h-4 text-[#B88732]" /> Master CAD Deliverables
                     </h4>
-                    <ul className="space-y-1 text-[#FAF8F3]/75 text-[11px]">
-                      <li className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-[#D4AF37]" /> Layered Rhino (.3DM) Native File</li>
-                      <li className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-[#D4AF37]" /> Watertight Wax-Ready (.STL) Mesh</li>
-                      <li className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-[#D4AF37]" /> 4K Photorealistic Ray-Traced Render</li>
+                    <ul className="space-y-1 text-[#687386] text-[11px]">
+                      <li className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-[#B88732]" /> Layered Rhino (.3DM) Native File</li>
+                      <li className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-[#B88732]" /> Watertight Wax-Ready (.STL) Mesh</li>
+                      <li className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-[#B88732]" /> 4K Photorealistic Ray-Traced Render</li>
                     </ul>
                   </div>
 
                   {/* 100% Production Guarantee */}
-                  <div className="p-3.5 bg-[#060D22] rounded-2xl border border-[#D4AF37]/30 text-[#FAF8F3]/75 text-[11px] space-y-1">
-                    <div className="flex items-center gap-2 font-bold text-[#F5E7A3]">
-                      <ShieldCheck className="w-4 h-4 text-[#D4AF37]" /> Production Ready Guarantee
+                  <div className="p-3.5 bg-[#FFF9F0] rounded-2xl border border-[#E8D7B7] text-[#687386] text-[11px] space-y-1">
+                    <div className="flex items-center gap-2 font-bold text-[#B88732]">
+                      <ShieldCheck className="w-4 h-4 text-[#B88732]" /> Production Ready Guarantee
                     </div>
-                    <p className="leading-relaxed text-[10px] text-[#FAF8F3]/60">100% tested for stone seat clearance &amp; casting shrinkage.</p>
+                    <p className="leading-relaxed text-[10px] text-[#687386]">100% tested for stone seat clearance &amp; casting shrinkage.</p>
                   </div>
 
                 </div>
@@ -2735,18 +2735,18 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 
       {/* RING SIZE CONVERSION MODAL */}
       {showRingSizeModal && (
-        <div className="fixed inset-0 z-50 bg-[#0B1330]/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#09112B] rounded-3xl max-w-2xl w-full max-h-[85vh] overflow-hidden shadow-2xl border border-[#D4AF37]/40 flex flex-col">
-            <div className="p-6 bg-[#121F4D] text-[#FAF8F3] flex justify-between items-center border-b border-[#D4AF37]/30">
+        <div className="fixed inset-0 z-50 bg-[#17345C]/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[85vh] overflow-hidden shadow-2xl border border-[#E8D7B7] flex flex-col">
+            <div className="p-6 bg-[#FFF9F0] text-[#17243B] flex justify-between items-center border-b border-[#E8D7B7]">
               <div>
                 <h3 className="text-lg font-serif gold-gradient-text font-bold flex items-center gap-2">
-                  <Ruler className="w-5 h-5 text-[#D4AF37]" /> International Ring Size Conversion Chart
+                  <Ruler className="w-5 h-5 text-[#B88732]" /> International Ring Size Conversion Chart
                 </h3>
-                <p className="text-xs text-[#FAF8F3]/60">Match inside diameter in millimeters across global sizing standards.</p>
+                <p className="text-xs text-[#687386]">Match inside diameter in millimeters across global sizing standards.</p>
               </div>
               <button
                 onClick={() => setShowRingSizeModal(false)}
-                className="p-1 rounded-full text-[#FAF8F3]/60 hover:text-white hover:bg-white/10"
+                className="p-1 rounded-full text-[#687386] hover:text-white hover:bg-white/10"
               >
                 <X className="w-6 h-6" />
               </button>
@@ -2755,7 +2755,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
             <div className="p-6 overflow-y-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-[#121F4D] text-[#F5E7A3] font-bold uppercase tracking-wider border-b border-white/10">
+                  <tr className="bg-[#FFF9F0] text-[#B88732] font-bold uppercase tracking-wider border-b border-[#E8D7B7]">
                     <th className="p-2.5 rounded-l-xl">US / Canada</th>
                     <th className="p-2.5">UK / Aus</th>
                     <th className="p-2.5">IN / HK</th>
@@ -2765,19 +2765,19 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                 </thead>
                 <tbody className="divide-y divide-white/10">
                   {RING_SIZE_CONVERSION_TABLE.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-[#121F4D]/50 transition-colors">
-                      <td className="p-2.5 font-bold text-[#FAF8F3]">{row.us}</td>
-                      <td className="p-2.5 text-[#FAF8F3]/70">{row.uk}</td>
-                      <td className="p-2.5 text-[#FAF8F3]/70">{row.in_hk}</td>
-                      <td className="p-2.5 text-[#FAF8F3]/70">{row.eu}</td>
-                      <td className="p-2.5 font-mono text-[#F5E7A3] font-semibold">{row.inside_mm}</td>
+                    <tr key={idx} className="hover:bg-[#FFF9F0]/50 transition-colors">
+                      <td className="p-2.5 font-bold text-[#17243B]">{row.us}</td>
+                      <td className="p-2.5 text-[#687386]">{row.uk}</td>
+                      <td className="p-2.5 text-[#687386]">{row.in_hk}</td>
+                      <td className="p-2.5 text-[#687386]">{row.eu}</td>
+                      <td className="p-2.5 font-mono text-[#B88732] font-semibold">{row.inside_mm}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
-            <div className="p-4 bg-[#121F4D]/60 border-t border-white/10 text-right">
+            <div className="p-4 bg-[#FFF9F0]/60 border-t border-[#E8D7B7] text-right">
               <button
                 onClick={() => setShowRingSizeModal(false)}
                 className="px-6 py-2 btn-gold-luxury font-bold text-xs rounded-xl"

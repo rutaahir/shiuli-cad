@@ -270,8 +270,8 @@ export const Navbar: React.FC<NavbarProps> = ({
       <header
         className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
           isScrolled
-            ? 'bg-[#060B1E]/95 backdrop-blur-md border-b border-[#D4AF37]/25 shadow-[0_10px_30px_rgba(0,0,0,0.5)] py-3'
-            : 'bg-gradient-to-b from-[#060B1E] via-[#060B1E]/80 to-transparent py-4'
+            ? 'bg-white/95 backdrop-blur-md border-b border-[#E8D7B7] shadow-sm py-3'
+            : 'bg-white/90 backdrop-blur-md border-b border-[#E8D7B7]/50 py-3.5'
         }`}
       >
         <div className="w-full px-3 sm:px-6 lg:px-20 xl:px-28">
@@ -281,6 +281,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <BrandLogo
                 variant="horizontal"
                 size="md"
+                theme="light"
                 onClick={() => onNavigate('home')}
               />
             </div>
@@ -290,8 +291,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* Home */}
               <button
                 onClick={() => onNavigate('home')}
-                className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-medium transition-colors ${
-                  activePage === 'home' ? 'text-[#F5E7A3] font-bold' : 'text-[#F5F1E8]/80 hover:text-[#FAF8F3]'
+                className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-semibold transition-colors ${
+                  activePage === 'home' ? 'text-[#B88732] font-bold border-b-2 border-[#D9B66F]' : 'text-[#17345C] hover:text-[#B88732]'
                 }`}
               >
                 Home
@@ -300,10 +301,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* Custom Design */}
               <button
                 onClick={() => onNavigate('custom-design')}
-                className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-medium transition-colors ${
+                className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-semibold transition-colors ${
                   activePage === 'custom-design'
-                    ? 'text-[#F5E7A3] font-bold'
-                    : 'text-[#F5F1E8]/80 hover:text-[#FAF8F3]'
+                    ? 'text-[#B88732] font-bold border-b-2 border-[#D9B66F]'
+                    : 'text-[#17345C] hover:text-[#B88732]'
                 }`}
               >
                 Custom Design
@@ -312,10 +313,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* File Editing */}
               <button
                 onClick={() => onNavigate('file-editing')}
-                className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-medium transition-colors ${
+                className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-semibold transition-colors ${
                   activePage === 'file-editing'
-                    ? 'text-[#F5E7A3] font-bold'
-                    : 'text-[#F5F1E8]/80 hover:text-[#FAF8F3]'
+                    ? 'text-[#B88732] font-bold border-b-2 border-[#D9B66F]'
+                    : 'text-[#17345C] hover:text-[#B88732]'
                 }`}
               >
                 File Editing
@@ -324,13 +325,13 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* AI + Jewellery */}
               <button
                 onClick={() => onNavigate('ai-jewellery')}
-                className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-medium flex items-center gap-1 transition-colors ${
+                className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-semibold flex items-center gap-1 transition-colors ${
                   activePage === 'ai-jewellery'
-                    ? 'text-[#F5E7A3] font-bold'
-                    : 'text-[#F5F1E8]/80 hover:text-[#FAF8F3]'
+                    ? 'text-[#B88732] font-bold border-b-2 border-[#D9B66F]'
+                    : 'text-[#17345C] hover:text-[#B88732]'
                 }`}
               >
-                <Sparkles className="w-3.5 h-3.5 text-[#D4AF37] animate-pulse" /> AI + Jewellery
+                <Sparkles className="w-3.5 h-3.5 text-[#D9B66F] animate-pulse" /> AI + Jewellery
               </button>
 
               {/* CAD Files Mega Menu (Renamed Collections) */}
@@ -341,34 +342,34 @@ export const Navbar: React.FC<NavbarProps> = ({
               >
                 <button
                   onClick={() => onNavigate('collections')}
-                  className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-medium flex items-center gap-1 transition-colors ${
+                  className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-semibold flex items-center gap-1 transition-colors ${
                     activePage === 'collections' || activeDropdown === 'cad-files'
-                      ? 'text-[#F5E7A3] font-bold'
-                      : 'text-[#F5F1E8]/80 hover:text-[#FAF8F3]'
+                      ? 'text-[#B88732] font-bold border-b-2 border-[#D9B66F]'
+                      : 'text-[#17345C] hover:text-[#B88732]'
                   }`}
                 >
-                  CAD Files <ChevronDown className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  CAD Files <ChevronDown className="w-3.5 h-3.5 text-[#D9B66F]" />
                 </button>
 
                 {activeDropdown === 'cad-files' && (
                   <div className="absolute left-1/2 -translate-x-1/2 top-full pt-2 w-[720px] max-w-[95vw] z-50 animate-in fade-in zoom-in-95 duration-200">
-                    <div className="bg-[#09112B]/98 border border-[#D4AF37]/35 rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.85)] p-5 sm:p-6 backdrop-blur-2xl grid grid-cols-12 gap-5 ring-1 ring-white/10">
+                    <div className="bg-white border border-[#E8D7B7] rounded-3xl shadow-[0_20px_50px_rgba(23,52,92,0.12)] p-5 sm:p-6 backdrop-blur-2xl grid grid-cols-12 gap-5 ring-1 ring-[#E8D7B7]/60">
                       {/* Left: Category list */}
-                      <div className="col-span-5 border-r border-[#D4AF37]/20 pr-3.5 space-y-1 max-h-[380px] overflow-y-auto custom-scrollbar">
-                        <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-widest block mb-2 px-1">
+                      <div className="col-span-5 border-r border-[#E8D7B7] pr-3.5 space-y-1 max-h-[380px] overflow-y-auto custom-scrollbar">
+                        <span className="text-[10px] font-bold text-[#B88732] uppercase tracking-widest block mb-2 px-1">
                           Ready-Made CAD Categories
                         </span>
                         {isLoading && categories.length === 0 ? (
-                          <div className="py-8 text-center text-xs text-[#C9C2A6]">Loading categories…</div>
+                          <div className="py-8 text-center text-xs text-[#687386]">Loading categories…</div>
                         ) : isError && categories.length === 0 ? (
-                          <div className="py-6 px-3 rounded-xl bg-red-950/40 border border-red-500/30 text-center space-y-2">
-                            <p className="text-xs text-red-300">Unable to load categories</p>
+                          <div className="py-6 px-3 rounded-xl bg-red-50 border border-red-200 text-center space-y-2">
+                            <p className="text-xs text-red-600">Unable to load categories</p>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 fetchCatalog(true);
                               }}
-                              className="px-3 py-1 rounded-lg bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-[11px] font-medium text-red-200 inline-flex items-center gap-1 cursor-pointer transition-colors"
+                              className="px-3 py-1 rounded-lg bg-red-100 hover:bg-red-200 border border-red-300 text-[11px] font-medium text-red-700 inline-flex items-center gap-1 cursor-pointer transition-colors"
                             >
                               <RotateCcw className="w-3 h-3" />
                               Retry
@@ -387,12 +388,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                                 }}
                                 className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center justify-between ${
                                   isHovered
-                                    ? 'bg-gradient-to-r from-[#D4AF37] to-[#E6C65B] text-[#080E24] font-bold shadow-lg shadow-[#D4AF37]/20 translate-x-1'
-                                    : 'text-[#FAF8F3]/80 hover:text-[#FAF8F3] hover:bg-[#121F4D]/70'
+                                    ? 'bg-[#FFF9F0] text-[#17345C] font-bold border border-[#E8D7B7] shadow-sm translate-x-1'
+                                    : 'text-[#17243B]/80 hover:text-[#17345C] hover:bg-[#FFF9F0]'
                                 }`}
                               >
                                 <span>{cat.name}</span>
-                                <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isHovered ? 'translate-x-0.5 text-[#080E24]' : 'opacity-50'}`} />
+                                <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isHovered ? 'translate-x-0.5 text-[#B88732]' : 'opacity-40'}`} />
                               </button>
                             );
                           })
@@ -401,9 +402,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                       {/* Right: Featured products matching hovered category */}
                       <div className="col-span-7 flex flex-col justify-between space-y-3">
-                        <div className="flex justify-between items-center pb-2.5 border-b border-[#D4AF37]/20">
-                          <span className="text-xs font-bold text-[#F5E7A3] uppercase tracking-wider flex items-center gap-1.5">
-                            <Gem className="w-3.5 h-3.5 text-[#D4AF37]" />
+                        <div className="flex justify-between items-center pb-2.5 border-b border-[#E8D7B7]">
+                          <span className="text-xs font-bold text-[#17345C] uppercase tracking-wider flex items-center gap-1.5">
+                            <Gem className="w-3.5 h-3.5 text-[#D9B66F]" />
                             {activeMegaCategory?.name || 'Featured'} CAD Models
                           </span>
                           <button
@@ -411,7 +412,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                               onNavigate('collections', hoveredCategorySlug);
                               setActiveDropdown(null);
                             }}
-                            className="text-[11px] font-bold text-[#D4AF37] hover:text-[#F5E7A3] hover:underline transition-colors flex items-center gap-1"
+                            className="text-[11px] font-bold text-[#B88732] hover:text-[#D9B66F] hover:underline transition-colors flex items-center gap-1"
                           >
                             View All ({megaMenuCategoryProducts.length > 0 ? megaMenuCategoryProducts.length : products.length}) →
                           </button>
@@ -426,9 +427,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                                   onNavigate('product-detail', p.slug || String(p.id));
                                   setActiveDropdown(null);
                                 }}
-                                className="p-2.5 bg-[#0C1536]/85 hover:bg-[#12204E] rounded-2xl border border-white/10 hover:border-[#D4AF37]/50 cursor-pointer flex gap-3 items-center group transition-all duration-200 shadow-md hover:shadow-lg hover:shadow-[#D4AF37]/10"
+                                className="p-2.5 bg-[#FFF9F0] hover:bg-white rounded-2xl border border-[#E8D7B7] hover:border-[#D9B66F] cursor-pointer flex gap-3 items-center group transition-all duration-200 shadow-sm hover:shadow-md"
                               >
-                                <div className="w-[52px] h-[52px] rounded-xl shrink-0 bg-[#070D1F] border border-white/10 overflow-hidden flex items-center justify-center p-1 group-hover:border-[#D4AF37]/40 transition-colors">
+                                <div className="w-[52px] h-[52px] rounded-xl shrink-0 bg-white border border-[#E8D7B7] overflow-hidden flex items-center justify-center p-1 group-hover:border-[#D9B66F] transition-colors">
                                   <img
                                     src={getOptimizedImageUrl(p.primary_image, p.category_name)}
                                     alt={p.title}
@@ -438,14 +439,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                                   />
                                 </div>
                                 <div className="overflow-hidden min-w-0 flex-1">
-                                  <p className="text-xs font-semibold text-[#FAF8F3] group-hover:text-[#F5E7A3] truncate transition-colors leading-tight">
+                                  <p className="text-xs font-semibold text-[#17243B] group-hover:text-[#B88732] truncate transition-colors leading-tight">
                                     {p.title}
                                   </p>
                                   <div className="flex items-center justify-between gap-1 mt-1.5">
-                                    <span className="text-xs font-bold text-[#E6C65B] font-mono tracking-tight">
+                                    <span className="text-xs font-bold text-[#B88732] font-mono tracking-tight">
                                       ₹{formatINR(p.price)}
                                     </span>
-                                    <span className="text-[9px] font-medium text-[#D4AF37] font-mono bg-[#D4AF37]/10 px-1.5 py-0.5 rounded border border-[#D4AF37]/25 shrink-0">
+                                    <span className="text-[9px] font-medium text-[#17345C] font-mono bg-[#E8D7B7]/40 px-1.5 py-0.5 rounded border border-[#E8D7B7] shrink-0">
                                       3DM+STL
                                     </span>
                                   </div>
@@ -454,32 +455,32 @@ export const Navbar: React.FC<NavbarProps> = ({
                             ))}
                           </div>
                         ) : (
-                          <div className="py-8 text-center bg-[#0C1536]/40 rounded-2xl border border-white/5">
-                            <p className="text-xs text-[#FAF8F3]/60 mb-2">No CAD files currently in this category.</p>
+                          <div className="py-8 text-center bg-[#FFF9F0] rounded-2xl border border-[#E8D7B7]">
+                            <p className="text-xs text-[#687386] mb-2">No CAD files currently in this category.</p>
                             <button
                               onClick={() => {
                                 onNavigate('collections');
                                 setActiveDropdown(null);
                               }}
-                              className="text-xs font-bold text-[#D4AF37] hover:underline"
+                              className="text-xs font-bold text-[#B88732] hover:underline"
                             >
                               Explore All Collections →
                             </button>
                           </div>
                         )}
 
-                        <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-[#C9C2A6]">
-                          <span className="flex items-center gap-1.5 text-[#D4AF37]">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-[#D4AF37]" /> Watertight & Cast-Ready
+                        <div className="pt-2 border-t border-[#E8D7B7] flex items-center justify-between text-[11px] text-[#687386]">
+                          <span className="flex items-center gap-1.5 text-[#236E6A] font-medium">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#236E6A]" /> Watertight & Cast-Ready
                           </span>
                           <button
                             onClick={() => {
                               onNavigate('custom-design');
                               setActiveDropdown(null);
                             }}
-                            className="text-[#FAF8F3] hover:text-[#D4AF37] transition-colors"
+                            className="text-[#17243B] hover:text-[#B88732] transition-colors"
                           >
-                            Need Custom CAD? <span className="text-[#D4AF37] font-semibold">Request Order</span>
+                            Need Custom CAD? <span className="text-[#B88732] font-semibold">Request Order</span>
                           </button>
                         </div>
                       </div>
@@ -491,10 +492,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* Portfolio */}
               <button
                 onClick={() => onNavigate('portfolio')}
-                className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-medium transition-colors ${
+                className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-semibold transition-colors ${
                   activePage === 'portfolio'
-                    ? 'text-[#F5E7A3] font-bold'
-                    : 'text-[#F5F1E8]/80 hover:text-[#FAF8F3]'
+                    ? 'text-[#B88732] font-bold border-b-2 border-[#D9B66F]'
+                    : 'text-[#17345C] hover:text-[#B88732]'
                 }`}
               >
                 Portfolio
@@ -503,8 +504,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* About Us */}
               <button
                 onClick={() => onNavigate('about')}
-                className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-medium transition-colors ${
-                  activePage === 'about' ? 'text-[#F5E7A3] font-bold' : 'text-[#F5F1E8]/80 hover:text-[#FAF8F3]'
+                className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-semibold transition-colors ${
+                  activePage === 'about' ? 'text-[#B88732] font-bold border-b-2 border-[#D9B66F]' : 'text-[#17345C] hover:text-[#B88732]'
                 }`}
               >
                 About Us
@@ -513,8 +514,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* Contact */}
               <button
                 onClick={() => onNavigate('contact')}
-                className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-medium transition-colors ${
-                  activePage === 'contact' ? 'text-[#F5E7A3] font-bold' : 'text-[#F5F1E8]/80 hover:text-[#FAF8F3]'
+                className={`px-2.5 py-1.5 text-xs xl:text-[13px] tracking-wider uppercase font-semibold transition-colors ${
+                  activePage === 'contact' ? 'text-[#B88732] font-bold border-b-2 border-[#D9B66F]' : 'text-[#17345C] hover:text-[#B88732]'
                 }`}
               >
                 Contact
@@ -525,7 +526,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="flex items-center space-x-1.5 sm:space-x-3">
               <button
                 onClick={() => setSearchOverlayOpen(true)}
-                className="p-2 text-[#F5F1E8]/80 hover:text-[#D4AF37] transition-colors rounded-full hover:bg-white/5"
+                className="p-2 text-[#17345C] hover:text-[#B88732] transition-colors rounded-full hover:bg-[#FFF9F0]"
                 title="Search CAD Files (Ctrl+K)"
               >
                 <Search className="w-4 h-4" />
@@ -533,12 +534,12 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               <button
                 onClick={onOpenCart}
-                className="p-2 text-[#F5F1E8]/80 hover:text-[#D4AF37] transition-colors relative rounded-full hover:bg-white/5"
+                className="p-2 text-[#17345C] hover:text-[#B88732] transition-colors relative rounded-full hover:bg-[#FFF9F0]"
                 title="View Bag"
               >
                 <ShoppingBag className="w-4 h-4" />
                 {cartCount > 0 && (
-                  <span className="absolute top-0 right-0 w-4 h-4 bg-[#D4AF37] text-[#0B1330] text-[10px] font-bold rounded-full flex items-center justify-center">
+                  <span className="absolute top-0 right-0 w-4 h-4 bg-[#B88732] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                     {cartCount}
                   </span>
                 )}
@@ -549,15 +550,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {isLoggedIn ? (
                   <button
                     onClick={() => setAccountDropdownOpen(prev => !prev)}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-[#121F4D] border border-[#D4AF37]/30 text-xs font-bold text-[#F5E7A3]"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FFF9F0] border border-[#E8D7B7] text-xs font-bold text-[#17345C] hover:border-[#D9B66F] shadow-sm transition-all"
                   >
-                    <User className="w-3.5 h-3.5 text-[#D4AF37]" />
+                    <User className="w-3.5 h-3.5 text-[#B88732]" />
                     <span className="hidden sm:inline">{user?.first_name || 'Account'}</span>
                   </button>
                 ) : (
                   <button
                     onClick={() => onNavigate('login')}
-                    className="btn-gold-luxury px-2.5 sm:px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1"
+                    className="btn-gold-luxury px-3 sm:px-4 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5"
                   >
                     <User className="w-3.5 h-3.5" />
                     <span className="hidden sm:inline">Sign In</span>
@@ -566,13 +567,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                 {accountDropdownOpen && isLoggedIn && (
                   <div className="absolute right-0 top-full pt-2 w-52 z-50">
-                    <div className="bg-[#09112B] border border-[#D4AF37]/30 rounded-2xl shadow-2xl p-2 space-y-1 backdrop-blur-xl">
+                    <div className="bg-white border border-[#E8D7B7] rounded-2xl shadow-[0_15px_40px_rgba(23,52,92,0.12)] p-2 space-y-1 backdrop-blur-xl">
                       <button
                         onClick={() => {
                           onNavigate('account');
                           setAccountDropdownOpen(false);
                         }}
-                        className="w-full text-left px-3 py-2 text-xs font-bold text-[#FAF8F3] hover:bg-[#121F4D] rounded-xl"
+                        className="w-full text-left px-3 py-2 text-xs font-bold text-[#17243B] hover:bg-[#FFF9F0] hover:text-[#17345C] rounded-xl transition-colors"
                       >
                         Client Dashboard
                       </button>
@@ -583,7 +584,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                             onNavigate('admin');
                             setAccountDropdownOpen(false);
                           }}
-                          className="w-full text-left px-3 py-2 text-xs font-bold text-[#D4AF37] hover:bg-[#121F4D] rounded-xl"
+                          className="w-full text-left px-3 py-2 text-xs font-bold text-[#B88732] hover:bg-[#FFF9F0] rounded-xl transition-colors"
                         >
                           Super Admin Portal
                         </button>
@@ -595,7 +596,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                             onNavigate('staff-portal');
                             setAccountDropdownOpen(false);
                           }}
-                          className="w-full text-left px-3 py-2 text-xs font-bold text-[#5B8DEF] hover:bg-[#121F4D] rounded-xl"
+                          className="w-full text-left px-3 py-2 text-xs font-bold text-[#236E6A] hover:bg-[#FFF9F0] rounded-xl transition-colors"
                         >
                           Staff Workspace
                         </button>
@@ -606,7 +607,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           setAccountDropdownOpen(false);
                           await logout();
                         }}
-                        className="w-full text-left px-3 py-2 text-xs font-bold text-rose-400 hover:bg-rose-900/30 rounded-xl border-t border-white/10 mt-1"
+                        className="w-full text-left px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl border-t border-[#E8D7B7]/50 mt-1 transition-colors"
                       >
                         Sign Out
                       </button>
@@ -618,7 +619,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* Mobile Hamburger Toggle */}
               <button
                 onClick={() => setMobileMenuOpen(true)}
-                className="lg:hidden p-2 text-[#FAF8F3] hover:text-[#D4AF37] rounded-full hover:bg-white/5"
+                className="lg:hidden p-2 text-[#17345C] hover:text-[#B88732] rounded-full hover:bg-[#FFF9F0]"
                 aria-label="Toggle Menu"
               >
                 <Menu className="w-5 h-5" />
@@ -630,13 +631,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* MOBILE LUXURY NAVIGATION DRAWER */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 bg-[#060B1E]/98 backdrop-blur-3xl flex flex-col justify-between p-5 sm:p-6 overflow-y-auto animate-in fade-in slide-in-from-right duration-300">
+        <div className="fixed inset-0 z-50 bg-white/98 backdrop-blur-3xl flex flex-col justify-between p-5 sm:p-6 overflow-y-auto animate-in fade-in slide-in-from-right duration-300">
           <div>
-            <div className="flex justify-between items-center pb-4 border-b border-[#D4AF37]/30">
+            <div className="flex justify-between items-center pb-4 border-b border-[#E8D7B7]">
               <BrandLogo variant="horizontal" size="sm" onClick={() => { onNavigate('home'); setMobileMenuOpen(false); }} />
               <button
                 onClick={() => setMobileMenuOpen(false)}
-                className="p-2.5 rounded-full bg-[#121F4D]/60 text-[#FAF8F3] hover:text-[#D4AF37] border border-[#D4AF37]/20"
+                className="p-2.5 rounded-full bg-[#FFF9F0] text-[#17345C] hover:text-[#B88732] border border-[#E8D7B7]"
                 aria-label="Close menu"
               >
                 <X className="w-6 h-6" />
@@ -644,16 +645,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
 
             {/* User status card on mobile menu */}
-            <div className="mt-4 p-3.5 rounded-2xl bg-[#121F4D]/70 border border-[#D4AF37]/30 flex items-center justify-between">
+            <div className="mt-4 p-3.5 rounded-2xl bg-[#FFF9F0] border border-[#E8D7B7] flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37] flex items-center justify-center text-[#F5E7A3]">
+                <div className="w-10 h-10 rounded-full bg-[#E8D7B7]/40 border border-[#D9B66F] flex items-center justify-center text-[#B88732]">
                   <User className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-[#FAF8F3]">
+                  <p className="text-xs font-bold text-[#17243B]">
                     {isLoggedIn ? (user?.first_name ? `${user.first_name} ${user.last_name || ''}` : user?.email || 'Valued Client') : 'Guest Atelier'}
                   </p>
-                  <p className="text-[10px] text-[#D4AF37]">
+                  <p className="text-[10px] text-[#B88732]">
                     {isLoggedIn ? `${user?.role?.toUpperCase() || 'CLIENT'} ACCOUNT` : 'Sign in to access 3DM downloads'}
                   </p>
                 </div>
@@ -661,14 +662,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               {isLoggedIn ? (
                 <button
                   onClick={() => { onNavigate('account'); setMobileMenuOpen(false); }}
-                  className="px-3 py-1.5 text-xs font-bold bg-[#D4AF37] text-[#0B1330] rounded-xl hover:bg-[#F5E7A3]"
+                  className="px-3 py-1.5 text-xs font-bold bg-[#17345C] text-[#FFF9F0] rounded-xl hover:bg-[#17243B]"
                 >
                   Dashboard
                 </button>
               ) : (
                 <button
                   onClick={() => { onNavigate('login'); setMobileMenuOpen(false); }}
-                  className="px-3 py-1.5 text-xs font-bold bg-[#D4AF37] text-[#0B1330] rounded-xl hover:bg-[#F5E7A3]"
+                  className="btn-gold-luxury px-3 py-1.5 text-xs font-bold rounded-xl"
                 >
                   Sign In
                 </button>
@@ -677,22 +678,22 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             <div className="space-y-2 py-6">
               {[
-                { id: 'home', label: 'Home Atelier', icon: <Gem className="w-4 h-4 text-[#D4AF37]" /> },
-                { id: 'custom-design', label: 'Custom Design Order', icon: <Sliders className="w-4 h-4 text-[#D4AF37]" /> },
-                { id: 'file-editing', label: 'File Editing & Revision', icon: <Edit2 className="w-4 h-4 text-[#D4AF37]" /> },
-                { id: 'ai-jewellery', label: 'AI + Jewellery Concepts', icon: <Sparkles className="w-4 h-4 text-[#D4AF37] animate-pulse" /> },
-                { id: 'collections', label: 'CAD Files Library', icon: <Box className="w-4 h-4 text-[#D4AF37]" /> },
-                { id: 'portfolio', label: 'Portfolio & Renders', icon: <Award className="w-4 h-4 text-[#D4AF37]" /> },
-                { id: 'about', label: 'About Studio', icon: <Shield className="w-4 h-4 text-[#D4AF37]" /> },
-                { id: 'contact', label: 'Contact Us', icon: <Phone className="w-4 h-4 text-[#D4AF37]" /> },
+                { id: 'home', label: 'Home Atelier', icon: <Gem className="w-4 h-4 text-[#B88732]" /> },
+                { id: 'custom-design', label: 'Custom Design Order', icon: <Sliders className="w-4 h-4 text-[#B88732]" /> },
+                { id: 'file-editing', label: 'File Editing & Revision', icon: <Edit2 className="w-4 h-4 text-[#B88732]" /> },
+                { id: 'ai-jewellery', label: 'AI + Jewellery Concepts', icon: <Sparkles className="w-4 h-4 text-[#B88732] animate-pulse" /> },
+                { id: 'collections', label: 'CAD Files Library', icon: <Box className="w-4 h-4 text-[#B88732]" /> },
+                { id: 'portfolio', label: 'Portfolio & Renders', icon: <Award className="w-4 h-4 text-[#B88732]" /> },
+                { id: 'about', label: 'About Studio', icon: <Shield className="w-4 h-4 text-[#B88732]" /> },
+                { id: 'contact', label: 'Contact Us', icon: <Phone className="w-4 h-4 text-[#B88732]" /> },
               ].map(item => (
                 <button
                   key={item.id}
                   onClick={() => { onNavigate(item.id as PageId); setMobileMenuOpen(false); }}
                   className={`w-full text-left px-4 py-3 rounded-2xl flex items-center justify-between font-serif text-base transition-all ${
                     activePage === item.id
-                      ? 'bg-[#D4AF37] text-[#0B1330] font-bold shadow-lg'
-                      : 'text-[#FAF8F3] hover:bg-[#121F4D]/80 border border-white/5'
+                      ? 'bg-[#17345C] text-[#FFF9F0] font-bold shadow-md'
+                      : 'text-[#17243B] hover:bg-[#FFF9F0] border border-[#E8D7B7]/40'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -705,9 +706,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          <div className="pt-4 border-t border-[#D4AF37]/20 flex items-center justify-between text-xs text-[#C9C2A6]">
+          <div className="pt-4 border-t border-[#E8D7B7] flex items-center justify-between text-xs text-[#687386]">
             <span>Shiuli CAD Studio © 2026</span>
-            <span className="text-[#D4AF37] font-semibold">Rhino .3DM & .STL Atelier</span>
+            <span className="text-[#B88732] font-semibold">Rhino .3DM & .STL Atelier</span>
           </div>
         </div>
       )}
@@ -715,22 +716,22 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* SEARCH OVERLAY MODAL */}
       {searchOverlayOpen && (
         <div
-          className="fixed inset-0 z-50 bg-[#060B1E]/90 backdrop-blur-xl flex items-start justify-center pt-16 sm:pt-20 px-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 bg-[#17243B]/60 backdrop-blur-md flex items-start justify-center pt-16 sm:pt-20 px-4 animate-in fade-in duration-200"
           onClick={() => setSearchOverlayOpen(false)}
         >
           <div
-            className="bg-[#09112B] border border-[#D4AF37]/40 rounded-3xl max-w-3xl w-full p-5 sm:p-6 shadow-2xl space-y-4 text-[#FAF8F3] relative max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+            className="bg-white border border-[#E8D7B7] rounded-3xl max-w-3xl w-full p-5 sm:p-6 shadow-[0_25px_60px_rgba(23,52,92,0.2)] space-y-4 text-[#17243B] relative max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header: Title & Close */}
-            <div className="flex justify-between items-center border-b border-[#D4AF37]/20 pb-3 flex-shrink-0">
-              <span className="text-xs font-bold text-[#D4AF37] uppercase tracking-widest flex items-center gap-2">
-                <Search className="w-4 h-4 text-[#D4AF37]" />
+            <div className="flex justify-between items-center border-b border-[#E8D7B7] pb-3 flex-shrink-0">
+              <span className="text-xs font-bold text-[#B88732] uppercase tracking-widest flex items-center gap-2">
+                <Search className="w-4 h-4 text-[#B88732]" />
                 <span>Quick Search CAD Files & Categories</span>
               </span>
               <button
                 onClick={() => setSearchOverlayOpen(false)}
-                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-white/5"
+                className="w-8 h-8 rounded-full bg-[#FFF9F0] hover:bg-[#E8D7B7]/40 text-[#687386] hover:text-[#17345C] flex items-center justify-center transition-colors cursor-pointer border border-[#E8D7B7]"
                 title="Close (Esc)"
               >
                 <X className="w-4 h-4" />
@@ -739,7 +740,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Live Search Input Bar */}
             <div className="relative flex-shrink-0">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#D4AF37]/70" />
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#B88732]" />
               <input
                 type="text"
                 autoFocus
@@ -750,12 +751,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                     ? `Search in ${categories.find((c) => c.slug === selectedSearchCategorySlug)?.name || 'category'} (by title, SKU, metal, gemstone)...`
                     : 'Search by ring, solitaire, SKU, gemstone, metal...'
                 }
-                className="w-full text-sm rounded-2xl border border-[#D4AF37]/35 bg-[#121F4D] text-[#FAF8F3] pl-10 pr-10 py-3.5 focus:outline-hidden focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]/50 shadow-inner placeholder:text-white/40"
+                className="w-full text-sm rounded-2xl border border-[#E8D7B7] bg-[#FFF9F0] text-[#17243B] pl-10 pr-10 py-3.5 focus:outline-hidden focus:border-[#D9B66F] focus:ring-1 focus:ring-[#D9B66F]/50 shadow-inner placeholder:text-[#687386]/60"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white p-1 rounded-full hover:bg-white/10 cursor-pointer"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#687386] hover:text-[#17243B] p-1 rounded-full hover:bg-black/5 cursor-pointer"
                   title="Clear input"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -765,9 +766,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* CATEGORIES BAR: Show all categories directly */}
             <div className="space-y-2 flex-shrink-0 pt-0.5">
-              <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-[#D4AF37]/80">
+              <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-[#B88732]">
                 <span className="flex items-center gap-1.5 font-bold">
-                  <Layers className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  <Layers className="w-3.5 h-3.5 text-[#B88732]" />
                   <span>Categories ({categories.length})</span>
                 </span>
                 {selectedSearchCategorySlug !== 'all' && (
@@ -776,7 +777,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       onNavigate('collections', selectedSearchCategorySlug);
                       setSearchOverlayOpen(false);
                     }}
-                    className="text-[#FAF8F3] hover:text-[#F5E7A3] underline font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                    className="text-[#17345C] hover:text-[#B88732] underline font-semibold flex items-center gap-1 transition-colors cursor-pointer"
                   >
                     <span>Open Category Page</span>
                     <ArrowRight className="w-3 h-3" />
@@ -791,16 +792,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                   onClick={() => setSelectedSearchCategorySlug('all')}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                     selectedSearchCategorySlug === 'all'
-                      ? 'bg-gradient-to-r from-[#D4AF37] to-[#E6C65B] text-[#080E24] font-bold shadow-md shadow-[#D4AF37]/20 scale-105'
-                      : 'bg-[#121F4D]/80 hover:bg-[#121F4D] text-[#FAF8F3]/80 hover:text-[#FAF8F3] border border-white/10'
+                      ? 'bg-[#17345C] text-[#FFF9F0] font-bold shadow-md scale-105'
+                      : 'bg-[#FFF9F0] hover:bg-[#E8D7B7]/40 text-[#17243B] border border-[#E8D7B7]'
                   }`}
                 >
                   <span>All Categories</span>
                   <span
                     className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
                       selectedSearchCategorySlug === 'all'
-                        ? 'bg-[#080E24]/20 text-[#080E24]'
-                        : 'bg-white/10 text-white/70'
+                        ? 'bg-white/20 text-white'
+                        : 'bg-[#E8D7B7]/50 text-[#17345C]'
                     }`}
                   >
                     {products.length}
@@ -823,8 +824,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                       onClick={() => setSelectedSearchCategorySlug(isSelected ? 'all' : cat.slug)}
                       className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                         isSelected
-                          ? 'bg-gradient-to-r from-[#D4AF37] to-[#E6C65B] text-[#080E24] font-bold shadow-md shadow-[#D4AF37]/20 scale-105'
-                          : 'bg-[#121F4D]/80 hover:bg-[#121F4D] text-[#FAF8F3]/80 hover:text-[#FAF8F3] border border-white/10'
+                          ? 'bg-[#17345C] text-[#FFF9F0] font-bold shadow-md scale-105'
+                          : 'bg-[#FFF9F0] hover:bg-[#E8D7B7]/40 text-[#17243B] border border-[#E8D7B7]'
                       }`}
                     >
                       <span>{cat.name}</span>
@@ -832,8 +833,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                         <span
                           className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
                             isSelected
-                              ? 'bg-[#080E24]/20 text-[#080E24]'
-                              : 'bg-white/10 text-white/70'
+                              ? 'bg-white/20 text-white'
+                              : 'bg-[#E8D7B7]/50 text-[#17345C]'
                           }`}
                         >
                           {catProductCount}
@@ -849,7 +850,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="flex-1 overflow-y-auto pr-1 space-y-3 custom-scrollbar min-h-[220px]">
               {searchResults.length > 0 ? (
                 <>
-                  <div className="flex items-center justify-between text-[11px] font-mono text-[#D4AF37] px-1">
+                  <div className="flex items-center justify-between text-[11px] font-mono text-[#B88732] px-1">
                     <span>
                       {cleanSearchQuery
                         ? `Found ${searchResults.length} CAD model${searchResults.length === 1 ? '' : 's'} matching "${searchQuery}"`
@@ -865,7 +866,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           onNavigate('collections', selectedSearchCategorySlug);
                           setSearchOverlayOpen(false);
                         }}
-                        className="text-white/60 hover:text-[#F5E7A3] flex items-center gap-1 transition-colors cursor-pointer"
+                        className="text-[#687386] hover:text-[#17345C] flex items-center gap-1 transition-colors cursor-pointer"
                       >
                         <span>Open Category View</span>
                         <ChevronRight className="w-3 h-3" />
@@ -882,10 +883,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                           onNavigate('product-detail', p.id);
                           setSearchOverlayOpen(false);
                         }}
-                        className="p-3 bg-[#121F4D]/60 hover:bg-[#121F4D] rounded-2xl border border-white/10 hover:border-[#D4AF37] cursor-pointer flex items-center justify-between transition-all group shadow-sm hover:shadow-lg hover:shadow-[#D4AF37]/10"
+                        className="p-3 bg-[#FFF9F0] hover:bg-white rounded-2xl border border-[#E8D7B7] hover:border-[#D9B66F] cursor-pointer flex items-center justify-between transition-all group shadow-xs hover:shadow-md"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-14 h-14 rounded-xl shrink-0 bg-[#070D1F] border border-white/10 overflow-hidden flex items-center justify-center p-1 group-hover:border-[#D4AF37]/50 transition-colors">
+                          <div className="w-14 h-14 rounded-xl shrink-0 bg-white border border-[#E8D7B7] overflow-hidden flex items-center justify-center p-1 group-hover:border-[#D9B66F] transition-colors">
                             <img
                               src={getOptimizedImageUrl(p.primaryImage, p.category)}
                               alt={p.title}
@@ -894,40 +895,40 @@ export const Navbar: React.FC<NavbarProps> = ({
                             />
                           </div>
                           <div className="min-w-0 space-y-0.5">
-                            <p className="font-bold text-xs text-[#FAF8F3] truncate group-hover:text-[#F5E7A3] transition-colors">
+                            <p className="font-bold text-xs text-[#17243B] truncate group-hover:text-[#B88732] transition-colors">
                               {renderHighlightedMatch(p.title, searchQuery)}
                             </p>
                             <div className="flex items-center gap-2">
-                              <span className="text-[10px] text-[#D4AF37] font-medium truncate">
+                              <span className="text-[10px] text-[#B88732] font-medium truncate">
                                 {renderHighlightedMatch(p.category, searchQuery)}
                               </span>
-                              <span className="text-[10px] font-mono text-white/50">
+                              <span className="text-[10px] font-mono text-[#687386]">
                                 {p.specs?.metalWeight18k && p.specs.metalWeight18k !== '—'
                                   ? p.specs.metalWeight18k
                                   : '.3DM + .STL'}
                               </span>
                             </div>
-                            <div className="text-xs font-bold text-[#E6C65B] font-mono">
+                            <div className="text-xs font-bold text-[#B88732] font-mono">
                               ₹{formatINR(p.price)}
                             </div>
                           </div>
                         </div>
-                        <ArrowRight className="w-4 h-4 text-[#D4AF37] shrink-0 opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all ml-2" />
+                        <ArrowRight className="w-4 h-4 text-[#B88732] shrink-0 opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all ml-2" />
                       </div>
                     ))}
                   </div>
                 </>
               ) : (
                 /* No Results State */
-                <div className="py-12 text-center space-y-3 bg-[#121F4D]/30 rounded-2xl border border-white/5 p-6">
-                  <div className="w-12 h-12 rounded-full bg-[#121F4D] border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37] mx-auto">
+                <div className="py-12 text-center space-y-3 bg-[#FFF9F0] rounded-2xl border border-[#E8D7B7] p-6">
+                  <div className="w-12 h-12 rounded-full bg-white border border-[#E8D7B7] flex items-center justify-center text-[#B88732] mx-auto shadow-xs">
                     <Search className="w-5 h-5 opacity-60" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm text-[#FAF8F3]">
+                    <h4 className="font-bold text-sm text-[#17243B]">
                       No CAD models found for "{searchQuery}"
                     </h4>
-                    <p className="text-xs text-white/50 mt-1 max-w-sm mx-auto">
+                    <p className="text-xs text-[#687386] mt-1 max-w-sm mx-auto">
                       {selectedSearchCategorySlug !== 'all'
                         ? 'No matches in this category. Try switching to "All Categories" or searching for another keyword.'
                         : 'Try searching by jewellery type (e.g. Ring, Solitaire, Pendant, Necklace) or check your spelling.'}
@@ -938,14 +939,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                     {selectedSearchCategorySlug !== 'all' && (
                       <button
                         onClick={() => setSelectedSearchCategorySlug('all')}
-                        className="px-3.5 py-1.5 rounded-xl bg-[#D4AF37] text-[#080E24] text-xs font-bold shadow-md hover:bg-[#F5E7A3] transition-colors cursor-pointer"
+                        className="px-3.5 py-1.5 rounded-xl bg-[#17345C] text-[#FFF9F0] text-xs font-bold shadow-xs hover:bg-[#17243B] transition-colors cursor-pointer"
                       >
                         Search All Categories
                       </button>
                     )}
                     <button
                       onClick={() => setSearchQuery('')}
-                      className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-[#FAF8F3] text-xs font-semibold transition-colors cursor-pointer"
+                      className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-[#E8D7B7]/30 text-[#17243B] text-xs font-semibold border border-[#E8D7B7] transition-colors cursor-pointer"
                     >
                       Clear Search
                     </button>

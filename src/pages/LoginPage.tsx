@@ -93,16 +93,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
   };
 
   return (
-    <div className="min-h-[calc(100vh-53px)] bg-[#060B1E] text-[#F5F1E8] flex flex-col lg:flex-row relative overflow-hidden">
+    <div className="min-h-[calc(100vh-53px)] bg-[#FFFDF9] text-[#17243B] flex flex-col lg:flex-row relative overflow-hidden">
       
-      {/* LEFT SIDE PANEL (45% DESKTOP): Rich Dark Royal Navy + Looping Gold Ribbon Motif */}
-      <div className="lg:w-[45%] bg-[#080E24] relative flex flex-col justify-between p-8 sm:p-12 lg:p-16 border-b lg:border-b-0 lg:border-r border-[#D4AF37]/20 overflow-hidden min-h-[320px] lg:min-h-full">
+      {/* LEFT SIDE PANEL (45% DESKTOP): Warm Ivory + Gold Motif */}
+      <div className="lg:w-[45%] bg-[#FFF9F0] relative flex flex-col justify-between p-8 sm:p-12 lg:p-16 border-b lg:border-b-0 lg:border-r border-[#E8D7B7] overflow-hidden min-h-[320px] lg:min-h-full">
         {/* Ambient Glows */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-[#1E4FA3]/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-10 left-10 w-72 h-72 bg-[#D4AF37]/10 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-[#D9B66F]/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-10 left-10 w-72 h-72 bg-[#17345C]/5 rounded-full blur-2xl pointer-events-none" />
 
         {/* Line Drawing Background Ribbon SVG Pattern */}
-        <svg className="absolute inset-0 w-full h-full opacity-10 pointer-events-none stroke-[#D4AF37]" fill="none" viewBox="0 0 800 800">
+        <svg className="absolute inset-0 w-full h-full opacity-20 pointer-events-none stroke-[#D9B66F]" fill="none" viewBox="0 0 800 800">
           <motion.path
             d="M 100,100 Q 400,500 700,100 T 100,700"
             strokeWidth="2"
@@ -116,14 +116,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
         {/* Top Brand Logo */}
         <div className="relative z-10">
           <button onClick={() => onNavigate('home')} className="inline-block hover:opacity-90 transition-opacity">
-            <BrandLogo variant="full" size="md" />
+            <BrandLogo variant="full" size="md" theme="light" />
           </button>
         </div>
 
         {/* Center Quote Carousel */}
         <div className="relative z-10 my-8">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[10px] uppercase tracking-[0.25em] text-[#F5E7A3] mb-6">
-            <Sparkles className="w-3 h-3 text-[#D4AF37]" />
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-[#E8D7B7] text-[10px] uppercase tracking-[0.25em] text-[#B88732] mb-6 shadow-sm">
+            <Sparkles className="w-3 h-3 text-[#B88732]" />
             <span>Private Atelier Salon</span>
           </div>
 
@@ -136,10 +136,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
               transition={{ duration: 0.5 }}
               className="space-y-3"
             >
-              <h2 className="font-serif text-2xl sm:text-3xl lg:text-4xl text-[#FAF8F3] font-light leading-relaxed italic">
+              <h2 className="font-serif text-2xl sm:text-3xl lg:text-4xl text-[#17345C] font-normal leading-relaxed italic">
                 “{BRAND_QUOTES[quoteIndex].text}”
               </h2>
-              <p className="text-xs text-[#D4AF37] font-mono tracking-widest uppercase">
+              <p className="text-xs text-[#B88732] font-mono tracking-widest uppercase font-bold">
                 — {BRAND_QUOTES[quoteIndex].author}
               </p>
             </motion.div>
@@ -147,30 +147,30 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
         </div>
 
         {/* Bottom Trust Indicators */}
-        <div className="relative z-10 flex items-center gap-6 text-[11px] text-[#C9C2A6]/70 border-t border-white/10 pt-6">
+        <div className="relative z-10 flex items-center gap-6 text-[11px] text-[#687386] border-t border-[#E8D7B7] pt-6">
           <div className="flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-[#D4AF37]" />
+            <ShieldCheck className="w-4 h-4 text-[#B88732]" />
             <span>256-bit Encrypted</span>
           </div>
-          <div className="w-px h-3 bg-white/10" />
+          <div className="w-px h-3 bg-[#E8D7B7]" />
           <div>Certified Rhino 3DM Standards</div>
         </div>
       </div>
 
-      {/* RIGHT SIDE FORM (55% DESKTOP): Warm Soft-Navy Card */}
+      {/* RIGHT SIDE FORM (55% DESKTOP): Pure White Card */}
       <div className="lg:w-[55%] flex items-center justify-center p-6 sm:p-12 lg:p-16 relative">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="w-full max-w-md space-y-8 bg-[#080E24] border border-[#D4AF37]/25 rounded-3xl p-8 sm:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.6)] backdrop-blur-xl relative z-10"
+          className="w-full max-w-md space-y-8 bg-white border border-[#E8D7B7] rounded-3xl p-8 sm:p-10 shadow-lg relative z-10"
         >
           {/* Form Header */}
           <div className="space-y-2">
-            <h1 className="font-serif text-3xl sm:text-4xl text-[#FAF8F3] tracking-wide">
+            <h1 className="font-serif text-3xl sm:text-4xl text-[#17345C] font-bold tracking-wide">
               Sign In to Your Account
             </h1>
-            <p className="text-xs text-[#C9C2A6] font-light leading-relaxed">
+            <p className="text-xs text-[#687386] font-normal leading-relaxed">
               Sign in with your email or username to access your CAD library, orders, or workbench
             </p>
           </div>
@@ -180,9 +180,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
             <motion.div
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2.5"
+              className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2.5"
             >
-              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              <AlertCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
               <span>{errorMessage}</span>
             </motion.div>
           )}
@@ -195,7 +195,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
                 type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                icon={<Mail className="w-4 h-4" />}
+                icon={<Mail className="w-4 h-4 text-[#B88732]" />}
                 required
               />
             </motion.div>
@@ -206,7 +206,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                icon={<Lock className="w-4 h-4" />}
+                icon={<Lock className="w-4 h-4 text-[#B88732]" />}
                 required
               />
             </motion.div>
@@ -216,7 +216,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
               <button
                 type="button"
                 onClick={() => onNavigate('forgot-password')}
-                className="text-xs text-[#C9C2A6] hover:text-[#D4AF37] transition-colors font-light"
+                className="text-xs text-[#687386] hover:text-[#B88732] transition-colors"
               >
                 Forgot Password?
               </button>
@@ -226,14 +226,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
             <button
               type="submit"
               disabled={isLoading}
-              className="btn-gold-luxury w-full py-4 rounded-xl font-medium tracking-[0.15em] uppercase text-xs flex items-center justify-center gap-2 shadow-xl disabled:opacity-50 transition-transform active:scale-[0.99]"
+              className="btn-gold-luxury text-[#17345C] font-bold w-full py-4 rounded-xl tracking-[0.15em] uppercase text-xs flex items-center justify-center gap-2 shadow-md disabled:opacity-50 transition-transform active:scale-[0.99]"
             >
               {isLoading ? (
-                <span className="w-4 h-4 border-2 border-[#0B1330] border-t-transparent rounded-full animate-spin" />
+                <span className="w-4 h-4 border-2 border-[#17345C] border-t-transparent rounded-full animate-spin" />
               ) : (
                 <>
                   <span>Sign In</span>
-                  <ArrowRight className="w-4 h-4 text-[#0B1330]" />
+                  <ArrowRight className="w-4 h-4 text-[#17345C]" />
                 </>
               )}
             </button>
@@ -242,20 +242,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
           {/* Divider */}
           <div className="relative flex items-center justify-center">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-[#D4AF37]/15" />
+              <div className="w-full border-t border-[#E8D7B7]" />
             </div>
-            <span className="relative px-4 bg-[#080E24] text-[10px] uppercase tracking-widest text-[#C9C2A6]/60">
+            <span className="relative px-4 bg-white text-[10px] uppercase tracking-widest text-[#687386]">
               Or
             </span>
           </div>
 
           {/* Create Account Link */}
           <div className="text-center">
-            <p className="text-xs text-[#C9C2A6] font-light">
+            <p className="text-xs text-[#687386]">
               New to Shiuli CAD Studio?{' '}
               <button
                 onClick={() => onNavigate('register')}
-                className="text-[#F5E7A3] font-semibold hover:text-[#D4AF37] underline underline-offset-4 transition-colors"
+                className="text-[#B88732] font-semibold hover:text-[#17345C] underline underline-offset-4 transition-colors"
               >
                 Create an Account
               </button>
@@ -264,20 +264,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
 
           {/* Are you CAD Designer Section */}
           <div className="pt-2">
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-[#D4AF37]/15 via-[#101A3D] to-[#D4AF37]/15 border border-[#D4AF37]/40 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+            <div className="p-4 rounded-2xl bg-[#FFF9F0] border border-[#E8D7B7] flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
               <div className="text-left space-y-0.5">
-                <p className="text-xs font-bold text-[#F5E7A3] flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+                <p className="text-xs font-bold text-[#17345C] flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-[#B88732]" />
                   <span>Are you a CAD Designer?</span>
                 </p>
-                <p className="text-[11px] text-[#C9C2A6]/80 font-light leading-snug">
+                <p className="text-[11px] text-[#687386] leading-snug">
                   Apply to join our atelier and accept bespoke 3D CAD design orders.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowDesignerModal(true)}
-                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] hover:brightness-110 text-[#0B1330] font-bold text-xs whitespace-nowrap transition-all shadow-md cursor-pointer flex items-center gap-1.5 shrink-0"
+                className="px-3.5 py-2 rounded-xl btn-gold-luxury text-[#17345C] font-bold text-xs whitespace-nowrap transition-all shadow-sm cursor-pointer flex items-center gap-1.5 shrink-0"
               >
                 <span>Apply Here</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -285,39 +285,39 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onSuccess }) =
             </div>
           </div>
 
-            {(import.meta as any).env?.DEV && (
-              <div className="pt-4 border-t border-white/5 space-y-2">
-                <div className="text-[10px] uppercase tracking-widest text-[#C9C2A6]/50 text-center font-mono">
-                  Quick Dev Fill (Dev Only)
-                </div>
-                <div className="flex flex-wrap gap-2 justify-center">
-                  <button
-                    type="button"
-                    onClick={() => { setEmail('shiulicad@gmail.com'); setPassword('admin123'); setErrorMessage(null); }}
-                    className="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] hover:bg-amber-500/20 flex items-center gap-1 cursor-pointer"
-                  >
-                    <KeyRound className="w-3 h-3" />
-                    Admin
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setEmail('shahharshil313@gmail.com'); setPassword('admin123'); setErrorMessage(null); }}
-                    className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[11px] hover:bg-emerald-500/20 flex items-center gap-1 cursor-pointer"
-                  >
-                    <KeyRound className="w-3 h-3" />
-                    Staff
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setEmail('vikram@example.com'); setPassword('admin123'); setErrorMessage(null); }}
-                    className="px-2.5 py-1 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-300 text-[11px] hover:bg-blue-500/20 flex items-center gap-1 cursor-pointer"
-                  >
-                    <Sparkles className="w-3 h-3" />
-                    Client
-                  </button>
-                </div>
+          {(import.meta as any).env?.DEV && (
+            <div className="pt-4 border-t border-[#E8D7B7] space-y-2">
+              <div className="text-[10px] uppercase tracking-widest text-[#687386] text-center font-mono">
+                Quick Dev Fill (Dev Only)
               </div>
-            )}
+              <div className="flex flex-wrap gap-2 justify-center">
+                <button
+                  type="button"
+                  onClick={() => { setEmail('shiulicad@gmail.com'); setPassword('admin123'); setErrorMessage(null); }}
+                  className="px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-300 text-amber-800 text-[11px] hover:bg-amber-100 flex items-center gap-1 cursor-pointer"
+                >
+                  <KeyRound className="w-3 h-3" />
+                  Admin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setEmail('shahharshil313@gmail.com'); setPassword('admin123'); setErrorMessage(null); }}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-800 text-[11px] hover:bg-emerald-100 flex items-center gap-1 cursor-pointer"
+                >
+                  <KeyRound className="w-3 h-3" />
+                  Staff
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setEmail('vikram@example.com'); setPassword('admin123'); setErrorMessage(null); }}
+                  className="px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-300 text-blue-800 text-[11px] hover:bg-blue-100 flex items-center gap-1 cursor-pointer"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  Client
+                </button>
+              </div>
+            </div>
+          )}
         </motion.div>
       </div>
 

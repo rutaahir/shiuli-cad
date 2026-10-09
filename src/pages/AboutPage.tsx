@@ -81,31 +81,29 @@ const StaffTiltCard: React.FC<{
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         style={{ transform, transition: 'transform 0.15s ease-out' }}
-        className="rounded-3xl bg-slate-900/80 border border-slate-800 p-6 space-y-4 shadow-2xl flex flex-col justify-between hover:border-[#D4AF37]/50 transition-colors group cursor-pointer relative overflow-hidden"
+        className="rounded-3xl bg-white border border-[#E8D7B7] p-6 space-y-4 shadow-sm flex flex-col justify-between hover:border-[#D9B66F] hover:shadow-xl transition-all group cursor-pointer relative overflow-hidden"
       >
-        <div className="absolute top-0 right-0 w-32 h-32 bg-[#D4AF37]/5 rounded-full blur-2xl pointer-events-none group-hover:bg-[#D4AF37]/15 transition-colors" />
-
-        <div className="aspect-[4/3] relative rounded-2xl overflow-hidden border border-slate-800 bg-slate-950">
+        <div className="aspect-[4/3] relative rounded-2xl overflow-hidden border border-[#E8D7B7] bg-[#FFF9F0]">
           <LazyImage
             src={member.image}
             alt={member.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
-          <span className="absolute top-3 right-3 bg-slate-950/85 backdrop-blur-md px-2.5 py-1 rounded-full border border-[#D4AF37]/40 text-[10px] font-mono text-[#F5E7A3] font-bold">
+          <span className="absolute top-3 right-3 bg-white/95 backdrop-blur-md px-2.5 py-1 rounded-full border border-[#E8D7B7] text-[10px] font-mono text-[#17345C] font-bold shadow-sm">
             {member.specialty}
           </span>
         </div>
 
         <div className="space-y-1.5 text-left relative z-10">
-          <h4 className="text-xl font-extrabold text-white group-hover:text-[#F5E7A3] transition-colors">
+          <h4 className="text-xl font-serif font-bold text-[#17345C] group-hover:text-[#B88732] transition-colors">
             {member.name}
           </h4>
-          <div className="text-xs text-[#D4AF37] font-semibold">{member.role}</div>
-          <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5">
-            <Award className="w-3.5 h-3.5 text-[#D4AF37]" />
+          <div className="text-xs text-[#B88732] font-semibold">{member.role}</div>
+          <div className="text-[11px] text-[#687386] font-mono flex items-center gap-1.5">
+            <Award className="w-3.5 h-3.5 text-[#B88732]" />
             <span>{member.experience}</span>
           </div>
-          <p className="text-xs text-slate-300 pt-2 leading-relaxed font-light">
+          <p className="text-xs text-[#687386] pt-2 leading-relaxed font-light">
             {member.bio}
           </p>
         </div>
@@ -154,16 +152,16 @@ const CounterStat: React.FC<{
       initial={{ opacity: 0, y: 20 }}
       animate={isInView ? { opacity: 1, y: 0 } : {}}
       transition={{ duration: 0.5, delay }}
-      className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 text-center space-y-2 relative overflow-hidden shadow-xl hover:border-[#D4AF37]/50 transition-colors group"
+      className="bg-white border border-[#E8D7B7] rounded-3xl p-6 text-center space-y-2 relative overflow-hidden shadow-sm hover:border-[#D9B66F] hover:shadow-lg transition-all group"
     >
-      <div className="w-12 h-12 rounded-2xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 mx-auto flex items-center justify-center text-[#D4AF37] group-hover:scale-110 transition-transform">
+      <div className="w-12 h-12 rounded-2xl bg-[#FFF9F0] border border-[#E8D7B7] mx-auto flex items-center justify-center text-[#B88732] group-hover:scale-110 transition-transform shadow-sm">
         <IconComponent className="w-6 h-6" />
       </div>
-      <div className="text-3xl sm:text-4xl font-extrabold text-[#F5E7A3] font-mono tracking-tight">
+      <div className="text-3xl sm:text-4xl font-serif font-bold text-[#17345C] tracking-tight">
         {count.toLocaleString()}{suffix}
       </div>
-      <div className="text-xs font-bold text-white">{label}</div>
-      <div className="text-[11px] text-slate-400 leading-snug">{subtext}</div>
+      <div className="text-xs font-semibold text-[#17345C]">{label}</div>
+      <div className="text-[11px] text-[#687386] leading-snug">{subtext}</div>
     </motion.div>
   );
 };
@@ -330,13 +328,10 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: 'easeOut' }}
-      className="min-h-screen bg-[#060B1E] text-slate-100 font-sans"
+      className="min-h-screen bg-[#FFFDF9] text-[#17243B] font-sans"
     >
       {/* ================= SECTION 1: ABOUT SHIULI CAD STUDIO (Hero + Story + Vertical Timeline) ================= */}
-      <section className="relative pt-20 sm:pt-24 pb-16 sm:pb-20 border-b border-slate-800/80 overflow-hidden bg-gradient-to-b from-[#09112B] via-[#060B1E] to-[#060B1E]">
-        {/* Atmospheric Workshop Scrim Background */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(212,175,55,0.12),transparent_65%)] pointer-events-none" />
-
+      <section className="relative pt-20 sm:pt-24 pb-16 sm:pb-20 border-b border-[#E8D7B7] overflow-hidden bg-[#FFF9F0]">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 space-y-12 relative z-10">
           {/* Full-width Hero Band */}
           <div className="text-center max-w-3xl mx-auto space-y-4">
@@ -344,17 +339,17 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.3 }}
-              className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#F5E7A3] text-xs font-semibold uppercase tracking-widest shadow-md"
+              className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white border border-[#E8D7B7] text-[#17345C] text-xs font-semibold uppercase tracking-widest shadow-sm"
             >
-              <Sparkles className="w-3.5 h-3.5 text-[#D4AF37] animate-pulse" />
+              <Sparkles className="w-3.5 h-3.5 text-[#B88732] animate-pulse" />
               OUR STORY • SHIULI CAD STUDIO
             </motion.div>
 
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-serif font-extrabold text-white tracking-tight leading-tight">
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-serif font-extrabold text-[#17345C] tracking-tight leading-tight">
               The Studio Behind Every Sparkle
             </h1>
 
-            <p className="text-slate-300 text-sm sm:text-lg leading-relaxed font-light">
+            <p className="text-[#687386] text-sm sm:text-lg leading-relaxed font-light">
               Founded by veteran bench jewellers and digital sculptors who believe fine jewellery engineering demands micron-level mathematical precision.
             </p>
           </div>
@@ -363,37 +358,37 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-start pt-6">
             {/* LEFT Column: Story Narrative */}
             <div className="lg:col-span-6 space-y-6 text-left">
-              <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#D4AF37]">
-                <ShieldCheck className="w-4 h-4 text-[#D4AF37]" />
-                Craftsmanship & Digital Precision Fused
+              <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#B88732]">
+                <ShieldCheck className="w-4 h-4 text-[#B88732]" />
+                Craftsmanship &amp; Digital Precision Fused
               </div>
 
-              <h2 className="text-2xl sm:text-4xl font-serif font-extrabold text-white tracking-tight leading-snug">
+              <h2 className="text-2xl sm:text-4xl font-serif font-extrabold text-[#17345C] tracking-tight leading-snug">
                 Created For Jewellers, Not 3D Animators
               </h2>
 
-              <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
+              <p className="text-[#687386] text-xs sm:text-sm leading-relaxed">
                 For years, jewellery manufacturers suffered from downloading generic 3D files created by video game artists and animators. Those files looked pretty in renders, but failed catastrophically at the casting tree: wafer-thin prongs snapped off, stones didn't fit into un-calibrated seats, and non-manifold edges crashed 3D wax printers.
               </p>
 
-              <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
+              <p className="text-[#687386] text-xs sm:text-sm leading-relaxed">
                 Shiuli CAD Studio was established in the heart of the diamond cutting hub to solve this once and for all. Every single .3DM model and .STL mesh we produce is built with real bench-setting knowledge, accounting for metal cooling shrinkage, polishing loss, and stone bearing tolerances.
               </p>
 
-              <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
+              <p className="text-[#687386] text-xs sm:text-sm leading-relaxed">
                 Whether creating intricate bridal chokers or custom solitaire rings, our CAD architecture guarantees zero non-manifold edges and pre-scaled alloy cooling shrink (+1.25%).
               </p>
 
               <div className="pt-2 flex flex-wrap gap-4">
                 <button
                   onClick={() => onNavigate('custom-design')}
-                  className="px-6 py-3 bg-[#D4AF37] hover:bg-[#F5E7A3] text-slate-950 font-bold rounded-xl text-xs flex items-center gap-2 transition-colors shadow-lg"
+                  className="btn-gold-luxury px-6 py-3 rounded-xl text-xs font-semibold uppercase tracking-wider flex items-center gap-2 shadow-md cursor-pointer"
                 >
-                  Start Custom CAD Request <ArrowRight className="w-4 h-4" />
+                  Start Custom CAD Request <ArrowRight className="w-4 h-4 text-[#17345C]" />
                 </button>
                 <button
                   onClick={() => onNavigate('contact')}
-                  className="px-5 py-3 bg-slate-900 border border-slate-700 hover:border-[#D4AF37]/50 text-white font-semibold rounded-xl text-xs transition-colors"
+                  className="px-5 py-3 bg-white border border-[#17345C] text-[#17345C] hover:bg-[#17345C] hover:text-white font-semibold rounded-xl text-xs transition-colors cursor-pointer shadow-sm"
                 >
                   Speak with CAD Architect
                 </button>
@@ -403,10 +398,10 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
             {/* RIGHT Column: Scroll-Linked Vertical Milestone Timeline */}
             <div ref={timelineRef} className="lg:col-span-6 relative pl-6 space-y-8">
               {/* Scroll-linked vertical gold line */}
-              <div className="absolute top-2 bottom-2 left-2.5 w-0.5 bg-slate-800">
+              <div className="absolute top-2 bottom-2 left-2.5 w-0.5 bg-[#E8D7B7]">
                 <motion.div
                   style={{ scaleY: timelineProgress }}
-                  className="w-full h-full bg-gradient-to-b from-[#D4AF37] via-[#F5E7A3] to-[#D4AF37] origin-top shadow-[0_0_10px_rgba(212,175,55,0.8)]"
+                  className="w-full h-full bg-gradient-to-b from-[#B88732] via-[#D9B66F] to-[#B88732] origin-top"
                 />
               </div>
 
@@ -417,14 +412,14 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true, margin: '-40px' }}
                   transition={{ duration: 0.4, delay: idx * 0.1 }}
-                  className="relative space-y-1 bg-slate-900/80 border border-slate-800/80 rounded-2xl p-5 hover:border-[#D4AF37]/50 transition-colors shadow-xl"
+                  className="relative space-y-1 bg-white border border-[#E8D7B7] rounded-2xl p-5 hover:border-[#D9B66F] transition-colors shadow-sm"
                 >
-                  <div className="absolute -left-[27px] top-6 w-3.5 h-3.5 rounded-full bg-[#D4AF37] border-2 border-[#060B1E] shadow-md shadow-[#D4AF37]/50" />
-                  <span className="text-xs font-mono font-extrabold text-[#F5E7A3] bg-[#D4AF37]/10 px-2.5 py-0.5 rounded-md border border-[#D4AF37]/30 inline-block">
+                  <div className="absolute -left-[27px] top-6 w-3.5 h-3.5 rounded-full bg-[#B88732] border-2 border-white shadow-sm" />
+                  <span className="text-xs font-mono font-bold text-[#17345C] bg-[#FFF9F0] px-2.5 py-0.5 rounded-md border border-[#E8D7B7] inline-block">
                     {ms.year}
                   </span>
-                  <h4 className="text-base font-bold text-white pt-1">{ms.title}</h4>
-                  <p className="text-xs text-slate-300 leading-relaxed font-light">{ms.desc}</p>
+                  <h4 className="text-base font-serif font-bold text-[#17345C] pt-1">{ms.title}</h4>
+                  <p className="text-xs text-[#687386] leading-relaxed font-light">{ms.desc}</p>
                 </motion.div>
               ))}
             </div>
@@ -432,34 +427,27 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
         </div>
       </section>
 
-      {/* Curved SVG Divider Section Transition */}
-      <div className="w-full overflow-hidden leading-none bg-[#060B1E] text-slate-900/40">
-        <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="relative block w-full h-8">
-          <path d="M0,0 C150,90 350,-40 500,40 C650,120 900,10 1200,40 L1200,120 L0,120 Z" fill="currentColor"></path>
-        </svg>
-      </div>
-
       {/* ================= SECTION 2: OUR SERVICES ("What We Craft.") ================= */}
-      <section className="py-14 sm:py-16 px-4 sm:px-6 lg:px-8 xl:px-12 max-w-[1600px] mx-auto space-y-10 border-b border-slate-800/80">
+      <section className="py-14 sm:py-16 px-4 sm:px-6 lg:px-8 xl:px-12 max-w-[1600px] mx-auto space-y-10 border-b border-[#E8D7B7]">
         <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-4">
           <div className="space-y-2 text-left max-w-xl">
-            <span className="text-xs font-bold uppercase tracking-widest text-[#D4AF37]">
-              DYNAMIC CAD ENGINEERING & REVISION LINES
+            <span className="text-xs font-bold uppercase tracking-widest text-[#B88732]">
+              DYNAMIC CAD ENGINEERING &amp; REVISION LINES
             </span>
-            <h2 className="text-3xl sm:text-4xl font-serif font-extrabold text-white tracking-tight">
+            <h2 className="text-3xl sm:text-4xl font-serif font-extrabold text-[#17345C] tracking-tight">
               What We Craft.
             </h2>
-            <p className="text-slate-400 text-xs sm:text-sm">
+            <p className="text-[#687386] text-xs sm:text-sm">
               Live database service spectrum updated automatically across CAD design lines, file modifications, and AI concepts.
             </p>
           </div>
 
           <button
             onClick={() => onNavigate('cad-service')}
-            className="px-5 py-2.5 bg-slate-900/90 hover:bg-[#D4AF37] text-slate-200 hover:text-slate-950 font-bold rounded-xl text-xs transition-colors border border-slate-800 hover:border-[#D4AF37] flex items-center gap-2 shrink-0 shadow-lg"
+            className="px-5 py-2.5 bg-white hover:bg-[#FFF9F0] text-[#17345C] font-semibold rounded-xl text-xs transition-colors border border-[#E8D7B7] hover:border-[#D9B66F] flex items-center gap-2 shrink-0 shadow-sm cursor-pointer"
           >
-            <span>View All 10 CAD Services Mega-Catalog</span>
-            <ArrowRight className="w-4 h-4" />
+            <span>View All CAD Services Catalog</span>
+            <ArrowRight className="w-4 h-4 text-[#B88732]" />
           </button>
         </div>
 
@@ -472,56 +460,53 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-50px' }}
               transition={{ duration: 0.4, delay: index * 0.08 }}
-              className="bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6 hover:border-[#D4AF37]/60 hover:-translate-y-1.5 transition-all duration-300 shadow-2xl space-y-4 flex flex-col justify-between group"
+              className="bg-white border border-[#E8D7B7] rounded-3xl p-6 hover:border-[#D9B66F] hover:-translate-y-1.5 transition-all duration-300 shadow-sm hover:shadow-xl space-y-4 flex flex-col justify-between group cursor-pointer"
+              onClick={() => onNavigate('cad-service', service.slug)}
             >
               <div className="space-y-3">
-                <div className="aspect-[16/9] relative rounded-2xl overflow-hidden border border-slate-800 bg-slate-950">
+                <div className="aspect-[16/9] relative rounded-2xl overflow-hidden border border-[#E8D7B7] bg-[#FFF9F0]">
                   <img
                     src={service.hero_image || '/unsplash-img/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=400&q=80'}
                     alt={service.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-70" />
-                  <span className="absolute bottom-2.5 left-2.5 px-2.5 py-0.5 rounded-full bg-slate-950/80 backdrop-blur-md border border-slate-800 text-[10px] font-mono text-[#F5E7A3]">
+                  <span className="absolute bottom-2.5 left-2.5 px-2.5 py-0.5 rounded-full bg-white/95 backdrop-blur-md border border-[#E8D7B7] text-[10px] font-mono text-[#17345C] font-semibold shadow-sm">
                     Foundry Ready
                   </span>
                 </div>
 
                 <div className="space-y-1 text-left">
-                  <h3 className="text-xl font-bold text-white group-hover:text-[#F5E7A3] transition-colors">
+                  <h3 className="text-xl font-serif font-bold text-[#17345C] group-hover:text-[#B88732] transition-colors">
                     {service.title}
                   </h3>
-                  <p className="text-xs font-semibold text-[#D4AF37] line-clamp-1">
+                  <p className="text-xs font-semibold text-[#B88732] line-clamp-1">
                     {service.subtitle}
                   </p>
-                  <p className="text-xs text-slate-300 line-clamp-2 pt-1 leading-relaxed">
+                  <p className="text-xs text-[#687386] line-clamp-2 pt-1 leading-relaxed">
                     {service.intro_text}
                   </p>
                 </div>
               </div>
 
-              <button
-                onClick={() => onNavigate('cad-service', service.slug)}
-                className="pt-2 text-xs font-bold text-[#D4AF37] hover:text-[#F5E7A3] flex items-center gap-1.5 transition-colors group/link text-left"
-              >
+              <div className="pt-2 text-xs font-semibold text-[#B88732] group-hover:text-[#17345C] flex items-center gap-1.5 transition-colors">
                 <span>Learn More</span>
-                <ChevronRight className="w-4 h-4 transform group-hover/link:translate-x-1 transition-transform" />
-              </button>
+                <ChevronRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
+              </div>
             </motion.div>
           ))}
         </div>
       </section>
 
       {/* ================= SECTION 3: OUR EXPERIENCE ("Proven by Precision.") ================= */}
-      <section className="py-14 sm:py-16 px-4 sm:px-6 lg:px-8 xl:px-12 max-w-[1600px] mx-auto space-y-12 border-b border-slate-800/80">
+      <section className="py-14 sm:py-16 px-4 sm:px-6 lg:px-8 xl:px-12 max-w-[1600px] mx-auto space-y-12 border-b border-[#E8D7B7]">
         <div className="text-center space-y-3 max-w-2xl mx-auto">
-          <span className="text-xs font-bold uppercase tracking-widest text-[#D4AF37]">
+          <span className="text-xs font-bold uppercase tracking-widest text-[#B88732]">
             PROVEN BY PRECISION • REAL METRICS
           </span>
-          <h2 className="text-3xl sm:text-4xl font-serif font-extrabold text-white tracking-tight">
+          <h2 className="text-3xl sm:text-4xl font-serif font-extrabold text-[#17345C] tracking-tight">
             Proven by Precision.
           </h2>
-          <p className="text-slate-400 text-xs sm:text-sm">
+          <p className="text-[#687386] text-xs sm:text-sm">
             Live database records and audit standards compiled from thousands of commercial casting files.
           </p>
         </div>
@@ -561,19 +546,18 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
             delay={0.3}
           />
         </div>
-
       </section>
 
       {/* ================= SECTION 4: OUR TECHNOLOGY ("Precision, Engineered.") ================= */}
       <section className="py-14 sm:py-16 px-4 sm:px-6 lg:px-8 xl:px-12 max-w-[1600px] mx-auto space-y-12">
         <div className="text-center space-y-3 max-w-2xl mx-auto">
-          <span className="text-xs font-bold uppercase tracking-widest text-[#D4AF37]">
+          <span className="text-xs font-bold uppercase tracking-widest text-[#B88732]">
             ADVANCED DIGITAL TOOLSTACK
           </span>
-          <h2 className="text-3xl sm:text-4xl font-serif font-extrabold text-white tracking-tight">
+          <h2 className="text-3xl sm:text-4xl font-serif font-extrabold text-[#17345C] tracking-tight">
             Precision, Engineered.
           </h2>
-          <p className="text-slate-400 text-xs sm:text-sm">
+          <p className="text-[#687386] text-xs sm:text-sm">
             Translating mathematical curve geometry directly into flawless precious metal casting.
           </p>
         </div>
@@ -589,18 +573,18 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: idx * 0.08 }}
-                className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 space-y-3 text-left hover:border-[#D4AF37]/50 transition-all duration-300 shadow-xl"
+                className="bg-white border border-[#E8D7B7] rounded-3xl p-6 space-y-3 text-left hover:border-[#D9B66F] transition-all duration-300 shadow-sm hover:shadow-lg"
               >
-                <div className="w-12 h-12 rounded-2xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37]">
+                <div className="w-12 h-12 rounded-2xl bg-[#FFF9F0] border border-[#E8D7B7] flex items-center justify-center text-[#B88732] shadow-sm">
                   <IconComp className="w-6 h-6" />
                 </div>
-                <span className="px-2.5 py-0.5 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#F5E7A3] text-[10px] font-mono font-bold uppercase inline-block">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#FFF9F0] border border-[#E8D7B7] text-[#17345C] text-[10px] font-mono font-semibold uppercase inline-block">
                   {cap.badge}
                 </span>
-                <h3 className="text-lg font-bold text-white">
+                <h3 className="text-lg font-serif font-bold text-[#17345C]">
                   {cap.title}
                 </h3>
-                <p className="text-xs text-slate-300 leading-relaxed font-light">
+                <p className="text-xs text-[#687386] leading-relaxed font-light">
                   {cap.claim}
                 </p>
               </motion.div>
@@ -608,59 +592,61 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
           })}
         </div>
 
-        {/* Embedded Looping Video Centerpiece */}
-        <div className="relative rounded-3xl overflow-hidden border border-slate-700 bg-slate-950 shadow-2xl">
-          <video
-            className="w-full h-72 sm:h-96 object-cover"
-            src="/assets/hero.mp4"
-            poster="/assets/hero-poster.jpg"
-            autoPlay
-            muted
-            loop
-            playsInline
-            aria-hidden="true"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent pointer-events-none" />
-
-          <div className="absolute bottom-6 left-6 right-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-slate-950/85 backdrop-blur-md p-4 rounded-2xl border border-slate-800">
-            <div className="space-y-1 text-left">
-              <span className="text-[11px] font-mono font-bold text-[#F5E7A3] uppercase tracking-wider block">
-                RHINO 8 • MATRIXGOLD • MATERIALISE MAGICS • FORM4 PRINT READY
+        {/* Replaced Looping Video with Luxury CAD Showcase */}
+        <div className="relative rounded-3xl overflow-hidden border border-[#E8D7B7] bg-[#FFF9F0] shadow-sm p-6 sm:p-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+            <div className="space-y-4 text-left">
+              <span className="text-[11px] font-mono font-bold text-[#B88732] uppercase tracking-wider block">
+                RHINO 8 • MATRIXGOLD • MATERIALISE MAGICS • WAX 3D PRINT READY
               </span>
-              <p className="text-xs text-slate-300 font-medium">
-                Live 4K Turntable Verification & Solid Mesh Slice Simulation
+              <h3 className="font-serif text-2xl sm:text-3xl text-[#17345C] font-bold">
+                From Precision CAD Sketch to Fine Cast Jewellery
+              </h3>
+              <p className="text-xs sm:text-sm text-[#687386] leading-relaxed">
+                Every bespoke and ready model undergoes full solid manifold testing, cutter clearance verification, and 4K photorealistic ray-traced turntable simulation before dispatch.
               </p>
+              <div className="pt-2">
+                <button
+                  onClick={() => onNavigate('custom-design')}
+                  className="btn-gold-luxury px-6 py-3 rounded-xl text-xs font-semibold uppercase tracking-wider shadow-md cursor-pointer inline-flex items-center gap-2"
+                >
+                  <span>Start Custom CAD Request</span>
+                  <ArrowRight className="w-4 h-4 text-[#17345C]" />
+                </button>
+              </div>
             </div>
-            <button
-              onClick={() => onNavigate('custom-design')}
-              className="px-5 py-2.5 bg-[#D4AF37] hover:bg-[#F5E7A3] text-slate-950 font-bold rounded-xl text-xs transition-colors shrink-0 shadow-md"
-            >
-              Start Custom CAD Request
-            </button>
+
+            <div className="relative flex items-center justify-center">
+              <img
+                src="/assets/redesign/hero_cad_sketch_right.png"
+                alt="Jewellery CAD Blueprint"
+                className="max-h-64 sm:max-h-80 object-contain drop-shadow-md"
+              />
+            </div>
           </div>
         </div>
 
         {/* Closing CTA Band */}
         <div className="pt-8">
-          <div className="rounded-3xl bg-gradient-to-r from-[#09112B] via-[#060B1E] to-[#09112B] border border-slate-800 p-8 sm:p-12 text-center space-y-5 shadow-2xl relative overflow-hidden">
+          <div className="rounded-3xl bg-white border border-[#E8D7B7] p-8 sm:p-12 text-center space-y-5 shadow-lg relative overflow-hidden">
             <BrandLogo variant="mark-only" size="md" className="mx-auto" />
-            <h3 className="text-2xl sm:text-4xl font-serif font-extrabold text-white">
+            <h3 className="text-2xl sm:text-4xl font-serif font-extrabold text-[#17345C]">
               Ready to Begin Your Design Journey?
             </h3>
-            <p className="text-xs sm:text-sm text-slate-300 max-w-xl mx-auto">
+            <p className="text-xs sm:text-sm text-[#687386] max-w-xl mx-auto">
               Partner with Shiuli CAD Studio for precision 3D CAD modeling, instant wax-ready files, and rapid turnaround.
             </p>
             <div className="pt-2 flex flex-wrap justify-center gap-4">
               <button
                 onClick={() => onNavigate('collections')}
-                className="px-6 py-3.5 bg-gradient-to-r from-[#D4AF37] to-[#B38F24] hover:from-[#F5E7A3] hover:to-[#D4AF37] text-slate-950 font-extrabold text-xs sm:text-sm rounded-xl shadow-lg shadow-[#D4AF37]/20 transition-all flex items-center gap-2 transform hover:-translate-y-0.5"
+                className="btn-gold-luxury px-6 py-3.5 rounded-xl text-xs sm:text-sm font-bold uppercase tracking-wider flex items-center gap-2 shadow-md cursor-pointer"
               >
                 <span>Browse CAD Files</span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 text-[#17345C]" />
               </button>
               <button
                 onClick={() => onNavigate('custom-design')}
-                className="px-6 py-3.5 bg-slate-900 border border-slate-700 hover:border-[#D4AF37]/50 text-white font-semibold text-xs sm:text-sm rounded-xl transition-colors"
+                className="px-6 py-3.5 bg-white border border-[#17345C] text-[#17345C] hover:bg-[#17345C] hover:text-white font-semibold text-xs sm:text-sm rounded-xl transition-colors cursor-pointer shadow-sm"
               >
                 Start Custom Design
               </button>

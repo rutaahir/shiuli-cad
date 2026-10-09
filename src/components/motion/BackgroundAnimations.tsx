@@ -34,10 +34,10 @@ export const BackgroundAnimations: React.FC = () => {
 
     // Color palette for golden studio atmosphere
     const colors = [
-      'rgba(212, 175, 55, ',   // Gold
-      'rgba(245, 231, 163, ',  // Champagne Gold
-      'rgba(126, 172, 252, ',  // Sapphire Ice Blue
-      'rgba(255, 255, 255, ',  // Diamond White
+      'rgba(217, 182, 111, ',   // Champagne Gold
+      'rgba(184, 135, 50, ',    // Deep Gold
+      'rgba(35, 110, 106, ',    // Subtle Teal
+      'rgba(232, 215, 183, ',   // Light Gold Border
     ];
 
     interface Particle {
@@ -155,7 +155,7 @@ export const BackgroundAnimations: React.FC = () => {
           repeat: Infinity,
           ease: 'easeInOut',
         }}
-        className="fixed -top-40 -left-40 w-[36rem] h-[36rem] rounded-full bg-[#D4AF37]/10 blur-[150px] pointer-events-none z-[0]"
+        className="fixed -top-40 -left-40 w-[36rem] h-[36rem] rounded-full bg-[#D9B66F]/8 blur-[160px] pointer-events-none z-[0]"
       />
 
       <motion.div
@@ -169,7 +169,7 @@ export const BackgroundAnimations: React.FC = () => {
           repeat: Infinity,
           ease: 'easeInOut',
         }}
-        className="fixed top-1/3 -right-40 w-[40rem] h-[40rem] rounded-full bg-[#1E4FA3]/12 blur-[170px] pointer-events-none z-[0]"
+        className="fixed top-1/3 -right-40 w-[40rem] h-[40rem] rounded-full bg-[#FFF9F0] blur-[170px] pointer-events-none z-[0]"
       />
 
       <motion.div
@@ -183,7 +183,7 @@ export const BackgroundAnimations: React.FC = () => {
           repeat: Infinity,
           ease: 'easeInOut',
         }}
-        className="fixed -bottom-40 left-1/3 w-[32rem] h-[32rem] rounded-full bg-[#F5E7A3]/8 blur-[160px] pointer-events-none z-[0]"
+        className="fixed -bottom-40 left-1/3 w-[32rem] h-[32rem] rounded-full bg-[#E8D7B7]/10 blur-[160px] pointer-events-none z-[0]"
       />
 
       {/* Interactive Golden Star Dust & CAD Mesh Canvas */}

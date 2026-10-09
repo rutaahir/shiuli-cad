@@ -159,29 +159,29 @@ export const FileEditingPage: React.FC<FileEditingPageProps> = ({ onNavigate }) 
   };
 
   return (
-    <div className="min-h-screen bg-[#060B1E] text-slate-100 pt-28 sm:pt-32 pb-16 px-4 sm:px-6 lg:px-8 xl:px-12">
+    <div className="min-h-screen bg-[#FFFDF9] text-[#17243B] pt-28 sm:pt-32 pb-16 px-4 sm:px-6 lg:px-8 xl:px-12">
       <div className="max-w-[1600px] mx-auto space-y-10">
         {/* Header Banner */}
         <div className="text-center space-y-4 max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#F5E7A3] text-xs font-semibold uppercase tracking-wider">
-            <Wrench className="w-3.5 h-3.5 text-[#D4AF37]" />
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#FFF9F0] border border-[#E8D7B7] text-[#B88732] text-xs font-semibold uppercase tracking-wider">
+            <Wrench className="w-3.5 h-3.5 text-[#B88732]" />
             Master CAD Services
           </div>
-          <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
+          <h1 className="text-3xl sm:text-5xl font-serif font-bold text-[#17345C] tracking-tight">
             CAD File Editing & Modification Studio
           </h1>
-          <p className="text-slate-300 text-base sm:text-lg max-w-2xl mx-auto">
-            Upload your existing 3D jewelry CAD file (<span className="text-[#F5E7A3]">.3dm, .stl, .obj, .step</span>) for professional resize, stone setting adjustment, weight reduction, mesh repair, or format conversion.
+          <p className="text-[#687386] text-base sm:text-lg max-w-2xl mx-auto">
+            Upload your existing 3D jewelry CAD file (<span className="text-[#B88732] font-semibold">.3dm, .stl, .obj, .step</span>) for professional resize, stone setting adjustment, weight reduction, mesh repair, or format conversion.
           </p>
         </div>
 
         {submitSuccess ? (
-          <div className="bg-slate-900/90 border border-[#D4AF37]/50 rounded-3xl p-8 sm:p-12 text-center space-y-6 shadow-2xl">
-            <div className="w-16 h-16 bg-[#D4AF37]/20 rounded-full flex items-center justify-center mx-auto text-[#D4AF37]">
+          <div className="bg-white border border-[#E8D7B7] rounded-3xl p-8 sm:p-12 text-center space-y-6 shadow-xl">
+            <div className="w-16 h-16 bg-[#FFF9F0] border border-[#E8D7B7] rounded-full flex items-center justify-center mx-auto text-[#B88732]">
               <CheckCircle2 className="w-10 h-10" />
             </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-white">Modification Request Received!</h2>
-            <p className="text-slate-300 max-w-xl mx-auto text-base">{submitMessage}</p>
+            <h2 className="text-2xl sm:text-3xl font-serif font-bold text-[#17345C]">Modification Request Received!</h2>
+            <p className="text-[#687386] max-w-xl mx-auto text-base">{submitMessage}</p>
             <div className="pt-4 flex flex-wrap justify-center gap-4">
               <button
                 onClick={() => {
@@ -190,29 +190,29 @@ export const FileEditingPage: React.FC<FileEditingPageProps> = ({ onNavigate }) 
                   setSelectedModTypeIds([]);
                   setDescription('');
                 }}
-                className="px-6 py-3 bg-[#D4AF37] text-slate-950 font-bold rounded-xl hover:bg-[#F5E7A3] transition-colors"
+                className="px-6 py-3 btn-gold-luxury text-[#17345C] font-bold rounded-xl"
               >
                 Submit Another File
               </button>
               <button
                 onClick={() => onNavigate('home')}
-                className="px-6 py-3 bg-slate-800 text-white font-semibold rounded-xl hover:bg-slate-700 transition-colors"
+                className="px-6 py-3 bg-white border border-[#E8D7B7] text-[#17345C] font-semibold rounded-xl hover:bg-[#FFF9F0] transition-colors"
               >
                 Back to Home
               </button>
             </div>
           </div>
         ) : (
-          <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-10 space-y-8 shadow-2xl">
+          <div className="bg-white border border-[#E8D7B7] rounded-3xl p-6 sm:p-10 space-y-8 shadow-sm">
             {!isLoggedIn && (
-              <div className="p-6 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
+              <div className="p-6 rounded-2xl bg-[#FFF9F0] border border-[#E8D7B7] text-[#17345C] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-white border border-[#E8D7B7] flex items-center justify-center text-[#B88732] shrink-0">
                     <Lock className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-white text-base">Account Authentication Required</h4>
-                    <p className="text-xs text-amber-200/80 mt-0.5">
+                    <h4 className="font-serif font-bold text-[#17345C] text-base">Account Authentication Required</h4>
+                    <p className="text-xs text-[#687386] mt-0.5">
                       Only logged-in users can submit CAD file editing requests so your original CAD files, price quotes, and updates stay secured to your account.
                     </p>
                   </div>
@@ -220,37 +220,37 @@ export const FileEditingPage: React.FC<FileEditingPageProps> = ({ onNavigate }) 
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={() => openAuthModal('Please log in to submit your CAD file modification request.')}
-                    className="px-4 py-2 bg-[#D4AF37] hover:bg-[#F5E7A3] text-slate-950 font-bold text-xs rounded-xl flex items-center gap-1.5 transition-colors"
+                    className="px-4 py-2 btn-gold-luxury text-[#17345C] font-bold text-xs rounded-xl flex items-center gap-1.5"
                   >
                     <LogIn className="w-4 h-4" /> Log In
                   </button>
                   <button
                     onClick={() => onNavigate('register')}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs rounded-xl border border-slate-700 flex items-center gap-1.5 transition-colors"
+                    className="px-4 py-2 bg-white hover:bg-[#FFF9F0] text-[#17345C] font-semibold text-xs rounded-xl border border-[#E8D7B7] flex items-center gap-1.5 transition-colors"
                   >
-                    <UserPlus className="w-4 h-4 text-[#D4AF37]" /> Register
+                    <UserPlus className="w-4 h-4 text-[#B88732]" /> Register
                   </button>
                 </div>
               </div>
             )}
 
             {errorMsg && (
-              <div className="p-4 rounded-xl bg-red-900/30 border border-red-700/50 text-red-200 text-sm flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+              <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
                 <span>{errorMsg}</span>
               </div>
             )}
 
             {/* Step 1: Upload Source CAD File */}
             <div className="space-y-4">
-              <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
-                <div className="w-8 h-8 rounded-full bg-[#D4AF37]/20 text-[#D4AF37] font-bold flex items-center justify-center text-sm">
+              <div className="flex items-center gap-3 border-b border-[#E8D7B7] pb-3">
+                <div className="w-8 h-8 rounded-full bg-[#FFF9F0] border border-[#E8D7B7] text-[#B88732] font-bold flex items-center justify-center text-sm">
                   1
                 </div>
-                <h3 className="text-xl font-bold text-white">Upload Your Source CAD File</h3>
+                <h3 className="text-xl font-serif font-bold text-[#17345C]">Upload Your Source CAD File</h3>
               </div>
 
-              <div className="relative border-2 border-dashed border-slate-700 hover:border-[#D4AF37]/60 rounded-2xl p-8 text-center bg-slate-950/50 transition-colors cursor-pointer group">
+              <div className="relative border-2 border-dashed border-[#E8D7B7] hover:border-[#D9B66F] rounded-2xl p-8 text-center bg-[#FFF9F0]/50 hover:bg-[#FFF9F0] transition-colors cursor-pointer group">
                 <input
                   type="file"
                   accept=".3dm,.stl,.obj,.step"
@@ -258,22 +258,22 @@ export const FileEditingPage: React.FC<FileEditingPageProps> = ({ onNavigate }) 
                   className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                 />
                 <div className="space-y-3">
-                  <div className="w-14 h-14 bg-slate-800 group-hover:bg-[#D4AF37]/10 group-hover:text-[#D4AF37] rounded-2xl flex items-center justify-center mx-auto text-slate-400 transition-colors">
+                  <div className="w-14 h-14 bg-white border border-[#E8D7B7] group-hover:border-[#D9B66F] group-hover:text-[#B88732] rounded-2xl flex items-center justify-center mx-auto text-[#687386] transition-colors shadow-sm">
                     <FileUp className="w-7 h-7" />
                   </div>
                   <div>
                     {cadFile ? (
-                      <div className="inline-flex items-center gap-2 text-sm font-semibold text-[#F5E7A3]">
-                        <FileCode className="w-4 h-4 text-[#D4AF37]" />
+                      <div className="inline-flex items-center gap-2 text-sm font-semibold text-[#17345C]">
+                        <FileCode className="w-4 h-4 text-[#B88732]" />
                         {cadFile.name} ({(cadFile.size / (1024 * 1024)).toFixed(2)} MB)
                       </div>
                     ) : (
                       <>
-                        <p className="text-base font-semibold text-white">
+                        <p className="text-base font-semibold text-[#17345C]">
                           Drag & drop or click to upload your CAD file
                         </p>
-                        <p className="text-xs text-slate-400 mt-1">
-                          Supported formats: <strong className="text-slate-200">.3dm, .stl, .obj, .step</strong> (Max 50MB)
+                        <p className="text-xs text-[#687386] mt-1">
+                          Supported formats: <strong className="text-[#17345C]">.3dm, .stl, .obj, .step</strong> (Max 50MB)
                         </p>
                       </>
                     )}
@@ -284,18 +284,18 @@ export const FileEditingPage: React.FC<FileEditingPageProps> = ({ onNavigate }) 
 
             {/* Step 2: Select Modification Types */}
             <div className="space-y-4">
-              <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
-                <div className="w-8 h-8 rounded-full bg-[#D4AF37]/20 text-[#D4AF37] font-bold flex items-center justify-center text-sm">
+              <div className="flex items-center gap-3 border-b border-[#E8D7B7] pb-3">
+                <div className="w-8 h-8 rounded-full bg-[#FFF9F0] border border-[#E8D7B7] text-[#B88732] font-bold flex items-center justify-center text-sm">
                   2
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-white">Select Modifications Required</h3>
-                  <p className="text-xs text-slate-400">Select one or multiple edits needed on your file</p>
+                  <h3 className="text-xl font-serif font-bold text-[#17345C]">Select Modifications Required</h3>
+                  <p className="text-xs text-[#687386]">Select one or multiple edits needed on your file</p>
                 </div>
               </div>
 
               {loadingTypes ? (
-                <div className="py-8 text-center text-slate-400 text-sm">
+                <div className="py-8 text-center text-[#687386] text-sm">
                   Loading available modification options...
                 </div>
               ) : (
@@ -308,16 +308,16 @@ export const FileEditingPage: React.FC<FileEditingPageProps> = ({ onNavigate }) 
                         onClick={() => toggleModType(mod.id)}
                         className={`p-4 rounded-xl border transition-all cursor-pointer flex items-start gap-3.5 ${
                           isSelected
-                            ? 'bg-[#D4AF37]/10 border-[#D4AF37] text-white'
-                            : 'bg-slate-950/40 border-slate-800 text-slate-300 hover:border-slate-700'
+                            ? 'bg-[#FFF9F0] border-[#D9B66F] text-[#17345C] shadow-sm'
+                            : 'bg-white border-[#E8D7B7] text-[#17345C] hover:border-[#D9B66F]/60'
                         }`}
                       >
-                        <div className="mt-0.5 text-[#D4AF37]">
-                          {isSelected ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5 text-slate-600" />}
+                        <div className="mt-0.5 text-[#B88732]">
+                          {isSelected ? <CheckSquare className="w-5 h-5 text-[#B88732]" /> : <Square className="w-5 h-5 text-[#687386]/40" />}
                         </div>
                         <div>
-                          <h4 className="font-semibold text-sm text-white">{mod.label}</h4>
-                          <p className="text-xs text-slate-400 mt-0.5 leading-snug">{mod.description}</p>
+                          <h4 className="font-semibold text-sm text-[#17345C]">{mod.label}</h4>
+                          <p className="text-xs text-[#687386] mt-0.5 leading-snug">{mod.description}</p>
                         </div>
                       </div>
                     );
@@ -328,16 +328,16 @@ export const FileEditingPage: React.FC<FileEditingPageProps> = ({ onNavigate }) 
 
             {/* Step 3: Detailed Instructions & Parameters */}
             <div className="space-y-4">
-              <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
-                <div className="w-8 h-8 rounded-full bg-[#D4AF37]/20 text-[#D4AF37] font-bold flex items-center justify-center text-sm">
+              <div className="flex items-center gap-3 border-b border-[#E8D7B7] pb-3">
+                <div className="w-8 h-8 rounded-full bg-[#FFF9F0] border border-[#E8D7B7] text-[#B88732] font-bold flex items-center justify-center text-sm">
                   3
                 </div>
-                <h3 className="text-xl font-bold text-white">Modification Details & Specs</h3>
+                <h3 className="text-xl font-serif font-bold text-[#17345C]">Modification Details & Specs</h3>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-semibold text-[#17345C] mb-1.5">
                     Target Metal Weight (Grams) - Optional
                   </label>
                   <input
@@ -346,12 +346,12 @@ export const FileEditingPage: React.FC<FileEditingPageProps> = ({ onNavigate }) 
                     placeholder="e.g. 5.5"
                     value={targetWeightGrams}
                     onChange={(e) => setTargetWeightGrams(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
+                    className="w-full bg-[#FFFDF9] border border-[#E8D7B7] rounded-xl px-4 py-2.5 text-sm text-[#17345C] focus:outline-none focus:border-[#D9B66F]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-semibold text-[#17345C] mb-1.5">
                     Target Stone Size (mm / ct) - Optional
                   </label>
                   <input
@@ -359,31 +359,31 @@ export const FileEditingPage: React.FC<FileEditingPageProps> = ({ onNavigate }) 
                     placeholder="e.g. Center 6.5mm / 1.0ct"
                     value={targetStoneSizeMm}
                     onChange={(e) => setTargetStoneSizeMm(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
+                    className="w-full bg-[#FFFDF9] border border-[#E8D7B7] rounded-xl px-4 py-2.5 text-sm text-[#17345C] focus:outline-none focus:border-[#D9B66F]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Detailed Instructions <span className="text-[#D4AF37]">*</span>
+                <label className="block text-xs font-semibold text-[#17345C] mb-1.5">
+                  Detailed Instructions <span className="text-[#B88732]">*</span>
                 </label>
                 <textarea
                   rows={4}
                   placeholder="Describe in detail what needs to be edited (e.g. Change ring size from US 6 to US 7.5, increase prong height by 0.3mm for 1.2ct diamond, reduce shank weight by 15%)."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
+                  className="w-full bg-[#FFFDF9] border border-[#E8D7B7] rounded-xl p-3.5 text-sm text-[#17345C] focus:outline-none focus:border-[#D9B66F]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-xs font-semibold text-[#17345C] mb-1.5">
                   Reference Sketch or Mark-up Image (Optional)
                 </label>
                 <div className="flex items-center gap-3">
-                  <label className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 rounded-xl cursor-pointer border border-slate-700 transition-colors flex items-center gap-2">
-                    <Upload className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  <label className="px-4 py-2.5 bg-[#FFF9F0] hover:bg-white text-xs font-semibold text-[#17345C] rounded-xl cursor-pointer border border-[#E8D7B7] transition-colors flex items-center gap-2">
+                    <Upload className="w-3.5 h-3.5 text-[#B88732]" />
                     Choose Image
                     <input
                       type="file"
@@ -393,7 +393,7 @@ export const FileEditingPage: React.FC<FileEditingPageProps> = ({ onNavigate }) 
                     />
                   </label>
                   {referenceFile && (
-                    <span className="text-xs text-[#F5E7A3] font-medium truncate">
+                    <span className="text-xs text-[#B88732] font-medium truncate">
                       {referenceFile.name}
                     </span>
                   )}
@@ -402,29 +402,29 @@ export const FileEditingPage: React.FC<FileEditingPageProps> = ({ onNavigate }) 
             </div>
 
             {/* Step 4: Contact & Action Buttons */}
-            <div className="space-y-4 pt-4 border-t border-slate-800">
-              <h3 className="text-lg font-bold text-white mb-2">Your Contact Information</h3>
+            <div className="space-y-4 pt-4 border-t border-[#E8D7B7]">
+              <h3 className="text-lg font-serif font-bold text-[#17345C] mb-2">Your Contact Information</h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <input
                   type="text"
                   placeholder="Your Name *"
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
-                  className="bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
+                  className="bg-[#FFFDF9] border border-[#E8D7B7] rounded-xl px-4 py-2.5 text-sm text-[#17345C] focus:outline-none focus:border-[#D9B66F]"
                 />
                 <input
                   type="email"
                   placeholder="Email Address *"
                   value={clientEmail}
                   onChange={(e) => setClientEmail(e.target.value)}
-                  className="bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
+                  className="bg-[#FFFDF9] border border-[#E8D7B7] rounded-xl px-4 py-2.5 text-sm text-[#17345C] focus:outline-none focus:border-[#D9B66F]"
                 />
                 <input
                   type="tel"
                   placeholder="Phone / WhatsApp"
                   value={clientPhone}
                   onChange={(e) => setClientPhone(e.target.value)}
-                  className="bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
+                  className="bg-[#FFFDF9] border border-[#E8D7B7] rounded-xl px-4 py-2.5 text-sm text-[#17345C] focus:outline-none focus:border-[#D9B66F]"
                 />
               </div>
 
@@ -433,13 +433,13 @@ export const FileEditingPage: React.FC<FileEditingPageProps> = ({ onNavigate }) 
                   type="button"
                   disabled={isSubmitting}
                   onClick={() => handleSubmit(false)}
-                  className="flex-1 py-3.5 px-6 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 font-semibold text-white transition-all flex items-center justify-center gap-2"
+                  className="flex-1 py-3.5 px-6 rounded-xl bg-white hover:bg-[#FFF9F0] border border-[#E8D7B7] font-semibold text-[#17345C] transition-all flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? (
-                    <RefreshCw className="w-5 h-5 animate-spin text-[#D4AF37]" />
+                    <RefreshCw className="w-5 h-5 animate-spin text-[#B88732]" />
                   ) : (
                     <>
-                      <Send className="w-4 h-4 text-[#D4AF37]" />
+                      <Send className="w-4 h-4 text-[#B88732]" />
                       Submit for Review & Quote
                     </>
                   )}
@@ -449,10 +449,10 @@ export const FileEditingPage: React.FC<FileEditingPageProps> = ({ onNavigate }) 
                   type="button"
                   disabled={isSubmitting}
                   onClick={() => handleSubmit(true)}
-                  className="flex-1 py-3.5 px-6 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#B38F24] hover:from-[#F5E7A3] hover:to-[#D4AF37] text-slate-950 font-bold shadow-lg shadow-[#D4AF37]/20 transition-all flex items-center justify-center gap-2"
+                  className="flex-1 py-3.5 px-6 rounded-xl btn-gold-luxury text-[#17345C] font-bold shadow-lg transition-all flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? (
-                    <RefreshCw className="w-5 h-5 animate-spin text-slate-950" />
+                    <RefreshCw className="w-5 h-5 animate-spin text-[#17345C]" />
                   ) : (
                     <>
                       <ShoppingBag className="w-4 h-4" />

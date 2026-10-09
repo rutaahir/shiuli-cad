@@ -206,19 +206,19 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({ slug, on
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: 'easeOut' }}
-      className="min-h-screen bg-[#060B1E] text-slate-100 font-sans"
+      className="min-h-screen bg-[#FFFDF9] text-[#17243B] font-sans"
     >
       {/* Breadcrumb Bar */}
       <section className="pt-20 sm:pt-24 pb-4 px-4 sm:px-6 lg:px-8 xl:px-12 max-w-[1600px] mx-auto">
-        <div className="flex items-center gap-2 text-xs text-slate-400 font-medium overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-2 text-xs text-[#687386] font-medium overflow-x-auto no-scrollbar">
           <button
             onClick={() => onNavigate('home')}
-            className="hover:text-white transition-colors cursor-pointer"
+            className="hover:text-[#17345C] transition-colors cursor-pointer"
           >
             Home
           </button>
           <ChevronRight className="w-3.5 h-3.5 text-slate-600 shrink-0" />
-          <span className="text-[#F5E7A3] font-semibold">CAD Services Studio</span>
+          <span className="text-[#B88732] font-semibold">CAD Services Studio</span>
         </div>
       </section>
 
@@ -230,26 +230,26 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({ slug, on
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.3 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#F5E7A3] text-xs font-semibold uppercase tracking-widest shadow-lg"
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#FFF9F0] border border-[#E8D7B7] text-[#B88732] text-xs font-semibold uppercase tracking-widest shadow-lg"
           >
-            <Sparkles className="w-3.5 h-3.5 text-[#D4AF37] animate-pulse" />
+            <Sparkles className="w-3.5 h-3.5 text-[#B88732] animate-pulse" />
             {services.length} DISCIPLINES • NATIVE RHINO 8 + MATRIXGOLD
           </motion.div>
 
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-serif font-extrabold text-white tracking-tight leading-tight">
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-serif font-extrabold text-[#17345C] tracking-tight leading-tight">
             CAD Services Hub
           </h1>
 
-          <p className="text-slate-300 text-sm sm:text-base max-w-3xl mx-auto leading-relaxed font-light">
+          <p className="text-[#687386] text-sm sm:text-base max-w-3xl mx-auto leading-relaxed font-light">
             Explore all {services.length} master jewellery CAD specializations. Engineered to ±0.02mm precision with 100% castable watertight .3DM and .STL files ready for production.
           </p>
 
           <div className="flex flex-wrap justify-center items-center gap-4 text-xs font-mono pt-2">
-            <div className="px-4 py-2 rounded-2xl bg-slate-900/90 border border-slate-800 text-[#F5E7A3] font-bold flex items-center gap-2 shadow-md">
-              <Box className="w-4 h-4 text-[#D4AF37]" />
+            <div className="px-4 py-2 rounded-2xl bg-white border border-[#E8D7B7] text-[#B88732] font-bold flex items-center gap-2 shadow-md">
+              <Box className="w-4 h-4 text-[#B88732]" />
               <span>{services.length} Master Services Available</span>
             </div>
-            <div className="px-4 py-2 rounded-2xl bg-slate-900/90 border border-slate-800 text-emerald-400 font-bold flex items-center gap-2 shadow-md">
+            <div className="px-4 py-2 rounded-2xl bg-white border border-[#E8D7B7] text-emerald-400 font-bold flex items-center gap-2 shadow-md">
               <CheckCircle2 className="w-4 h-4" />
               <span>±0.02mm Toleranced • 48-72h Delivery</span>
             </div>
@@ -258,8 +258,8 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({ slug, on
 
         {/* Animated Spotlight Banner (Interactive Carousel) */}
         {currentSpotlight && (
-          <div className="bg-gradient-to-r from-[#09112B] via-[#0D183B] to-[#09112B] border border-[#D4AF37]/30 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-[#D4AF37]/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="bg-gradient-to-r from-[#09112B] via-[#0D183B] to-[#09112B] border border-[#E8D7B7] rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-[#FFF9F0] rounded-full blur-3xl pointer-events-none" />
             
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
               <div className="lg:col-span-7 space-y-4 text-left">
@@ -267,7 +267,7 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({ slug, on
                   <span className="px-3 py-1 rounded-full bg-[#D4AF37] text-slate-950 font-extrabold text-xs tracking-wider uppercase">
                     SPOTLIGHT SPECIALIZATION
                   </span>
-                  <span className="text-xs text-slate-400 font-mono">
+                  <span className="text-xs text-[#687386] font-mono">
                     Service {spotlightIndex + 1} of {services.length}
                   </span>
                 </div>
@@ -281,23 +281,23 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({ slug, on
                     transition={{ duration: 0.3 }}
                     className="space-y-3"
                   >
-                    <h2 className="text-2xl sm:text-4xl font-serif font-extrabold text-white tracking-tight">
+                    <h2 className="text-2xl sm:text-4xl font-serif font-extrabold text-[#17345C] tracking-tight">
                       {currentSpotlight.title}
                     </h2>
-                    <p className="text-sm sm:text-lg text-[#F5E7A3] font-medium">
+                    <p className="text-sm sm:text-lg text-[#B88732] font-medium">
                       {currentSpotlight.subtitle}
                     </p>
-                    <p className="text-slate-300 text-xs sm:text-sm leading-relaxed font-light line-clamp-3">
+                    <p className="text-[#687386] text-xs sm:text-sm leading-relaxed font-light line-clamp-3">
                       {currentSpotlight.intro_text}
                     </p>
                   </motion.div>
                 </AnimatePresence>
 
                 <div className="pt-2 flex flex-wrap items-center gap-4 text-xs font-mono">
-                  <div className="px-3.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-2">
-                    <Tag className="w-3.5 h-3.5 text-[#D4AF37]" />
-                    <span className="text-slate-400">Starting Price:</span>
-                    <span className="text-[#F5E7A3] font-bold">{spotlightPrices.usd} / {spotlightPrices.inr}</span>
+                  <div className="px-3.5 py-1.5 rounded-xl bg-slate-950 border border-[#E8D7B7] flex items-center gap-2">
+                    <Tag className="w-3.5 h-3.5 text-[#B88732]" />
+                    <span className="text-[#687386]">Starting Price:</span>
+                    <span className="text-[#B88732] font-bold">{spotlightPrices.usd} / {spotlightPrices.inr}</span>
                   </div>
                 </div>
 
@@ -312,9 +312,9 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({ slug, on
                     </button>
                     <button
                       onClick={() => setModalService(currentSpotlight)}
-                      className="px-5 py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs sm:text-sm rounded-xl border border-slate-700 transition-colors flex items-center gap-2 cursor-pointer"
+                      className="px-5 py-3 bg-white hover:bg-slate-800 text-[#17345C] font-semibold text-xs sm:text-sm rounded-xl border border-slate-700 transition-colors flex items-center gap-2 cursor-pointer"
                     >
-                      <Info className="w-4 h-4 text-[#D4AF37]" />
+                      <Info className="w-4 h-4 text-[#B88732]" />
                       <span>View Specs & Details</span>
                     </button>
                   </div>
@@ -324,14 +324,14 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({ slug, on
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setSpotlightIndex((prev) => (prev === 0 ? services.length - 1 : prev - 1))}
-                        className="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-[#D4AF37] text-slate-300 hover:text-white transition-colors cursor-pointer"
+                        className="p-2 rounded-xl bg-white border border-[#E8D7B7] hover:border-[#D9B66F] text-[#687386] hover:text-[#17345C] transition-colors cursor-pointer"
                         title="Previous Spotlight"
                       >
                         <ChevronLeft className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => setSpotlightIndex((prev) => (prev + 1) % services.length)}
-                        className="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-[#D4AF37] text-slate-300 hover:text-white transition-colors cursor-pointer"
+                        className="p-2 rounded-xl bg-white border border-[#E8D7B7] hover:border-[#D9B66F] text-[#687386] hover:text-[#17345C] transition-colors cursor-pointer"
                         title="Next Spotlight"
                       >
                         <ChevronRight className="w-4 h-4" />
@@ -350,7 +350,7 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({ slug, on
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ duration: 0.3 }}
-                    className="relative rounded-2xl overflow-hidden border border-[#D4AF37]/30 bg-slate-950 shadow-2xl group/img"
+                    className="relative rounded-2xl overflow-hidden border border-[#E8D7B7] bg-slate-950 shadow-2xl group/img"
                   >
                     <img
                       src={currentSpotlight.hero_image || '/unsplash-img/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=800&q=80'}
@@ -358,8 +358,8 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({ slug, on
                       className="w-full h-72 sm:h-80 object-cover group-hover/img:scale-105 transition-transform duration-700"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-80" />
-                    <div className="absolute bottom-3 left-3 right-3 flex justify-between items-center bg-slate-950/90 backdrop-blur-md p-3 rounded-xl border border-slate-800 text-[11px] font-mono">
-                      <span className="text-[#F5E7A3] font-bold">Rhino 8 + MatrixGold</span>
+                    <div className="absolute bottom-3 left-3 right-3 flex justify-between items-center bg-slate-950/90 backdrop-blur-md p-3 rounded-xl border border-[#E8D7B7] text-[11px] font-mono">
+                      <span className="text-[#B88732] font-bold">Rhino 8 + MatrixGold</span>
                       <span className="text-emerald-400 font-bold flex items-center gap-1">
                         <CheckCircle2 className="w-3.5 h-3.5" /> 100% Watertight Mesh
                       </span>
@@ -378,22 +378,22 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({ slug, on
         <div className="space-y-4 text-left">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <span className="text-xs font-bold uppercase tracking-widest text-[#D4AF37]">
+              <span className="text-xs font-bold uppercase tracking-widest text-[#B88732]">
                 EXPLORE ALL SERVICES
               </span>
-              <h2 className="text-2xl sm:text-3xl font-serif font-extrabold text-white">
+              <h2 className="text-2xl sm:text-3xl font-serif font-extrabold text-[#17345C]">
                 Complete CAD Engineering Catalog ({services.length} Services)
               </h2>
             </div>
 
             {/* Filter Count Badge */}
-            <span className="px-3.5 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-xs font-mono text-[#F5E7A3]">
+            <span className="px-3.5 py-1.5 rounded-full bg-white border border-[#E8D7B7] text-xs font-mono text-[#B88732]">
               Showing {filteredServices.length} of {services.length} Services
             </span>
           </div>
 
           {/* DYNAMIC Category Filter Pills */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-3 pt-1 no-scrollbar border-b border-slate-800/80">
+          <div className="flex items-center gap-2 overflow-x-auto pb-3 pt-1 no-scrollbar border-b border-[#E8D7B7]/80">
             {dynamicCategoryTabs.map((tab) => {
               const isActive = activeTab === tab.id;
               return (
@@ -403,7 +403,7 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({ slug, on
                   className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-300 flex items-center gap-2 cursor-pointer ${
                     isActive
                       ? 'bg-[#D4AF37] text-slate-950 shadow-lg shadow-[#D4AF37]/20 scale-105'
-                      : 'bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-slate-800 hover:border-slate-700'
+                      : 'bg-white/80 hover:bg-slate-800 text-[#687386] border border-[#E8D7B7] hover:border-slate-700'
                   }`}
                 >
                   <span>{tab.label}</span>
@@ -417,12 +417,12 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({ slug, on
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[1, 2, 3, 4, 5, 6].map((n) => (
-              <SkeletonShimmer key={n} className="h-96 rounded-3xl bg-slate-900/60" />
+              <SkeletonShimmer key={n} className="h-96 rounded-3xl bg-white/60" />
             ))}
           </div>
         ) : filteredServices.length === 0 ? (
-          <div className="p-16 text-center bg-slate-900/50 rounded-3xl border border-slate-800 text-slate-400">
-            <Info className="w-8 h-8 text-[#D4AF37] mx-auto mb-2" />
+          <div className="p-16 text-center bg-white/50 rounded-3xl border border-[#E8D7B7] text-[#687386]">
+            <Info className="w-8 h-8 text-[#B88732] mx-auto mb-2" />
             No service pages found matching category tab "{activeTab}".
           </div>
         ) : (
@@ -443,14 +443,14 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({ slug, on
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ duration: 0.4, delay: index * 0.05 }}
-                    className="bg-slate-900/70 border border-slate-800 rounded-3xl p-6 hover:border-[#D4AF37]/60 hover:-translate-y-1.5 transition-all duration-300 shadow-2xl flex flex-col justify-between group text-left relative overflow-hidden"
+                    className="bg-white/70 border border-[#E8D7B7] rounded-3xl p-6 hover:border-[#D9B66F]/60 hover:-translate-y-1.5 transition-all duration-300 shadow-2xl flex flex-col justify-between group text-left relative overflow-hidden"
                   >
                     {/* Top Glow Accent */}
                     <div className="absolute -top-12 -right-12 w-32 h-32 bg-[#D4AF37]/5 rounded-full blur-2xl group-hover:bg-[#D4AF37]/15 transition-all" />
 
                     <div className="space-y-4 relative z-10">
                       {/* Image Thumbnail with Badges */}
-                      <div className="aspect-[16/10] relative rounded-2xl overflow-hidden border border-slate-800 bg-slate-950 group/img">
+                      <div className="aspect-[16/10] relative rounded-2xl overflow-hidden border border-[#E8D7B7] bg-slate-950 group/img">
                         <img
                           src={service.hero_image || '/unsplash-img/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=600&q=80'}
                           alt={service.title}
@@ -459,38 +459,38 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({ slug, on
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent opacity-80" />
 
                         {/* Top Left Number Badge */}
-                        <div className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-slate-950/80 backdrop-blur-md border border-slate-800 text-[11px] font-mono font-bold text-[#D4AF37]">
+                        <div className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-slate-950/80 backdrop-blur-md border border-[#E8D7B7] text-[11px] font-mono font-bold text-[#B88732]">
                           #{service.display_order || index + 1}
                         </div>
 
                         {/* Bottom Price Tag */}
-                        <div className="absolute bottom-3 left-3 right-3 flex justify-between items-center bg-slate-950/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-800/80 text-[11px] font-mono">
-                          <span className="text-slate-400">Starting:</span>
-                          <span className="text-[#F5E7A3] font-bold">{prices.usd} / {prices.inr}</span>
+                        <div className="absolute bottom-3 left-3 right-3 flex justify-between items-center bg-slate-950/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-[#E8D7B7]/80 text-[11px] font-mono">
+                          <span className="text-[#687386]">Starting:</span>
+                          <span className="text-[#B88732] font-bold">{prices.usd} / {prices.inr}</span>
                         </div>
                       </div>
 
                       {/* Header Info */}
                       <div className="space-y-1 pt-1">
-                        <h3 className="text-xl font-serif font-extrabold text-white group-hover:text-[#F5E7A3] transition-colors">
+                        <h3 className="text-xl font-serif font-extrabold text-[#17345C] group-hover:text-[#B88732] transition-colors">
                           {service.title}
                         </h3>
-                        <p className="text-xs text-[#D4AF37] font-medium line-clamp-1">
+                        <p className="text-xs text-[#B88732] font-medium line-clamp-1">
                           {service.subtitle}
                         </p>
                       </div>
 
                       {/* Intro Text */}
-                      <p className="text-xs text-slate-300 leading-relaxed font-light line-clamp-3">
+                      <p className="text-xs text-[#687386] leading-relaxed font-light line-clamp-3">
                         {service.intro_text}
                       </p>
 
                       {/* Dynamic Feature Chips from Database */}
                       {service.features && service.features.length > 0 && (
-                        <div className="space-y-1.5 pt-2 border-t border-slate-800/80">
+                        <div className="space-y-1.5 pt-2 border-t border-[#E8D7B7]/80">
                           {service.features.slice(0, 3).map((feat: any, fIdx: number) => (
-                            <div key={feat.id || fIdx} className="flex items-center gap-2 text-[11px] text-slate-300">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
+                            <div key={feat.id || fIdx} className="flex items-center gap-2 text-[11px] text-[#687386]">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-[#B88732] shrink-0" />
                               <span className="truncate">{feat.title}</span>
                             </div>
                           ))}
@@ -499,7 +499,7 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({ slug, on
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="pt-6 flex flex-col sm:flex-row items-center gap-2.5 relative z-10 border-t border-slate-800/80 mt-4">
+                    <div className="pt-6 flex flex-col sm:flex-row items-center gap-2.5 relative z-10 border-t border-[#E8D7B7]/80 mt-4">
                       <button
                         onClick={() => onNavigate('custom-design', categorySlug)}
                         className="w-full sm:flex-1 py-2.5 px-4 bg-[#D4AF37] hover:bg-[#F5E7A3] text-slate-950 font-extrabold text-xs rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
@@ -510,10 +510,10 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({ slug, on
 
                       <button
                         onClick={() => setModalService(service)}
-                        className="w-full sm:w-auto py-2.5 px-3 bg-slate-950 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-slate-700 font-semibold text-xs rounded-xl transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                        className="w-full sm:w-auto py-2.5 px-3 bg-slate-950 hover:bg-slate-800 text-[#17243B] border border-[#E8D7B7] hover:border-slate-700 font-semibold text-xs rounded-xl transition-colors flex items-center justify-center gap-1 cursor-pointer"
                         title="View full technical specs"
                       >
-                        <Info className="w-3.5 h-3.5 text-[#D4AF37]" />
+                        <Info className="w-3.5 h-3.5 text-[#B88732]" />
                         <span>Specs</span>
                       </button>
                     </div>
@@ -526,43 +526,43 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({ slug, on
       </section>
 
       {/* SECTION 3 — TECHNICAL SPECIFICATIONS & FOUNDRY GUARANTEES */}
-      <section className="py-14 px-4 sm:px-6 lg:px-8 xl:px-12 max-w-[1600px] mx-auto space-y-8 border-y border-slate-800/80 bg-slate-900/30">
+      <section className="py-14 px-4 sm:px-6 lg:px-8 xl:px-12 max-w-[1600px] mx-auto space-y-8 border-y border-[#E8D7B7]/80 bg-white/30">
         <div className="text-center space-y-2">
-          <span className="text-xs font-bold uppercase tracking-widest text-[#D4AF37]">
+          <span className="text-xs font-bold uppercase tracking-widest text-[#B88732]">
             FOUNDRY & PRINTING STANDARDS
           </span>
-          <h3 className="text-2xl sm:text-4xl font-serif font-extrabold text-white">
+          <h3 className="text-2xl sm:text-4xl font-serif font-extrabold text-[#17345C]">
             Why Jewellers & Factories Trust Shiuli CAD Studio
           </h3>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 space-y-3 text-left">
-            <div className="w-10 h-10 rounded-2xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#D4AF37] flex items-center justify-center font-bold">
+          <div className="p-6 rounded-3xl bg-white/80 border border-[#E8D7B7] space-y-3 text-left">
+            <div className="w-10 h-10 rounded-2xl bg-[#FFF9F0] border border-[#E8D7B7] text-[#B88732] flex items-center justify-center font-bold">
               <ShieldCheck className="w-5 h-5" />
             </div>
-            <h4 className="font-bold text-white text-base">Zero Non-Manifold Geometry</h4>
-            <p className="text-xs text-slate-300 leading-relaxed font-light">
+            <h4 className="font-bold text-[#17345C] text-base">Zero Non-Manifold Geometry</h4>
+            <p className="text-xs text-[#687386] leading-relaxed font-light">
               Every 3D mesh is audited in Magics & MatrixGold for 100% closed, watertight solids ready for high-resolution wax printing.
             </p>
           </div>
 
-          <div className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 space-y-3 text-left">
-            <div className="w-10 h-10 rounded-2xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#D4AF37] flex items-center justify-center font-bold">
+          <div className="p-6 rounded-3xl bg-white/80 border border-[#E8D7B7] space-y-3 text-left">
+            <div className="w-10 h-10 rounded-2xl bg-[#FFF9F0] border border-[#E8D7B7] text-[#B88732] flex items-center justify-center font-bold">
               <Award className="w-5 h-5" />
             </div>
-            <h4 className="font-bold text-white text-base">Shrinkage & Seat Clearance</h4>
-            <p className="text-xs text-slate-300 leading-relaxed font-light">
+            <h4 className="font-bold text-[#17345C] text-base">Shrinkage & Seat Clearance</h4>
+            <p className="text-xs text-[#687386] leading-relaxed font-light">
               Prong angles, collet notches, and wall thicknesses are pre-calibrated for +1.25% casting shrinkage to guarantee exact stone seating.
             </p>
           </div>
 
-          <div className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 space-y-3 text-left">
-            <div className="w-10 h-10 rounded-2xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#D4AF37] flex items-center justify-center font-bold">
+          <div className="p-6 rounded-3xl bg-white/80 border border-[#E8D7B7] space-y-3 text-left">
+            <div className="w-10 h-10 rounded-2xl bg-[#FFF9F0] border border-[#E8D7B7] text-[#B88732] flex items-center justify-center font-bold">
               <Clock className="w-5 h-5" />
             </div>
-            <h4 className="font-bold text-white text-base">48-Hour Rapid Delivery</h4>
-            <p className="text-xs text-slate-300 leading-relaxed font-light">
+            <h4 className="font-bold text-[#17345C] text-base">48-Hour Rapid Delivery</h4>
+            <p className="text-xs text-[#687386] leading-relaxed font-light">
               Receive your organized native .3DM Rhino file alongside high-density .STL meshes and 4K photorealistic renders.
             </p>
           </div>
@@ -577,28 +577,28 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({ slug, on
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-slate-900 border border-[#D4AF37]/40 rounded-3xl p-6 sm:p-8 max-w-2xl w-full space-y-6 shadow-2xl relative overflow-hidden text-left max-h-[90vh] overflow-y-auto"
+              className="bg-white border border-[#D9B66F]/40 rounded-3xl p-6 sm:p-8 max-w-2xl w-full space-y-6 shadow-2xl relative overflow-hidden text-left max-h-[90vh] overflow-y-auto"
             >
               <button
                 onClick={() => setModalService(null)}
-                className="absolute top-4 right-4 p-2 rounded-full bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="absolute top-4 right-4 p-2 rounded-full bg-slate-800 text-[#687386] hover:text-[#17345C] transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
 
               <div className="flex items-center gap-3">
                 {modalService.hero_image ? (
-                  <img src={modalService.hero_image} alt={modalService.title} className="w-16 h-16 object-cover rounded-2xl border border-[#D4AF37]/40" />
+                  <img src={modalService.hero_image} alt={modalService.title} className="w-16 h-16 object-cover rounded-2xl border border-[#D9B66F]/40" />
                 ) : (
-                  <div className="p-3 rounded-2xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#D4AF37]">
+                  <div className="p-3 rounded-2xl bg-[#FFF9F0] border border-[#E8D7B7] text-[#B88732]">
                     <Diamond className="w-6 h-6" />
                   </div>
                 )}
                 <div>
-                  <h3 className="text-2xl font-serif font-extrabold text-white">
+                  <h3 className="text-2xl font-serif font-extrabold text-[#17345C]">
                     {modalService.title}
                   </h3>
-                  <p className="text-xs text-[#F5E7A3] font-medium">
+                  <p className="text-xs text-[#B88732] font-medium">
                     {modalService.subtitle}
                   </p>
                   <p className="text-xs font-mono text-emerald-400 font-bold mt-0.5">
@@ -608,10 +608,10 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({ slug, on
               </div>
 
               <div className="space-y-2">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-[#D4AF37]">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-[#B88732]">
                   Description & Engineering Specs
                 </h4>
-                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-light">
+                <p className="text-xs sm:text-sm text-[#687386] leading-relaxed font-light">
                   {modalService.intro_text}
                 </p>
               </div>
@@ -619,21 +619,21 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({ slug, on
               {/* Technical Specifications list */}
               {modalService.features && modalService.features.length > 0 && (
                 <div className="space-y-3 pt-2">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#D4AF37]">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#B88732]">
                     Technical Tolerances & Deliverables
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {modalService.features.map((feat: any, fIdx: number) => (
                       <div
                         key={feat.id || fIdx}
-                        className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1"
+                        className="p-3 rounded-xl bg-slate-950 border border-[#E8D7B7] space-y-1"
                       >
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-white">
-                          <CheckCircle2 className="w-4 h-4 text-[#D4AF37] shrink-0" />
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-[#17345C]">
+                          <CheckCircle2 className="w-4 h-4 text-[#B88732] shrink-0" />
                           <span>{feat.title}</span>
                         </div>
                         {feat.description && (
-                          <p className="text-[11px] text-slate-400 leading-snug">
+                          <p className="text-[11px] text-[#687386] leading-snug">
                             {feat.description}
                           </p>
                         )}
@@ -646,15 +646,15 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({ slug, on
               {/* Gallery Images in Modal if present */}
               {modalService.gallery && modalService.gallery.length > 0 && (
                 <div className="space-y-3 pt-2">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#D4AF37]">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#B88732]">
                     Showcase Gallery Images
                   </h4>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {modalService.gallery.map((gImg: any, gIdx: number) => (
-                      <div key={gImg.id || gIdx} className="rounded-xl overflow-hidden border border-slate-800 bg-slate-950">
+                      <div key={gImg.id || gIdx} className="rounded-xl overflow-hidden border border-[#E8D7B7] bg-slate-950">
                         <img src={gImg.image} alt={gImg.caption || 'Gallery'} className="w-full h-24 object-cover" />
                         {gImg.caption && (
-                          <p className="p-1.5 text-[10px] text-slate-300 text-center font-mono truncate">{gImg.caption}</p>
+                          <p className="p-1.5 text-[10px] text-[#687386] text-center font-mono truncate">{gImg.caption}</p>
                         )}
                       </div>
                     ))}
@@ -663,7 +663,7 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({ slug, on
               )}
 
               {/* Action Buttons */}
-              <div className="pt-4 flex flex-wrap gap-3 border-t border-slate-800">
+              <div className="pt-4 flex flex-wrap gap-3 border-t border-[#E8D7B7]">
                 <button
                   onClick={() => {
                     const cat = modalService.linked_category_slug || modalService.slug;
@@ -677,7 +677,7 @@ export const ServiceLandingPage: React.FC<ServiceLandingPageProps> = ({ slug, on
                 </button>
                 <button
                   onClick={() => setModalService(null)}
-                  className="py-3 px-5 bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs sm:text-sm rounded-xl transition-colors cursor-pointer"
+                  className="py-3 px-5 bg-slate-800 hover:bg-slate-700 text-[#17345C] font-semibold text-xs sm:text-sm rounded-xl transition-colors cursor-pointer"
                 >
                   Close
                 </button>

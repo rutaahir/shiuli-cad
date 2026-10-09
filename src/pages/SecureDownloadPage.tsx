@@ -97,30 +97,30 @@ export const SecureDownloadPage: React.FC = () => {
 
   if (status === 'initiating') {
     return (
-      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4 text-zinc-100">
-        <RefreshCw className="w-10 h-10 text-amber-400 animate-spin mb-4" />
-        <p className="text-sm font-medium text-zinc-400">Verifying secure download token...</p>
+      <div className="min-h-screen bg-[#FFFDF9] flex flex-col items-center justify-center p-4 text-[#17243B]">
+        <RefreshCw className="w-10 h-10 text-[#B88732] animate-spin mb-4" />
+        <p className="text-sm font-medium text-[#687386]">Verifying secure download token...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4 text-zinc-100 pt-28 pb-16">
+    <div className="min-h-screen bg-[#FFFDF9] flex flex-col items-center justify-center p-4 text-[#17243B] pt-28 pb-16">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-lg bg-zinc-900/90 border border-amber-500/30 rounded-2xl p-8 shadow-2xl text-center space-y-6 relative overflow-hidden"
+        className="w-full max-w-lg bg-white border border-[#E8D7B7] rounded-2xl p-8 shadow-2xl text-center space-y-6 relative overflow-hidden"
       >
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-amber-300 to-amber-600" />
 
         {status === 'downloading' && (
           <div className="space-y-4 py-6">
-            <div className="inline-flex p-4 bg-amber-500/10 border border-amber-500/30 rounded-full text-amber-400">
+            <div className="inline-flex p-4 bg-[#FFF9F0] border border-[#E8D7B7] rounded-full text-[#B88732]">
               <Download className="w-10 h-10 animate-bounce" />
             </div>
-            <h2 className="text-2xl font-serif font-bold text-amber-100">Preparing Your File Download...</h2>
-            <p className="text-sm text-zinc-400">
-              Authenticating user <span className="text-amber-300 font-semibold">{user?.email}</span> and streaming CAD file.
+            <h2 className="text-2xl font-serif font-bold text-[#17345C]">Preparing Your File Download...</h2>
+            <p className="text-sm text-[#687386]">
+              Authenticating user <span className="text-[#B88732] font-semibold">{user?.email}</span> and streaming CAD file.
             </p>
           </div>
         )}
@@ -130,25 +130,25 @@ export const SecureDownloadPage: React.FC = () => {
             <div className="inline-flex p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-full text-emerald-400">
               <CheckCircle2 className="w-12 h-12" />
             </div>
-            <h2 className="text-2xl font-serif font-bold text-amber-100">Download Complete!</h2>
-            <p className="text-sm text-zinc-300">
+            <h2 className="text-2xl font-serif font-bold text-[#17345C]">Download Complete!</h2>
+            <p className="text-sm text-[#17243B]">
               Your CAD design file has been delivered to your browser downloads.
             </p>
-            <div className="p-4 bg-zinc-950/80 border border-zinc-800 rounded-xl text-xs text-zinc-400 text-left space-y-2">
-              <div className="flex items-center space-x-2 text-amber-400 font-semibold mb-1">
+            <div className="p-4 bg-[#FFFDF9]/80 border border-[#E8D7B7] rounded-xl text-xs text-[#687386] text-left space-y-2">
+              <div className="flex items-center space-x-2 text-[#B88732] font-semibold mb-1">
                 <Lock className="w-4 h-4" />
                 <span>Single-Use Token Spent</span>
               </div>
               <p>• This token link has now been marked as used and deactivated.</p>
-              <p>• If you need to re-download this design in the future, request a new link from your <span className="text-amber-300 font-semibold">My Downloads</span> dashboard.</p>
+              <p>• If you need to re-download this design in the future, request a new link from your <span className="text-[#B88732] font-semibold">My Downloads</span> dashboard.</p>
               
-              <div className="pt-2 border-t border-zinc-800">
-                <label className="flex items-start space-x-2.5 cursor-pointer text-zinc-300">
+              <div className="pt-2 border-t border-[#E8D7B7]">
+                <label className="flex items-start space-x-2.5 cursor-pointer text-[#17243B]">
                   <input
                     type="checkbox"
                     checked={portfolioConsent}
                     onChange={(e) => setPortfolioConsent(e.target.checked)}
-                    className="mt-0.5 rounded border-zinc-700 bg-zinc-900 text-amber-500 focus:ring-amber-500"
+                    className="mt-0.5 rounded border-zinc-700 bg-white text-amber-500 focus:ring-amber-500"
                   />
                   <span className="text-[11px] leading-snug">
                     Allow Shiuli CAD Studio to feature this design in our public portfolio (your name & contact will never be shown).
@@ -158,7 +158,7 @@ export const SecureDownloadPage: React.FC = () => {
             </div>
             <button
               onClick={handleGoToDashboard}
-              className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2"
+              className="w-full py-3 btn-gold-luxury text-[#17345C] font-bold rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>Go to My Downloads Dashboard</span>
@@ -172,7 +172,7 @@ export const SecureDownloadPage: React.FC = () => {
               <AlertTriangle className="w-12 h-12" />
             </div>
             <h2 className="text-2xl font-serif font-bold text-rose-200">Unable to Download File</h2>
-            <p className="text-sm text-zinc-300 bg-rose-500/10 border border-rose-500/20 p-4 rounded-xl">
+            <p className="text-sm text-[#17243B] bg-rose-500/10 border border-rose-500/20 p-4 rounded-xl">
               {errorMessage}
             </p>
 
@@ -186,7 +186,7 @@ export const SecureDownloadPage: React.FC = () => {
 
               <button
                 onClick={() => { window.location.href = '/'; }}
-                className="w-full py-2.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+                className="w-full py-2.5 text-xs text-[#687386] hover:text-zinc-200 transition-colors"
               >
                 Back to Home Page
               </button>

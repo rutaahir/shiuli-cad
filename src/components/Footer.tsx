@@ -34,13 +34,13 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
   };
 
   return (
-    <footer className="relative bg-[#060B1E] text-[#F5F1E8] overflow-hidden border-t border-[#D4AF37]/25">
+    <footer className="relative bg-[#0D1E38] text-[#F5F1E8] overflow-hidden border-t border-[#D9B66F]/30">
       {/* Animated Light Glow beam on top border */}
-      <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent opacity-75 animate-pulse" />
+      <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#D9B66F] to-transparent opacity-80" />
 
       {/* Decorative subtle ribbon watermark in background */}
       <div className="absolute -right-20 -bottom-20 w-96 h-96 opacity-5 pointer-events-none">
-        <BrandLogo variant="mark-only" size="xl" />
+        <BrandLogo variant="mark-only" size="xl" theme="dark" />
       </div>
 
       <div className="max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12 pt-16 pb-12 relative z-10">
@@ -48,11 +48,11 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-8 mb-12">
           {/* Column 1: Brand & Manifesto */}
           <div className="space-y-4">
-            <BrandLogo variant="horizontal" size="md" />
+            <BrandLogo variant="horizontal" size="md" theme="dark" />
             <p className="text-xs sm:text-sm text-[#C9C2A6] leading-relaxed font-light">
               Where imagination becomes fine jewellery. Delivering production-tested Rhino .3DM files and watertight .STL meshes for high jewellery ateliers and global manufacturers.
             </p>
-            <div className="pt-2 flex flex-wrap items-center gap-2 text-[10px] sm:text-xs tracking-widest text-[#D4AF37] uppercase font-semibold">
+            <div className="pt-2 flex flex-wrap items-center gap-2 text-[10px] sm:text-xs tracking-widest text-[#D9B66F] uppercase font-semibold">
               <span>CAD</span>
               <span>•</span>
               <span>3D MODELLING</span>

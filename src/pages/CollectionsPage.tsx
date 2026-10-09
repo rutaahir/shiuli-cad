@@ -273,14 +273,14 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
   const FilterSidebar = () => (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-white/10">
-        <h3 className="font-serif text-lg text-[#FAF8F3] flex items-center gap-2">
-          <SlidersHorizontal className="w-4 h-4 text-[#D4AF37]" />
+      <div className="flex items-center justify-between pb-3 border-b border-[#E8D7B7]">
+        <h3 className="font-serif text-lg text-[#17345C] flex items-center gap-2">
+          <SlidersHorizontal className="w-4 h-4 text-[#B88732]" />
           Filter Library
         </h3>
         <button
           onClick={handleResetFilters}
-          className="text-[11px] text-[#C9C2A6] hover:text-[#D4AF37] flex items-center gap-1 transition-colors"
+          className="text-[11px] text-[#687386] hover:text-[#B88732] flex items-center gap-1 transition-colors cursor-pointer"
         >
           <RotateCcw className="w-3 h-3" />
           Reset
@@ -289,21 +289,21 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
 
       {/* Category Filter */}
       <div className="space-y-2">
-        <span className="text-[11px] uppercase tracking-wider text-[#D4AF37] font-semibold block">
+        <span className="text-[11px] uppercase tracking-wider text-[#B88732] font-semibold block">
           Jewellery Category
         </span>
 
         {isLoading && categories.length === 0 ? (
-          <div className="flex items-center gap-2 text-xs text-[#C9C2A6] py-2">
-            <Loader2 className="w-3 h-3 animate-spin text-[#D4AF37]" />
+          <div className="flex items-center gap-2 text-xs text-[#687386] py-2">
+            <Loader2 className="w-3 h-3 animate-spin text-[#B88732]" />
             Loading categories…
           </div>
         ) : isError && categories.length === 0 ? (
-          <div className="p-3 rounded-xl bg-[#2A1515]/60 border border-red-500/30 text-xs space-y-2">
-            <p className="text-red-300 text-[11px]">Failed to load categories.</p>
+          <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs space-y-2">
+            <p className="text-red-700 text-[11px]">Failed to load categories.</p>
             <button
               onClick={() => fetchCatalog(true)}
-              className="px-2.5 py-1 rounded-lg bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-[10px] font-semibold text-red-200 flex items-center gap-1 transition-colors cursor-pointer"
+              className="px-2.5 py-1 rounded-lg bg-red-100 hover:bg-red-200 border border-red-300 text-[10px] font-semibold text-red-700 flex items-center gap-1 transition-colors cursor-pointer"
             >
               <RotateCcw className="w-3 h-3" />
               Retry Categories
@@ -316,8 +316,8 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
               onClick={() => setSelectedSlug('all')}
               className={`w-full text-left px-3 py-2 rounded-xl transition-all flex items-center justify-between font-medium cursor-pointer ${
                 selectedSlug === 'all'
-                  ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#0B1330] font-bold shadow-md shadow-[#D4AF37]/20'
-                  : 'text-[#C9C2A6] hover:bg-white/5 hover:text-[#FAF8F3]'
+                  ? 'bg-[#17345C] text-[#FFF9F0] font-bold shadow-md'
+                  : 'text-[#17243B] hover:bg-white hover:text-[#17345C]'
               }`}
             >
               <div className="flex items-center gap-2">
@@ -327,8 +327,8 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
               <span
                 className={`font-mono text-[10px] px-2 py-0.5 rounded-full ${
                   selectedSlug === 'all'
-                    ? 'bg-[#0B1330]/20 text-[#0B1330] font-bold'
-                    : 'bg-white/10 text-[#C9C2A6]'
+                    ? 'bg-white/20 text-white font-bold'
+                    : 'bg-[#E8D7B7]/40 text-[#17345C]'
                 }`}
               >
                 {products.length}
@@ -350,10 +350,10 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                       onClick={() => setSelectedSlug(cat.slug)}
                       className={`group w-full text-left px-3 py-2 rounded-xl transition-all flex items-center justify-between cursor-pointer ${
                         isSelected
-                          ? 'bg-[#D4AF37] text-[#0B1330] font-bold shadow-md'
+                          ? 'bg-[#17345C] text-[#FFF9F0] font-bold shadow-md'
                           : hasActiveChild
-                          ? 'bg-white/5 text-[#F5E7A3] font-semibold border border-[#D4AF37]/30'
-                          : 'text-[#C9C2A6] hover:bg-white/5 hover:text-[#FAF8F3]'
+                          ? 'bg-white text-[#B88732] font-semibold border border-[#E8D7B7]'
+                          : 'text-[#17243B] hover:bg-white hover:text-[#17345C]'
                       }`}
                     >
                       <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -361,13 +361,13 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                           <button
                             type="button"
                             onClick={(e) => toggleExpand(cat.slug, e)}
-                            className="p-1 -ml-1 rounded-md hover:bg-white/10 transition-colors"
+                            className="p-1 -ml-1 rounded-md hover:bg-black/5 transition-colors cursor-pointer"
                             title={isExpanded ? 'Collapse' : 'Expand'}
                           >
                             <ChevronDown
                               className={`w-3.5 h-3.5 transition-transform duration-200 ${
                                 isExpanded ? 'transform rotate-180' : ''
-                              } ${isSelected ? 'text-[#0B1330]' : 'text-[#D4AF37]'}`}
+                              } ${isSelected ? 'text-white' : 'text-[#B88732]'}`}
                             />
                           </button>
                         ) : (
@@ -378,10 +378,10 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                       <span
                         className={`font-mono text-[10px] px-2 py-0.5 rounded-full shrink-0 ml-2 ${
                           isSelected
-                            ? 'bg-[#0B1330]/25 text-[#0B1330] font-bold'
+                            ? 'bg-white/20 text-white font-bold'
                             : cat.totalCount > 0
-                            ? 'bg-white/10 text-[#FAF8F3]'
-                            : 'bg-white/5 text-[#C9C2A6]/40'
+                            ? 'bg-[#E8D7B7]/40 text-[#17345C]'
+                            : 'bg-black/5 text-[#687386]'
                         }`}
                       >
                         {cat.totalCount}
@@ -390,7 +390,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
 
                     {/* Subcategories (Indented Accordion) */}
                     {hasSubcats && isExpanded && (
-                      <div className="mt-1 ml-4 pl-3 border-l-2 border-[#D4AF37]/25 space-y-0.5 py-1">
+                      <div className="mt-1 ml-4 pl-3 border-l-2 border-[#E8D7B7] space-y-0.5 py-1">
                         {cat.subcategories.map((sc) => {
                           const isSubSelected = selectedSlug === sc.slug;
                           return (
@@ -399,14 +399,14 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                               onClick={() => setSelectedSlug(sc.slug)}
                               className={`w-full text-left px-2.5 py-1.5 rounded-lg transition-colors flex items-center justify-between text-[11px] cursor-pointer ${
                                 isSubSelected
-                                  ? 'bg-[#D4AF37]/25 text-[#F5E7A3] font-bold border border-[#D4AF37]/40'
-                                  : 'text-[#C9C2A6] hover:text-[#FAF8F3] hover:bg-white/5'
+                                  ? 'bg-[#FFF9F0] text-[#B88732] font-bold border border-[#E8D7B7]'
+                                  : 'text-[#687386] hover:text-[#17243B] hover:bg-white'
                               }`}
                             >
                               <span className="flex items-center gap-1.5 truncate">
                                 <span
                                   className={`w-1 h-1 rounded-full ${
-                                    isSubSelected ? 'bg-[#D4AF37]' : 'bg-[#C9C2A6]/50'
+                                    isSubSelected ? 'bg-[#B88732]' : 'bg-[#687386]/50'
                                   }`}
                                 />
                                 <span className="truncate">{sc.name}</span>
@@ -414,10 +414,10 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                               <span
                                 className={`font-mono text-[9px] px-1.5 py-0.2 rounded-full shrink-0 ml-1.5 ${
                                   isSubSelected
-                                    ? 'bg-[#D4AF37]/30 text-[#F5E7A3] font-bold'
+                                    ? 'bg-[#E8D7B7]/60 text-[#17345C] font-bold'
                                     : sc.count > 0
-                                    ? 'bg-white/10 text-[#FAF8F3]'
-                                    : 'text-[#C9C2A6]/30'
+                                    ? 'bg-white text-[#17345C] border border-[#E8D7B7]'
+                                    : 'text-[#687386]/50'
                                 }`}
                               >
                                 {sc.count}
@@ -437,8 +437,8 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
 
       {/* Design Style Filter — from live backend */}
       {styles.length > 0 && (
-        <div className="space-y-2 pt-2 border-t border-white/5">
-          <span className="text-[11px] uppercase tracking-wider text-[#D4AF37] font-semibold block">
+        <div className="space-y-2 pt-2 border-t border-[#E8D7B7]">
+          <span className="text-[11px] uppercase tracking-wider text-[#B88732] font-semibold block">
             Design Style
           </span>
           <div className="flex flex-wrap gap-1.5">
@@ -446,10 +446,10 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
               <button
                 key={s.id}
                 onClick={() => setSelectedStyleId(s.id === 0 ? 'all' : String(s.id))}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all ${
+                className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all cursor-pointer ${
                   (s.id === 0 && selectedStyleId === 'all') || String(s.id) === selectedStyleId
-                    ? 'border-[#D4AF37] bg-[#D4AF37]/20 text-[#F5E7A3]'
-                    : 'border-white/10 text-[#C9C2A6] hover:border-[#D4AF37]/40'
+                    ? 'border-[#B88732] bg-[#17345C] text-white shadow-xs'
+                    : 'border-[#E8D7B7] bg-white text-[#17243B] hover:border-[#D9B66F]'
                 }`}
               >
                 {s.name}
@@ -460,12 +460,12 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
       )}
 
       {/* Price Range */}
-      <div className="space-y-2 pt-2 border-t border-white/5">
+      <div className="space-y-2 pt-2 border-t border-[#E8D7B7]">
         <div className="flex justify-between text-xs">
-          <span className="text-[11px] uppercase tracking-wider text-[#D4AF37] font-semibold">
+          <span className="text-[11px] uppercase tracking-wider text-[#B88732] font-semibold">
             Max Price Range
           </span>
-          <span className="font-mono text-[#F5E7A3] font-bold">
+          <span className="font-mono text-[#17345C] font-bold">
             {maxPrice >= globalMaxPrice ? 'Any' : `₹${formatINR(maxPrice)}`}
           </span>
         </div>
@@ -476,9 +476,9 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
           step={Math.max(5, Math.round(globalMaxPrice / 100))}
           value={maxPrice}
           onChange={(e) => setMaxPrice(Number(e.target.value))}
-          className="w-full accent-[#D4AF37] cursor-pointer"
+          className="w-full accent-[#B88732] cursor-pointer"
         />
-        <div className="flex justify-between text-[10px] text-[#C9C2A6]/50 font-mono">
+        <div className="flex justify-between text-[10px] text-[#687386] font-mono">
           <span>₹0</span>
           <span>₹{formatINR(globalMaxPrice)}</span>
         </div>
@@ -487,7 +487,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
   );
 
   return (
-    <div className="min-h-screen bg-[#0B1330] text-[#F5F1E8] pt-28 pb-20 px-4 sm:px-6 lg:px-8 xl:px-12">
+    <div className="min-h-screen bg-[#FFFDF9] text-[#17243B] pt-28 pb-20 px-4 sm:px-6 lg:px-8 xl:px-12">
       <div className="max-w-[1600px] mx-auto space-y-8">
 
         {/* Breadcrumbs & Header */}
@@ -495,27 +495,27 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
               {/* Breadcrumb */}
-              <div className="flex items-center gap-1.5 text-[11px] text-[#C9C2A6] mb-3 flex-wrap">
+              <div className="flex items-center gap-1.5 text-[11px] text-[#687386] mb-3 flex-wrap">
                 <button
                   onClick={() => onNavigate('home')}
-                  className="hover:text-[#D4AF37] transition-colors"
+                  className="hover:text-[#B88732] transition-colors"
                 >
                   Home
                 </button>
-                <ChevronRight className="w-3 h-3 text-[#D4AF37]/50" />
-                <span className="text-[#F5E7A3]">CAD Collections</span>
+                <ChevronRight className="w-3 h-3 text-[#D9B66F]" />
+                <span className="text-[#17345C] font-medium">CAD Collections</span>
                 {selectedSlug !== 'all' && (
                   <>
-                    <ChevronRight className="w-3 h-3 text-[#D4AF37]/50" />
-                    <span className="text-[#FAF8F3] font-semibold">{activeCatLabel}</span>
+                    <ChevronRight className="w-3 h-3 text-[#D9B66F]" />
+                    <span className="text-[#B88732] font-semibold">{activeCatLabel}</span>
                   </>
                 )}
               </div>
 
-              <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl text-[#FAF8F3] leading-tight">
+              <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl text-[#17345C] leading-tight">
                 {activeCatLabel}
               </h1>
-              <p className="text-xs sm:text-sm text-[#C9C2A6] font-light max-w-xl mt-1">
+              <p className="text-xs sm:text-sm text-[#687386] font-light max-w-xl mt-1">
                 Explore production-ready Rhino 3DM native files and high-precision watertight STL models.
               </p>
             </div>
@@ -524,9 +524,9 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
             <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
               <button
                 onClick={() => setMobileFilterOpen(true)}
-                className="lg:hidden px-4 py-2 rounded-xl bg-[#121F4D] border border-[#D4AF37]/40 text-xs font-semibold text-[#F5E7A3] flex items-center gap-2"
+                className="lg:hidden px-4 py-2 rounded-xl bg-white border border-[#E8D7B7] text-xs font-semibold text-[#17345C] flex items-center gap-2 shadow-sm hover:border-[#D9B66F]"
               >
-                <SlidersHorizontal className="w-4 h-4 text-[#D4AF37]" />
+                <SlidersHorizontal className="w-4 h-4 text-[#B88732]" />
                 <span>Filters ({filteredProducts.length})</span>
               </button>
             </div>
@@ -535,23 +535,23 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
 
         {/* Offline / Connection Error Banner */}
         {isError && (
-          <div className="p-4 rounded-2xl bg-[#2A1515] border border-red-500/40 text-[#FAF8F3] flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+          <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-[#17243B] flex flex-col sm:row items-center justify-between gap-3 shadow-sm">
             <div className="flex items-center gap-3">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-400 animate-ping shrink-0" />
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping shrink-0" />
               <div className="text-xs">
-                <span className="font-semibold text-red-200">
+                <span className="font-semibold text-rose-900">
                   {products.length > 0
                     ? 'Showing cached catalog — live connection unavailable.'
                     : 'Unable to connect to live catalogue server.'}
                 </span>
                 {errorMessage && (
-                  <p className="text-[11px] text-red-300/80 mt-0.5 font-mono">{errorMessage}</p>
+                  <p className="text-[11px] text-rose-700 mt-0.5 font-mono">{errorMessage}</p>
                 )}
               </div>
             </div>
             <button
               onClick={() => fetchCatalog(true)}
-              className="px-4 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-xs font-semibold text-red-100 flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+              className="px-4 py-1.5 rounded-xl bg-rose-100 hover:bg-rose-200 border border-rose-300 text-xs font-semibold text-rose-900 flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               Retry Connection
@@ -562,22 +562,22 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
         {/* Search & Sort Bar */}
         <div
           ref={catalogTopRef}
-          className="scroll-mt-28 flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-[#080E24] border border-[#D4AF37]/20"
+          className="scroll-mt-28 flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-[#E8D7B7] shadow-sm"
         >
           {/* Search Input */}
           <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#D4AF37]" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#B88732]" />
             <input
               type="text"
               placeholder="Search by name, category, style…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 rounded-xl bg-[#0B1330] border border-[#D4AF37]/30 text-xs text-[#FAF8F3] placeholder-[#C9C2A6]/50 focus:outline-none focus:border-[#D4AF37]"
+              className="w-full pl-9 pr-8 py-2 rounded-xl bg-[#FFF9F0] border border-[#E8D7B7] text-xs text-[#17243B] placeholder-[#687386]/70 focus:outline-none focus:border-[#D9B66F] transition-colors"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#C9C2A6] hover:text-white"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#687386] hover:text-[#17345C]"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -586,9 +586,9 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
 
           {/* Sort & Count */}
           <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4 text-xs">
-            <span className="text-[#C9C2A6]">
+            <span className="text-[#687386]">
               Showing{' '}
-              <strong className="text-[#F5E7A3]">
+              <strong className="text-[#17345C]">
                 {filteredProducts.length === 0
                   ? 0
                   : filteredProducts.length <= ITEMS_PER_PAGE
@@ -600,17 +600,17 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
               </strong>
               {filteredProducts.length > ITEMS_PER_PAGE && (
                 <>
-                  {' '}of <strong className="text-[#F5E7A3]">{filteredProducts.length}</strong>
+                  {' '}of <strong className="text-[#17345C]">{filteredProducts.length}</strong>
                 </>
               )}{' '}
               {isLoading ? '(loading…)' : 'CAD files'}
             </span>
             <div className="flex items-center gap-2">
-              <ArrowUpDown className="w-3.5 h-3.5 text-[#D4AF37]" />
+              <ArrowUpDown className="w-3.5 h-3.5 text-[#B88732]" />
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="px-3 py-2 rounded-xl bg-[#0B1330] border border-[#D4AF37]/30 text-xs text-[#FAF8F3] focus:outline-none focus:border-[#D4AF37]"
+                className="px-3 py-2 rounded-xl bg-[#FFF9F0] border border-[#E8D7B7] text-xs text-[#17345C] focus:outline-none focus:border-[#D9B66F] transition-colors font-medium cursor-pointer"
               >
                 <option value="popular">Most Popular</option>
                 <option value="newest">Newest Releases</option>
@@ -625,33 +625,33 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
           {/* Desktop Sidebar */}
-          <aside className="hidden lg:block lg:col-span-3 rounded-2xl bg-[#080E24] border border-[#D4AF37]/25 p-6 sticky top-24">
+          <aside className="hidden lg:block lg:col-span-3 rounded-2xl bg-white border border-[#E8D7B7] p-6 sticky top-24 shadow-sm">
             <FilterSidebar />
           </aside>
 
           {/* Product Grid (9 cols) */}
           <div className="lg:col-span-9">
             {isLoading && products.length === 0 ? (
-              <div className="rounded-3xl bg-[#080E24] border border-[#D4AF37]/20 p-16 text-center">
-                <Loader2 className="w-8 h-8 mx-auto text-[#D4AF37] animate-spin mb-4" />
-                <p className="text-[#C9C2A6] text-sm">Loading CAD collection…</p>
+              <div className="rounded-3xl bg-white border border-[#E8D7B7] p-16 text-center shadow-sm">
+                <Loader2 className="w-8 h-8 mx-auto text-[#B88732] animate-spin mb-4" />
+                <p className="text-[#687386] text-sm">Loading CAD collection…</p>
               </div>
             ) : isError && products.length === 0 ? (
               /* Error State */
-              <div className="rounded-3xl bg-[#080E24] border border-red-500/30 p-16 text-center space-y-4">
-                <div className="w-16 h-16 mx-auto rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400">
+              <div className="rounded-3xl bg-white border border-rose-200 p-16 text-center space-y-4 shadow-sm">
+                <div className="w-16 h-16 mx-auto rounded-full bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-500">
                   <AlertTriangle className="w-7 h-7" />
                 </div>
-                <h3 className="font-serif text-2xl text-[#FAF8F3]">
+                <h3 className="font-serif text-2xl text-[#17345C]">
                   Unable to Load Catalog
                 </h3>
-                <p className="text-xs text-[#C9C2A6] max-w-sm mx-auto">
+                <p className="text-xs text-[#687386] max-w-sm mx-auto">
                   {errorMessage || 'The server could not be reached. Please verify your connection or try again.'}
                 </p>
                 <div className="flex justify-center gap-3 pt-2">
                   <button
                     onClick={() => fetchCatalog(true)}
-                    className="btn-gold-luxury px-6 py-2.5 rounded-full text-xs font-semibold uppercase tracking-wider flex items-center gap-2 cursor-pointer"
+                    className="btn-gold-luxury px-6 py-2.5 rounded-full text-xs font-semibold uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-md"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     Retry Connection
@@ -660,26 +660,26 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
               </div>
             ) : filteredProducts.length === 0 ? (
               /* Empty State */
-              <div className="rounded-3xl bg-[#080E24] border border-[#D4AF37]/20 p-16 text-center space-y-4">
-                <div className="w-16 h-16 mx-auto rounded-full bg-[#121F4D]/50 border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37]">
+              <div className="rounded-3xl bg-white border border-[#E8D7B7] p-16 text-center space-y-4 shadow-sm">
+                <div className="w-16 h-16 mx-auto rounded-full bg-[#FFF9F0] border border-[#E8D7B7] flex items-center justify-center text-[#B88732]">
                   <Sparkles className="w-7 h-7" />
                 </div>
-                <h3 className="font-serif text-2xl text-[#FAF8F3]">
+                <h3 className="font-serif text-2xl text-[#17345C]">
                   No Designs Match Your Active Filters
                 </h3>
-                <p className="text-xs text-[#C9C2A6] max-w-sm mx-auto">
+                <p className="text-xs text-[#687386] max-w-sm mx-auto">
                   Try adjusting your price range, clearing search terms, or exploring our custom CAD service.
                 </p>
                 <div className="flex justify-center gap-3 pt-2">
                   <button
                     onClick={handleResetFilters}
-                    className="btn-gold-luxury px-6 py-2.5 rounded-full text-xs font-semibold uppercase tracking-wider"
+                    className="btn-gold-luxury px-6 py-2.5 rounded-full text-xs font-semibold uppercase tracking-wider shadow-md"
                   >
                     Reset Filters
                   </button>
                   <button
                     onClick={() => onNavigate('custom-design')}
-                    className="px-6 py-2.5 rounded-full border border-[#D4AF37]/40 text-xs text-[#FAF8F3] uppercase tracking-wider hover:bg-white/5"
+                    className="px-6 py-2.5 rounded-full border border-[#17345C] text-xs text-[#17345C] font-semibold uppercase tracking-wider hover:bg-[#17345C] hover:text-white transition-colors"
                   >
                     Request Custom File
                   </button>
@@ -698,25 +698,25 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                       <StaggerItem key={product.id}>
                         <div
                           onClick={() => onNavigate('product-detail', product.id)}
-                          className="group rounded-2xl bg-[#080E24] border border-[#D4AF37]/20 overflow-hidden shadow-xl hover:border-[#D4AF37]/60 hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between cursor-pointer"
+                          className="group rounded-2xl bg-white border border-[#E8D7B7] overflow-hidden shadow-sm hover:shadow-xl hover:border-[#D9B66F] hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between cursor-pointer"
                         >
                           {/* Image */}
-                          <div className="relative aspect-square overflow-hidden bg-[#070D22]">
+                          <div className="relative aspect-square overflow-hidden bg-[#FFF9F0]">
                             <LazyImage
                               src={getOptimizedImageUrl(product.primaryImage, product.category)}
                               alt={product.title}
-                              className="w-full h-full object-contain p-3 drop-shadow-[0_8px_20px_rgba(0,0,0,0.7)] transition-transform duration-500 group-hover:scale-105"
+                              className="w-full h-full object-contain p-3 transition-transform duration-500 group-hover:scale-105"
                             />
 
                             {/* Badges */}
                             <div className="absolute top-3 left-3 flex flex-col gap-1 z-10">
                               {product.isBestseller && (
-                                <span className="px-2 py-0.5 rounded bg-[#D4AF37] text-[#0B1330] text-[10px] font-bold tracking-wider uppercase">
+                                <span className="px-2 py-0.5 rounded bg-[#D9B66F] text-[#17345C] text-[10px] font-bold tracking-wider uppercase shadow-sm">
                                   Bestseller
                                 </span>
                               )}
                               {product.isNew && (
-                                <span className="px-2 py-0.5 rounded bg-[#1E4FA3] text-white text-[10px] font-bold tracking-wider uppercase">
+                                <span className="px-2 py-0.5 rounded bg-[#17345C] text-white text-[10px] font-bold tracking-wider uppercase shadow-sm">
                                   New
                                 </span>
                               )}
@@ -725,10 +725,10 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                             {/* Wishlist */}
                             <button
                               onClick={(e) => { e.stopPropagation(); onToggleWishlist(product); }}
-                              className={`absolute top-3 right-3 z-10 p-2 rounded-full backdrop-blur-md transition-colors ${
+                              className={`absolute top-3 right-3 z-10 p-2 rounded-full backdrop-blur-md transition-colors shadow-sm ${
                                 isWishlisted
-                                  ? 'bg-[#D4AF37] text-[#0B1330]'
-                                  : 'bg-[#0B1330]/70 text-[#FAF8F3] hover:text-[#D4AF37]'
+                                  ? 'bg-[#B88732] text-white'
+                                  : 'bg-white/90 text-[#17345C] hover:text-[#B88732]'
                               }`}
                             >
                               <Heart className={`w-3.5 h-3.5 ${isWishlisted ? 'fill-current' : ''}`} />
@@ -737,37 +737,37 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                             {/* Quick View */}
                             <button
                               onClick={(e) => { e.stopPropagation(); onQuickView(product); }}
-                              className="absolute inset-x-3 bottom-3 z-10 py-2 rounded-xl bg-[#0B1330]/90 backdrop-blur border border-[#D4AF37]/30 text-xs text-[#FAF8F3] flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="absolute inset-x-3 bottom-3 z-10 py-2 rounded-xl bg-white/95 backdrop-blur border border-[#E8D7B7] text-xs font-semibold text-[#17345C] flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-md hover:border-[#D9B66F]"
                             >
-                              <Eye className="w-3.5 h-3.5 text-[#D4AF37]" />
+                              <Eye className="w-3.5 h-3.5 text-[#B88732]" />
                               <span>Quick View CAD Specs</span>
                             </button>
                           </div>
 
                           {/* Info */}
                           <div className="p-4 space-y-3">
-                            <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-[#D4AF37]">
+                            <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-[#B88732] font-semibold">
                               <span>{product.category}</span>
-                              <span className="text-emerald-400 font-mono">Watertight STL</span>
+                              <span className="text-[#236E6A] font-mono">Watertight STL</span>
                             </div>
-                            <h3 className="font-serif text-lg text-[#FAF8F3] group-hover:text-[#F5E7A3] line-clamp-1 transition-colors">
+                            <h3 className="font-serif text-lg text-[#17345C] group-hover:text-[#B88732] line-clamp-1 transition-colors">
                               {product.title}
                             </h3>
-                            <div className="grid grid-cols-2 gap-1 text-[11px] text-[#C9C2A6] py-1 border-y border-white/5">
+                            <div className="grid grid-cols-2 gap-1 text-[11px] text-[#687386] py-1 border-y border-[#E8D7B7]/40">
                               <span>18K: {product.specs?.metalWeight18k || '—'}</span>
                               <span>{product.specs?.diamondCount ? `Stones: ${product.specs.diamondCount}` : 'Solid Metal'}</span>
                             </div>
                             <div className="flex items-center justify-between pt-2">
                               <div>
-                                <span className="text-lg font-serif font-bold text-[#F5E7A3] block">
+                                <span className="text-lg font-serif font-bold text-[#17345C] block">
                                   ₹{formatINR(product.price)}
                                 </span>
                               </div>
                               <button
                                 onClick={(e) => { e.stopPropagation(); onAddToCart(product, 'standard'); }}
-                                className="btn-gold-luxury px-3 py-1.5 rounded-lg text-[11px] font-semibold uppercase tracking-wider flex items-center gap-1 shadow-md"
+                                className="btn-gold-luxury px-3.5 py-1.5 rounded-lg text-[11px] font-semibold uppercase tracking-wider flex items-center gap-1.5 shadow-sm"
                               >
-                                <ShoppingBag className="w-3.5 h-3.5 text-[#0B1330]" />
+                                <ShoppingBag className="w-3.5 h-3.5 text-[#17345C]" />
                                 <span>Add to Bag</span>
                               </button>
                             </div>
@@ -780,18 +780,18 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
 
                 {/* Pagination Controls (After 3 Rows) */}
                 {totalPages > 1 && (
-                  <div className="mt-10 pt-6 border-t border-[#D4AF37]/20 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <p className="text-xs text-[#C9C2A6]">
+                  <div className="mt-10 pt-6 border-t border-[#E8D7B7] flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <p className="text-xs text-[#687386]">
                       Showing{' '}
-                      <span className="font-mono font-semibold text-[#F5E7A3]">
+                      <span className="font-mono font-semibold text-[#17345C]">
                         {(validCurrentPage - 1) * ITEMS_PER_PAGE + 1}
                       </span>
                       –
-                      <span className="font-mono font-semibold text-[#F5E7A3]">
+                      <span className="font-mono font-semibold text-[#17345C]">
                         {Math.min(validCurrentPage * ITEMS_PER_PAGE, filteredProducts.length)}
                       </span>{' '}
                       of{' '}
-                      <span className="font-mono font-semibold text-[#F5E7A3]">
+                      <span className="font-mono font-semibold text-[#17345C]">
                         {filteredProducts.length}
                       </span>{' '}
                       CAD designs (Page {validCurrentPage} of {totalPages})
@@ -803,7 +803,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                         onClick={() => handlePageChange(1)}
                         disabled={validCurrentPage === 1}
                         aria-label="First page"
-                        className="p-2 rounded-xl bg-[#080E24] border border-[#D4AF37]/20 text-[#C9C2A6] hover:text-[#F5E7A3] hover:border-[#D4AF37]/60 hover:bg-[#121F4D]/40 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-[#080E24] disabled:hover:border-[#D4AF37]/20 transition-all cursor-pointer"
+                        className="p-2 rounded-xl bg-white border border-[#E8D7B7] text-[#687386] hover:text-[#17345C] hover:border-[#D9B66F] hover:bg-[#FFF9F0] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-[#E8D7B7] transition-all cursor-pointer shadow-sm"
                         title="First Page"
                       >
                         <ChevronsLeft className="w-4 h-4" />
@@ -814,7 +814,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                         onClick={() => handlePageChange(validCurrentPage - 1)}
                         disabled={validCurrentPage === 1}
                         aria-label="Previous page"
-                        className="px-3 py-2 rounded-xl bg-[#080E24] border border-[#D4AF37]/20 text-xs font-medium text-[#C9C2A6] hover:text-[#F5E7A3] hover:border-[#D4AF37]/60 hover:bg-[#121F4D]/40 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-[#080E24] disabled:hover:border-[#D4AF37]/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                        className="px-3 py-2 rounded-xl bg-white border border-[#E8D7B7] text-xs font-medium text-[#687386] hover:text-[#17345C] hover:border-[#D9B66F] hover:bg-[#FFF9F0] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-[#E8D7B7] transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
                       >
                         <ChevronLeft className="w-4 h-4" />
                         <span className="hidden sm:inline">Prev</span>
@@ -827,7 +827,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                             return (
                               <span
                                 key={`ellipsis-${idx}`}
-                                className="w-8 text-center text-xs text-[#C9C2A6]/40 select-none"
+                                className="w-8 text-center text-xs text-[#687386]/40 select-none"
                               >
                                 …
                               </span>
@@ -840,10 +840,10 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                               key={pageNum}
                               onClick={() => handlePageChange(pageNum)}
                               aria-current={isActive ? 'page' : undefined}
-                              className={`w-9 h-9 rounded-xl text-xs font-semibold transition-all flex items-center justify-center cursor-pointer ${
+                              className={`w-9 h-9 rounded-xl text-xs font-semibold transition-all flex items-center justify-center cursor-pointer shadow-sm ${
                                 isActive
-                                  ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#0B1330] font-bold shadow-md shadow-[#D4AF37]/20 border border-[#D4AF37]'
-                                  : 'bg-[#080E24] border border-[#D4AF37]/20 text-[#C9C2A6] hover:text-[#FAF8F3] hover:border-[#D4AF37]/60 hover:bg-[#121F4D]/40'
+                                  ? 'bg-gradient-to-r from-[#D9B66F] to-[#E8D7B7] text-[#17345C] font-bold shadow-md shadow-[#D9B66F]/20 border border-[#D9B66F]'
+                                  : 'bg-white border border-[#E8D7B7] text-[#687386] hover:text-[#17345C] hover:border-[#D9B66F] hover:bg-[#FFF9F0]'
                               }`}
                             >
                               {pageNum}
@@ -857,7 +857,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                         onClick={() => handlePageChange(validCurrentPage + 1)}
                         disabled={validCurrentPage === totalPages}
                         aria-label="Next page"
-                        className="px-3 py-2 rounded-xl bg-[#080E24] border border-[#D4AF37]/20 text-xs font-medium text-[#C9C2A6] hover:text-[#F5E7A3] hover:border-[#D4AF37]/60 hover:bg-[#121F4D]/40 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-[#080E24] disabled:hover:border-[#D4AF37]/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                        className="px-3 py-2 rounded-xl bg-white border border-[#E8D7B7] text-xs font-medium text-[#687386] hover:text-[#17345C] hover:border-[#D9B66F] hover:bg-[#FFF9F0] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-[#E8D7B7] transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
                       >
                         <span className="hidden sm:inline">Next</span>
                         <ChevronRight className="w-4 h-4" />
@@ -868,7 +868,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                         onClick={() => handlePageChange(totalPages)}
                         disabled={validCurrentPage === totalPages}
                         aria-label="Last page"
-                        className="p-2 rounded-xl bg-[#080E24] border border-[#D4AF37]/20 text-[#C9C2A6] hover:text-[#F5E7A3] hover:border-[#D4AF37]/60 hover:bg-[#121F4D]/40 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-[#080E24] disabled:hover:border-[#D4AF37]/20 transition-all cursor-pointer"
+                        className="p-2 rounded-xl bg-white border border-[#E8D7B7] text-[#687386] hover:text-[#17345C] hover:border-[#D9B66F] hover:bg-[#FFF9F0] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-[#E8D7B7] transition-all cursor-pointer shadow-sm"
                         title="Last Page"
                       >
                         <ChevronsRight className="w-4 h-4" />
@@ -887,14 +887,14 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
         <div className="fixed inset-0 z-50 flex lg:hidden">
           <div
             onClick={() => setMobileFilterOpen(false)}
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm"
           />
-          <div className="relative ml-auto w-full max-w-xs bg-[#0B1330] p-6 shadow-2xl overflow-y-auto border-l border-[#D4AF37]/30">
+          <div className="relative ml-auto w-full max-w-xs bg-white p-6 shadow-2xl overflow-y-auto border-l border-[#E8D7B7]">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-serif text-xl text-[#FAF8F3]">Catalog Filters</h3>
+              <h3 className="font-serif text-xl text-[#17345C]">Catalog Filters</h3>
               <button
                 onClick={() => setMobileFilterOpen(false)}
-                className="p-1 text-[#C9C2A6] hover:text-white"
+                className="p-1 text-[#687386] hover:text-[#17345C]"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -902,7 +902,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
             <FilterSidebar />
             <button
               onClick={() => { handleResetFilters(); setMobileFilterOpen(false); }}
-              className="w-full mt-6 py-2.5 rounded-xl border border-[#D4AF37]/30 text-xs text-[#FAF8F3] hover:bg-white/5 transition-colors"
+              className="w-full mt-6 py-2.5 rounded-xl border border-[#E8D7B7] text-xs font-semibold text-[#17345C] hover:bg-[#FFF9F0] transition-colors"
             >
               Reset All Filters
             </button>

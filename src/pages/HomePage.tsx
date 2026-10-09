@@ -27,6 +27,9 @@ import {
   RotateCcw,
   AlertTriangle,
   Loader2,
+  Search,
+  SlidersHorizontal,
+  Sliders,
 } from 'lucide-react';
 import { RevealOnScroll } from '../components/motion/RevealOnScroll';
 import { StaggerGrid, StaggerItem } from '../components/motion/StaggerGrid';
@@ -265,45 +268,45 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
           setIsPaused(false);
           setHoveredProduct(null);
         }}
-        className="group relative rounded-2xl overflow-hidden min-h-[460px] sm:min-h-[490px] bg-[#0A1333] border border-[#D4AF37]/30 hover:border-[#D4AF37] cursor-pointer shadow-2xl transition-all duration-300 flex flex-col justify-between"
+        className="group relative rounded-2xl overflow-hidden min-h-[460px] sm:min-h-[490px] bg-white border border-[#E8D7B7] hover:border-[#D9B66F] cursor-pointer shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
       >
         {/* TOP DEDICATED SHOWCASE: Always displays the Category Banner Image uploaded by admin */}
         <div 
           onClick={() => onNavigate('collections', cat.slug)}
-          className="relative w-full h-[260px] sm:h-[280px] bg-gradient-to-b from-[#0E1A42] via-[#091333] to-[#070D24] p-3 sm:p-4 flex items-center justify-center overflow-hidden"
+          className="relative w-full h-[260px] sm:h-[280px] bg-gradient-to-b from-[#FFFDF9] via-[#FFF9F0] to-[#FFF5E6] p-3 sm:p-4 flex items-center justify-center overflow-hidden"
         >
           {/* Subtle gold spotlight backdrop behind jewel */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.12)_0%,transparent_70%)] pointer-events-none" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(217,182,111,0.18)_0%,transparent_70%)] pointer-events-none" />
 
           <img
             key={`cat-banner-${cat.id || cat.slug}-${categoryBannerImg}`}
             src={getOptimizedImageUrl(categoryBannerImg, cat.name)}
             alt={cat.name}
-            className="w-full h-full object-contain drop-shadow-[0_12px_24px_rgba(0,0,0,0.85)] transition-transform duration-700 group-hover:scale-105"
+            className="w-full h-full object-contain drop-shadow-[0_12px_24px_rgba(23,52,92,0.12)] transition-transform duration-700 group-hover:scale-105"
             loading="lazy"
             onError={(e) => handleImgError(e, cat.slug)}
           />
 
           {/* Discreet luxury tag */}
           <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5">
-            <span className="px-2 py-0.5 rounded-md bg-[#080E24]/85 backdrop-blur-md border border-[#D4AF37]/35 text-[10px] font-mono uppercase tracking-wider text-[#F5E7A3]">
+            <span className="px-2.5 py-0.5 rounded-md bg-white/95 backdrop-blur-md border border-[#E8D7B7] text-[10px] font-mono uppercase tracking-wider text-[#B88732] shadow-xs">
               {cat.tagline || 'Category Collection'}
             </span>
           </div>
         </div>
 
         {/* BOTTOM METADATA & SELECTOR PANEL: Solid, structured, with distinct unique thumbnails */}
-        <div className="p-4 sm:p-5 bg-gradient-to-b from-[#070D24] to-[#050A1C] border-t border-[#D4AF37]/25 space-y-3 flex-1 flex flex-col justify-between">
+        <div className="p-4 sm:p-5 bg-white border-t border-[#E8D7B7] space-y-3 flex-1 flex flex-col justify-between">
 
           {/* Category Title & Count */}
           <div 
             onClick={() => onNavigate('collections', cat.slug)}
             className="cursor-pointer flex items-center justify-between"
           >
-            <h3 className="font-serif text-xl sm:text-2xl text-[#FAF8F3] font-bold group-hover:text-[#F5E7A3] transition-colors leading-tight line-clamp-1">
+            <h3 className="font-serif text-xl sm:text-2xl text-[#17345C] font-bold group-hover:text-[#B88732] transition-colors leading-tight line-clamp-1">
               {cat.name}
             </h3>
-            <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-[#121F4D] border border-[#D4AF37]/30 text-[#F5E7A3] shrink-0">
+            <span className="text-[10px] uppercase font-mono px-2.5 py-0.5 rounded-full bg-[#FFF9F0] border border-[#E8D7B7] text-[#B88732] font-semibold shrink-0">
               {count} Designs
             </span>
           </div>
@@ -313,8 +316,8 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
             {isMarqueeMode ? (
               <>
                 {/* Subtle luxury edge fade overlays for smooth entrance and exit */}
-                <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-3 bg-gradient-to-r from-[#070D24] to-transparent z-10" />
-                <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-3 bg-gradient-to-l from-[#070D24] to-transparent z-10" />
+                <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-3 bg-gradient-to-r from-white to-transparent z-10" />
+                <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-3 bg-gradient-to-l from-white to-transparent z-10" />
 
                 <div className="flex items-center gap-2 w-max py-1">
                   {/* Primary Track with UNIQUE products */}
@@ -345,10 +348,10 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
                             onQuickView(prod);
                           }}
                           title={`View ${prod.title} (₹${formatINR(prod.price)})`}
-                          className={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden shrink-0 border p-0.5 bg-[#09112B] transition-all duration-300 cursor-pointer ${
+                          className={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden shrink-0 border p-0.5 bg-[#FFF9F0] transition-all duration-300 cursor-pointer ${
                             isActive
-                              ? 'border-[#D4AF37] ring-2 ring-[#D4AF37] scale-105 shadow-[0_0_12px_rgba(212,175,55,0.6)] z-10'
-                              : 'border-white/20 opacity-70 hover:opacity-100 hover:border-white/50'
+                              ? 'border-[#B88732] ring-2 ring-[#B88732] scale-105 shadow-[0_0_12px_rgba(217,182,111,0.5)] z-10'
+                              : 'border-[#E8D7B7] opacity-80 hover:opacity-100 hover:border-[#D9B66F]'
                           }`}
                         >
                           <img
@@ -392,10 +395,10 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
                             onQuickView(prod);
                           }}
                           title={`View ${prod.title} (₹${formatINR(prod.price)})`}
-                          className={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden shrink-0 border p-0.5 bg-[#09112B] transition-all duration-300 cursor-pointer ${
+                          className={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden shrink-0 border p-0.5 bg-[#FFF9F0] transition-all duration-300 cursor-pointer ${
                             isActive
-                              ? 'border-[#D4AF37] ring-2 ring-[#D4AF37] scale-105 shadow-[0_0_12px_rgba(212,175,55,0.6)] z-10'
-                              : 'border-white/20 opacity-70 hover:opacity-100 hover:border-white/50'
+                              ? 'border-[#B88732] ring-2 ring-[#B88732] scale-105 shadow-[0_0_12px_rgba(217,182,111,0.5)] z-10'
+                              : 'border-[#E8D7B7] opacity-80 hover:opacity-100 hover:border-[#D9B66F]'
                           }`}
                         >
                           <img
@@ -434,10 +437,10 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
                         onQuickView(prod);
                       }}
                       title={`View ${prod.title} (₹${formatINR(prod.price)})`}
-                      className={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden shrink-0 border p-0.5 bg-[#09112B] transition-all duration-300 cursor-pointer ${
+                      className={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden shrink-0 border p-0.5 bg-[#FFF9F0] transition-all duration-300 cursor-pointer ${
                         isActive
-                          ? 'border-[#D4AF37] ring-2 ring-[#D4AF37] scale-105 shadow-[0_0_12px_rgba(212,175,55,0.6)] z-10'
-                          : 'border-white/20 opacity-70 hover:opacity-100 hover:border-white/50'
+                          ? 'border-[#B88732] ring-2 ring-[#B88732] scale-105 shadow-[0_0_12px_rgba(217,182,111,0.5)] z-10'
+                          : 'border-[#E8D7B7] opacity-80 hover:opacity-100 hover:border-[#D9B66F]'
                       }`}
                     >
                       <img
@@ -452,21 +455,21 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
                 })}
               </div>
             ) : (
-              <div className="flex items-center justify-center py-2 text-[10px] text-[#C9C2A6]/80 tracking-wider uppercase font-medium">
+              <div className="flex items-center justify-center py-2 text-[10px] text-[#687386] tracking-wider uppercase font-medium">
                 Curating Archive Designs
               </div>
             )}
           </div>
 
           {/* Action Row with Indian Rupee (₹) Price Badge */}
-          <div className="pt-2 flex items-center justify-between text-[11px] text-[#F5E7A3] border-t border-white/5">
+          <div className="pt-2 flex items-center justify-between text-[11px] text-[#17345C] border-t border-[#E8D7B7]">
             <button
               type="button"
               onClick={() => onNavigate('collections', cat.slug)}
-              className="font-semibold uppercase tracking-wider flex items-center gap-1 hover:text-white transition-colors"
+              className="font-semibold uppercase tracking-wider flex items-center gap-1 text-[#17345C] hover:text-[#B88732] transition-colors"
             >
               <span>Explore Collection</span>
-              <ArrowRight className="w-3 h-3 text-[#D4AF37]" />
+              <ArrowRight className="w-3 h-3 text-[#B88732]" />
             </button>
 
             {hoveredProduct ? (
@@ -476,18 +479,18 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
                   e.stopPropagation();
                   onQuickView(hoveredProduct);
                 }}
-                className="px-2.5 py-1 rounded-md bg-[#121F4D] border border-[#D4AF37]/35 text-[10px] text-[#F5E7A3] hover:text-[#FAF8F3] hover:border-[#D4AF37] transition-all flex items-center gap-1.5 shadow-sm"
+                className="px-2.5 py-1 rounded-md bg-[#FFF9F0] border border-[#E8D7B7] text-[10px] text-[#B88732] hover:text-[#17345C] hover:border-[#D9B66F] transition-all flex items-center gap-1.5 shadow-xs font-semibold"
               >
-                <Eye className="w-3 h-3 text-[#D4AF37]" />
+                <Eye className="w-3 h-3 text-[#B88732]" />
                 <span>₹{formatINR(hoveredProduct.price)}</span>
               </button>
             ) : minPrice && minPrice > 0 ? (
-              <div className="px-2.5 py-1 rounded-md bg-[#121F4D] border border-[#D4AF37]/35 text-[10px] text-[#F5E7A3] flex items-center gap-1.5 shadow-sm">
-                <Sparkles className="w-3 h-3 text-[#D4AF37]" />
+              <div className="px-2.5 py-1 rounded-md bg-[#FFF9F0] border border-[#E8D7B7] text-[10px] text-[#B88732] flex items-center gap-1.5 shadow-xs font-semibold">
+                <Sparkles className="w-3 h-3 text-[#B88732]" />
                 <span>From ₹{formatINR(minPrice)}</span>
               </div>
             ) : (
-              <span className="px-2.5 py-0.5 rounded-full bg-[#121F4D]/60 border border-[#D4AF37]/25 text-[10px] font-mono text-[#F5E7A3]/75">
+              <span className="px-2.5 py-0.5 rounded-full bg-[#FFF9F0] border border-[#E8D7B7] text-[10px] font-mono text-[#687386]">
                 Bespoke Order
               </span>
             )}
@@ -547,29 +550,16 @@ export const HomePage: React.FC<HomePageProps> = ({
     }).catch(() => {});
   }, []);
 
-  // Parallax Scroll for Hero
-  const heroRef = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  // Pause video when hero is scrolled off-screen to eliminate background GPU/CPU drain
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          video.play().catch(() => {});
-        } else {
-          video.pause();
-        }
-      },
-      { threshold: 0.05 }
-    );
-
-    observer.observe(video);
-    return () => observer.disconnect();
-  }, []);
+  // State for prominent central search bar
+  const [heroSearchQuery, setHeroSearchQuery] = useState('');
+  const handleHeroSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (heroSearchQuery.trim()) {
+      onNavigate('collections', heroSearchQuery.trim());
+    } else {
+      onNavigate('collections');
+    }
+  };
 
   const { products: liveProducts, categories, isLoading, isError, errorMessage } = useCatalog();
 
@@ -630,180 +620,212 @@ export const HomePage: React.FC<HomePageProps> = ({
   const hasMoreProducts = filteredProducts.length > visibleCount;
 
   return (
-    <div className="min-h-screen bg-[#060B1E] text-[#F5F1E8] overflow-x-clip relative">
+    <div className="min-h-screen bg-white text-[#17243B] overflow-x-clip relative">
 
-      {/* SECTION 1: HERO (UNTOUCHED HERO LAYOUT WITH PARALLAX ON-SCROLL) */}
-      <section ref={heroRef} className="relative min-h-screen flex items-center overflow-hidden" style={{ backgroundColor: '#09112B' }}>
-        {/* BACKGROUND MEDIA: LIGHTWEIGHT OPTIMIZED POSTER ON MOBILE / DATA-SAVER OR MP4 VIDEO ON DESKTOP */}
-        {!isSaveData && (
-          <video
-            ref={videoRef}
-            className="hero-video-bg absolute inset-0 w-full h-full object-cover hidden sm:block will-change-transform"
-            src="/assets/hero.mp4"
-            poster="/assets/hero-poster.jpg"
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            aria-hidden="true"
+      {/* SECTION 1: LUXURY HERO (INSPIRED BY REFERENCE DESIGN) */}
+      <section className="relative min-h-[92vh] sm:min-h-screen flex items-center justify-center pt-28 pb-16 sm:py-24 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-[#FFFDF9] via-[#FFF9F0] to-[#FFFFFF] overflow-hidden">
+        {/* Soft studio illumination glows */}
+        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-[#D9B66F]/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/3 right-1/4 w-[600px] h-[600px] bg-[#FFF9F0] rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 inset-x-0 h-40 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none" />
+
+        {/* LEFT LUXURY RING COMPOSITION (from pre-cut reference asset) */}
+        <div className="hidden lg:block absolute left-[-4%] xl:left-[1%] top-1/2 -translate-y-1/2 w-[340px] xl:w-[420px] 2xl:w-[480px] pointer-events-none select-none z-10 transition-transform duration-700 hover:scale-105">
+          <img
+            src="/assets/redesign/hero_ring_left.png"
+            alt="Shiuli Luxury Fine Diamond Ring"
+            className="w-full h-auto object-contain drop-shadow-[0_25px_45px_rgba(23,52,92,0.14)]"
+            loading="eager"
           />
-        )}
-        <img
-          src="/assets/hero-poster.jpg"
-          alt="Shiuli Luxury CAD Studio"
-          className={`hero-video-bg absolute inset-0 w-full h-full object-cover ${isSaveData ? 'block' : 'sm:hidden'}`}
-          loading="eager"
-        />
-
-
-        {/* DARK SCRIM FOR MAXIMUM HIGH-CONTRAST TEXT VISIBILITY */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: 'linear-gradient(180deg, rgba(6,11,30,0.72) 0%, rgba(6,11,30,0.86) 50%, rgba(6,11,30,0.96) 100%)',
-            zIndex: 1,
-          }}
-        />
-
-        {/* Ambient glow orbs (zero-cost radial gradients instead of heavy blur filters) */}
-        <div
-          className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(30,79,163,0.2) 0%, transparent 70%)', zIndex: 2 }}
-        />
-        <div
-          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-60 rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(ellipse at bottom, rgba(212,175,55,0.16) 0%, transparent 70%)', zIndex: 2 }}
-        />
-
-        {/* HERO CONTENT WITH HIGH CONTRAST BRIGHT TYPOGRAPHY */}
-        <div
-          style={{ zIndex: 10, maxWidth: '880px' }}
-          className="relative flex flex-col items-start pt-28 sm:pt-36 pb-16 sm:pb-28 px-4 sm:px-12 lg:px-20 xl:px-28 w-full"
-        >
-          {/* Vertical gold rule */}
-          <div className="hero-vert-rule absolute left-0 top-28 sm:top-36 bottom-16 sm:bottom-28 w-[2px]"
-               style={{ background: 'linear-gradient(to bottom, transparent, #D4AF37 25%, #D4AF37 75%, transparent)' }} />
-
-          {/* ROYAL CROWN ORNAMENT */}
-          <div className="hero-anim-1 flex items-center gap-2 sm:gap-4 mb-6 sm:mb-8 max-w-full overflow-hidden">
-            <div className="flex items-center gap-1 sm:gap-2">
-              <div className="h-px w-4 sm:w-8 bg-gradient-to-r from-transparent to-[#D4AF37]" />
-              <div className="w-1.5 h-1.5 rotate-45 bg-[#D4AF37]" />
-              <div className="h-px w-8 sm:w-16 bg-gradient-to-r from-[#D4AF37] to-[#D4AF37]/40" />
-            </div>
-            <svg width="28" height="22" viewBox="0 0 28 22" fill="none" className="hero-crown-glow flex-shrink-0">
-              <path d="M2 20L5 8L10 14L14 2L18 14L23 8L26 20H2Z" fill="none" stroke="#F5E7A3" strokeWidth="1.8" strokeLinejoin="round"/>
-              <circle cx="2" cy="8" r="1.5" fill="#D4AF37" opacity="0.9"/>
-              <circle cx="14" cy="2" r="1.8" fill="#FFF099"/>
-              <circle cx="26" cy="8" r="1.5" fill="#D4AF37" opacity="0.9"/>
-              <line x1="2" y1="21" x2="26" y2="21" stroke="#F5E7A3" strokeWidth="1.2" opacity="0.8"/>
-            </svg>
-            <div className="flex items-center gap-1 sm:gap-2">
-              <div className="h-px w-8 sm:w-16 bg-gradient-to-l from-[#D4AF37] to-[#D4AF37]/40" />
-              <div className="w-1.5 h-1.5 rotate-45 bg-[#D4AF37]" />
-              <div className="h-px w-4 sm:w-8 bg-gradient-to-l from-transparent to-[#D4AF37]" />
-            </div>
-          </div>
-
-          {/* BADGE */}
-          <div className="hero-anim-1 relative mb-6 sm:mb-8 max-w-full">
-            <div className="hero-badge-ring absolute -inset-[3px] rounded-full" />
-            <div className="relative inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-2.5 rounded-full border border-[#D4AF37]/60 bg-[#060E22]/96 shadow-[0_0_15px_rgba(212,175,55,0.2)]">
-              <span className="hero-badge-dot w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#F5E7A3] flex-shrink-0 shadow-[0_0_8px_#F5E7A3]" />
-              <span className="text-[10px] sm:text-[11px] uppercase tracking-[0.2em] sm:tracking-[0.3em] font-extrabold text-[#FFF099] drop-shadow-md">Official Luxury CAD Atelier</span>
-              <span className="w-px h-3.5 bg-[#D4AF37]/50" />
-              <Gem className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#F5E7A3] flex-shrink-0" />
-            </div>
-          </div>
-
-          {/* HEADLINE */}
-          <div className="mb-4 sm:mb-6 overflow-hidden max-w-full">
-            <h1 className="font-serif leading-[1.15] sm:leading-[1.1] tracking-tight drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]">
-              <span className="hero-line-reveal-1 block text-3xl sm:text-5xl lg:text-[3.6rem] xl:text-[4.2rem] text-white font-medium break-words">
-                Where{' '}
-                <em className="not-italic font-bold hero-italic-word text-[#FFF099] drop-shadow-[0_0_12px_rgba(255,240,153,0.5)]">Imagination</em>
-              </span>
-              <span className="hero-line-reveal-2 block text-3xl sm:text-5xl lg:text-[3.6rem] xl:text-[4.2rem] font-extrabold break-words">
-                <span className="hero-gold-title text-[#F5E7A3]">Becomes Jewellery</span>
-              </span>
-            </h1>
-          </div>
-
-          {/* ORNATE DIVIDER */}
-          <div className="hero-anim-3 flex items-center gap-2.5 mb-6 sm:mb-8">
-            <div className="h-px flex-1 max-w-[70px] bg-gradient-to-r from-[#D4AF37] to-[#D4AF37]/60" />
-            <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rotate-45 bg-[#D4AF37]" />
-              <div className="w-2 h-2 rotate-45 bg-[#FFF099]" />
-              <div className="w-1.5 h-1.5 rotate-45 bg-[#D4AF37]" />
-            </div>
-            <div className="h-px w-24 sm:w-36 bg-gradient-to-r from-[#D4AF37]/60 to-transparent" />
-          </div>
-
-          {/* SUBHEADLINE (HIGH VISIBILITY BRIGHT FONTS) */}
-          <p className="hero-anim-4 font-sans text-sm sm:text-lg text-[#EBE3D3] font-medium leading-[1.7] sm:leading-[1.9] max-w-[540px] mb-8 sm:mb-10 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
-            Premium Rhino{' '}
-            <span className="text-[#FFE066] font-bold underline decoration-[#D4AF37]/60 underline-offset-4">.3DM</span> files &amp; watertight{' '}
-            <span className="text-[#93C5FD] font-bold underline decoration-blue-400/60 underline-offset-4">STL</span> meshes —
-            engineered to{' '}
-            <span className="text-white font-extrabold bg-[#D4AF37]/20 px-2 py-0.5 rounded border border-[#D4AF37]/40">±0.02 mm tolerance</span>{' '}
-            for the world's finest jewellers.
-          </p>
-
-          {/* CTA BUTTONS */}
-          <div className="hero-anim-5 flex flex-col sm:flex-row gap-3 sm:gap-4 mb-8 sm:mb-12 w-full sm:w-auto">
-            <button
-              onClick={() => onNavigate('collections')}
-              className="hero-btn-primary group relative overflow-hidden flex items-center justify-center gap-3 px-6 sm:px-9 py-3.5 sm:py-4 rounded-xl font-extrabold tracking-[0.15em] uppercase text-xs shadow-[0_10px_30px_rgba(212,175,55,0.4)] w-full sm:w-auto"
-            >
-              <span className="hero-btn-shimmer" />
-              <span className="hero-corner-tl" />
-              <span className="hero-corner-br" />
-              <Sparkles className="w-4 h-4 text-[#0B1330] relative z-10 flex-shrink-0" />
-              <span className="relative z-10">Explore CAD Files</span>
-              <ArrowRight className="w-4 h-4 text-[#0B1330] relative z-10 flex-shrink-0 group-hover:translate-x-1.5 transition-transform duration-300" />
-            </button>
-
-            <button
-              onClick={() => onNavigate('custom-design')}
-              className="hero-btn-secondary group relative overflow-hidden flex items-center justify-center gap-3 px-6 sm:px-9 py-3.5 sm:py-4 rounded-xl font-extrabold tracking-[0.15em] uppercase text-xs text-[#FAF8F3] bg-[#09112B]/90 border-2 border-[#D4AF37] hover:bg-[#121F4D] transition-all shadow-xl w-full sm:w-auto"
-            >
-              <span className="hero-corner-tl hero-corner-tl--gold" />
-              <span className="hero-corner-br hero-corner-br--gold" />
-              <Gem className="w-4 h-4 text-[#F5E7A3] flex-shrink-0 group-hover:scale-110 transition-transform duration-300" />
-              <span className="text-[#FAF8F3]">Start Custom Order</span>
-              <ChevronRight className="w-4 h-4 text-[#F5E7A3] flex-shrink-0 group-hover:translate-x-1 transition-transform duration-300" />
-            </button>
-          </div>
-
-          {/* TRUST STRIP (BRIGHT HIGH-CONTRAST CHIPS) */}
-          <div className="hero-anim-6 grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
-            {[
-              { icon: <FileCheck2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FFE066]" />, label: 'Native .3DM' },
-              { icon: <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#60A5FA]" />, label: 'Watertight STL' },
-              { icon: <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-300" />, label: 'Castable Ready' },
-              { icon: <Award className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#F5E7A3]" />, label: '±0.02 mm' },
-            ].map(({ icon, label }) => (
-              <div key={label} className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 px-3 py-1.5 rounded-xl bg-[#080E24]/96 border border-[#D4AF37]/35 text-[11px] sm:text-xs text-[#FAF8F3] font-bold shadow-md">
-                {icon}
-                <span>{label}</span>
-              </div>
-            ))}
-          </div>
         </div>
 
-        {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 hero-anim-7" style={{ zIndex: 10 }}>
-          <span className="text-[9px] tracking-[0.4em] uppercase text-white/30">Scroll to Explore</span>
-          <div className="hero-scroll-line" />
+        {/* RIGHT TECHNICAL CAD SKETCH COMPOSITION (from pre-cut reference asset) */}
+        <div className="hidden lg:block absolute right-[-4%] xl:right-[1%] top-1/2 -translate-y-1/2 w-[340px] xl:w-[420px] 2xl:w-[480px] pointer-events-none select-none z-10 opacity-90 transition-transform duration-700 hover:scale-105">
+          <img
+            src="/assets/redesign/hero_cad_sketch_right.png"
+            alt="Technical 3D Rhino CAD Engineering Sketch"
+            className="w-full h-auto object-contain drop-shadow-[0_20px_35px_rgba(23,52,92,0.08)]"
+            loading="eager"
+          />
+        </div>
+
+        {/* CENTER EDITORIAL CONTENT */}
+        <div className="relative z-20 max-w-4xl mx-auto text-center flex flex-col items-center space-y-6 sm:space-y-8">
+          
+          {/* Top Decorative Line & Badge */}
+          <motion.div
+            initial={{ opacity: 0, y: -15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="flex items-center justify-center gap-3"
+          >
+            <div className="h-px w-8 sm:w-16 bg-gradient-to-r from-transparent to-[#D9B66F]" />
+            <span className="text-[11px] sm:text-xs font-semibold tracking-[0.25em] text-[#B88732] uppercase">
+              PREMIUM JEWELLERY CAD STUDIO
+            </span>
+            <div className="h-px w-8 sm:w-16 bg-gradient-to-l from-transparent to-[#D9B66F]" />
+          </motion.div>
+
+          {/* Main Headline & Subtitle */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.1 }}
+            className="space-y-2.5 sm:space-y-3"
+          >
+            <h1 className="font-serif text-4xl sm:text-6xl md:text-7xl lg:text-[76px] font-bold text-[#17345C] tracking-tight leading-[1.08]">
+              Custom CAD Design
+            </h1>
+            <p className="font-serif text-lg sm:text-2xl md:text-[26px] text-[#17345C]/85 font-normal tracking-wide">
+              From concept to perfect 3D model in 48h
+            </p>
+          </motion.div>
+
+          {/* 4 Feature Highlights Chips */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.2 }}
+            className="grid grid-cols-2 sm:flex sm:flex-wrap items-center justify-center gap-2.5 sm:gap-6 pt-1 text-xs sm:text-[13px] text-[#17345C] font-medium"
+          >
+            <div className="flex items-center justify-center gap-2 px-3 py-1.5 rounded-full bg-white/80 border border-[#E8D7B7] shadow-xs">
+              <Gem className="w-4 h-4 text-[#B88732] shrink-0" />
+              <span>Photorealistic 3D Modelling</span>
+            </div>
+            <div className="flex items-center justify-center gap-2 px-3 py-1.5 rounded-full bg-white/80 border border-[#E8D7B7] shadow-xs">
+              <FileCheck2 className="w-4 h-4 text-[#B88732] shrink-0" />
+              <span>Production Ready CAD Files</span>
+            </div>
+            <div className="flex items-center justify-center gap-2 px-3 py-1.5 rounded-full bg-white/80 border border-[#E8D7B7] shadow-xs">
+              <ShieldCheck className="w-4 h-4 text-[#236E6A] shrink-0" />
+              <span>High Precision &amp; Accuracy</span>
+            </div>
+            <div className="flex items-center justify-center gap-2 px-3 py-1.5 rounded-full bg-white/80 border border-[#E8D7B7] shadow-xs">
+              <Clock className="w-4 h-4 text-[#B88732] shrink-0" />
+              <span>Fast Turnaround (48 Hours)</span>
+            </div>
+          </motion.div>
+
+          {/* CENTRAL SEARCH BAR (HIGHEST PRIORITY) */}
+          <motion.form
+            onSubmit={handleHeroSearch}
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.7, delay: 0.3 }}
+            className="w-full max-w-2xl sm:max-w-3xl pt-2"
+          >
+            <div className="relative flex items-center bg-white rounded-full border border-[#D9B66F] shadow-[0_12px_36px_rgba(23,52,92,0.1)] hover:shadow-[0_16px_45px_rgba(23,52,92,0.14)] transition-all p-1.5 sm:p-2">
+              <div className="pl-3 sm:pl-4 text-[#17345C]">
+                <Search className="w-5 h-5 sm:w-5 sm:h-5 text-[#17345C]" />
+              </div>
+
+              <input
+                type="text"
+                value={heroSearchQuery}
+                onChange={(e) => setHeroSearchQuery(e.target.value)}
+                placeholder="Search rings, earrings, chains, pendants..."
+                className="w-full bg-transparent px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base text-[#17243B] placeholder-[#687386]/70 focus:outline-hidden"
+              />
+
+              <button
+                type="button"
+                onClick={() => onNavigate('collections')}
+                className="p-2 sm:p-2.5 text-[#17345C] hover:text-[#B88732] hover:bg-[#FFF9F0] rounded-full transition-colors mr-1 cursor-pointer"
+                title="Filter Collections"
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+              </button>
+
+              <button
+                type="submit"
+                className="bg-[#17345C] hover:bg-[#102442] text-white px-5 sm:px-8 py-2.5 sm:py-3 rounded-full text-xs sm:text-sm font-bold uppercase tracking-wider flex items-center gap-2 transition-all shadow-md shrink-0 cursor-pointer"
+              >
+                <span>Search</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.form>
+
+          {/* 4 JEWELLERY CATEGORY SHORTCUTS */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.4 }}
+            className="w-full max-w-3xl grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5 pt-1"
+          >
+            {[
+              {
+                id: 'rings',
+                label: 'Rings',
+                icon: (
+                  <svg className="w-6 h-6 text-[#17345C]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                    <circle cx="12" cy="14" r="7" />
+                    <path d="M12 7L10 3h4l-2 4z" fill="currentColor" opacity="0.25" />
+                    <path d="M9 3h6l1.5 4h-9L9 3z" />
+                  </svg>
+                ),
+              },
+              {
+                id: 'earrings',
+                label: 'Earrings',
+                icon: (
+                  <svg className="w-6 h-6 text-[#17345C]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                    <circle cx="8" cy="8" r="3" />
+                    <circle cx="8" cy="17" r="4" />
+                    <circle cx="16" cy="8" r="3" />
+                    <circle cx="16" cy="17" r="4" />
+                  </svg>
+                ),
+              },
+              {
+                id: 'necklaces',
+                label: 'Necklace',
+                icon: (
+                  <svg className="w-6 h-6 text-[#17345C]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                    <path d="M4 6c3 8 13 8 16 0" />
+                    <circle cx="12" cy="15" r="2.5" fill="currentColor" opacity="0.25" />
+                  </svg>
+                ),
+              },
+              {
+                id: 'bracelets-bangles',
+                label: 'Bracelet',
+                icon: (
+                  <svg className="w-6 h-6 text-[#17345C]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                    <ellipse cx="12" cy="12" rx="8" ry="6" strokeDasharray="2 2" strokeWidth="2.5" />
+                    <ellipse cx="12" cy="12" rx="8" ry="6" />
+                  </svg>
+                ),
+              },
+            ].map((catItem) => (
+              <button
+                key={catItem.id}
+                type="button"
+                onClick={() => onNavigate('collections', catItem.id)}
+                className="group flex items-center justify-between p-3 sm:p-3.5 bg-white/90 hover:bg-white rounded-2xl border border-[#E8D7B7] hover:border-[#D9B66F] shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer text-left"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="shrink-0 p-1 rounded-xl bg-[#FFF9F0] border border-[#E8D7B7]/60 group-hover:border-[#D9B66F] transition-colors">
+                    {catItem.icon}
+                  </div>
+                  <span className="text-xs sm:text-sm font-semibold text-[#17345C] group-hover:text-[#B88732] truncate transition-colors">
+                    {catItem.label}
+                  </span>
+                </div>
+                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border border-[#D9B66F] flex items-center justify-center text-[#B88732] group-hover:bg-[#17345C] group-hover:text-white group-hover:border-[#17345C] transition-colors shrink-0 ml-1">
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </div>
+              </button>
+            ))}
+          </motion.div>
+
         </div>
       </section>
 
       {/* SECTION 2: TRUST STRIP (ANIMATED METRICS REVEAL) */}
-      <section className="relative py-10 bg-[#080E24] border-y border-[#D4AF37]/20">
+      <section className="relative py-10 bg-[#FFF9F0] border-y border-[#E8D7B7]">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12">
-          <StaggerGrid className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center divide-y sm:divide-y-0 sm:divide-x divide-[#D4AF37]/15">
+          <StaggerGrid className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center divide-y sm:divide-y-0 sm:divide-x divide-[#E8D7B7]">
             {[
               { number: '500+', label: 'Designs Delivered' },
               { number: '120+', label: 'Happy Jewellers & Ateliers' },
@@ -814,11 +836,11 @@ export const HomePage: React.FC<HomePageProps> = ({
                 <motion.div
                   whileHover={{ scale: 1.08 }}
                   transition={{ duration: 0.2 }}
-                  className="font-serif text-3xl sm:text-4xl text-[#F5E7A3] font-semibold tracking-tight cursor-default"
+                  className="font-serif text-3xl sm:text-4xl text-[#17345C] font-semibold tracking-tight cursor-default"
                 >
                   {metric.number}
                 </motion.div>
-                <div className="text-xs text-[#C9C2A6] uppercase tracking-wider font-light">
+                <div className="text-xs text-[#687386] uppercase tracking-wider font-medium">
                   {metric.label}
                 </div>
               </StaggerItem>
@@ -828,43 +850,43 @@ export const HomePage: React.FC<HomePageProps> = ({
       </section>
 
       {/* SECTION 3: FEATURED COLLECTIONS (Category Showcase) */}
-      <section className="py-24 bg-[#060B1E] relative">
+      <section className="py-24 bg-white relative">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12 space-y-12">
           <RevealOnScroll className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
-              <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-[#D4AF37] font-semibold mb-2">
+              <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-[#B88732] font-semibold mb-2">
                 <Gem className="w-3.5 h-3.5" />
                 Signature Archives
               </div>
-              <h2 className="font-serif text-3xl sm:text-5xl text-[#FAF8F3]">
+              <h2 className="font-serif text-3xl sm:text-5xl text-[#17345C]">
                 Explore Our Ready CAD Collections
               </h2>
             </div>
             <motion.button
               whileHover={{ x: 5 }}
               onClick={() => onNavigate('collections')}
-              className="inline-flex items-center gap-1.5 text-xs tracking-wider uppercase text-[#F5E7A3] hover:text-[#FAF8F3] transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs tracking-wider uppercase font-semibold text-[#17345C] hover:text-[#B88732] transition-colors cursor-pointer"
             >
               <span>View All Categories</span>
-              <ChevronRight className="w-4 h-4 text-[#D4AF37]" />
+              <ChevronRight className="w-4 h-4 text-[#B88732]" />
             </motion.button>
           </RevealOnScroll>
 
           {/* Categories Error Notice */}
           {isError && categories.length === 0 && (
-            <div className="p-4 rounded-2xl bg-[#2A1515] border border-red-500/40 text-[#FAF8F3] flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg mb-6">
+            <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-[#17243B] flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm mb-6">
               <div className="flex items-center gap-3">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-400 animate-ping shrink-0" />
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping shrink-0" />
                 <div className="text-xs">
-                  <span className="font-semibold text-red-200">Unable to load live categories.</span>
+                  <span className="font-semibold text-red-700">Unable to load live categories.</span>
                   {errorMessage && (
-                    <p className="text-[11px] text-red-300/80 mt-0.5 font-mono">{errorMessage}</p>
+                    <p className="text-[11px] text-red-600 mt-0.5 font-mono">{errorMessage}</p>
                   )}
                 </div>
               </div>
               <button
                 onClick={() => fetchCatalog(true)}
-                className="px-4 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-xs font-semibold text-red-100 flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                className="px-4 py-1.5 rounded-xl bg-red-100 hover:bg-red-200 border border-red-300 text-xs font-semibold text-red-700 flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 Retry
@@ -889,17 +911,17 @@ export const HomePage: React.FC<HomePageProps> = ({
       </section>
 
       {/* SECTION 4: WHY SHIULI CAD STUDIO (The 4 Pillars) */}
-      <section className="py-24 bg-[#070D22] border-y border-[#D4AF37]/20 relative">
+      <section className="py-24 bg-[#FFF9F0] border-y border-[#E8D7B7] relative">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12 space-y-16">
           <RevealOnScroll className="text-center max-w-3xl mx-auto space-y-3">
-            <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-[#D4AF37] font-semibold">
+            <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-[#B88732] font-semibold">
               <Award className="w-3.5 h-3.5" />
               The Shiuli Standard
             </div>
-            <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl text-[#FAF8F3]">
+            <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl text-[#17345C]">
               Engineered for Casting. Perfected for Fine Jewellery.
             </h2>
-            <p className="text-sm text-[#C9C2A6] font-light">
+            <p className="text-sm text-[#687386] font-normal leading-relaxed">
               Unlike generic 3D asset marketplaces, every Shiuli file is sculpted by certified bench jewellers and MatrixGold engineers with real casting foundry experience.
             </p>
           </RevealOnScroll>
@@ -910,25 +932,25 @@ export const HomePage: React.FC<HomePageProps> = ({
                 title: 'Precision CAD Modelling',
                 desc: 'Native Rhino .3DM files with structured layers for prongs, cutters, collets, and metal bodies. Clean NURBS geometry without messy trims.',
                 icon: Layers,
-                color: 'text-[#D4AF37] bg-[#D4AF37]/15 border-[#D4AF37]/40',
+                color: 'text-[#B88732] bg-[#FFF9F0] border-[#E8D7B7]',
               },
               {
                 title: 'High-Res STL for Casting',
                 desc: 'Watertight solids verified with zero non-manifold edges. Pre-compensated for 1.25% gold & platinum shrinkage on 3D wax printers.',
                 icon: FileCheck2,
-                color: 'text-[#7EACFC] bg-[#1E4FA3]/25 border-[#1E4FA3]/50',
+                color: 'text-[#17345C] bg-[#FFF9F0] border-[#E8D7B7]',
               },
               {
                 title: '48-Hour Fast Turnaround',
                 desc: 'From pencil sketch to 4K client renders and ready-to-cast CAD in under 48 hours. Express 24-hour delivery available on bespoke bridal orders.',
                 icon: Clock,
-                color: 'text-emerald-400 bg-[#2E7D5B]/20 border-[#2E7D5B]/40',
+                color: 'text-[#236E6A] bg-[#FFF9F0] border-[#E8D7B7]',
               },
               {
                 title: 'Design Revisions Included',
                 desc: 'Up to 2 complimentary revision rounds on custom orders. We adjust ring sizes, prong heights, or stone arrangements until your client approves.',
                 icon: Repeat,
-                color: 'text-[#F5E7A3] bg-[#D4AF37]/15 border-[#D4AF37]/40',
+                color: 'text-[#B88732] bg-[#FFF9F0] border-[#E8D7B7]',
               },
             ].map((pillar, i) => {
               const IconComp = pillar.icon;
@@ -937,15 +959,15 @@ export const HomePage: React.FC<HomePageProps> = ({
                   <motion.div
                     whileHover={{ y: -8, scale: 1.02 }}
                     transition={{ duration: 0.3 }}
-                    className="p-6 rounded-2xl bg-[#091029] border border-[#D4AF37]/25 shadow-xl space-y-4 hover:border-[#D4AF37] transition-all backdrop-blur-md cursor-pointer"
+                    className="p-6 rounded-2xl bg-white border border-[#E8D7B7] shadow-sm space-y-4 hover:border-[#D9B66F] hover:shadow-xl transition-all cursor-pointer"
                   >
                     <div className={`w-12 h-12 rounded-xl border flex items-center justify-center ${pillar.color}`}>
                       <IconComp className="w-6 h-6" />
                     </div>
-                    <h3 className="font-serif text-xl text-[#FAF8F3]">
+                    <h3 className="font-serif text-xl text-[#17345C]">
                       {pillar.title}
                     </h3>
-                    <p className="text-xs text-[#C9C2A6] leading-relaxed font-light">
+                    <p className="text-xs text-[#687386] leading-relaxed font-normal">
                       {pillar.desc}
                     </p>
                   </motion.div>
@@ -957,16 +979,16 @@ export const HomePage: React.FC<HomePageProps> = ({
       </section>
 
       {/* SECTION 5: HOW IT WORKS (Process Preview Timeline) */}
-      <section className="py-24 bg-[#060B1E] relative">
+      <section className="py-24 bg-white relative">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12 space-y-16">
           <RevealOnScroll className="text-center max-w-2xl mx-auto space-y-2">
-            <span className="text-xs uppercase tracking-[0.2em] text-[#D4AF37] font-semibold">
+            <span className="text-xs uppercase tracking-[0.2em] text-[#B88732] font-semibold">
               Simple 4-Step Process
             </span>
-            <h2 className="font-serif text-3xl sm:text-5xl text-[#FAF8F3]">
+            <h2 className="font-serif text-3xl sm:text-5xl text-[#17345C]">
               How To Acquire Your Studio CAD Files
             </h2>
-            <p className="text-xs text-[#C9C2A6] font-light">
+            <p className="text-xs text-[#687386] font-normal">
               Whether choosing instant download from our catalog or requesting a bespoke file.
             </p>
           </RevealOnScroll>
@@ -979,7 +1001,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               whileInView={{ scaleX: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 1, ease: 'easeOut' }}
-              className="hidden md:block absolute top-8 left-[12%] right-[12%] h-[2px] bg-gradient-to-r from-[#D4AF37] via-[#5B8DEF] to-[#D4AF37] z-0 origin-left"
+              className="hidden md:block absolute top-8 left-[12%] right-[12%] h-[2px] bg-gradient-to-r from-[#D9B66F] via-[#236E6A] to-[#D9B66F] z-0 origin-left"
             />
 
             {[
@@ -991,14 +1013,14 @@ export const HomePage: React.FC<HomePageProps> = ({
               <RevealOnScroll key={step.num} delay={i * 0.1} className="relative z-10 text-center space-y-3">
                 <motion.div
                   whileHover={{ scale: 1.1, rotate: 5 }}
-                  className="w-16 h-16 mx-auto rounded-full bg-[#060B1E] border-2 border-[#D4AF37] flex items-center justify-center text-lg font-serif font-bold text-[#F5E7A3] shadow-[0_0_20px_rgba(212,175,55,0.4)] cursor-pointer"
+                  className="w-16 h-16 mx-auto rounded-full bg-[#FFF9F0] border-2 border-[#D9B66F] flex items-center justify-center text-lg font-serif font-bold text-[#17345C] shadow-md cursor-pointer"
                 >
                   {step.num}
                 </motion.div>
-                <h4 className="font-serif text-lg text-[#FAF8F3]">
+                <h4 className="font-serif text-lg text-[#17345C]">
                   {step.title}
                 </h4>
-                <p className="text-xs text-[#C9C2A6] leading-relaxed font-light">
+                <p className="text-xs text-[#687386] leading-relaxed font-normal">
                   {step.desc}
                 </p>
               </RevealOnScroll>
@@ -1009,40 +1031,40 @@ export const HomePage: React.FC<HomePageProps> = ({
             <motion.button
               whileHover={{ scale: 1.05 }}
               onClick={() => onNavigate('how-it-works')}
-              className="inline-flex items-center gap-2 text-xs uppercase tracking-wider text-[#D4AF37] hover:text-[#F5E7A3] font-semibold"
+              className="inline-flex items-center gap-2 text-xs uppercase tracking-wider text-[#17345C] hover:text-[#B88732] font-semibold cursor-pointer"
             >
               <span>Learn About Full 7-Stage Quality Control</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <ArrowRight className="w-3.5 h-3.5 text-[#B88732]" />
             </motion.button>
           </div>
         </div>
       </section>
 
       {/* SECTION 6: FEATURED / BESTSELLING DESIGNS */}
-      <section className="py-24 bg-[#080E24] border-t border-[#D4AF37]/20 relative">
+      <section className="py-24 bg-[#FFF9F0] border-t border-[#E8D7B7] relative">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12 space-y-12">
           <RevealOnScroll className="text-center max-w-3xl mx-auto space-y-3">
-            <span className="text-xs uppercase tracking-[0.2em] text-[#D4AF37] font-semibold">
+            <span className="text-xs uppercase tracking-[0.2em] text-[#B88732] font-semibold">
               Ready-To-Cast CAD Files
             </span>
-            <h2 className="font-serif text-3xl sm:text-5xl text-[#FAF8F3]">
+            <h2 className="font-serif text-3xl sm:text-5xl text-[#17345C]">
               Bestselling Jewellery CAD Files
             </h2>
-            <p className="text-xs text-[#C9C2A6] font-light">
+            <p className="text-xs text-[#687386] font-normal">
               Instant download includes native Rhino .3DM, castable .STL, and 4K render pack.
             </p>
           </RevealOnScroll>
 
           {/* Sticky Category Filter Bar — stays pinned below navbar when scrolling products */}
-          <div className="sticky top-[64px] sm:top-[84px] z-30 py-2.5 sm:py-3 px-3 sm:px-6 rounded-2xl bg-[#080E24]/95 backdrop-blur-2xl border border-[#D4AF37]/35 shadow-[0_12px_40px_rgba(0,0,0,0.85)] flex overflow-x-auto no-scrollbar sm:flex-wrap items-center justify-start sm:justify-center gap-1.5 sm:gap-2 max-w-5xl mx-auto transition-all">
+          <div className="sticky top-[64px] sm:top-[84px] z-30 py-2.5 sm:py-3 px-3 sm:px-6 rounded-2xl bg-white/95 backdrop-blur-2xl border border-[#E8D7B7] shadow-sm flex overflow-x-auto no-scrollbar sm:flex-wrap items-center justify-start sm:justify-center gap-1.5 sm:gap-2 max-w-5xl mx-auto transition-all">
             {filterCategories.map((filter) => (
               <button
                 key={filter.id}
                 onClick={() => setSelectedFilter(filter.id)}
                 className={`px-3.5 sm:px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                   selectedFilter === filter.id
-                    ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#0B1330] font-extrabold shadow-[0_0_14px_rgba(212,175,55,0.45)] scale-105'
-                    : 'bg-[#121F4D]/80 text-[#C9C2A6] hover:text-white hover:bg-[#1A2E6D] border border-[#D4AF37]/20 hover:border-[#D4AF37]/50'
+                    ? 'bg-[#17345C] text-[#FFF9F0] font-bold shadow-md scale-105'
+                    : 'bg-[#FFF9F0] text-[#17345C] hover:bg-[#E8D7B7]/40 border border-[#E8D7B7]'
                 }`}
               >
                 {filter.label}
@@ -1052,16 +1074,16 @@ export const HomePage: React.FC<HomePageProps> = ({
 
           {/* Offline / Stale Data Banner */}
           {isError && liveProducts.length > 0 && (
-            <div className="p-3.5 rounded-2xl bg-[#2A1515] border border-red-500/40 text-[#FAF8F3] flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg mb-6">
+            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-[#17243B] flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs mb-6">
               <div className="flex items-center gap-2.5">
-                <span className="w-2 h-2 rounded-full bg-red-400 animate-ping shrink-0" />
-                <span className="text-xs text-red-200">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping shrink-0" />
+                <span className="text-xs text-amber-800">
                   Showing cached catalog — live catalogue server unavailable.
                 </span>
               </div>
               <button
                 onClick={() => fetchCatalog(true)}
-                className="px-3.5 py-1 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-xs font-semibold text-red-100 flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                className="px-3.5 py-1 rounded-xl bg-amber-100 hover:bg-amber-200 border border-amber-300 text-xs font-semibold text-amber-900 flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
               >
                 <RotateCcw className="w-3 h-3" />
                 Retry Connection
@@ -1071,19 +1093,19 @@ export const HomePage: React.FC<HomePageProps> = ({
 
           {/* Product Grid */}
           {isLoading && liveProducts.length === 0 ? (
-            <div className="rounded-3xl bg-[#091029] border border-[#D4AF37]/20 p-16 text-center">
-              <Loader2 className="w-8 h-8 mx-auto text-[#D4AF37] animate-spin mb-4" />
-              <p className="text-[#C9C2A6] text-sm">Loading ready-made designs…</p>
+            <div className="rounded-3xl bg-white border border-[#E8D7B7] p-16 text-center">
+              <Loader2 className="w-8 h-8 mx-auto text-[#B88732] animate-spin mb-4" />
+              <p className="text-[#687386] text-sm">Loading ready-made designs…</p>
             </div>
           ) : isError && liveProducts.length === 0 ? (
-            <div className="rounded-3xl bg-[#091029] border border-red-500/30 p-12 text-center space-y-4 max-w-lg mx-auto">
-              <div className="w-14 h-14 mx-auto rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400">
+            <div className="rounded-3xl bg-white border border-red-200 p-12 text-center space-y-4 max-w-lg mx-auto">
+              <div className="w-14 h-14 mx-auto rounded-full bg-red-50 border border-red-200 flex items-center justify-center text-red-500">
                 <AlertTriangle className="w-7 h-7" />
               </div>
-              <h3 className="font-serif text-2xl text-[#FAF8F3]">
+              <h3 className="font-serif text-2xl text-[#17345C]">
                 Unable to Load Catalog
               </h3>
-              <p className="text-xs text-[#C9C2A6] leading-relaxed">
+              <p className="text-xs text-[#687386] leading-relaxed">
                 {errorMessage || 'The server could not be reached. Please verify your connection or try again.'}
               </p>
               <div className="flex items-center justify-center gap-3 pt-2">
@@ -1097,14 +1119,14 @@ export const HomePage: React.FC<HomePageProps> = ({
               </div>
             </div>
           ) : filteredProducts.length === 0 ? (
-            <div className="rounded-3xl bg-[#091029] border border-[#D4AF37]/20 p-12 text-center space-y-4 max-w-lg mx-auto">
-              <div className="w-12 h-12 mx-auto rounded-full bg-[#121F4D] border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37]">
+            <div className="rounded-3xl bg-white border border-[#E8D7B7] p-12 text-center space-y-4 max-w-lg mx-auto">
+              <div className="w-12 h-12 mx-auto rounded-full bg-[#FFF9F0] border border-[#E8D7B7] flex items-center justify-center text-[#B88732]">
                 <Sparkles className="w-6 h-6" />
               </div>
-              <h3 className="font-serif text-xl text-[#FAF8F3]">
+              <h3 className="font-serif text-xl text-[#17345C]">
                 No Designs Found in This Category
               </h3>
-              <p className="text-xs text-[#C9C2A6] leading-relaxed">
+              <p className="text-xs text-[#687386] leading-relaxed">
                 We haven't listed ready CAD files under this filter yet. You can browse all designs or request a bespoke model.
               </p>
               <div className="flex items-center justify-center gap-3 pt-2">
@@ -1116,7 +1138,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 </button>
                 <button
                   onClick={() => onNavigate('custom-design')}
-                  className="px-5 py-2 rounded-full border border-[#D4AF37]/30 text-xs text-[#FAF8F3] hover:bg-white/5 transition-colors"
+                  className="px-5 py-2 rounded-full border border-[#E8D7B7] text-xs text-[#17345C] hover:bg-[#FFF9F0] transition-colors"
                 >
                   Request Custom CAD
                 </button>
@@ -1133,25 +1155,25 @@ export const HomePage: React.FC<HomePageProps> = ({
                         whileHover={{ y: -8 }}
                         transition={{ duration: 0.3 }}
                         onClick={() => onNavigate('product-detail', product.id)}
-                        className="group rounded-2xl bg-[#0B1330] border border-[#D4AF37]/20 overflow-hidden shadow-xl hover:border-[#D4AF37]/60 transition-all flex flex-col justify-between cursor-pointer"
+                        className="group rounded-2xl bg-white border border-[#E8D7B7] overflow-hidden shadow-xs hover:shadow-xl hover:border-[#D9B66F] transition-all flex flex-col justify-between cursor-pointer"
                       >
                         {/* Image Frame (object-contain with padding prevents edge cutting) */}
-                        <div className="relative aspect-square overflow-hidden bg-gradient-to-b from-[#0c163b] to-[#070D22] flex items-center justify-center p-3">
+                        <div className="relative aspect-square overflow-hidden bg-gradient-to-b from-[#FFFDF9] via-white to-[#FFF9F0] flex items-center justify-center p-3">
                           <LazyImage
                             src={getOptimizedImageUrl(product.primaryImage, product.category)}
                             alt={product.title}
-                            className="w-full h-full object-contain drop-shadow-[0_8px_20px_rgba(0,0,0,0.7)] transition-transform duration-500 group-hover:scale-105"
+                            className="w-full h-full object-contain drop-shadow-[0_8px_20px_rgba(23,52,92,0.1)] transition-transform duration-500 group-hover:scale-105"
                           />
 
                           {/* Badges */}
                           <div className="absolute top-3 left-3 flex flex-col gap-1 z-10">
                             {product.isBestseller && (
-                              <span className="px-2 py-0.5 rounded-md bg-[#D4AF37] text-[#0B1330] text-[10px] font-bold tracking-wider uppercase shadow-md">
+                              <span className="px-2 py-0.5 rounded-md bg-[#B88732] text-white text-[10px] font-bold tracking-wider uppercase shadow-xs">
                                 Bestseller
                               </span>
                             )}
                             {product.isNew && (
-                              <span className="px-2 py-0.5 rounded-md bg-[#1E4FA3] text-white text-[10px] font-bold tracking-wider uppercase shadow-md">
+                              <span className="px-2 py-0.5 rounded-md bg-[#17345C] text-white text-[10px] font-bold tracking-wider uppercase shadow-xs">
                                 New
                               </span>
                             )}
@@ -1163,8 +1185,8 @@ export const HomePage: React.FC<HomePageProps> = ({
                               onClick={(e) => { e.stopPropagation(); onToggleWishlist(product); }}
                               className={`p-2 rounded-full backdrop-blur-md transition-colors ${
                                 isWishlisted
-                                  ? 'bg-[#D4AF37] text-[#0B1330]'
-                                  : 'bg-[#0B1330]/70 text-[#FAF8F3] hover:text-[#D4AF37]'
+                                  ? 'bg-[#B88732] text-white'
+                                  : 'bg-white/90 text-[#17345C] border border-[#E8D7B7] hover:border-[#D9B66F]'
                               }`}
                               title="Wishlist"
                             >
@@ -1174,35 +1196,35 @@ export const HomePage: React.FC<HomePageProps> = ({
 
                           <button
                             onClick={(e) => { e.stopPropagation(); onQuickView(product); }}
-                            className="absolute inset-x-3 bottom-3 z-10 py-2 rounded-xl bg-[#0B1330]/90 backdrop-blur border border-[#D4AF37]/30 text-xs text-[#FAF8F3] flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="absolute inset-x-3 bottom-3 z-10 py-2 rounded-xl bg-white/95 backdrop-blur border border-[#E8D7B7] text-xs text-[#17345C] font-semibold flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
                           >
-                            <Eye className="w-3.5 h-3.5 text-[#D4AF37]" />
+                            <Eye className="w-3.5 h-3.5 text-[#B88732]" />
                             <span>Quick View Specs</span>
                           </button>
                         </div>
 
                         {/* Card Content */}
                         <div className="p-4 space-y-3">
-                          <div className="text-[10px] uppercase tracking-wider text-[#D4AF37] font-medium">
+                          <div className="text-[10px] uppercase tracking-wider text-[#B88732] font-semibold">
                             {product.category} • {product.specs.diamondCount} Stones
                           </div>
 
-                          <h3 className="font-serif text-lg text-[#FAF8F3] group-hover:text-[#F5E7A3] line-clamp-1 transition-colors">
+                          <h3 className="font-serif text-lg text-[#17345C] group-hover:text-[#B88732] line-clamp-1 transition-colors">
                             {product.title}
                           </h3>
 
-                          <div className="flex items-center justify-between text-xs text-[#C9C2A6] pt-1 border-t border-white/5 font-light">
+                          <div className="flex items-center justify-between text-xs text-[#687386] pt-1 border-t border-[#E8D7B7]/60 font-normal">
                             <span>18K: {product.specs?.metalWeight18k || '—'}</span>
-                            <span className="font-mono text-emerald-400">STL Verified</span>
+                            <span className="font-mono text-[#236E6A] font-semibold">STL Verified</span>
                           </div>
 
                           <div className="flex items-center justify-between pt-2">
                             <div>
-                              <span className="text-xl font-serif font-bold text-[#F5E7A3]">
+                              <span className="text-xl font-serif font-bold text-[#B88732]">
                                 ₹{formatINR(product.price)}
                               </span>
                               {product.originalPrice && (
-                                <span className="text-xs text-[#C9C2A6] line-through ml-1.5">
+                                <span className="text-xs text-[#687386] line-through ml-1.5">
                                   ₹{formatINR(product.originalPrice)}
                                 </span>
                               )}
@@ -1212,7 +1234,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                               onClick={(e) => { e.stopPropagation(); onAddToCart(product, 'standard'); }}
                               className="btn-gold-luxury px-3.5 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider flex items-center gap-1"
                             >
-                              <ShoppingBag className="w-3 h-3 text-[#0B1330]" />
+                              <ShoppingBag className="w-3 h-3" />
                               <span>Add</span>
                             </button>
                           </div>
@@ -1226,10 +1248,10 @@ export const HomePage: React.FC<HomePageProps> = ({
               {/* VIEW MORE & CATALOG ACTIONS */}
               <div className="pt-6 flex flex-col items-center justify-center space-y-4">
                 {/* Count indicator */}
-                <div className="flex items-center gap-2 text-xs font-mono text-[#D4AF37]">
+                <div className="flex items-center gap-2 text-xs font-mono text-[#B88732]">
                   <span>Showing {displayedProducts.length} of {filteredProducts.length} designs</span>
                   {selectedFilter !== 'all' && (
-                    <span className="text-white/40">
+                    <span className="text-[#687386]">
                       • {filterCategories.find((c) => c.id === selectedFilter)?.label}
                     </span>
                   )}
@@ -1241,10 +1263,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                       whileHover={{ scale: 1.04 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => setVisibleCount((prev) => prev + INITIAL_VISIBLE_COUNT)}
-                      className="btn-gold-luxury px-8 py-3.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-[#D4AF37]/20 cursor-pointer"
+                      className="btn-gold-luxury px-8 py-3.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm cursor-pointer"
                     >
                       <span>View More Products ({filteredProducts.length - visibleCount} More)</span>
-                      <ChevronDown className="w-4 h-4 text-[#0B1330]" />
+                      <ChevronDown className="w-4 h-4" />
                     </motion.button>
                   )}
 
@@ -1252,10 +1274,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                     whileHover={{ scale: 1.04 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => onNavigate('collections', selectedFilter === 'all' ? undefined : selectedFilter)}
-                    className="px-8 py-3.5 rounded-full border border-[#D4AF37]/40 text-[#FAF8F3] hover:border-[#D4AF37] hover:bg-[#121F4D]/60 text-xs font-semibold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer"
+                    className="px-8 py-3.5 rounded-full border border-[#E8D7B7] text-[#17345C] hover:border-[#B88732] hover:bg-[#FFF9F0] text-xs font-semibold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer"
                   >
                     <span>Browse All in Collections ({liveProducts.length}+ CAD Files)</span>
-                    <ArrowRight className="w-4 h-4 text-[#D4AF37]" />
+                    <ArrowRight className="w-4 h-4 text-[#B88732]" />
                   </motion.button>
                 </div>
               </div>
@@ -1265,36 +1287,36 @@ export const HomePage: React.FC<HomePageProps> = ({
       </section>
 
       {/* SECTION 7: CUSTOM DESIGN SPOTLIGHT (Split Banner with Before/After Slider) */}
-      <section className="py-24 bg-[#060B1E] relative">
+      <section className="py-24 bg-white relative">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             {/* Left Text Column */}
             <RevealOnScroll className="lg:col-span-6 space-y-6">
-              <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-[#D4AF37] font-semibold">
+              <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-[#B88732] font-semibold">
                 <Zap className="w-3.5 h-3.5" />
                 Bespoke CAD Service
               </div>
 
-              <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl text-[#FAF8F3] leading-tight">
+              <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl text-[#17345C] leading-tight">
                 Have a Design in Mind? Let’s Build It Together.
               </h2>
 
-              <p className="text-sm sm:text-base text-[#C9C2A6] font-light leading-relaxed">
+              <p className="text-sm sm:text-base text-[#687386] font-normal leading-relaxed">
                 Send us a hand-drawn pencil sketch, gouache illustration, or client moodboard. Our master MatrixGold modelers will engineer a ready-to-cast 3D NURBS assembly with stone seats and 4K photorealistic renders in 48 hours.
               </p>
 
               {/* Feature Checklist */}
-              <div className="space-y-2.5 text-xs text-[#FAF8F3]">
+              <div className="space-y-2.5 text-xs text-[#17243B]">
                 <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-[#D4AF37]" />
+                  <Check className="w-4 h-4 text-[#B88732]" />
                   <span>Zero stone setting rocking guarantee with pre-notched 42° seats</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-[#D4AF37]" />
+                  <Check className="w-4 h-4 text-[#B88732]" />
                   <span>Exact finger sizes calibrated across US, EU, and Indian ring standards</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-[#D4AF37]" />
+                  <Check className="w-4 h-4 text-[#B88732]" />
                   <span>Includes 4K ray-traced turntable render video for instant client sign-off</span>
                 </div>
               </div>
@@ -1303,17 +1325,17 @@ export const HomePage: React.FC<HomePageProps> = ({
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   onClick={() => onNavigate('custom-design')}
-                  className="btn-gold-luxury px-8 py-3.5 rounded-full text-xs font-semibold uppercase tracking-wider flex items-center gap-2 shadow-xl"
+                  className="btn-navy-luxury px-8 py-3.5 rounded-full text-xs font-semibold uppercase tracking-wider flex items-center gap-2 shadow-md cursor-pointer"
                 >
                   <span>Start Custom Request</span>
-                  <ArrowRight className="w-4 h-4 text-[#0B1330]" />
+                  <ArrowRight className="w-4 h-4 text-white" />
                 </motion.button>
 
                 <a
                   href="https://wa.me/919574787098"
                   target="_blank"
                   rel="noreferrer"
-                  className="px-6 py-3.5 rounded-full border border-[#D4AF37]/30 text-xs text-[#FAF8F3] hover:border-[#D4AF37] hover:bg-white/5 transition-colors"
+                  className="px-6 py-3.5 rounded-full border border-[#E8D7B7] text-xs font-semibold text-[#17345C] hover:border-[#B88732] hover:bg-[#FFF9F0] transition-colors"
                 >
                   Chat on WhatsApp (+91 95747 87098)
                 </a>
@@ -1322,12 +1344,14 @@ export const HomePage: React.FC<HomePageProps> = ({
 
             {/* Right Column: Interactive Before/After Slider */}
             <RevealOnScroll className="lg:col-span-6" delay={0.2}>
-              <BeforeAfterSlider
-                beforeImage="/unsplash-img/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1200&q=80"
-                afterImage="/unsplash-img/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=1200&q=80"
-                beforeLabel="Client Concept Sketch"
-                afterLabel="Shiuli 4K 3D CAD Render"
-              />
+              <div className="rounded-3xl border border-[#E8D7B7] p-2 bg-[#FFF9F0] shadow-xl">
+                <BeforeAfterSlider
+                  beforeImage="/unsplash-img/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1200&q=80"
+                  afterImage="/unsplash-img/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=1200&q=80"
+                  beforeLabel="Client Concept Sketch"
+                  afterLabel="Shiuli 4K 3D CAD Render"
+                />
+              </div>
             </RevealOnScroll>
           </div>
         </div>
@@ -1335,20 +1359,20 @@ export const HomePage: React.FC<HomePageProps> = ({
 
       {/* SECTION 8: TESTIMONIALS WITH SMOOTH TRANSITION */}
       {testimonials.length > 0 && (
-        <section className="py-24 bg-[#070D22] border-y border-[#D4AF37]/20 relative">
+        <section className="py-24 bg-[#FFF9F0] border-y border-[#E8D7B7] relative">
           <div className="max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12 space-y-12">
             <RevealOnScroll className="text-center space-y-2">
-              <span className="text-xs uppercase tracking-[0.2em] text-[#D4AF37] font-semibold">
+              <span className="text-xs uppercase tracking-[0.2em] text-[#B88732] font-semibold">
                 Client Testimonials
               </span>
-              <h2 className="font-serif text-3xl sm:text-5xl text-[#FAF8F3]">
+              <h2 className="font-serif text-3xl sm:text-5xl text-[#17345C]">
                 Trusted By Master Jewellers Globally
               </h2>
             </RevealOnScroll>
 
             {/* Carousel Card */}
-            <RevealOnScroll className="max-w-4xl mx-auto relative rounded-3xl bg-[#091029] border border-[#D4AF37]/30 p-8 sm:p-12 shadow-[0_20px_60px_rgba(0,0,0,0.6)] backdrop-blur-xl">
-              <div className="text-4xl font-serif text-[#D4AF37] mb-4">“</div>
+            <RevealOnScroll className="max-w-4xl mx-auto relative rounded-3xl bg-white border border-[#E8D7B7] p-8 sm:p-12 shadow-lg">
+              <div className="text-4xl font-serif text-[#D9B66F] mb-4">“</div>
               
               <AnimatePresence mode="wait">
                 <motion.p
@@ -1357,31 +1381,31 @@ export const HomePage: React.FC<HomePageProps> = ({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -15 }}
                   transition={{ duration: 0.3 }}
-                  className="font-serif text-lg sm:text-2xl text-[#FAF8F3] leading-relaxed italic mb-8"
+                  className="font-serif text-lg sm:text-2xl text-[#17243B] leading-relaxed italic mb-8"
                 >
                   {testimonials[activeTestimonialIdx]?.quote}
                 </motion.p>
               </AnimatePresence>
 
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-[#D4AF37]/15 pt-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-[#E8D7B7] pt-6">
                 <div className="flex items-center gap-4">
                   {(testimonials[activeTestimonialIdx]?.avatar_url || testimonials[activeTestimonialIdx]?.avatar) && (
                     <img
                       src={testimonials[activeTestimonialIdx]?.avatar_url || testimonials[activeTestimonialIdx]?.avatar}
                       alt={testimonials[activeTestimonialIdx]?.name}
                       referrerPolicy="no-referrer"
-                      className="w-14 h-14 rounded-full object-cover border-2 border-[#D4AF37] shadow-md"
+                      className="w-14 h-14 rounded-full object-cover border-2 border-[#D9B66F] shadow-sm"
                     />
                   )}
                   <div>
-                    <h4 className="font-serif text-lg text-[#FAF8F3] font-semibold">
+                    <h4 className="font-serif text-lg text-[#17345C] font-semibold">
                       {testimonials[activeTestimonialIdx]?.name}
                     </h4>
-                    <p className="text-xs text-[#C9C2A6] font-light">
+                    <p className="text-xs text-[#687386] font-normal">
                       {testimonials[activeTestimonialIdx]?.role_or_company || testimonials[activeTestimonialIdx]?.role}
                     </p>
                     {testimonials[activeTestimonialIdx]?.project_type && (
-                      <p className="text-[11px] text-[#D4AF37] font-mono">
+                      <p className="text-[11px] text-[#B88732] font-mono">
                         {testimonials[activeTestimonialIdx].project_type}
                       </p>
                     )}
@@ -1390,7 +1414,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
                 {/* Rating and Controls */}
                 <div className="flex items-center justify-between sm:justify-end gap-4">
-                  <div className="flex text-[#D4AF37]">
+                  <div className="flex text-[#B88732]">
                     {[...Array(testimonials[activeTestimonialIdx]?.rating || 5)].map((_, i) => (
                       <Star key={i} className="w-4 h-4 fill-current" />
                     ))}
@@ -1404,7 +1428,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                           prev === 0 ? testimonials.length - 1 : prev - 1
                         )
                       }
-                      className="p-2.5 rounded-full border border-[#D4AF37]/30 text-[#C9C2A6] hover:text-[#FAF8F3] hover:border-[#D4AF37] transition-colors"
+                      className="p-2.5 rounded-full border border-[#E8D7B7] text-[#17345C] hover:bg-[#FFF9F0] transition-colors cursor-pointer"
                       title="Previous"
                     >
                       <ChevronLeft className="w-4 h-4" />
@@ -1416,7 +1440,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                           (prev + 1) % testimonials.length
                         )
                       }
-                      className="p-2.5 rounded-full border border-[#D4AF37]/30 text-[#C9C2A6] hover:text-[#FAF8F3] hover:border-[#D4AF37] transition-colors"
+                      className="p-2.5 rounded-full border border-[#E8D7B7] text-[#17345C] hover:bg-[#FFF9F0] transition-colors cursor-pointer"
                       title="Next"
                     >
                       <ChevronRight className="w-4 h-4" />
@@ -1430,24 +1454,24 @@ export const HomePage: React.FC<HomePageProps> = ({
       )}
 
       {/* SECTION 9: PORTFOLIO / GALLERY STRIP */}
-      <section className="py-24 bg-[#060B1E] relative">
+      <section className="py-24 bg-white relative">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12 space-y-10">
           <RevealOnScroll className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
-              <span className="text-xs uppercase tracking-[0.2em] text-[#D4AF37] font-semibold">
+              <span className="text-xs uppercase tracking-[0.2em] text-[#B88732] font-semibold">
                 Visual Proof of Craftsmanship
               </span>
-              <h2 className="font-serif text-3xl sm:text-5xl text-[#FAF8F3]">
+              <h2 className="font-serif text-3xl sm:text-5xl text-[#17345C]">
                 The Shiuli Lookbook
               </h2>
             </div>
             <motion.button
               whileHover={{ scale: 1.05 }}
               onClick={() => onNavigate('gallery')}
-              className="btn-gold-luxury px-6 py-2.5 rounded-full text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5"
+              className="btn-gold-luxury px-6 py-2.5 rounded-full text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
             >
               <span>View Full Studio Gallery</span>
-              <ArrowRight className="w-3.5 h-3.5 text-[#0B1330]" />
+              <ArrowRight className="w-3.5 h-3.5" />
             </motion.button>
           </RevealOnScroll>
 
@@ -1459,7 +1483,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                   whileHover={{ y: -8, scale: 1.02 }}
                   transition={{ duration: 0.3 }}
                   onClick={() => onNavigate('gallery')}
-                  className="group relative rounded-2xl overflow-hidden aspect-[4/3] bg-[#0E183D] border border-[#D4AF37]/25 cursor-pointer shadow-xl hover:border-[#D4AF37]"
+                  className="group relative rounded-2xl overflow-hidden aspect-[4/3] bg-[#FFF9F0] border border-[#E8D7B7] cursor-pointer shadow-md hover:border-[#D9B66F] hover:shadow-xl transition-all"
                 >
                   <img
                     src={item.image || item.primary_image || item.primary_image_url}
@@ -1467,15 +1491,15 @@ export const HomePage: React.FC<HomePageProps> = ({
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0B1330] via-[#0B1330]/30 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#17345C]/90 via-[#17345C]/30 to-transparent" />
                   <div className="absolute bottom-0 inset-x-0 p-5 space-y-1">
-                    <span className="text-[10px] text-[#D4AF37] uppercase tracking-wider font-semibold">
+                    <span className="text-[10px] text-[#D9B66F] uppercase tracking-wider font-semibold">
                       {item.category_name || item.category || 'Portfolio'} {item.specs?.weight ? `• ${item.specs.weight}` : ''}
                     </span>
-                    <h3 className="font-serif text-xl text-[#FAF8F3] group-hover:text-[#F5E7A3] transition-colors">
+                    <h3 className="font-serif text-xl text-white group-hover:text-[#F5E7A3] transition-colors">
                       {item.title}
                     </h3>
-                    <p className="text-xs text-[#C9C2A6] line-clamp-1 font-light">{item.description}</p>
+                    <p className="text-xs text-[#E8D7B7] line-clamp-1 font-light">{item.description}</p>
                   </div>
                 </motion.div>
               </StaggerItem>
@@ -1485,16 +1509,16 @@ export const HomePage: React.FC<HomePageProps> = ({
       </section>
 
       {/* SECTION 10: PRICING PREVIEW */}
-      <section className="py-24 bg-[#080E24] border-t border-[#D4AF37]/20 relative">
+      <section className="py-24 bg-[#FFF9F0] border-t border-[#E8D7B7] relative">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12 space-y-14">
           <RevealOnScroll className="text-center max-w-2xl mx-auto space-y-2">
-            <span className="text-xs uppercase tracking-[0.2em] text-[#D4AF37] font-semibold">
+            <span className="text-xs uppercase tracking-[0.2em] text-[#B88732] font-semibold">
               Transparent Rates
             </span>
-            <h2 className="font-serif text-3xl sm:text-5xl text-[#FAF8F3]">
+            <h2 className="font-serif text-3xl sm:text-5xl text-[#17345C]">
               Simple, Predictable CAD Pricing
             </h2>
-            <p className="text-xs text-[#C9C2A6] font-light">
+            <p className="text-xs text-[#687386] font-normal">
               Honest investment without hidden model licensing or seat fees.
             </p>
           </RevealOnScroll>
@@ -1504,35 +1528,35 @@ export const HomePage: React.FC<HomePageProps> = ({
             <StaggerItem>
               <motion.div
                 whileHover={{ y: -8 }}
-                className="h-full rounded-2xl bg-[#091029] border border-[#D4AF37]/20 p-8 space-y-6 flex flex-col justify-between shadow-xl"
+                className="h-full rounded-2xl bg-white border border-[#E8D7B7] p-8 space-y-6 flex flex-col justify-between shadow-xs hover:shadow-lg transition-shadow"
               >
                 <div className="space-y-3">
-                  <h3 className="font-serif text-2xl text-[#FAF8F3]">Ready CAD Model</h3>
-                  <p className="text-xs text-[#C9C2A6] font-light">
+                  <h3 className="font-serif text-2xl text-[#17345C]">Ready CAD Model</h3>
+                  <p className="text-xs text-[#687386] font-normal">
                     Instant download from our curated catalogue of classic solitaires, halos, and bands.
                   </p>
-                  <div className="text-3xl font-serif text-[#F5E7A3] font-bold">
+                  <div className="text-3xl font-serif text-[#B88732] font-bold">
                     $35 - $55
-                    <span className="text-xs text-[#C9C2A6] font-normal"> / design</span>
+                    <span className="text-xs text-[#687386] font-normal"> / design</span>
                   </div>
-                  <ul className="space-y-2 text-xs text-[#FAF8F3] pt-2">
+                  <ul className="space-y-2 text-xs text-[#17243B] pt-2">
                     <li className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-[#D4AF37]" />
+                      <Check className="w-4 h-4 text-[#B88732]" />
                       <span>Layered Rhino .3DM file</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-[#D4AF37]" />
+                      <Check className="w-4 h-4 text-[#B88732]" />
                       <span>Watertight .STL for casting</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-[#D4AF37]" />
+                      <Check className="w-4 h-4 text-[#B88732]" />
                       <span>Instant download unlock</span>
                     </li>
                   </ul>
                 </div>
                 <button
                   onClick={() => onNavigate('collections')}
-                  className="w-full py-3 rounded-xl border border-[#D4AF37]/30 text-xs text-[#FAF8F3] hover:border-[#D4AF37] uppercase tracking-wider font-semibold transition-colors"
+                  className="w-full py-3 rounded-xl border border-[#E8D7B7] text-xs text-[#17345C] hover:border-[#D9B66F] hover:bg-[#FFF9F0] uppercase tracking-wider font-semibold transition-colors cursor-pointer"
                 >
                   Browse Catalog
                 </button>
@@ -1543,43 +1567,43 @@ export const HomePage: React.FC<HomePageProps> = ({
             <StaggerItem>
               <motion.div
                 whileHover={{ y: -10, scale: 1.02 }}
-                className="h-full relative rounded-2xl bg-gradient-to-b from-[#0E183D] to-[#0A122E] border-2 border-[#D4AF37] p-8 space-y-6 flex flex-col justify-between shadow-[0_15px_50px_rgba(212,175,55,0.25)]"
+                className="h-full relative rounded-2xl bg-white border-2 border-[#D9B66F] p-8 space-y-6 flex flex-col justify-between shadow-xl"
               >
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#0B1330] text-[10px] font-bold tracking-widest uppercase shadow-md">
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-[#17345C] text-[#FFF9F0] text-[10px] font-bold tracking-widest uppercase shadow-md">
                   Most Popular for Bespoke
                 </div>
 
                 <div className="space-y-3 pt-2">
-                  <h3 className="font-serif text-2xl text-[#FAF8F3]">Bespoke Custom CAD</h3>
-                  <p className="text-xs text-[#C9C2A6] font-light">
+                  <h3 className="font-serif text-2xl text-[#17345C]">Bespoke Custom CAD</h3>
+                  <p className="text-xs text-[#687386] font-normal">
                     Custom engineering modeled from your client’s sketch or reference photos.
                   </p>
-                  <div className="text-3xl font-serif text-[#F5E7A3] font-bold">
+                  <div className="text-3xl font-serif text-[#B88732] font-bold">
                     $65 - $110
-                    <span className="text-xs text-[#C9C2A6] font-normal"> / piece</span>
+                    <span className="text-xs text-[#687386] font-normal"> / piece</span>
                   </div>
-                  <ul className="space-y-2 text-xs text-[#FAF8F3] pt-2">
+                  <ul className="space-y-2 text-xs text-[#17243B] pt-2">
                     <li className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-[#D4AF37]" />
+                      <Check className="w-4 h-4 text-[#B88732]" />
                       <span>48-Hour delivery guarantee</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-[#D4AF37]" />
+                      <Check className="w-4 h-4 text-[#B88732]" />
                       <span>2 Rounds of revisions included</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-[#D4AF37]" />
+                      <Check className="w-4 h-4 text-[#B88732]" />
                       <span>4K Physically based renders</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-[#D4AF37]" />
+                      <Check className="w-4 h-4 text-[#B88732]" />
                       <span>Full manufacturing casting specs</span>
                     </li>
                   </ul>
                 </div>
                 <button
                   onClick={() => onNavigate('custom-design')}
-                  className="btn-gold-luxury w-full py-3 rounded-xl text-xs font-semibold uppercase tracking-wider"
+                  className="btn-navy-luxury w-full py-3 rounded-xl text-xs font-semibold uppercase tracking-wider cursor-pointer"
                 >
                   Request Custom CAD
                 </button>
@@ -1590,35 +1614,35 @@ export const HomePage: React.FC<HomePageProps> = ({
             <StaggerItem>
               <motion.div
                 whileHover={{ y: -8 }}
-                className="h-full rounded-2xl bg-[#091029] border border-[#D4AF37]/20 p-8 space-y-6 flex flex-col justify-between shadow-xl"
+                className="h-full rounded-2xl bg-white border border-[#E8D7B7] p-8 space-y-6 flex flex-col justify-between shadow-xs hover:shadow-lg transition-shadow"
               >
                 <div className="space-y-3">
-                  <h3 className="font-serif text-2xl text-[#FAF8F3]">Heritage & High Jewellery</h3>
-                  <p className="text-xs text-[#C9C2A6] font-light">
+                  <h3 className="font-serif text-2xl text-[#17345C]">Heritage & High Jewellery</h3>
+                  <p className="text-xs text-[#687386] font-normal">
                     Articulated necklaces, Jadau Kundan Polki sets, and multi-piece bridal suites.
                   </p>
-                  <div className="text-3xl font-serif text-[#F5E7A3] font-bold">
+                  <div className="text-3xl font-serif text-[#B88732] font-bold">
                     $140 - $280
-                    <span className="text-xs text-[#C9C2A6] font-normal"> / suite</span>
+                    <span className="text-xs text-[#687386] font-normal"> / suite</span>
                   </div>
-                  <ul className="space-y-2 text-xs text-[#FAF8F3] pt-2">
+                  <ul className="space-y-2 text-xs text-[#17243B] pt-2">
                     <li className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-[#D4AF37]" />
+                      <Check className="w-4 h-4 text-[#B88732]" />
                       <span>Multi-body sub-assemblies</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-[#D4AF37]" />
+                      <Check className="w-4 h-4 text-[#B88732]" />
                       <span>Hinges, clasps & tongue mechanisms</span>
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-[#D4AF37]" />
+                      <Check className="w-4 h-4 text-[#B88732]" />
                       <span>Priority WhatsApp direct access</span>
                     </li>
                   </ul>
                 </div>
                 <button
                   onClick={() => onNavigate('pricing')}
-                  className="w-full py-3 rounded-xl border border-[#D4AF37]/30 text-xs text-[#FAF8F3] hover:border-[#D4AF37] uppercase tracking-wider font-semibold transition-colors"
+                  className="w-full py-3 rounded-xl border border-[#E8D7B7] text-xs text-[#17345C] hover:border-[#D9B66F] hover:bg-[#FFF9F0] uppercase tracking-wider font-semibold transition-colors cursor-pointer"
                 >
                   View Full Pricing
                 </button>
@@ -1629,18 +1653,18 @@ export const HomePage: React.FC<HomePageProps> = ({
       </section>
 
       {/* SECTION 11: FINAL CTA BANNER */}
-      <section className="relative py-28 text-center bg-gradient-to-b from-[#060B1E] via-[#0E183D] to-[#040816] border-t border-[#D4AF37]/20 overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[350px] bg-[#D4AF37]/10 rounded-full blur-3xl pointer-events-none" />
+      <section className="relative py-28 text-center bg-gradient-to-b from-[#FFF9F0] via-white to-[#FFF9F0] border-t border-[#E8D7B7] overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[350px] bg-[#D9B66F]/10 rounded-full blur-3xl pointer-events-none" />
 
         <RevealOnScroll className="max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12 relative z-10">
           <div className="max-w-3xl mx-auto space-y-6">
             <BrandLogo variant="mark-only" size="lg" className="mx-auto" />
 
-            <h2 className="font-serif text-3xl sm:text-5xl text-[#FAF8F3] leading-tight">
+            <h2 className="font-serif text-3xl sm:text-5xl text-[#17345C] leading-tight">
               Ready to Bring Your Jewellery Designs to Life?
             </h2>
 
-            <p className="text-sm sm:text-base text-[#C9C2A6] font-light max-w-xl mx-auto">
+            <p className="text-sm sm:text-base text-[#687386] font-normal max-w-xl mx-auto">
               Experience CAD files engineered with 0.02mm tolerance, zero-gap stone seats, and guaranteed castability.
             </p>
 
@@ -1649,17 +1673,17 @@ export const HomePage: React.FC<HomePageProps> = ({
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => onNavigate('collections')}
-                className="btn-gold-luxury px-9 py-4 rounded-full text-xs font-semibold uppercase tracking-wider flex items-center gap-2 shadow-2xl"
+                className="btn-navy-luxury px-9 py-4 rounded-full text-xs font-semibold uppercase tracking-wider flex items-center gap-2 shadow-xl cursor-pointer"
               >
                 <span>Explore Ready CAD Files</span>
-                <ArrowRight className="w-4 h-4 text-[#0B1330]" />
+                <ArrowRight className="w-4 h-4 text-white" />
               </motion.button>
 
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => onNavigate('contact')}
-                className="px-9 py-4 rounded-full border border-[#D4AF37]/40 text-[#FAF8F3] hover:border-[#D4AF37] hover:bg-white/5 text-xs font-semibold uppercase tracking-wider transition-all"
+                className="px-9 py-4 rounded-full border border-[#E8D7B7] text-[#17345C] hover:border-[#D9B66F] hover:bg-white text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer shadow-xs"
               >
                 Contact Atelier Team
               </motion.button>

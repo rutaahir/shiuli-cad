@@ -82,33 +82,33 @@ export const AIJewelleryPage: React.FC<AIJewelleryPageProps> = ({ onNavigate }) 
   };
 
   return (
-    <div className="min-h-screen bg-[#060B1E] text-slate-100 pt-28 sm:pt-32 pb-16 px-4 sm:px-6 lg:px-8 xl:px-12">
+    <div className="min-h-screen bg-[#FFFDF9] text-[#17243B] pt-28 sm:pt-32 pb-16 px-4 sm:px-6 lg:px-8 xl:px-12">
       <div className="max-w-[1600px] mx-auto space-y-10">
         {/* Hero Header */}
         <div className="text-center space-y-4 max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#F5E7A3] text-xs font-semibold uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#FFF9F0] border border-[#E8D7B7] text-[#B88732] text-xs font-semibold uppercase tracking-wider">
+            <Sparkles className="w-3.5 h-3.5 text-[#B88732]" />
             Next-Gen Generative Jewelry Studio
           </div>
-          <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
+          <h1 className="text-3xl sm:text-5xl font-serif font-bold text-[#17345C] tracking-tight">
             AI + Jewellery Studio
           </h1>
-          <p className="text-slate-300 text-base sm:text-lg max-w-2xl mx-auto">
+          <p className="text-[#687386] text-base sm:text-lg max-w-2xl mx-auto">
             Transform text concepts and sketches into high-definition 3D CAD baselines. Our AI bridge merges artificial intelligence with master bench jeweler precision.
           </p>
         </div>
 
         {/* 5 AI Sub-Feature Selector Bar */}
         <div className="max-w-4xl mx-auto">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 bg-slate-900/80 p-2 rounded-2xl border border-slate-800">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 bg-white p-2 rounded-2xl border border-[#E8D7B7] shadow-sm">
             {AI_FEATURE_MODES.map((mode) => (
               <button
                 key={mode.id}
                 onClick={() => setActiveMode(mode.id)}
                 className={`p-3 rounded-xl text-xs font-semibold transition-all text-center flex flex-col items-center justify-center ${
                   activeMode === mode.id
-                    ? 'bg-[#D4AF37] text-slate-950 shadow-md shadow-[#D4AF37]/20 font-bold'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                    ? 'btn-gold-luxury text-[#17345C] shadow-sm font-bold'
+                    : 'text-[#17345C] hover:bg-[#FFF9F0]'
                 }`}
               >
                 <span>{mode.label}</span>
@@ -118,155 +118,155 @@ export const AIJewelleryPage: React.FC<AIJewelleryPageProps> = ({ onNavigate }) 
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Column: Input Controls */}
-        <div className="lg:col-span-5 space-y-6">
-          <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 space-y-6 shadow-xl">
-            <div>
-              <label className="block text-sm font-semibold text-white mb-2 flex items-center gap-2">
-                <Wand2 className="w-4 h-4 text-[#D4AF37]" />
-                Describe Your Jewelry Vision
-              </label>
-              <textarea
-                rows={5}
-                placeholder="Describe your dream jewelry piece in detail (e.g. Modern solitaire engagement ring with hidden halo, platinum band, knife-edge profile)..."
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-2xl p-4 text-sm text-white focus:outline-none focus:border-[#D4AF37] placeholder-slate-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-2.5 uppercase tracking-wider flex items-center gap-1.5">
-                <Lightbulb className="w-3.5 h-3.5 text-[#D4AF37]" />
-                Or Try Master Preset Prompts
-              </label>
-              <div className="space-y-2">
-                {PRESET_PROMPTS.map((prompt, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => {
-                      setInputText(prompt);
-                      handleGenerate(prompt);
-                    }}
-                    className="w-full text-left p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-[#D4AF37]/50 text-xs text-slate-300 hover:text-white transition-all duration-200 line-clamp-2"
-                  >
-                    "{prompt}"
-                  </button>
-                ))}
+          {/* Left Column: Input Controls */}
+          <div className="lg:col-span-5 space-y-6">
+            <div className="bg-white border border-[#E8D7B7] rounded-3xl p-6 space-y-6 shadow-sm">
+              <div>
+                <label className="block text-sm font-serif font-bold text-[#17345C] mb-2 flex items-center gap-2">
+                  <Wand2 className="w-4 h-4 text-[#B88732]" />
+                  Describe Your Jewelry Vision
+                </label>
+                <textarea
+                  rows={5}
+                  placeholder="Describe your dream jewelry piece in detail (e.g. Modern solitaire engagement ring with hidden halo, platinum band, knife-edge profile)..."
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  className="w-full bg-[#FFFDF9] border border-[#E8D7B7] rounded-2xl p-4 text-sm text-[#17345C] focus:outline-none focus:border-[#D9B66F] placeholder-[#687386]/60"
+                />
               </div>
-            </div>
 
-            {errorMsg && (
-              <p className="text-xs text-red-400 bg-red-950/40 p-3 rounded-xl border border-red-800">
-                {errorMsg}
-              </p>
-            )}
+              <div>
+                <label className="block text-xs font-semibold text-[#687386] mb-2.5 uppercase tracking-wider flex items-center gap-1.5">
+                  <Lightbulb className="w-3.5 h-3.5 text-[#B88732]" />
+                  Or Try Master Preset Prompts
+                </label>
+                <div className="space-y-2">
+                  {PRESET_PROMPTS.map((prompt, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setInputText(prompt);
+                        handleGenerate(prompt);
+                      }}
+                      className="w-full text-left p-3 rounded-xl bg-[#FFF9F0] border border-[#E8D7B7] hover:border-[#D9B66F] text-xs text-[#17345C] hover:text-[#B88732] transition-all duration-200 line-clamp-2"
+                    >
+                      "{prompt}"
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-            <button
-              type="button"
-              disabled={isGenerating}
-              onClick={() => handleGenerate()}
-              className="w-full py-4 bg-gradient-to-r from-[#D4AF37] to-[#B38F24] hover:from-[#F5E7A3] hover:to-[#D4AF37] text-slate-950 font-bold rounded-2xl shadow-lg shadow-[#D4AF37]/20 transition-all flex items-center justify-center gap-2"
-            >
-              {isGenerating ? (
-                <>
-                  <RefreshCw className="w-5 h-5 animate-spin" />
-                  Generating AI Concept...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-5 h-5" />
-                  Generate 3D Jewelry Concept
-                </>
+              {errorMsg && (
+                <p className="text-xs text-red-700 bg-red-50 p-3 rounded-xl border border-red-200">
+                  {errorMsg}
+                </p>
               )}
-            </button>
+
+              <button
+                type="button"
+                disabled={isGenerating}
+                onClick={() => handleGenerate()}
+                className="w-full py-4 btn-gold-luxury text-[#17345C] font-bold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2"
+              >
+                {isGenerating ? (
+                  <>
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    Generating AI Concept...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-5 h-5" />
+                    Generate 3D Jewelry Concept
+                  </>
+                )}
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* Right Column: AI Generated Output Display */}
-        <div className="lg:col-span-7">
-          <div className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl min-h-[500px] flex flex-col justify-between">
-            {isGenerating ? (
-              <div className="flex-1 flex flex-col items-center justify-center py-20 text-center space-y-4">
-                <div className="w-16 h-16 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] animate-pulse">
-                  <Cpu className="w-8 h-8 animate-spin" />
+          {/* Right Column: AI Generated Output Display */}
+          <div className="lg:col-span-7">
+            <div className="bg-white border border-[#E8D7B7] rounded-3xl p-6 sm:p-8 space-y-6 shadow-sm min-h-[500px] flex flex-col justify-between">
+              {isGenerating ? (
+                <div className="flex-1 flex flex-col items-center justify-center py-20 text-center space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-[#FFF9F0] border border-[#E8D7B7] flex items-center justify-center text-[#B88732] animate-pulse">
+                    <Cpu className="w-8 h-8 animate-spin" />
+                  </div>
+                  <h3 className="text-xl font-serif font-bold text-[#17345C]">Synthesizing 3D Geometry Baseline...</h3>
+                  <p className="text-[#687386] text-sm max-w-sm">
+                    Calculating stone seat placement, metal thickness, and casting tolerances.
+                  </p>
                 </div>
-                <h3 className="text-xl font-bold text-white">Synthesizing 3D Geometry Baseline...</h3>
-                <p className="text-slate-400 text-sm max-w-sm">
-                  Calculating stone seat placement, metal thickness, and casting tolerances.
-                </p>
-              </div>
-            ) : selectedConcept ? (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-                  <div>
-                    <span className="text-xs font-semibold text-[#D4AF37] uppercase tracking-wider">
-                      Generated AI Concept
+              ) : selectedConcept ? (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-4">
+                    <div>
+                      <span className="text-xs font-semibold text-[#B88732] uppercase tracking-wider">
+                        Generated AI Concept
+                      </span>
+                      <h3 className="text-xl font-serif font-bold text-[#17345C] mt-0.5">
+                        {selectedConcept.prompt || 'Custom Concept'}
+                      </h3>
+                    </div>
+                    <span className="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
+                      Casting Feasible
                     </span>
-                    <h3 className="text-xl font-bold text-white mt-0.5">
-                      {selectedConcept.prompt || 'Custom Concept'}
-                    </h3>
                   </div>
-                  <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
-                    Casting Feasible
-                  </span>
-                </div>
 
-                <div className="relative rounded-2xl overflow-hidden border border-slate-700 bg-slate-950">
-                  <img
-                    src={selectedConcept.image_url}
-                    alt="AI Concept Render"
-                    className="w-full h-80 sm:h-96 object-cover"
-                  />
-                  <div className="absolute top-4 right-4 bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-700 text-xs text-slate-200 font-mono">
-                    AI Seed #{selectedConcept.id || '9842'}
+                  <div className="relative rounded-2xl overflow-hidden border border-[#E8D7B7] bg-[#FFF9F0]">
+                    <img
+                      src={selectedConcept.image_url}
+                      alt="AI Concept Render"
+                      className="w-full h-80 sm:h-96 object-cover"
+                    />
+                    <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full border border-[#E8D7B7] text-xs text-[#17345C] font-mono shadow-sm">
+                      AI Seed #{selectedConcept.id || '9842'}
+                    </div>
                   </div>
-                </div>
 
-                {/* Concept Technical Breakdown */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <div className="p-3 bg-slate-950/50 rounded-xl border border-slate-800">
-                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">Est. Weight</span>
-                    <span className="text-sm font-bold text-white">4.2g (18k Gold)</span>
+                  {/* Concept Technical Breakdown */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="p-3 bg-[#FFF9F0] rounded-xl border border-[#E8D7B7]">
+                      <span className="text-[10px] text-[#687386] uppercase font-semibold block">Est. Weight</span>
+                      <span className="text-sm font-bold text-[#17345C]">4.2g (18k Gold)</span>
+                    </div>
+                    <div className="p-3 bg-[#FFF9F0] rounded-xl border border-[#E8D7B7]">
+                      <span className="text-[10px] text-[#687386] uppercase font-semibold block">Setting Type</span>
+                      <span className="text-sm font-bold text-[#17345C]">4-Prong Solitaire</span>
+                    </div>
+                    <div className="p-3 bg-[#FFF9F0] rounded-xl border border-[#E8D7B7] col-span-2 sm:col-span-1">
+                      <span className="text-[10px] text-[#687386] uppercase font-semibold block">Prerequisites</span>
+                      <span className="text-sm font-bold text-[#B88732]">Ready for CAD</span>
+                    </div>
                   </div>
-                  <div className="p-3 bg-slate-950/50 rounded-xl border border-slate-800">
-                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">Setting Type</span>
-                    <span className="text-sm font-bold text-white">4-Prong Solitaire</span>
-                  </div>
-                  <div className="p-3 bg-slate-950/50 rounded-xl border border-slate-800 col-span-2 sm:col-span-1">
-                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">Prerequisites</span>
-                    <span className="text-sm font-bold text-[#F5E7A3]">Ready for CAD</span>
-                  </div>
-                </div>
 
-                <div className="pt-2">
-                  <button
-                    onClick={() => handleConvertTocad(selectedConcept)}
-                    className="w-full py-4 bg-gradient-to-r from-[#D4AF37] to-[#B38F24] hover:from-[#F5E7A3] hover:to-[#D4AF37] text-slate-950 font-extrabold rounded-2xl shadow-xl transition-all flex items-center justify-center gap-3 text-base"
-                  >
-                    Convert this AI Concept to 3D CAD Request
-                    <ArrowRight className="w-5 h-5" />
-                  </button>
+                  <div className="pt-2">
+                    <button
+                      onClick={() => handleConvertTocad(selectedConcept)}
+                      className="w-full py-4 btn-gold-luxury text-[#17345C] font-bold rounded-2xl shadow-xl transition-all flex items-center justify-center gap-3 text-base"
+                    >
+                      Convert this AI Concept to 3D CAD Request
+                      <ArrowRight className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center py-20 text-center space-y-4">
-                <div className="w-16 h-16 rounded-full bg-slate-800/80 flex items-center justify-center text-slate-500">
-                  <Sparkles className="w-8 h-8 text-[#D4AF37]" />
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center py-20 text-center space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-[#FFF9F0] border border-[#E8D7B7] flex items-center justify-center text-[#B88732]">
+                    <Sparkles className="w-8 h-8 text-[#B88732]" />
+                  </div>
+                  <h3 className="text-lg font-serif font-bold text-[#17345C]">No Concept Generated Yet</h3>
+                  <p className="text-[#687386] text-sm max-w-sm">
+                    Enter your jewelry description or click a preset prompt on the left to generate your initial AI concept render.
+                  </p>
                 </div>
-                <h3 className="text-lg font-bold text-white">No Concept Generated Yet</h3>
-                <p className="text-slate-400 text-sm max-w-sm">
-                  Enter your jewelry description or click a preset prompt on the left to generate your initial AI concept render.
-                </p>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
 };
 
 export default AIJewelleryPage;

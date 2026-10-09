@@ -7,6 +7,7 @@ interface BrandLogoProps {
   onClick?: () => void;
   imageSrc?: string; // Path to custom logo image (e.g., '/assets/logo.png')
   useCustomImage?: boolean;
+  theme?: 'light' | 'dark';
 }
 
 // Global default custom logo image path — change this path if you place your logo file in public/assets/
@@ -19,6 +20,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   onClick,
   imageSrc,
   useCustomImage = true,
+  theme = 'light',
 }) => {
   const activeImageSrc = imageSrc || (useCustomImage ? DEFAULT_CUSTOM_LOGO_PATH : null);
 
@@ -179,26 +181,26 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
           <div className="flex items-baseline gap-1 sm:gap-1.5 leading-none whitespace-nowrap">
             {/* Gold 'Shiuli' Title — Prominent larger font size */}
             <span
-              className={`font-serif font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-[#FFF2B2] via-[#E2B743] to-[#B38612] ${currentSize.shiuliTitle} drop-shadow-[0_2px_8px_rgba(212,175,55,0.3)]`}
+              className={`font-serif font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-[#B88732] via-[#D9B66F] to-[#8C6218] ${currentSize.shiuliTitle}`}
             >
               Shiuli
             </span>
-            {/* Bold White 'CAD Studio' Title */}
+            {/* 'CAD Studio' Title */}
             <span
-              className={`font-serif font-bold tracking-normal text-white ${currentSize.cadTitle} drop-shadow-md`}
+              className={`font-serif font-bold tracking-normal ${theme === 'dark' ? 'text-white' : 'text-[#17345C]'} ${currentSize.cadTitle}`}
             >
               CAD Studio
             </span>
           </div>
 
-          {/* Tagline: Jewellery Design | 3D Modeling | CAD Files (visible across screen sizes) */}
+          {/* Tagline: Jewellery Design | 3D Modeling | CAD Files */}
           <div
-            className={`font-sans tracking-tight font-medium text-[#FAF8F3]/90 ${currentSize.subtitle} flex items-center gap-0.5 sm:gap-1 mt-0.5 whitespace-nowrap`}
+            className={`font-sans tracking-tight font-medium ${theme === 'dark' ? 'text-white/80' : 'text-[#687386]'} ${currentSize.subtitle} flex items-center gap-0.5 sm:gap-1 mt-0.5 whitespace-nowrap`}
           >
             <span>Jewellery Design</span>
-            <span className="text-[#D4AF37] font-bold">|</span>
+            <span className="text-[#D9B66F] font-bold">|</span>
             <span>3D Modeling</span>
-            <span className="text-[#D4AF37] font-bold">|</span>
+            <span className="text-[#D9B66F] font-bold">|</span>
             <span>CAD Files</span>
           </div>
         </div>

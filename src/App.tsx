@@ -467,7 +467,7 @@ function MainApp() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B1330] text-[#F5F1E8] font-sans relative overflow-x-clip">
+    <div className="min-h-screen bg-white text-[#17243B] font-sans relative overflow-x-clip">
       {/* First Visit / Hard Refresh Line-Draw Loader */}
       <FirstLoadScreen />
 
