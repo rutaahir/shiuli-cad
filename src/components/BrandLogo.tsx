@@ -19,7 +19,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   className = '',
   onClick,
   imageSrc,
-  useCustomImage = false,
+  useCustomImage = true,
   theme = 'light',
 }) => {
   const activeImageSrc = imageSrc || (useCustomImage ? DEFAULT_CUSTOM_LOGO_PATH : null);
