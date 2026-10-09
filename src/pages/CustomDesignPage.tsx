@@ -936,13 +936,13 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-[#060B1E] text-[#F5F1E8] pt-24 sm:pt-28 pb-24 px-4 sm:px-6 lg:px-8 xl:px-12 relative overflow-hidden">
+    <div className="min-h-screen bg-[#060B1E] text-[#F5F1E8] pt-20 sm:pt-28 pb-24 px-3 sm:px-6 lg:px-8 xl:px-12 relative overflow-hidden">
       {/* Container aligned with site width */}
       <div className="max-w-[1600px] mx-auto space-y-6 relative z-10">
 
         {/* STREAMLINED COMPACT HEADER */}
         <div className="text-center max-w-3xl mx-auto space-y-2">
-          <h1 className="text-3xl sm:text-4xl font-serif gold-gradient-text font-bold tracking-tight">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif gold-gradient-text font-bold tracking-tight">
             Custom Design & 3D CAD Studio
           </h1>
           <p className="text-[#FAF8F3]/70 text-xs sm:text-sm">
@@ -951,20 +951,20 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
         </div>
 
         {/* TWO-OPTION MODE SELECTOR: STEP BY STEP VS QUICK */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4 max-w-4xl mx-auto">
           {/* OPTION 1: STEP-BY-STEP */}
           <div
             onClick={() => setDesignMode('step_by_step')}
-            className={`p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden flex items-start gap-4 ${designMode === 'step_by_step'
+            className={`p-3.5 sm:p-5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden flex items-start gap-3 sm:gap-4 ${designMode === 'step_by_step'
               ? 'bg-gradient-to-br from-[#09112B] to-[#121F4D] border-[#D4AF37] shadow-[0_0_25px_rgba(212,175,55,0.25)] ring-1 ring-[#D4AF37]'
               : 'bg-[#09112B]/60 hover:bg-[#09112B] border-white/10 hover:border-white/20'
               }`}
           >
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border ${designMode === 'step_by_step'
+            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0 border ${designMode === 'step_by_step'
               ? 'bg-gradient-to-tr from-[#D4AF37] to-[#F5E7A3] text-[#09112B] border-[#D4AF37]'
               : 'bg-white/5 text-slate-400 border-white/10'
               }`}>
-              <Layers className="w-6 h-6" />
+              <Layers className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
@@ -986,16 +986,16 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
           {/* OPTION 2: QUICK REQUEST */}
           <div
             onClick={() => setDesignMode('quick')}
-            className={`p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden flex items-start gap-4 ${designMode === 'quick'
+            className={`p-3.5 sm:p-5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden flex items-start gap-3 sm:gap-4 ${designMode === 'quick'
               ? 'bg-gradient-to-br from-[#09112B] to-[#121F4D] border-[#D4AF37] shadow-[0_0_25px_rgba(212,175,55,0.25)] ring-1 ring-[#D4AF37]'
               : 'bg-[#09112B]/60 hover:bg-[#09112B] border-white/10 hover:border-white/20'
               }`}
           >
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border ${designMode === 'quick'
+            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0 border ${designMode === 'quick'
               ? 'bg-gradient-to-tr from-[#D4AF37] to-[#F5E7A3] text-[#09112B] border-[#D4AF37]'
               : 'bg-white/5 text-slate-400 border-white/10'
               }`}>
-              <Sparkles className="w-6 h-6" />
+              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
@@ -1025,7 +1025,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
         ) : (
           <>
             {/* Stepper Header (Compact Bar) */}
-            <div className="w-full bg-[#09112B]/80 backdrop-blur-md p-3.5 rounded-2xl border border-[#D4AF37]/30 shadow-xl">
+            <div className="w-full bg-[#09112B]/80 backdrop-blur-md p-3 sm:p-3.5 rounded-2xl border border-[#D4AF37]/30 shadow-xl">
               <div className="flex justify-between items-center relative">
                 {[
                   { step: 1, title: 'Category & Specs' },
@@ -1038,14 +1038,14 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                     <button
                       onClick={() => currentStep > s.step && setCurrentStep(s.step)}
                       disabled={currentStep < s.step}
-                      className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 ${currentStep === s.step
+                      className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 ${currentStep === s.step
                         ? 'bg-gradient-to-r from-[#F5E7A3] via-[#D4AF37] to-[#B8860B] text-[#0B1330] shadow-[0_0_15px_rgba(212,175,55,0.5)] scale-110 font-extrabold'
                         : currentStep > s.step
                           ? 'bg-[#1E4FA3] text-white border border-[#5B8DEF]/40 cursor-pointer'
                           : 'bg-[#121F4D]/60 text-[#FAF8F3]/40 border border-white/10 cursor-not-allowed'
                         }`}
                     >
-                      {currentStep > s.step ? <Check className="w-4 h-4" /> : s.step}
+                      {currentStep > s.step ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : s.step}
                     </button>
                     <span className={`text-[11px] font-semibold mt-1.5 hidden sm:block ${currentStep === s.step ? 'text-[#F5E7A3]' : 'text-[#FAF8F3]/50'}`}>
                       {s.title}
@@ -1053,12 +1053,23 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                   </div>
                 ))}
               </div>
+              <div className="sm:hidden text-center mt-2.5 pt-2 border-t border-white/5">
+                <span className="text-xs font-semibold text-[#F5E7A3]">
+                  Step {currentStep} of 5: {[
+                    'Category & Specs',
+                    'Metal Alloy',
+                    'Stones & Gemstones',
+                    'Branding & References',
+                    'Review & Dispatch'
+                  ][currentStep - 1]}
+                </span>
+              </div>
             </div>
 
             {/* Main Form Grid & Specification Summary Sidebar */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               {/* Main Content Area */}
-              <div className="lg:col-span-8 bg-[#09112B]/85 backdrop-blur-xl rounded-3xl p-6 sm:p-8 border border-[#D4AF37]/30 shadow-2xl">
+              <div className="lg:col-span-8 bg-[#09112B]/85 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-[#D4AF37]/30 shadow-2xl">
                 {optionsLoading ? (
                   <div className="py-20 text-center">
                     <Loader2 className="w-10 h-10 text-[#D4AF37] animate-spin mx-auto mb-4" />
@@ -1755,26 +1766,26 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                             </div>
 
                             {/* Dual Option Mode Tabs */}
-                            <div className="inline-flex bg-[#09112B] p-1 rounded-xl border border-[#D4AF37]/30">
+                            <div className="grid grid-cols-1 xs:grid-cols-2 sm:flex bg-[#09112B] p-1 rounded-xl border border-[#D4AF37]/30 w-full sm:w-auto">
                               <button
                                 type="button"
                                 onClick={() => setActiveReferenceTab('catalog')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${activeReferenceTab === 'catalog'
+                                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeReferenceTab === 'catalog'
                                   ? 'bg-gradient-to-r from-[#F5E7A3] via-[#D4AF37] to-[#B8860B] text-[#0B1330] shadow-md'
                                   : 'text-[#FAF8F3]/70 hover:text-white'
                                   }`}
                               >
-                                <Grid className="w-3.5 h-3.5" /> Option 1: Existing Studio Products
+                                <Grid className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Option 1: Existing Catalog</span>
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setActiveReferenceTab('upload')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${activeReferenceTab === 'upload'
+                                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeReferenceTab === 'upload'
                                   ? 'bg-gradient-to-r from-[#F5E7A3] via-[#D4AF37] to-[#B8860B] text-[#0B1330] shadow-md'
                                   : 'text-[#FAF8F3]/70 hover:text-white'
                                   }`}
                               >
-                                <Upload className="w-3.5 h-3.5" /> Option 2: Upload Custom File
+                                <Upload className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Option 2: Upload Sketch</span>
                               </button>
                             </div>
                           </div>
@@ -2486,14 +2497,14 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                     )}
 
                     {/* Navigation Controls */}
-                    <div className="flex justify-between items-center pt-8 border-t border-white/10 mt-8">
+                    <div className="flex flex-col-reverse xs:flex-row justify-between items-stretch xs:items-center gap-3 pt-6 sm:pt-8 border-t border-white/10 mt-6 sm:mt-8">
                       <button
                         type="button"
                         onClick={() => setCurrentStep(prev => Math.max(prev - 1, 1))}
                         disabled={currentStep === 1}
-                        className={`px-5 py-2.5 rounded-xl border text-xs font-semibold flex items-center gap-2 transition-all ${currentStep === 1
+                        className={`w-full xs:w-auto px-5 py-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${currentStep === 1
                           ? 'border-white/10 text-white/20 cursor-not-allowed'
-                          : 'border-white/20 text-[#FAF8F3] hover:bg-white/5'
+                          : 'border-white/20 text-[#FAF8F3] hover:bg-white/5 cursor-pointer'
                           }`}
                       >
                         <ArrowLeft className="w-4 h-4" /> Previous Step
@@ -2517,7 +2528,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
                             }
                             setCurrentStep(prev => Math.min(prev + 1, 5));
                           }}
-                          className="px-6 py-2.5 bg-[#1E4FA3] hover:bg-[#2A66D6] text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer"
+                          className="w-full xs:w-auto px-6 py-2.5 bg-[#1E4FA3] hover:bg-[#2A66D6] text-white text-xs font-bold rounded-xl shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
                         >
                           Next Step <ArrowRight className="w-4 h-4" />
                         </button>
@@ -2529,7 +2540,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 
               {/* Real-time Sticky Specification Summary Sidebar */}
               <div className="lg:col-span-4 space-y-6">
-                <div className="bg-[#09112B]/95 backdrop-blur-2xl rounded-3xl p-6 shadow-[0_20px_60px_rgba(0,0,0,0.6)] border border-[#D4AF37]/35 sticky top-28 space-y-5">
+                <div className="bg-[#09112B]/95 backdrop-blur-2xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-[0_20px_60px_rgba(0,0,0,0.6)] border border-[#D4AF37]/35 lg:sticky top-28 space-y-5">
 
                   {/* Header Badge */}
                   <div className="flex items-center justify-between pb-3.5 border-b border-[#D4AF37]/25">

@@ -466,10 +466,10 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
       )}
 
       {/* SECTION 1: PHOTO & SKETCH UPLOAD BOX */}
-      <div className="bg-[#09112B]/90 border border-white/10 hover:border-[#D4AF37]/40 rounded-3xl p-5 sm:p-7 shadow-lg transition-all space-y-4">
-        <div className="flex items-center justify-between border-b border-white/10 pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] flex items-center justify-center font-bold text-sm border border-[#D4AF37]/30">
+      <div className="bg-[#09112B]/90 border border-white/10 hover:border-[#D4AF37]/40 rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-lg transition-all space-y-4">
+        <div className="flex flex-col xs:flex-row xs:items-center justify-between border-b border-white/10 pb-3 gap-2.5">
+          <div className="flex items-start xs:items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] flex items-center justify-center font-bold text-sm border border-[#D4AF37]/30 shrink-0 mt-0.5 xs:mt-0">
               1
             </div>
             <div>
@@ -481,7 +481,7 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
               </p>
             </div>
           </div>
-          <span className="text-[10px] font-mono text-[#F5E7A3] bg-[#D4AF37]/10 px-2.5 py-1 rounded-lg border border-[#D4AF37]/20">
+          <span className="text-[10px] font-mono text-[#F5E7A3] bg-[#D4AF37]/10 px-2.5 py-1 rounded-lg border border-[#D4AF37]/20 shrink-0 self-start xs:self-center">
             {photoFiles.length} Uploaded
           </span>
         </div>
@@ -496,7 +496,7 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
               addPhotoFiles(Array.from(e.dataTransfer.files) as File[]);
             }
           }}
-          className="border-2 border-dashed border-[#D4AF37]/40 hover:border-[#D4AF37] rounded-2xl p-6 sm:p-8 text-center cursor-pointer transition-all bg-[#0F1D46]/40 hover:bg-[#0F1D46]/70 group"
+          className="border-2 border-dashed border-[#D4AF37]/40 hover:border-[#D4AF37] rounded-2xl p-5 sm:p-8 text-center cursor-pointer transition-all bg-[#0F1D46]/40 hover:bg-[#0F1D46]/70 group"
         >
           <input
             type="file"
@@ -506,20 +506,20 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
             accept="image/*,.3dm,.stl"
             className="hidden"
           />
-          <div className="w-12 h-12 mx-auto rounded-full bg-[#D4AF37]/10 text-[#D4AF37] flex items-center justify-center group-hover:scale-110 transition-transform mb-3 border border-[#D4AF37]/20">
-            <Upload className="w-6 h-6" />
+          <div className="w-11 h-11 sm:w-12 sm:h-12 mx-auto rounded-full bg-[#D4AF37]/10 text-[#D4AF37] flex items-center justify-center group-hover:scale-110 transition-transform mb-2.5 sm:mb-3 border border-[#D4AF37]/20">
+            <Upload className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
-          <p className="text-sm font-bold text-white">
+          <p className="text-xs sm:text-sm font-bold text-white">
             Click to upload or drag &amp; drop reference photos
           </p>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-[11px] sm:text-xs text-slate-400 mt-1 max-w-sm mx-auto">
             Supports JPG, PNG, WEBP, or Rhino .3DM / .STL 3D files (Multiple photos allowed)
           </p>
         </div>
 
         {/* Uploaded Thumbnails Preview */}
         {photoFiles.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 pt-2">
+          <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5 sm:gap-3 pt-2">
             {photoFiles.map((file, idx) => (
               <div
                 key={idx}
@@ -557,35 +557,35 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
       </div>
 
       {/* SECTION 2: BACKEND CATALOG REFERENCE & BUY DIRECT SHOWCASE */}
-      <div className="bg-[#09112B]/90 border border-white/10 hover:border-[#D4AF37]/40 rounded-3xl p-5 sm:p-7 shadow-lg transition-all space-y-4">
+      <div className="bg-[#09112B]/90 border border-white/10 hover:border-[#D4AF37]/40 rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-lg transition-all space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/10 pb-3 gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] flex items-center justify-center font-bold text-sm border border-[#D4AF37]/30">
+          <div className="flex items-start sm:items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] flex items-center justify-center font-bold text-sm border border-[#D4AF37]/30 shrink-0 mt-0.5 sm:mt-0">
               2
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-bold text-sm sm:text-base text-white">
-                  Available Catalog Products (Optional Reference or Buy Direct)
+                  Available Catalog Products (Optional Reference)
                 </h3>
                 <span className="text-[10px] px-2 py-0.5 rounded bg-white/10 text-slate-300 font-mono">
                   Optional
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
-                Browse available pieces in our catalog. You can buy directly or give us a reference like: "I want something similar to this product".
+                Browse available pieces in our catalog to give us a reference like: "I want something similar to this product".
               </p>
             </div>
           </div>
 
           {/* Category Dropdown & Search Filter */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="relative">
+          <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 w-full sm:w-auto">
+            <div className="relative flex-1 xs:flex-initial">
               <Filter className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5 pointer-events-none" />
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="pl-8 pr-7 py-1.5 text-xs rounded-xl bg-[#0F1D46] border border-white/20 text-[#FAF8F3] focus:outline-none focus:border-[#D4AF37] cursor-pointer appearance-none"
+                className="w-full xs:w-auto pl-8 pr-7 py-2 xs:py-1.5 text-xs rounded-xl bg-[#0F1D46] border border-white/20 text-[#FAF8F3] focus:outline-none focus:border-[#D4AF37] cursor-pointer appearance-none min-w-[130px]"
               >
                 <option value="all">All Categories</option>
                 {categoryOptions.map((cat, idx) => (
@@ -596,14 +596,14 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
               </select>
             </div>
 
-            <div className="relative">
+            <div className="relative flex-1 xs:flex-initial">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5 pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search products..."
                 value={productSearch}
                 onChange={(e) => setProductSearch(e.target.value)}
-                className="pl-8 pr-3 py-1.5 text-xs rounded-xl bg-[#0F1D46] border border-white/20 text-[#FAF8F3] focus:outline-none focus:border-[#D4AF37] w-36 sm:w-44"
+                className="w-full xs:w-40 sm:w-44 pl-8 pr-3 py-2 xs:py-1.5 text-xs rounded-xl bg-[#0F1D46] border border-white/20 text-[#FAF8F3] focus:outline-none focus:border-[#D4AF37]"
               />
             </div>
           </div>
@@ -611,20 +611,20 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
 
         {/* Selected Reference Banner */}
         {selectedProduct && (
-          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#D4AF37]/20 via-[#0F1D46] to-[#0F1D46] border border-[#D4AF37] flex items-center justify-between gap-3 animate-fade-in">
-            <div className="flex items-center gap-3">
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-[#D4AF37]/20 via-[#0F1D46] to-[#0F1D46] border border-[#D4AF37] flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
+            <div className="flex items-center gap-3 min-w-0">
               {selectedProduct.primary_image && (
                 <img
                   src={selectedProduct.primary_image}
                   alt={selectedProduct.title}
-                  className="w-12 h-12 rounded-xl object-cover border border-[#D4AF37]/40 shrink-0"
+                  className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl object-cover border border-[#D4AF37]/40 shrink-0"
                 />
               )}
-              <div>
+              <div className="min-w-0">
                 <span className="text-[10px] font-mono text-[#F5E7A3] font-bold uppercase tracking-wider block">
                   ✓ Selected Reference Design
                 </span>
-                <p className="font-bold text-sm text-white">{selectedProduct.title}</p>
+                <p className="font-bold text-xs sm:text-sm text-white truncate">{selectedProduct.title}</p>
                 <span className="text-xs text-[#D4AF37] font-mono">
                   Price: ₹{Number(selectedProduct.price).toLocaleString('en-IN')}
                 </span>
@@ -633,7 +633,7 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
             <button
               type="button"
               onClick={() => setSelectedProduct(null)}
-              className="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 cursor-pointer transition-all"
+              className="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 cursor-pointer transition-all self-start sm:self-auto shrink-0"
             >
               Clear Reference
             </button>
@@ -641,7 +641,7 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
         )}
 
         {/* Products Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-80 overflow-y-auto pr-1">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 sm:gap-3 max-h-80 overflow-y-auto pr-1">
           {filteredProducts.slice(0, 16).map((prod) => {
             const isSelected = selectedProduct?.id === prod.id;
             return (
@@ -684,7 +684,7 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
                   <button
                     type="button"
                     onClick={() => setSelectedProduct(isSelected ? null : prod)}
-                    className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                    className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 truncate ${
                       isSelected
                         ? 'bg-[#D4AF37] text-[#09112B]'
                         : 'bg-white/10 hover:bg-[#D4AF37]/20 text-white hover:text-[#F5E7A3] border border-white/10'
@@ -698,7 +698,7 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
                       type="button"
                       title="Buy direct or view details in new tab"
                       onClick={() => onNavigate('product-detail', { productId: prod.id })}
-                      className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-all cursor-pointer"
+                      className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-all cursor-pointer shrink-0"
                     >
                       <ShoppingBag className="w-3.5 h-3.5 text-[#F5E7A3]" />
                     </button>
@@ -711,9 +711,9 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
       </div>
 
       {/* SECTION 3: DESCRIPTION TEXTAREA */}
-      <div className="bg-[#09112B]/90 border border-white/10 hover:border-[#D4AF37]/40 rounded-3xl p-5 sm:p-7 shadow-lg transition-all space-y-3">
-        <div className="flex items-center gap-2.5 border-b border-white/10 pb-3">
-          <div className="w-8 h-8 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] flex items-center justify-center font-bold text-sm border border-[#D4AF37]/30">
+      <div className="bg-[#09112B]/90 border border-white/10 hover:border-[#D4AF37]/40 rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-lg transition-all space-y-3">
+        <div className="flex items-start sm:items-center gap-2.5 border-b border-white/10 pb-3">
+          <div className="w-8 h-8 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] flex items-center justify-center font-bold text-sm border border-[#D4AF37]/30 shrink-0 mt-0.5 sm:mt-0">
             3
           </div>
           <div>
@@ -731,19 +731,19 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Example: I want a 18K yellow gold engagement ring with an oval center stone around 1.5 carats, similar to the reference photo. Ring size 7 US. Need micro-pavé on shank and milgrain edges..."
-          className="w-full p-4 rounded-2xl bg-[#0F1D46]/70 border border-white/20 text-white placeholder-slate-400 focus:outline-none focus:border-[#D4AF37] text-xs sm:text-sm leading-relaxed"
+          className="w-full p-3.5 sm:p-4 rounded-2xl bg-[#0F1D46]/70 border border-white/20 text-white placeholder-slate-400 focus:outline-none focus:border-[#D4AF37] text-xs sm:text-sm leading-relaxed"
         />
       </div>
 
       {/* SECTION 4: VOICE RECORDING (LIVE OR UPLOAD) */}
-      <div className="bg-[#09112B]/90 border border-white/10 hover:border-[#D4AF37]/40 rounded-3xl p-5 sm:p-7 shadow-lg transition-all space-y-4">
-        <div className="flex items-center justify-between border-b border-white/10 pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] flex items-center justify-center font-bold text-sm border border-[#D4AF37]/30">
+      <div className="bg-[#09112B]/90 border border-white/10 hover:border-[#D4AF37]/40 rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-lg transition-all space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/10 pb-3 gap-3">
+          <div className="flex items-start sm:items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] flex items-center justify-center font-bold text-sm border border-[#D4AF37]/30 shrink-0 mt-0.5 sm:mt-0">
               4
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-bold text-sm sm:text-base text-white">
                   Voice Recording Instructions
                 </h3>
@@ -758,74 +758,74 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
           </div>
 
           {/* Toggle between Live Recording and Audio File Upload */}
-          <div className="flex items-center bg-[#0F1D46] p-1 rounded-xl border border-white/15 text-xs font-bold">
+          <div className="grid grid-cols-2 sm:flex items-center bg-[#0F1D46] p-1 rounded-xl border border-white/15 text-xs font-bold w-full sm:w-auto shrink-0">
             <button
               type="button"
               onClick={() => setVoiceMode('live')}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+              className={`w-full sm:w-auto px-2.5 sm:px-3 py-2 sm:py-1 rounded-lg transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 text-[11px] sm:text-xs whitespace-nowrap ${
                 voiceMode === 'live' ? 'bg-[#D4AF37] text-[#09112B]' : 'text-slate-300 hover:text-white'
               }`}
             >
-              🎙️ Live Recording
+              <span>🎙️ Live Recording</span>
             </button>
             <button
               type="button"
               onClick={() => setVoiceMode('upload')}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+              className={`w-full sm:w-auto px-2.5 sm:px-3 py-2 sm:py-1 rounded-lg transition-all cursor-pointer text-center flex items-center justify-center gap-1.5 text-[11px] sm:text-xs whitespace-nowrap ${
                 voiceMode === 'upload' ? 'bg-[#D4AF37] text-[#09112B]' : 'text-slate-300 hover:text-white'
               }`}
             >
-              📁 Upload Audio File
+              <span>📁 Upload Audio File</span>
             </button>
           </div>
         </div>
 
         {/* Live Recording Mode */}
         {voiceMode === 'live' && (
-          <div className="p-5 rounded-2xl bg-[#0F1D46]/60 border border-white/10 text-center space-y-4">
+          <div className="p-4 sm:p-5 rounded-2xl bg-[#0F1D46]/60 border border-white/10 text-center space-y-4">
             {!isRecording && !voiceAudioUrl && (
               <div className="space-y-3">
                 <button
                   type="button"
                   onClick={startRecording}
-                  className="w-16 h-16 rounded-full bg-gradient-to-tr from-[#D4AF37] to-[#F5E7A3] text-[#09112B] flex items-center justify-center mx-auto shadow-[0_0_25px_rgba(212,175,55,0.4)] hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-[#D4AF37] to-[#F5E7A3] text-[#09112B] flex items-center justify-center mx-auto shadow-[0_0_25px_rgba(212,175,55,0.4)] hover:scale-105 active:scale-95 transition-all cursor-pointer"
                 >
-                  <Mic className="w-8 h-8" />
+                  <Mic className="w-7 h-7 sm:w-8 sm:h-8" />
                 </button>
                 <div>
-                  <p className="text-sm font-bold text-white">Tap to Start Voice Recording</p>
-                  <p className="text-xs text-slate-400">Speak your custom specifications in any language.</p>
+                  <p className="text-xs sm:text-sm font-bold text-white">Tap to Start Voice Recording</p>
+                  <p className="text-[11px] sm:text-xs text-slate-400">Speak your custom specifications in any language.</p>
                 </div>
               </div>
             )}
 
             {isRecording && (
               <div className="space-y-4 animate-pulse">
-                <div className="flex items-center justify-center gap-2 text-rose-400 font-mono font-bold text-sm">
-                  <span className="w-3 h-3 rounded-full bg-rose-500 animate-ping inline-block" />
+                <div className="flex items-center justify-center gap-2 text-rose-400 font-mono font-bold text-xs sm:text-sm">
+                  <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-rose-500 animate-ping inline-block" />
                   <span>RECORDING LIVE: {formatTimer(recordingSeconds)}</span>
                 </div>
                 <button
                   type="button"
                   onClick={stopRecording}
-                  className="px-6 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 mx-auto shadow-lg cursor-pointer"
+                  className="px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] sm:text-xs uppercase tracking-wider flex items-center justify-center gap-2 mx-auto shadow-lg cursor-pointer"
                 >
-                  <Square className="w-4 h-4 fill-white" /> Stop &amp; Save Recording
+                  <Square className="w-3.5 h-3.5 fill-white" /> Stop &amp; Save Recording
                 </button>
               </div>
             )}
 
             {voiceAudioUrl && !isRecording && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between bg-[#09112B] p-3 rounded-xl border border-[#D4AF37]/30 max-w-md mx-auto">
-                  <div className="flex items-center gap-2.5">
-                    <Volume2 className="w-5 h-5 text-[#D4AF37]" />
-                    <span className="text-xs font-mono text-slate-200">Voice Note Recorded</span>
+                <div className="flex items-center justify-between bg-[#09112B] p-2.5 sm:p-3 rounded-xl border border-[#D4AF37]/30 w-full max-w-md mx-auto gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Volume2 className="w-4 h-4 sm:w-5 sm:h-5 text-[#D4AF37] shrink-0" />
+                    <span className="text-[11px] sm:text-xs font-mono text-slate-200 truncate">Voice Note Recorded</span>
                   </div>
                   <button
                     type="button"
                     onClick={handleRemoveVoiceNote}
-                    className="text-rose-400 hover:text-rose-300 text-xs flex items-center gap-1 cursor-pointer"
+                    className="text-rose-400 hover:text-rose-300 text-[11px] sm:text-xs flex items-center gap-1 cursor-pointer shrink-0"
                   >
                     <Trash2 className="w-3.5 h-3.5" /> Re-record
                   </button>
@@ -838,7 +838,7 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
 
         {/* Audio File Upload Mode */}
         {voiceMode === 'upload' && (
-          <div className="p-5 rounded-2xl bg-[#0F1D46]/60 border border-white/10 text-center space-y-3">
+          <div className="p-4 sm:p-5 rounded-2xl bg-[#0F1D46]/60 border border-white/10 text-center space-y-3">
             <input
               type="file"
               ref={audioFileInputRef}
@@ -849,25 +849,25 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
             {!voiceAudioUrl ? (
               <div
                 onClick={() => audioFileInputRef.current?.click()}
-                className="border-2 border-dashed border-white/20 hover:border-[#D4AF37] rounded-xl p-6 text-center cursor-pointer transition-all hover:bg-[#0F1D46]"
+                className="border-2 border-dashed border-white/20 hover:border-[#D4AF37] rounded-xl p-5 sm:p-6 text-center cursor-pointer transition-all hover:bg-[#0F1D46]"
               >
-                <FileAudio className="w-10 h-10 text-[#D4AF37] mx-auto mb-2 opacity-80" />
-                <p className="text-sm font-bold text-white">Click to Upload Audio File</p>
-                <p className="text-xs text-slate-400 mt-0.5">Supports .mp3, .wav, .m4a, .webm, .ogg voice notes</p>
+                <FileAudio className="w-8 h-8 sm:w-10 sm:h-10 text-[#D4AF37] mx-auto mb-2 opacity-80" />
+                <p className="text-xs sm:text-sm font-bold text-white">Click to Upload Audio File</p>
+                <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">Supports .mp3, .wav, .m4a, .webm, .ogg voice notes</p>
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="flex items-center justify-between bg-[#09112B] p-3 rounded-xl border border-[#D4AF37]/30 max-w-md mx-auto">
-                  <div className="flex items-center gap-2.5">
-                    <FileAudio className="w-5 h-5 text-[#D4AF37]" />
-                    <span className="text-xs font-mono text-slate-200 truncate max-w-[200px]">
+                <div className="flex items-center justify-between bg-[#09112B] p-2.5 sm:p-3 rounded-xl border border-[#D4AF37]/30 w-full max-w-md mx-auto gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileAudio className="w-4 h-4 sm:w-5 sm:h-5 text-[#D4AF37] shrink-0" />
+                    <span className="text-[11px] sm:text-xs font-mono text-slate-200 truncate">
                       {voiceAudioFile?.name || 'Uploaded Audio'}
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={handleRemoveVoiceNote}
-                    className="text-rose-400 hover:text-rose-300 text-xs flex items-center gap-1 cursor-pointer"
+                    className="text-rose-400 hover:text-rose-300 text-[11px] sm:text-xs flex items-center gap-1 cursor-pointer shrink-0"
                   >
                     <Trash2 className="w-3.5 h-3.5" /> Remove
                   </button>
@@ -880,9 +880,9 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
       </div>
 
       {/* SECTION 5: CONTACT INFORMATION */}
-      <div className="bg-[#09112B]/90 border border-white/10 hover:border-[#D4AF37]/40 rounded-3xl p-5 sm:p-7 shadow-lg transition-all space-y-4">
-        <div className="flex items-center gap-2.5 border-b border-white/10 pb-3">
-          <div className="w-8 h-8 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] flex items-center justify-center font-bold text-sm border border-[#D4AF37]/30">
+      <div className="bg-[#09112B]/90 border border-white/10 hover:border-[#D4AF37]/40 rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-lg transition-all space-y-4">
+        <div className="flex items-start sm:items-center gap-2.5 border-b border-white/10 pb-3">
+          <div className="w-8 h-8 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] flex items-center justify-center font-bold text-sm border border-[#D4AF37]/30 shrink-0 mt-0.5 sm:mt-0">
             5
           </div>
           <div>
@@ -939,15 +939,15 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
       </div>
 
       {/* SUBMISSION BUTTON */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
-        <p className="text-xs text-slate-400 max-w-md">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pt-2">
+        <p className="text-[11px] sm:text-xs text-slate-400 text-center sm:text-left max-w-md">
           🔒 By submitting, our admin team negotiates pricing directly with you. No advance payment required for initial review.
         </p>
 
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-[#F5E7A3] via-[#D4AF37] to-[#B8860B] text-[#09112B] font-extrabold text-sm uppercase tracking-wider shadow-[0_0_25px_rgba(212,175,55,0.4)] hover:opacity-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          className="w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl bg-gradient-to-r from-[#F5E7A3] via-[#D4AF37] to-[#B8860B] text-[#09112B] font-extrabold text-xs sm:text-sm uppercase tracking-wider shadow-[0_0_25px_rgba(212,175,55,0.4)] hover:opacity-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0"
         >
           {isSubmitting ? (
             <>

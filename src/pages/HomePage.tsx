@@ -221,10 +221,8 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
   // 1. Resolve Category Banner Cover image (set by admin via file upload or URL)
   const categoryBannerImg = (cat as any).image_display || cat.image || (cat as any).image_url;
 
-  const [hoveredProductIdx, setHoveredProductIdx] = useState<number | null>(null);
+  const [hoveredProduct, setHoveredProduct] = useState<Product | null>(null);
   const [isPaused, setIsPaused] = useState(false);
-
-  const hoveredProduct = hoveredProductIdx !== null ? categoryProducts[hoveredProductIdx] : null;
 
   const getImg = (p: any) => {
     if (!p) return categoryBannerImg || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=800&q=80';
@@ -241,6 +239,22 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
   const count = cat.product_count ?? categoryProducts.length;
   const isMarqueeMode = categoryProducts.length > 3;
 
+  // Memoize seamless marquee track items:
+  // Ensure the track has at least 8 items so the loop never leaves an empty gap across card width
+  const marqueeItems = React.useMemo(() => {
+    if (categoryProducts.length === 0) return [];
+    let list = [...categoryProducts];
+    while (list.length < 8) {
+      list = [...list, ...categoryProducts];
+    }
+    return list;
+  }, [categoryProducts]);
+
+  // UNIFORM NORMAL SPEED:
+  // Each thumbnail takes ~2.2 seconds to pass a reference point.
+  // Linear velocity is identical across every category card regardless of design count!
+  const marqueeDuration = Math.max(12, Math.round(marqueeItems.length * 2.2));
+
   return (
     <StaggerItem key={cat.id || idx}>
       <motion.div
@@ -249,7 +263,7 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => {
           setIsPaused(false);
-          setHoveredProductIdx(null);
+          setHoveredProduct(null);
         }}
         className="group relative rounded-2xl overflow-hidden min-h-[460px] sm:min-h-[490px] bg-[#0A1333] border border-[#D4AF37]/30 hover:border-[#D4AF37] cursor-pointer shadow-2xl transition-all duration-300 flex flex-col justify-between"
       >
@@ -304,21 +318,27 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
 
                 <div className="flex items-center gap-2 w-max py-1">
                   {/* Primary Track with UNIQUE products */}
-                  <div className="flex items-center gap-2 shrink-0 animate-marquee-track">
-                    {categoryProducts.map((prod, pIdx) => {
-                      const isActive = pIdx === hoveredProductIdx;
+                  <div
+                    className="flex items-center gap-2 shrink-0 animate-marquee-track"
+                    style={{
+                      animationDuration: `${marqueeDuration}s`,
+                      ['--marquee-duration' as any]: `${marqueeDuration}s`,
+                    }}
+                  >
+                    {marqueeItems.map((prod, pIdx) => {
+                      const isActive = hoveredProduct?.id === prod.id || (hoveredProduct && hoveredProduct.title === prod.title);
                       const imgUrl = getImg(prod);
                       return (
                         <button
-                          key={`track1-${prod.id || pIdx}`}
+                          key={`track1-${prod.id || pIdx}-${pIdx}`}
                           type="button"
                           onMouseEnter={() => {
                             setIsPaused(true);
-                            setHoveredProductIdx(pIdx);
+                            setHoveredProduct(prod);
                           }}
                           onTouchStart={() => {
                             setIsPaused(true);
-                            setHoveredProductIdx(pIdx);
+                            setHoveredProduct(prod);
                           }}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -344,21 +364,28 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
                   </div>
 
                   {/* Loop Duplicate Track for Infinite Seamless Flow */}
-                  <div className="flex items-center gap-2 shrink-0 animate-marquee-track" aria-hidden="true">
-                    {categoryProducts.map((prod, pIdx) => {
-                      const isActive = pIdx === hoveredProductIdx;
+                  <div
+                    className="flex items-center gap-2 shrink-0 animate-marquee-track"
+                    aria-hidden="true"
+                    style={{
+                      animationDuration: `${marqueeDuration}s`,
+                      ['--marquee-duration' as any]: `${marqueeDuration}s`,
+                    }}
+                  >
+                    {marqueeItems.map((prod, pIdx) => {
+                      const isActive = hoveredProduct?.id === prod.id || (hoveredProduct && hoveredProduct.title === prod.title);
                       const imgUrl = getImg(prod);
                       return (
                         <button
-                          key={`track2-${prod.id || pIdx}`}
+                          key={`track2-${prod.id || pIdx}-${pIdx}`}
                           type="button"
                           onMouseEnter={() => {
                             setIsPaused(true);
-                            setHoveredProductIdx(pIdx);
+                            setHoveredProduct(prod);
                           }}
                           onTouchStart={() => {
                             setIsPaused(true);
-                            setHoveredProductIdx(pIdx);
+                            setHoveredProduct(prod);
                           }}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -388,7 +415,7 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
               /* Centered Distinct Unique Designs Row */
               <div className="flex items-center justify-center gap-2 py-1">
                 {categoryProducts.map((prod, pIdx) => {
-                  const isActive = pIdx === hoveredProductIdx;
+                  const isActive = hoveredProduct?.id === prod.id || (hoveredProduct && hoveredProduct.title === prod.title);
                   const imgUrl = getImg(prod);
                   return (
                     <button
@@ -396,11 +423,11 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
                       type="button"
                       onMouseEnter={() => {
                         setIsPaused(true);
-                        setHoveredProductIdx(pIdx);
+                        setHoveredProduct(prod);
                       }}
                       onTouchStart={() => {
                         setIsPaused(true);
-                        setHoveredProductIdx(pIdx);
+                        setHoveredProduct(prod);
                       }}
                       onClick={(e) => {
                         e.stopPropagation();

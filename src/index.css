@@ -512,6 +512,7 @@ img {
 
 /* ═══════════════════════════════════════════
    CATEGORY CARD PRODUCT THUMBNAIL MARQUEE (Right to Left flow)
+   Unified constant-velocity speed across all categories
 ═══════════════════════════════════════════ */
 @keyframes marquee-track {
   0% {
@@ -523,7 +524,10 @@ img {
 }
 
 .animate-marquee-track {
-  animation: marquee-track 18s linear infinite;
+  animation-name: marquee-track;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-duration: var(--marquee-duration, 20s);
   will-change: transform;
 }
 
