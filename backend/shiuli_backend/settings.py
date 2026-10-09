@@ -191,16 +191,21 @@ REST_FRAMEWORK = {
 }
 
 
-# SimpleJWT Settings
+# SimpleJWT Settings (Long-lived tokens: stay logged in across browser closes until user clicks Logout)
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=30),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=180),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
 }
+
+# Persistent Session settings (Never logout on browser close; persist until manual logout)
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_COOKIE_AGE = 180 * 24 * 60 * 60  # 180 days
+SESSION_SAVE_EVERY_REQUEST = True
 
 # OpenAPI / Swagger Settings
 SPECTACULAR_SETTINGS = {

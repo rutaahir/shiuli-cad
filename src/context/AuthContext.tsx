@@ -45,36 +45,42 @@ function isTokenExpired(token: string | null): boolean {
   if (!token) return true;
   try {
     const parts = token.split('.');
-    if (parts.length !== 3) return true;
-    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    if (parts.length !== 3) return false; // Non-standard or mock token; let backend validate
+    let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4 !== 0) {
+      base64 += '=';
+    }
+    const payload = JSON.parse(atob(base64));
     if (!payload.exp) return false;
-    return payload.exp * 1000 < Date.now();
+    // Buffer of 30 seconds
+    return payload.exp * 1000 <= Date.now() + 30000;
   } catch {
-    return true;
+    return false; // On parse failure, don't proactively expire; let server decide
   }
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Initialize with cached user immediately so UI shows logged in state without flicker
   const [user, setUser] = useState<UserProfile | null>(() => {
     const token = localStorage.getItem('shiuli_access_token');
-    if (!token || isTokenExpired(token)) {
-      api.clearSession();
-      return null;
-    }
+    const refresh = localStorage.getItem('shiuli_refresh_token');
     const saved = localStorage.getItem('shiuli_user');
-    if (saved) {
+    if ((token || refresh) && saved) {
       try {
         return JSON.parse(saved);
       } catch {}
     }
     return null;
   });
+
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
     const token = localStorage.getItem('shiuli_access_token');
-    return Boolean(token && !isTokenExpired(token));
+    const refresh = localStorage.getItem('shiuli_refresh_token');
+    return Boolean(token || refresh);
   });
+
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Intent & Modal state for auth-gating
@@ -99,19 +105,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // Restore session silently on initial load with token validation
+  // Restore session silently on initial load with token refresh fallback
   useEffect(() => {
     let isMounted = true;
     const restoreSession = async () => {
       const token = localStorage.getItem('shiuli_access_token');
-      if (!token || isTokenExpired(token)) {
-        api.clearSession();
+      const refresh = localStorage.getItem('shiuli_refresh_token');
+
+      // If user has neither access nor refresh token, they are not logged in
+      if (!token && !refresh) {
         if (isMounted) {
           setIsLoggedIn(false);
           setUser(null);
           setIsLoading(false);
         }
         return;
+      }
+
+      // If access token is missing or expired, attempt silent refresh using refresh token
+      let activeToken = token;
+      if (!activeToken || isTokenExpired(activeToken)) {
+        if (refresh) {
+          try {
+            activeToken = await api.refreshToken();
+          } catch (refreshErr: any) {
+            // Only clear session if refresh token was rejected by server (400/401)
+            if (refreshErr?.isAuthExpired || refreshErr?.status === 401 || refreshErr?.status === 400) {
+              api.clearSession();
+              if (isMounted) {
+                setIsLoggedIn(false);
+                setUser(null);
+                setIsLoading(false);
+              }
+              return;
+            }
+            // For network errors (e.g. offline when opening browser), retain cached login!
+            if (isMounted) {
+              setIsLoading(false);
+            }
+            return;
+          }
+        } else {
+          // Access token expired and no refresh token available
+          api.clearSession();
+          if (isMounted) {
+            setIsLoggedIn(false);
+            setUser(null);
+            setIsLoading(false);
+          }
+          return;
+        }
       }
 
       try {
@@ -121,12 +164,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setIsLoggedIn(true);
           localStorage.setItem('shiuli_user', JSON.stringify(currentUser));
         }
-      } catch {
-        // Token invalid or rejected by backend
-        if (isMounted) {
+      } catch (err: any) {
+        // Only invalidate if server actively rejects authenticated session
+        if (err?.isAuthExpired || err?.status === 401) {
           api.clearSession();
-          setIsLoggedIn(false);
-          setUser(null);
+          if (isMounted) {
+            setIsLoggedIn(false);
+            setUser(null);
+          }
+        } else {
+          // If offline / network error, retain existing user credentials!
+          console.warn('Could not contact server during session restore; keeping cached profile:', err);
         }
       } finally {
         if (isMounted) setIsLoading(false);
@@ -154,10 +202,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Multi-tab sync: listen for storage events to immediately logout if token removed in another tab
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'shiuli_access_token' && !e.newValue) {
-        setUser(null);
-        setIsLoggedIn(false);
-        setPendingIntent(null);
+      if ((e.key === 'shiuli_access_token' || e.key === 'shiuli_user') && !e.newValue) {
+        // Verify if both tokens are truly gone (intentional logout)
+        const hasToken = localStorage.getItem('shiuli_access_token');
+        const hasRefresh = localStorage.getItem('shiuli_refresh_token');
+        if (!hasToken && !hasRefresh) {
+          setUser(null);
+          setIsLoggedIn(false);
+          setPendingIntent(null);
+        }
       }
     };
     window.addEventListener('storage', handleStorageChange);

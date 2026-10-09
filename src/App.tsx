@@ -413,6 +413,7 @@ function MainApp() {
       );
     }
     const token = localStorage.getItem('shiuli_access_token');
+    const refresh = localStorage.getItem('shiuli_refresh_token');
     const currentUser = user || (() => {
       try {
         const u = localStorage.getItem('shiuli_user');
@@ -421,7 +422,7 @@ function MainApp() {
         return null;
       }
     })();
-    const authed = isLoggedIn || Boolean(token);
+    const authed = isLoggedIn || Boolean(token) || Boolean(refresh);
     if (!authed) {
       handleNavigate('login');
       return null;
@@ -444,6 +445,7 @@ function MainApp() {
       );
     }
     const token = localStorage.getItem('shiuli_access_token');
+    const refresh = localStorage.getItem('shiuli_refresh_token');
     const currentUser = user || (() => {
       try {
         const u = localStorage.getItem('shiuli_user');
@@ -452,7 +454,7 @@ function MainApp() {
         return null;
       }
     })();
-    const authed = isLoggedIn || Boolean(token);
+    const authed = isLoggedIn || Boolean(token) || Boolean(refresh);
     if (!authed) {
       handleNavigate('login');
       return null;

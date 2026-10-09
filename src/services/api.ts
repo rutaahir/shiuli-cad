@@ -192,8 +192,10 @@ class ApiClient {
 
     const refresh = localStorage.getItem('shiuli_refresh_token');
     if (!refresh) {
-      this.clearSession();
-      throw new Error('No refresh token available');
+      const err: any = new Error('No refresh token available');
+      err.isAuthExpired = true;
+      err.status = 401;
+      throw err;
     }
 
     this.refreshingPromise = (async () => {
@@ -205,8 +207,17 @@ class ApiClient {
         });
 
         if (!response.ok) {
-          this.clearSession();
-          throw new Error('Refresh token expired or invalid');
+          // If server confirmed token is invalid or expired (400/401)
+          if (response.status === 401 || response.status === 400) {
+            this.clearSession();
+            const authErr: any = new Error('Refresh token expired or invalid');
+            authErr.status = response.status;
+            authErr.isAuthExpired = true;
+            throw authErr;
+          }
+          const serverErr: any = new Error(`Token refresh failed with status ${response.status}`);
+          serverErr.status = response.status;
+          throw serverErr;
         }
 
         const data = await response.json();
@@ -219,10 +230,14 @@ class ApiClient {
           return data.access;
         } else {
           this.clearSession();
-          throw new Error('No access token returned');
+          const authErr: any = new Error('No access token returned');
+          authErr.isAuthExpired = true;
+          throw authErr;
         }
-      } catch (err) {
-        this.clearSession();
+      } catch (err: any) {
+        if (err?.isAuthExpired) {
+          this.clearSession();
+        }
         throw err;
       } finally {
         this.refreshingPromise = null;
@@ -266,15 +281,18 @@ class ApiClient {
             ...options,
             headers,
           });
-        } catch {
-          this.clearSession();
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('shiuli:auth_expired'));
+        } catch (refreshErr: any) {
+          if (refreshErr?.isAuthExpired || refreshErr?.status === 401) {
+            this.clearSession();
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('shiuli:auth_expired'));
+            }
+            const sessionErr: any = new Error('Your session has expired. Please sign in again.');
+            sessionErr.status = 401;
+            sessionErr.isAuthExpired = true;
+            throw sessionErr;
           }
-          const sessionErr: any = new Error('Your session has expired. Please sign in again.');
-          sessionErr.status = 401;
-          sessionErr.isAuthExpired = true;
-          throw sessionErr;
+          throw refreshErr;
         }
       }
 
