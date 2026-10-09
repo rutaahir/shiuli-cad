@@ -629,22 +629,22 @@ export const HomePage: React.FC<HomePageProps> = ({
         <div className="absolute top-1/3 right-1/4 w-[600px] h-[600px] bg-[#FFF9F0] rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 inset-x-0 h-40 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none" />
 
-        {/* LEFT LUXURY RING COMPOSITION (from pre-cut reference asset) */}
-        <div className="hidden lg:block absolute left-[-4%] xl:left-[1%] top-1/2 -translate-y-1/2 w-[340px] xl:w-[420px] 2xl:w-[480px] pointer-events-none select-none z-10 transition-transform duration-700 hover:scale-105">
+        {/* LEFT LUXURY RING COMPOSITION */}
+        <div className="hidden lg:block absolute left-[-1%] xl:left-[1%] 2xl:left-[3%] top-1/2 -translate-y-1/2 w-[300px] xl:w-[380px] 2xl:w-[440px] pointer-events-none select-none z-10 transition-transform duration-700 hover:scale-105">
           <img
             src="/assets/redesign/hero_ring_left.png"
             alt="Shiuli Luxury Fine Diamond Ring"
-            className="w-full h-auto object-contain drop-shadow-[0_25px_45px_rgba(23,52,92,0.14)]"
+            className="w-full h-auto object-contain drop-shadow-[0_20px_40px_rgba(23,52,92,0.12)]"
             loading="eager"
           />
         </div>
 
-        {/* RIGHT TECHNICAL CAD SKETCH COMPOSITION (from pre-cut reference asset) */}
-        <div className="hidden lg:block absolute right-[-4%] xl:right-[1%] top-1/2 -translate-y-1/2 w-[340px] xl:w-[420px] 2xl:w-[480px] pointer-events-none select-none z-10 opacity-90 transition-transform duration-700 hover:scale-105">
+        {/* RIGHT TECHNICAL CAD SKETCH COMPOSITION */}
+        <div className="hidden lg:block absolute right-[-1%] xl:right-[1%] 2xl:right-[3%] top-1/2 -translate-y-1/2 w-[300px] xl:w-[380px] 2xl:w-[440px] pointer-events-none select-none z-10 opacity-95 transition-transform duration-700 hover:scale-105">
           <img
             src="/assets/redesign/hero_cad_sketch_right.png"
             alt="Technical 3D Rhino CAD Engineering Sketch"
-            className="w-full h-auto object-contain drop-shadow-[0_20px_35px_rgba(23,52,92,0.08)]"
+            className="w-full h-auto object-contain drop-shadow-[0_15px_30px_rgba(23,52,92,0.08)]"
             loading="eager"
           />
         </div>
@@ -802,13 +802,13 @@ export const HomePage: React.FC<HomePageProps> = ({
                 key={catItem.id}
                 type="button"
                 onClick={() => onNavigate('collections', catItem.id)}
-                className="group flex items-center justify-between p-3 sm:p-3.5 bg-white/90 hover:bg-white rounded-2xl border border-[#E8D7B7] hover:border-[#D9B66F] shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer text-left"
+                className="group flex items-center justify-between p-3 sm:p-3.5 bg-[#FFF9F0]/90 hover:bg-[#FFF9F0] rounded-2xl border border-[#E8D7B7] hover:border-[#D9B66F] shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer text-left"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="shrink-0 p-1 rounded-xl bg-[#FFF9F0] border border-[#E8D7B7]/60 group-hover:border-[#D9B66F] transition-colors">
+                  <div className="shrink-0 p-1 rounded-xl bg-white border border-[#E8D7B7]/60 group-hover:border-[#D9B66F] transition-colors">
                     {catItem.icon}
                   </div>
-                  <span className="text-xs sm:text-sm font-semibold text-[#17345C] group-hover:text-[#B88732] truncate transition-colors">
+                  <span className="text-xs sm:text-sm font-serif font-bold text-[#17345C] group-hover:text-[#B88732] truncate transition-colors">
                     {catItem.label}
                   </span>
                 </div>

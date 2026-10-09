@@ -19,7 +19,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   className = '',
   onClick,
   imageSrc,
-  useCustomImage = true,
+  useCustomImage = false,
   theme = 'light',
 }) => {
   const activeImageSrc = imageSrc || (useCustomImage ? DEFAULT_CUSTOM_LOGO_PATH : null);
@@ -177,30 +177,32 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
 
       {/* Brand Typography matching user reference image */}
       {variant !== 'mark-only' && (
-        <div className={`flex flex-col ${variant === 'full' ? 'items-center text-center' : 'items-start'}`}>
-          <div className="flex items-baseline gap-1 sm:gap-1.5 leading-none whitespace-nowrap">
-            {/* Gold 'Shiuli' Title — Prominent larger font size */}
+        <div className={`flex flex-col ${variant === 'full' ? 'items-center text-center' : 'items-start'} justify-center leading-none`}>
+          <div className="font-serif font-bold tracking-tight select-none">
             <span
-              className={`font-serif font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-[#B88732] via-[#D9B66F] to-[#8C6218] ${currentSize.shiuliTitle}`}
+              className={`block font-bold tracking-tight ${theme === 'dark' ? 'text-white' : 'text-[#17345C]'} ${
+                size === 'sm' ? 'text-sm' : size === 'lg' ? 'text-xl sm:text-2xl' : 'text-base sm:text-lg'
+              }`}
             >
-              Shiuli
+              Shiuli CAD
             </span>
-            {/* 'CAD Studio' Title */}
             <span
-              className={`font-serif font-bold tracking-normal ${theme === 'dark' ? 'text-white' : 'text-[#17345C]'} ${currentSize.cadTitle}`}
+              className={`block font-bold tracking-tight -mt-0.5 ${theme === 'dark' ? 'text-white' : 'text-[#17345C]'} ${
+                size === 'sm' ? 'text-xs' : size === 'lg' ? 'text-base sm:text-lg' : 'text-xs sm:text-sm'
+              }`}
             >
-              CAD Studio
+              Studio
             </span>
           </div>
 
-          {/* Tagline: Jewellery Design | 3D Modeling | CAD Files */}
+          {/* Tagline: Jewellery by Design | 3D Modelling | CAD Files */}
           <div
-            className={`font-sans tracking-tight font-medium ${theme === 'dark' ? 'text-white/80' : 'text-[#687386]'} ${currentSize.subtitle} flex items-center gap-0.5 sm:gap-1 mt-0.5 whitespace-nowrap`}
+            className={`font-sans tracking-tight font-medium ${theme === 'dark' ? 'text-white/70' : 'text-[#687386]'} ${currentSize.subtitle} flex items-center gap-1 mt-0.5 whitespace-nowrap`}
           >
-            <span>Jewellery Design</span>
-            <span className="text-[#D9B66F] font-bold">|</span>
-            <span>3D Modeling</span>
-            <span className="text-[#D9B66F] font-bold">|</span>
+            <span>Jewellery by Design</span>
+            <span className="text-[#D9B66F] font-semibold">|</span>
+            <span>3D Modelling</span>
+            <span className="text-[#D9B66F] font-semibold">|</span>
             <span>CAD Files</span>
           </div>
         </div>
