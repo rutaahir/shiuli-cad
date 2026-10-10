@@ -111,7 +111,21 @@ export function formatCategoryName(rawName?: string | null): string {
  * Filters and sanitizes raw categories from API to return only clean, legitimate MAIN categories.
  * Removes test categories and duplicates.
  */
-export function getSanitizedCategories(rawCats: any[] = []): CleanCategory[] {
+/**
+ * Checks if a category has at least 1 product assigned to it
+ * (either assigned directly to the category, or to any of its subcategories).
+ */
+export function hasProductsInCategory(category: any, products: any[] = []): boolean {
+  if (!category || !products || products.length === 0) return false;
+  return products.some((p) => isProductInCategory(p, category.slug, category));
+}
+
+/**
+ * Filters and sanitizes raw categories from API to return only clean, legitimate MAIN categories.
+ * When `products` is supplied, ONLY categories with at least 1 live product are returned.
+ * Categories with 0 products will show only in Admin!
+ */
+export function getSanitizedCategories(rawCats: any[] = [], products?: any[]): CleanCategory[] {
   const seenSlugs = new Set<string>();
   const seenNames = new Set<string>();
   const cleanList: CleanCategory[] = [];
@@ -127,6 +141,13 @@ export function getSanitizedCategories(rawCats: any[] = []): CleanCategory[] {
 
     // Skip junk or test categories
     if (isJunkCategory(name) || isJunkCategory(slug)) continue;
+
+    // If products array is provided, ONLY include categories that actually have at least 1 product
+    if (products && products.length > 0) {
+      if (!hasProductsInCategory(cat, products)) {
+        continue;
+      }
+    }
 
     // Normalizing slug key for deduplication
     let canonicalKey = slug;
@@ -147,10 +168,13 @@ export function getSanitizedCategories(rawCats: any[] = []): CleanCategory[] {
     seenNames.add(normalizedName.toLowerCase());
     seenSlugs.add(canonicalKey);
 
+    const prodCount = products ? products.filter((p) => isProductInCategory(p, cat.slug || slug, cat)).length : (cat.product_count ?? 0);
+
     cleanList.push({
       ...cat,
       name: normalizedName,
       slug: cat.slug || canonicalKey,
+      product_count: prodCount,
     });
   }
 
@@ -160,10 +184,11 @@ export function getSanitizedCategories(rawCats: any[] = []): CleanCategory[] {
 /**
  * Returns the curated list of MAIN CATEGORIES for the homepage showcase (Section 3).
  * Prioritizes live categories from backend in their exact configured display_order.
- * Any category created, edited, or reordered by admin dynamically updates here!
+ * When `products` is supplied, ONLY categories with at least 1 live product are shown.
+ * Empty categories (0 products) are hidden from the frontend and shown only in Admin.
  */
-export function getMainShowcaseCategories(rawCats: any[] = []): CleanCategory[] {
-  const sanitized = getSanitizedCategories(rawCats);
+export function getMainShowcaseCategories(rawCats: any[] = [], products?: any[]): CleanCategory[] {
+  const sanitized = getSanitizedCategories(rawCats, products);
   const result: CleanCategory[] = [];
   const addedSlugs = new Set<string>();
 
@@ -178,7 +203,7 @@ export function getMainShowcaseCategories(rawCats: any[] = []): CleanCategory[] 
     return ordA - ordB;
   });
 
-  // 1. Add all live categories from backend
+  // Add all live categories that have products
   for (const liveCat of sortedLive) {
     const slug = (liveCat.slug || '').toLowerCase().trim();
     if (!slug || addedSlugs.has(slug)) continue;
@@ -195,6 +220,8 @@ export function getMainShowcaseCategories(rawCats: any[] = []): CleanCategory[] 
       finalImg = matchCanon?.image || CANONICAL_MAIN_CATEGORIES[0].image;
     }
 
+    const prodCount = products ? products.filter((p) => isProductInCategory(p, liveCat.slug || slug, liveCat)).length : (liveCat.product_count ?? 0);
+
     result.push({
       ...liveCat,
       name: formatCategoryName(liveCat.name),
@@ -202,27 +229,21 @@ export function getMainShowcaseCategories(rawCats: any[] = []): CleanCategory[] 
       image: finalImg,
       image_display: (liveCat as any).image_display || finalImg,
       image_url: (liveCat as any).image_url || finalImg,
+      product_count: prodCount,
     });
     addedSlugs.add(slug);
   }
 
-  // 2. If fewer than 4 categories exist in database, supplement with canonical fine jewellery categories
-  // so the homepage 4-column luxury layout remains full and balanced
-  if (result.length < 4) {
+  // Only if products is NOT provided and we have zero categories, fallback to canonical
+  if (!products && result.length === 0) {
     for (const canon of CANONICAL_MAIN_CATEGORIES) {
-      if (result.length >= 8) break;
-      const canonSlug = canon.slug.toLowerCase();
-      const alreadyPresent = Array.from(addedSlugs).some(s => s.includes(canonSlug) || canonSlug.includes(s));
-      if (!alreadyPresent) {
-        result.push({
-          id: canon.slug,
-          name: canon.name,
-          slug: canon.slug,
-          image: canon.image,
-          product_count: 0,
-        });
-        addedSlugs.add(canonSlug);
-      }
+      result.push({
+        id: canon.slug,
+        name: canon.name,
+        slug: canon.slug,
+        image: canon.image,
+        product_count: 0,
+      });
     }
   }
 
@@ -244,6 +265,8 @@ export function normalizeCategoryKey(val?: string | null): string {
 /**
  * Checks whether a product strictly belongs to a target category.
  * Matches strictly against category IDs, slugs, parent category IDs/slugs, and category names.
+ * Handles cases where subcategory selection in admin was optional (product assigned directly to parent),
+ * or where subcategory was selected (product matches both subcategory and parent category).
  * NEVER matches against product titles or arbitrary description text to prevent cross-category bleeding.
  */
 export function isProductInCategory(
@@ -262,15 +285,19 @@ export function isProductInCategory(
     ? String(product.categoryId)
     : product.category_id !== undefined && product.category_id !== null
     ? String(product.category_id)
-    : product.category !== undefined && product.category !== null && typeof product.category !== 'object'
+    : (typeof product.category === 'object' && product.category !== null && product.category.id !== undefined && product.category.id !== null)
+    ? String(product.category.id)
+    : product.category !== undefined && product.category !== null
     ? String(product.category)
     : null;
 
   const pParentId = product.parent_category_id !== undefined && product.parent_category_id !== null
     ? String(product.parent_category_id)
+    : (typeof product.category === 'object' && product.category !== null && product.category.parent !== undefined && product.category.parent !== null)
+    ? (typeof product.category.parent === 'object' ? String(product.category.parent.id) : String(product.category.parent))
     : null;
 
-  // 1. Direct Category ID Match (e.g. admin selected this category directly)
+  // 1. Direct Category ID Match (e.g. admin selected this category directly, whether parent or sub)
   if (targetId && pCatId && targetId === pCatId) {
     return true;
   }
@@ -290,8 +317,8 @@ export function isProductInCategory(
       const subSlugKey = normalizeCategoryKey(sub.slug);
       const subNameKey = normalizeCategoryKey(sub.name);
 
-      const pSlug = product.category_slug || '';
-      const pName = product.categoryName || product.category_name || (typeof product.category === 'string' ? product.category : '');
+      const pSlug = product.category_slug || (typeof product.category === 'object' ? product.category?.slug : '') || '';
+      const pName = product.categoryName || product.category_name || (typeof product.category === 'object' ? product.category?.name : (typeof product.category === 'string' ? product.category : ''));
 
       if (subSlugKey && normalizeCategoryKey(pSlug) === subSlugKey) return true;
       if (subNameKey && normalizeCategoryKey(pName) === subNameKey) return true;
@@ -302,10 +329,14 @@ export function isProductInCategory(
   const targetSlugKey = normalizeCategoryKey(targetCategoryObj?.slug || targetFilterSlug);
   const targetNameKey = normalizeCategoryKey(targetCategoryObj?.name);
 
-  const pSlugKey = normalizeCategoryKey(product.category_slug);
-  const pParentSlugKey = normalizeCategoryKey(product.parent_slug || product.parent_category_slug);
+  const pSlugKey = normalizeCategoryKey(
+    product.category_slug || (typeof product.category === 'object' ? product.category?.slug : '')
+  );
+  const pParentSlugKey = normalizeCategoryKey(
+    product.parent_slug || product.parent_category_slug || (typeof product.category === 'object' && product.category?.parent ? (typeof product.category.parent === 'object' ? product.category.parent?.slug : '') : '')
+  );
   const pNameKey = normalizeCategoryKey(
-    product.categoryName || product.category_name || (typeof product.category === 'string' ? product.category : '')
+    product.categoryName || product.category_name || (typeof product.category === 'object' ? product.category?.name : (typeof product.category === 'string' ? product.category : ''))
   );
 
   if (targetSlugKey) {

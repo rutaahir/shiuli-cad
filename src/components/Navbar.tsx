@@ -6,6 +6,7 @@ import { BrandLogo } from './BrandLogo';
 import { PageId } from '../types';
 import { getOptimizedImageUrl, handleImgError } from '../utils/imageHelper';
 import { formatINR } from '../utils/currencyHelper';
+import { isProductInCategory } from '../utils/categoryHelper';
 import {
   ShoppingBag,
   Heart,
@@ -72,22 +73,23 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [selectedSearchCategorySlug, setSelectedSearchCategorySlug] = useState<string>('all');
   const { categories, products, isError, isLoading } = useCatalog();
 
+  // Only display categories on frontend that have at least 1 product
+  const displayCategories = React.useMemo(() => {
+    const withProds = categories.filter((c) => products.some((p) => isProductInCategory(p, c.slug, c)));
+    return withProds.length > 0 ? withProds : categories;
+  }, [categories, products]);
+
   const [hoveredCategorySlug, setHoveredCategorySlug] = useState<string>('');
 
   useEffect(() => {
-    if (categories.length > 0 && !hoveredCategorySlug) {
-      setHoveredCategorySlug(categories[0].slug);
+    if (displayCategories.length > 0 && (!hoveredCategorySlug || !displayCategories.some(c => c.slug === hoveredCategorySlug))) {
+      setHoveredCategorySlug(displayCategories[0].slug);
     }
-  }, [categories]);
+  }, [displayCategories, hoveredCategorySlug]);
 
-  const activeMegaCategory = categories.find(c => c.slug === hoveredCategorySlug) || categories[0];
+  const activeMegaCategory = displayCategories.find(c => c.slug === hoveredCategorySlug) || displayCategories[0] || categories[0];
   const megaMenuCategoryProducts = products.filter(
-    p =>
-      p.category_slug === hoveredCategorySlug ||
-      (p as any).parent_slug === hoveredCategorySlug ||
-      (activeMegaCategory && p.category === activeMegaCategory.id) ||
-      (p.category_name && hoveredCategorySlug && p.category_name.toLowerCase().includes(hoveredCategorySlug.replace(/-/g, ' '))) ||
-      (hoveredCategorySlug && (p.title || '').toLowerCase().includes(hoveredCategorySlug.replace(/s$/i, '').toLowerCase()))
+    p => isProductInCategory(p, hoveredCategorySlug, activeMegaCategory)
   );
   const megaMenuDisplayProducts = megaMenuCategoryProducts.length > 0 
     ? megaMenuCategoryProducts.slice(0, 4) 
@@ -376,8 +378,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                             </button>
                           </div>
                         ) : (
-                          categories.map(cat => {
-                            const isHovered = (hoveredCategorySlug || categories[0]?.slug) === cat.slug;
+                          displayCategories.map(cat => {
+                            const isHovered = (hoveredCategorySlug || displayCategories[0]?.slug) === cat.slug;
                             return (
                               <button
                                 key={cat.id}
@@ -769,7 +771,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-[#B88732]">
                 <span className="flex items-center gap-1.5 font-bold">
                   <Layers className="w-3.5 h-3.5 text-[#B88732]" />
-                  <span>Categories ({categories.length})</span>
+                  <span>Categories ({displayCategories.length})</span>
                 </span>
                 {selectedSearchCategorySlug !== 'all' && (
                   <button
@@ -808,7 +810,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </span>
                 </button>
 
-                {categories.map((cat) => {
+                {displayCategories.map((cat) => {
                   const isSelected = selectedSearchCategorySlug === cat.slug;
                   const catProductCount = products.filter(
                     (p) =>

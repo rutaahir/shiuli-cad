@@ -663,15 +663,17 @@ export const HomePage: React.FC<HomePageProps> = ({
   };
 
   const heroCategoryOptions = React.useMemo(() => {
-    return categories.map((c) => {
-      const count = liveProducts.filter((p) => isProductInCategory(p, c.slug, c)).length;
-      return {
-        id: c.id,
-        slug: c.slug,
-        name: c.name,
-        count: count > 0 ? count : (c.product_count ?? 0),
-      };
-    });
+    return categories
+      .map((c) => {
+        const count = liveProducts.filter((p) => isProductInCategory(p, c.slug, c)).length;
+        return {
+          id: c.id,
+          slug: c.slug,
+          name: c.name,
+          count,
+        };
+      })
+      .filter((c) => c.count > 0);
   }, [categories, liveProducts]);
 
   const allProducts: Product[] = React.useMemo(
@@ -679,21 +681,30 @@ export const HomePage: React.FC<HomePageProps> = ({
     [liveProducts]
   );
 
-  // Main categories only for Section 3 (guarantees the 8 canonical luxury fine jewellery categories)
+  // Main categories only for Section 3 (ONLY categories with at least 1 real product)
   const mainCategories = React.useMemo(
-    () => getMainShowcaseCategories(categories),
-    [categories]
+    () => getMainShowcaseCategories(categories, liveProducts),
+    [categories, liveProducts]
   );
 
-  // Clean categories for Section 6 filter bar (filters out test, duplicate, and junk categories)
+  // Clean categories for Section 6 filter bar (ONLY categories with at least 1 real product)
   const filterCategories = React.useMemo(() => {
-    const sanitized = getSanitizedCategories(categories);
-    const list = sanitized.length > 0 ? sanitized : getMainShowcaseCategories([]);
+    const sanitized = getSanitizedCategories(categories, liveProducts);
     return [
       { id: 'all', label: 'All Designs' },
-      ...list.map((c) => ({ id: c.slug, label: c.name })),
+      ...sanitized.map((c) => ({ id: c.slug, label: c.name })),
     ];
-  }, [categories]);
+  }, [categories, liveProducts]);
+
+  // If selectedFilter category no longer has products, gracefully reset to 'all'
+  useEffect(() => {
+    if (selectedFilter !== 'all' && filterCategories.length > 1) {
+      const exists = filterCategories.some((c) => c.id === selectedFilter);
+      if (!exists) {
+        setSelectedFilter('all');
+      }
+    }
+  }, [filterCategories, selectedFilter]);
 
   // Robust matching for Section 6 filter: matches strictly against assigned category, never title strings
   const filteredProducts: Product[] = React.useMemo(() => {

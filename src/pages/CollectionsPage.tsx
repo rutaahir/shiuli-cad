@@ -25,6 +25,7 @@ import { LazyImage } from '../components/motion/LazyImage';
 import { useCatalog, toProductShape, fetchCatalog } from '../hooks/useCatalog';
 import { formatINR } from '../utils/currencyHelper';
 import { getOptimizedImageUrl } from '../utils/imageHelper';
+import { isProductInCategory } from '../utils/categoryHelper';
 
 interface CollectionsPageProps {
   initialCategory?: string;
@@ -128,35 +129,31 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
       }
     });
 
-    return categories.map((cat) => {
-      const subcats = (cat.subcategories || []).map((sc) => {
-        const count =
-          directCountById.get(Number(sc.id)) ??
-          directCountBySlug.get(sc.slug.toLowerCase()) ??
-          0;
+    return categories
+      .map((cat) => {
+        const subcats = (cat.subcategories || [])
+          .map((sc) => {
+            const count = products.filter((p) => isProductInCategory(p, sc.slug, sc)).length;
+            return {
+              id: sc.id,
+              slug: sc.slug,
+              name: sc.name,
+              count,
+            };
+          })
+          .filter((sc) => sc.count > 0);
+
+        const totalCount = products.filter((p) => isProductInCategory(p, cat.slug, cat)).length;
+
         return {
-          id: sc.id,
-          slug: sc.slug,
-          name: sc.name,
-          count,
+          id: cat.id,
+          slug: cat.slug,
+          name: cat.name,
+          totalCount,
+          subcategories: subcats,
         };
-      });
-
-      const parentDirect =
-        directCountById.get(Number(cat.id)) ??
-        directCountBySlug.get(cat.slug.toLowerCase()) ??
-        0;
-      const subTotal = subcats.reduce((sum, sc) => sum + sc.count, 0);
-      const totalCount = parentDirect + subTotal;
-
-      return {
-        id: cat.id,
-        slug: cat.slug,
-        name: cat.name,
-        totalCount,
-        subcategories: subcats,
-      };
-    });
+      })
+      .filter((cat) => cat.totalCount > 0);
   }, [categories, products]);
 
   // ── Filtered & sorted product list ──────────────────────────────────────
