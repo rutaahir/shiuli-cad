@@ -1,3 +1,4 @@
+from django.db.models import Q
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -23,7 +24,11 @@ class PortfolioItemViewSet(viewsets.ModelViewSet):
         project_type = self.request.query_params.get('project_type')
 
         if cat_slug and cat_slug != 'all':
-            qs = qs.filter(category_slug__icontains=cat_slug)
+            qs = qs.filter(
+                Q(category_slug__icontains=cat_slug) |
+                Q(category__slug__icontains=cat_slug) |
+                Q(category__parent__slug__icontains=cat_slug)
+            )
         if project_type == 'custom':
             qs = qs.filter(is_custom_project=True)
         elif project_type == 'ai':

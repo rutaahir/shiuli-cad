@@ -34,8 +34,17 @@ export function toProductShape(bp: BackendProduct) {
     '/unsplash-img/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=800&q=80';
   return {
     id: bp.slug || String(bp.id),
+    dbId: bp.id,
     title: bp.title,
     category: bp.category_name || '',
+    categoryName: bp.category_name || '',
+    category_name: bp.category_name || '',
+    category_slug: bp.category_slug || '',
+    parent_slug: (bp as any).parent_slug || '',
+    parent_category_slug: (bp as any).parent_category_slug || (bp as any).parent_slug || '',
+    categoryId: bp.category,
+    category_id: bp.category,
+    parent_category_id: (bp as any).parent_category_id ?? null,
     subcategory: '',
     price: Number(bp.price) || 0,
     originalPrice: bp.compare_at_price ? Number(bp.compare_at_price) : undefined,

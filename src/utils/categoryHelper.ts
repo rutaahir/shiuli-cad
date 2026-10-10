@@ -118,6 +118,10 @@ export function getSanitizedCategories(rawCats: any[] = []): CleanCategory[] {
 
   for (const cat of rawCats) {
     if (!cat) continue;
+
+    // Strictly skip subcategories (any category with a parent)
+    if (cat.parent !== null && cat.parent !== undefined) continue;
+
     const name = formatCategoryName(cat.name);
     const slug = (cat.slug || cat.id || '').toLowerCase().trim();
 

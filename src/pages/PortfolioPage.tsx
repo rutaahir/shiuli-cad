@@ -36,6 +36,7 @@ import { PortfolioItemData, PageId } from '../types';
 import { SkeletonShimmer } from '../components/motion/SkeletonShimmer';
 import { BrandLogo } from '../components/BrandLogo';
 import { getOptimizedImageUrl, handleImgError } from '../utils/imageHelper';
+import { formatCategoryName, isJunkCategory } from '../utils/categoryHelper';
 
 interface PortfolioPageProps {
   onNavigate: (page: PageId, slug?: string) => void;
@@ -45,13 +46,12 @@ const JEWELLERY_TYPE_FILTERS = [
   { label: 'All Types', slug: '' },
   { label: 'Rings', slug: 'rings' },
   { label: 'Earrings', slug: 'earrings' },
-  { label: 'Pendants', slug: 'pendants' },
   { label: 'Necklaces', slug: 'necklaces' },
-  { label: 'Bracelets', slug: 'bracelets' },
-  { label: 'Bangles', slug: 'bangles' },
-  { label: 'Bridal', slug: 'bridal' },
-  { label: "Men's", slug: 'mens' },
-  { label: 'Sets', slug: 'sets' },
+  { label: 'Pendants', slug: 'pendants' },
+  { label: 'Bracelets & Bangles', slug: 'bracelets-bangles' },
+  { label: 'Mangalsutra', slug: 'mangalsutra' },
+  { label: 'Nose Pins', slug: 'nosepins' },
+  { label: 'Polki Jewellery', slug: 'polki-jewellery' },
 ];
 
 const PROJECT_TYPE_FILTERS = [
@@ -175,6 +175,31 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({ onNavigate }) => {
   const [activeItem, setActiveItem] = useState<PortfolioItemData | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
 
+  // Category horizontal scroll slider state & ref
+  const categorySliderRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState<boolean>(false);
+  const [canScrollRight, setCanScrollRight] = useState<boolean>(false);
+
+  const checkScrollState = useCallback(() => {
+    const el = categorySliderRef.current;
+    if (el) {
+      const hasOverflow = el.scrollWidth > el.clientWidth + 5;
+      setCanScrollLeft(el.scrollLeft > 5);
+      setCanScrollRight(hasOverflow && el.scrollLeft < el.scrollWidth - el.clientWidth - 5);
+    }
+  }, []);
+
+  const handleScrollSlider = (direction: 'left' | 'right') => {
+    const el = categorySliderRef.current;
+    if (el) {
+      const scrollAmount = 260;
+      el.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth',
+      });
+    }
+  };
+
   // Fetch portfolio items & dynamic categories from backend API
   useEffect(() => {
     let isMounted = true;
@@ -182,18 +207,24 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({ onNavigate }) => {
 
     Promise.all([
       api.getPortfolioItems(selectedCategory, selectedProjectType),
-      api.getCategories(true),
+      api.getCategories(false),
     ])
       .then(([data, cats]) => {
         if (!isMounted) return;
         if (cats && Array.isArray(cats)) {
-          setDynamicCategories(cats);
+          // Strictly main categories only (no parent, no subcategories)
+          const mainOnly = cats.filter((c: any) => !c.parent && !isJunkCategory(c.name || c.slug));
+          setDynamicCategories(mainOnly);
         }
         if (data && data.length > 0) {
           setItems(data);
         } else {
           const filtered = FALLBACK_PORTFOLIO_ITEMS.filter((item: any) => {
-            const matchesCat = !selectedCategory || (item.category_slug && item.category_slug.includes(selectedCategory));
+            const matchesCat = !selectedCategory || (item.category_slug && (
+              item.category_slug === selectedCategory ||
+              item.category_slug.includes(selectedCategory) ||
+              (selectedCategory === 'rings' && item.category_slug.includes('ring') && !item.category_slug.includes('earring'))
+            ));
             const matchesType = !selectedProjectType ||
               (selectedProjectType === 'custom' && item.is_custom_project) ||
               (selectedProjectType === 'ai' && item.is_ai_project);
@@ -205,7 +236,11 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({ onNavigate }) => {
       .catch((err) => {
         console.warn('Using fallback portfolio items:', err);
         const filtered = FALLBACK_PORTFOLIO_ITEMS.filter((item: any) => {
-          const matchesCat = !selectedCategory || (item.category_slug && item.category_slug.includes(selectedCategory));
+          const matchesCat = !selectedCategory || (item.category_slug && (
+            item.category_slug === selectedCategory ||
+            item.category_slug.includes(selectedCategory) ||
+            (selectedCategory === 'rings' && item.category_slug.includes('ring') && !item.category_slug.includes('earring'))
+          ));
           const matchesType = !selectedProjectType ||
             (selectedProjectType === 'custom' && item.is_custom_project) ||
             (selectedProjectType === 'ai' && item.is_ai_project);
@@ -224,10 +259,13 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({ onNavigate }) => {
 
   const jewelleryTypeFilters = useMemo(() => {
     const base = [{ label: 'All Types', slug: '' }];
-    if (dynamicCategories.length > 0) {
+    const mainOnly = (dynamicCategories || []).filter(
+      (c: any) => !c.parent && !isJunkCategory(c.name || c.slug)
+    );
+    if (mainOnly.length > 0) {
       return [
         ...base,
-        ...dynamicCategories.map((c) => ({ label: c.name, slug: c.slug })),
+        ...mainOnly.map((c) => ({ label: formatCategoryName(c.name), slug: c.slug })),
       ];
     }
     return [
@@ -235,6 +273,20 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({ onNavigate }) => {
       ...JEWELLERY_TYPE_FILTERS.filter((f) => f.slug !== ''),
     ];
   }, [dynamicCategories]);
+
+  // Sync scrollability on mount, resize, and category changes
+  useEffect(() => {
+    checkScrollState();
+    const el = categorySliderRef.current;
+    if (el) {
+      el.addEventListener('scroll', checkScrollState, { passive: true });
+      window.addEventListener('resize', checkScrollState);
+      return () => {
+        el.removeEventListener('scroll', checkScrollState);
+        window.removeEventListener('resize', checkScrollState);
+      };
+    }
+  }, [checkScrollState, jewelleryTypeFilters]);
 
   // Featured Spotlight items (uses featured items if > 1, else all items)
   const spotlightItems = useMemo(() => {
@@ -374,27 +426,76 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({ onNavigate }) => {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             
             {/* Filter Group A: Jewellery Type */}
-            <div className="space-y-1 text-left flex-1">
-              <span className="text-[10px] font-extrabold text-[#B88732] uppercase tracking-widest block">
-                FILTER BY JEWELLERY TYPE
-              </span>
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-                {jewelleryTypeFilters.map((cat) => {
-                  const isActive = selectedCategory === cat.slug;
-                  return (
-                    <button
-                      key={cat.slug || 'all'}
-                      onClick={() => setSelectedCategory(cat.slug)}
-                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap border cursor-pointer ${
-                        isActive
-                          ? 'btn-gold-luxury text-[#17345C] border-[#D9B66F] shadow-sm font-extrabold scale-105'
-                          : 'bg-[#FFF9F0] text-[#17345C] border-[#E8D7B7] hover:border-[#D9B66F]'
-                      }`}
-                    >
-                      {cat.label}
-                    </button>
-                  );
-                })}
+            <div className="space-y-1 text-left flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-extrabold text-[#B88732] uppercase tracking-widest block">
+                  FILTER BY JEWELLERY TYPE
+                </span>
+
+                {/* Left/Right Smooth Scroll Controls */}
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleScrollSlider('left')}
+                    disabled={!canScrollLeft}
+                    className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all cursor-pointer ${
+                      canScrollLeft
+                        ? 'border-[#D9B66F] bg-[#FFF9F0] text-[#17345C] hover:bg-[#D9B66F] hover:text-white shadow-2xs'
+                        : 'border-[#E8D7B7]/50 text-gray-300 opacity-40 cursor-not-allowed'
+                    }`}
+                    title="Scroll left"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleScrollSlider('right')}
+                    disabled={!canScrollRight}
+                    className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all cursor-pointer ${
+                      canScrollRight
+                        ? 'border-[#D9B66F] bg-[#FFF9F0] text-[#17345C] hover:bg-[#D9B66F] hover:text-white shadow-2xs'
+                        : 'border-[#E8D7B7]/50 text-gray-300 opacity-40 cursor-not-allowed'
+                    }`}
+                    title="Scroll right"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Scrollable Container with Thin Luxury Slider Track */}
+              <div className="relative group/slider">
+                {/* Soft gradient edge fade when scrollable on left */}
+                {canScrollLeft && (
+                  <div className="pointer-events-none absolute left-0 top-0 bottom-2 w-8 bg-gradient-to-r from-white via-white/80 to-transparent z-10" />
+                )}
+
+                {/* Soft gradient edge fade when scrollable on right */}
+                {canScrollRight && (
+                  <div className="pointer-events-none absolute right-0 top-0 bottom-2 w-8 bg-gradient-to-l from-white via-white/80 to-transparent z-10" />
+                )}
+
+                <div
+                  ref={categorySliderRef}
+                  className="flex items-center gap-1.5 overflow-x-auto thin-gold-scrollbar scroll-smooth py-1 pb-2.5"
+                >
+                  {jewelleryTypeFilters.map((cat) => {
+                    const isActive = selectedCategory === cat.slug;
+                    return (
+                      <button
+                        key={cat.slug || 'all'}
+                        onClick={() => setSelectedCategory(cat.slug)}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap border cursor-pointer shrink-0 ${
+                          isActive
+                            ? 'btn-gold-luxury text-[#17345C] border-[#D9B66F] shadow-sm font-extrabold scale-105'
+                            : 'bg-[#FFF9F0] text-[#17345C] border-[#E8D7B7] hover:border-[#D9B66F]'
+                        }`}
+                      >
+                        {cat.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 

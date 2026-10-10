@@ -30,6 +30,8 @@ import {
   Search,
   SlidersHorizontal,
   Sliders,
+  Headphones,
+  X,
 } from 'lucide-react';
 import { RevealOnScroll } from '../components/motion/RevealOnScroll';
 import { StaggerGrid, StaggerItem } from '../components/motion/StaggerGrid';
@@ -113,12 +115,26 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
   const categoryProducts = React.useMemo(() => {
     const matched = allProducts.filter((p) => {
       const pCat = (p.category || '').toLowerCase();
-      const pCatName = (p.categoryName || '').toLowerCase();
+      const pCatName = ((p as any).categoryName || (p as any).category_name || '').toLowerCase();
+      const pCatSlug = ((p as any).category_slug || '').toLowerCase();
+      const pParentSlug = ((p as any).parent_slug || (p as any).parent_category_slug || '').toLowerCase();
+      const pCatId = (p as any).categoryId ?? (p as any).category_id;
       const pTitle = (p.title || '').toLowerCase();
 
-      if (pCat === cSlug || pCatName === cName) return true;
+      // 1. Exact Category ID Match (Directly handles when admin selects category without subcategory)
+      if (cat.id && pCatId && String(cat.id) === String(pCatId)) return true;
 
-      // 1. Check EARRINGS first so 'earrings' never falsely matches 'ring' substring!
+      // 2. Exact Slug / Name Match
+      if (
+        pCatSlug === cSlug ||
+        pParentSlug === cSlug ||
+        pCat === cSlug ||
+        pCat === cName ||
+        pCatName === cName ||
+        pCatName === cSlug
+      ) return true;
+
+      // 3. Check EARRINGS first so 'earrings' never falsely matches 'ring' substring!
       if (cSlug.includes('earring') || cName.includes('earring')) {
         return (
           pCat.includes('earring') || pCatName.includes('earring') || pTitle.includes('earring') || pTitle.includes('jhumka') || pTitle.includes('stud')
@@ -221,16 +237,32 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
     return [];
   }, [allProducts, cat, cSlug, cName]);
 
-  // 1. Resolve Category Banner Cover image (set by admin via file upload or URL)
+  // 1. Resolve Category Banner Cover image (fallback if category has no products)
   const categoryBannerImg = (cat as any).image_display || cat.image || (cat as any).image_url;
 
   const [hoveredProduct, setHoveredProduct] = useState<Product | null>(null);
+  const [activeIdx, setActiveIdx] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+
+  // Automatically cycle through category products one by one
+  useEffect(() => {
+    if (categoryProducts.length <= 1 || isPaused || hoveredProduct !== null) return;
+    const interval = setInterval(() => {
+      setActiveIdx((prev) => (prev + 1) % categoryProducts.length);
+    }, 2800);
+    return () => clearInterval(interval);
+  }, [categoryProducts.length, isPaused, hoveredProduct]);
+
+  const currentProduct = hoveredProduct || (categoryProducts.length > 0 ? categoryProducts[activeIdx % categoryProducts.length] : null);
 
   const getImg = (p: any) => {
     if (!p) return categoryBannerImg || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=800&q=80';
     return getOptimizedImageUrl(p.primaryImage || p.image || (Array.isArray(p.images) && p.images[0]), cat.name);
   };
+
+  const currentImgUrl = currentProduct
+    ? getImg(currentProduct)
+    : (categoryBannerImg ? getOptimizedImageUrl(categoryBannerImg, cat.name) : 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=800&q=80');
 
   // Calculate minimum price for "From ₹X" badge
   const minPrice = React.useMemo(() => {
@@ -270,29 +302,66 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
         }}
         className="group relative rounded-2xl overflow-hidden min-h-[460px] sm:min-h-[490px] bg-white border border-[#E8D7B7] hover:border-[#D9B66F] cursor-pointer shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
       >
-        {/* TOP DEDICATED SHOWCASE: Always displays the Category Banner Image uploaded by admin */}
+        {/* TOP DEDICATED SHOWCASE: Shows products images, automatically changes one by one */}
         <div 
-          onClick={() => onNavigate('collections', cat.slug)}
-          className="relative w-full h-[260px] sm:h-[280px] bg-gradient-to-b from-[#FFFDF9] via-[#FFF9F0] to-[#FFF5E6] p-3 sm:p-4 flex items-center justify-center overflow-hidden"
+          onClick={() => {
+            if (currentProduct) {
+              onQuickView(currentProduct);
+            } else {
+              onNavigate('collections', cat.slug);
+            }
+          }}
+          className="relative w-full h-[260px] sm:h-[280px] bg-gradient-to-b from-[#FFFDF9] via-[#FFF9F0] to-[#FFF5E6] p-3 sm:p-4 flex items-center justify-center overflow-hidden cursor-pointer"
         >
           {/* Subtle gold spotlight backdrop behind jewel */}
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(217,182,111,0.18)_0%,transparent_70%)] pointer-events-none" />
 
-          <img
-            key={`cat-banner-${cat.id || cat.slug}-${categoryBannerImg}`}
-            src={getOptimizedImageUrl(categoryBannerImg, cat.name)}
-            alt={cat.name}
-            className="w-full h-full object-contain drop-shadow-[0_12px_24px_rgba(23,52,92,0.12)] transition-transform duration-700 group-hover:scale-105"
-            loading="lazy"
-            onError={(e) => handleImgError(e, cat.slug)}
-          />
+          <AnimatePresence mode="wait">
+            <motion.img
+              key={`cat-prod-${cat.id || cat.slug}-${currentProduct?.id || activeIdx}`}
+              src={currentImgUrl}
+              alt={currentProduct?.title || cat.name}
+              initial={{ opacity: 0, scale: 0.94 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.03 }}
+              transition={{ duration: 0.35, ease: 'easeOut' }}
+              className="w-full h-full object-contain drop-shadow-[0_12px_24px_rgba(23,52,92,0.12)] transition-transform duration-500 group-hover:scale-105"
+              loading="lazy"
+              onError={(e) => handleImgError(e, cat.slug)}
+            />
+          </AnimatePresence>
 
-          {/* Discreet luxury tag */}
-          <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5">
-            <span className="px-2.5 py-0.5 rounded-md bg-white/95 backdrop-blur-md border border-[#E8D7B7] text-[10px] font-mono uppercase tracking-wider text-[#B88732] shadow-xs">
-              {cat.tagline || 'Category Collection'}
+          {/* Discreet luxury tag / Active Product Title */}
+          <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 max-w-[70%]">
+            <span className="px-2.5 py-0.5 rounded-md bg-white/95 backdrop-blur-md border border-[#E8D7B7] text-[10px] font-mono uppercase tracking-wider text-[#B88732] shadow-xs truncate">
+              {currentProduct?.title || cat.tagline || cat.name}
             </span>
           </div>
+
+          {/* Price badge if current product has price */}
+          {currentProduct?.price ? (
+            <div className="absolute top-3 right-3 z-10">
+              <span className="px-2 py-0.5 rounded-md bg-[#17345C]/90 backdrop-blur-md border border-[#17345C] text-[10px] font-mono font-semibold text-white shadow-xs">
+                ₹{formatINR(currentProduct.price)}
+              </span>
+            </div>
+          ) : null}
+
+          {/* Elegant slide indicator dots */}
+          {categoryProducts.length > 1 && (
+            <div className="absolute bottom-2.5 inset-x-0 z-10 flex items-center justify-center gap-1.5 pointer-events-none">
+              {categoryProducts.slice(0, Math.min(8, categoryProducts.length)).map((_, dotIdx) => (
+                <span
+                  key={dotIdx}
+                  className={`h-1 rounded-full transition-all duration-300 ${
+                    (activeIdx % categoryProducts.length) === dotIdx
+                      ? 'w-4 bg-[#B88732]'
+                      : 'w-1 bg-[#B88732]/30'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* BOTTOM METADATA & SELECTOR PANEL: Solid, structured, with distinct unique thumbnails */}
@@ -329,7 +398,7 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
                     }}
                   >
                     {marqueeItems.map((prod, pIdx) => {
-                      const isActive = hoveredProduct?.id === prod.id || (hoveredProduct && hoveredProduct.title === prod.title);
+                      const isActive = currentProduct?.id === prod.id || (currentProduct && currentProduct.title === prod.title);
                       const imgUrl = getImg(prod);
                       return (
                         <button
@@ -338,10 +407,14 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
                           onMouseEnter={() => {
                             setIsPaused(true);
                             setHoveredProduct(prod);
+                            const found = categoryProducts.findIndex(p => p.id === prod.id || p.title === prod.title);
+                            if (found >= 0) setActiveIdx(found);
                           }}
                           onTouchStart={() => {
                             setIsPaused(true);
                             setHoveredProduct(prod);
+                            const found = categoryProducts.findIndex(p => p.id === prod.id || p.title === prod.title);
+                            if (found >= 0) setActiveIdx(found);
                           }}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -376,7 +449,7 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
                     }}
                   >
                     {marqueeItems.map((prod, pIdx) => {
-                      const isActive = hoveredProduct?.id === prod.id || (hoveredProduct && hoveredProduct.title === prod.title);
+                      const isActive = currentProduct?.id === prod.id || (currentProduct && currentProduct.title === prod.title);
                       const imgUrl = getImg(prod);
                       return (
                         <button
@@ -385,10 +458,14 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
                           onMouseEnter={() => {
                             setIsPaused(true);
                             setHoveredProduct(prod);
+                            const found = categoryProducts.findIndex(p => p.id === prod.id || p.title === prod.title);
+                            if (found >= 0) setActiveIdx(found);
                           }}
                           onTouchStart={() => {
                             setIsPaused(true);
                             setHoveredProduct(prod);
+                            const found = categoryProducts.findIndex(p => p.id === prod.id || p.title === prod.title);
+                            if (found >= 0) setActiveIdx(found);
                           }}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -418,7 +495,7 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
               /* Centered Distinct Unique Designs Row */
               <div className="flex items-center justify-center gap-2 py-1">
                 {categoryProducts.map((prod, pIdx) => {
-                  const isActive = hoveredProduct?.id === prod.id || (hoveredProduct && hoveredProduct.title === prod.title);
+                  const isActive = currentProduct?.id === prod.id || (currentProduct && currentProduct.title === prod.title);
                   const imgUrl = getImg(prod);
                   return (
                     <button
@@ -427,10 +504,14 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
                       onMouseEnter={() => {
                         setIsPaused(true);
                         setHoveredProduct(prod);
+                        const found = categoryProducts.findIndex(p => p.id === prod.id || p.title === prod.title);
+                        if (found >= 0) setActiveIdx(found);
                       }}
                       onTouchStart={() => {
                         setIsPaused(true);
                         setHoveredProduct(prod);
+                        const found = categoryProducts.findIndex(p => p.id === prod.id || p.title === prod.title);
+                        if (found >= 0) setActiveIdx(found);
                       }}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -550,10 +631,15 @@ export const HomePage: React.FC<HomePageProps> = ({
     }).catch(() => {});
   }, []);
 
-  // State for prominent central search bar
+  // State for prominent central search bar with live category & character matching
   const [heroSearchQuery, setHeroSearchQuery] = useState('');
+  const [isHeroSearchOpen, setIsHeroSearchOpen] = useState(false);
+  const [selectedHeroCategorySlug, setSelectedHeroCategorySlug] = useState<string>('all');
+  const heroSearchRef = useRef<HTMLDivElement>(null);
+
   const handleHeroSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    setIsHeroSearchOpen(false);
     if (heroSearchQuery.trim()) {
       onNavigate('collections', heroSearchQuery.trim());
     } else {
@@ -561,7 +647,113 @@ export const HomePage: React.FC<HomePageProps> = ({
     }
   };
 
+  // Keyboard Escape & Click-Outside handlers for Hero Search
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (heroSearchRef.current && !heroSearchRef.current.contains(event.target as Node)) {
+        setIsHeroSearchOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsHeroSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   const { products: liveProducts, categories, isLoading, isError, errorMessage } = useCatalog();
+
+  // Character Matching & Category Filtering for Hero Search
+  const cleanHeroSearchQuery = heroSearchQuery.trim().toLowerCase();
+
+  const heroCategoryFilteredProducts = React.useMemo(() => {
+    if (selectedHeroCategorySlug === 'all') return liveProducts;
+    const catObj = categories.find((c) => c.slug === selectedHeroCategorySlug);
+    return liveProducts.filter((p) => {
+      return (
+        p.category_slug === selectedHeroCategorySlug ||
+        (p as any).parent_slug === selectedHeroCategorySlug ||
+        (catObj && p.category === catObj.id) ||
+        (p.category_name && p.category_name.toLowerCase().includes(selectedHeroCategorySlug.replace(/-/g, ' ')))
+      );
+    });
+  }, [liveProducts, selectedHeroCategorySlug, categories]);
+
+  const heroSearchResults = React.useMemo(() => {
+    if (!cleanHeroSearchQuery) {
+      return heroCategoryFilteredProducts.map(toProductShape);
+    }
+    return heroCategoryFilteredProducts
+      .filter((p) => {
+        const t = (p.title || '').toLowerCase();
+        const c = (p.category_name || '').toLowerCase();
+        const d = (p.description || '').toLowerCase();
+        const s = (p.slug || '').toLowerCase();
+        const k = ((p as any).sku || '').toLowerCase();
+        return (
+          t.includes(cleanHeroSearchQuery) ||
+          c.includes(cleanHeroSearchQuery) ||
+          d.includes(cleanHeroSearchQuery) ||
+          s.includes(cleanHeroSearchQuery) ||
+          k.includes(cleanHeroSearchQuery)
+        );
+      })
+      .sort((a, b) => {
+        const aTitle = (a.title || '').toLowerCase();
+        const bTitle = (b.title || '').toLowerCase();
+        if (aTitle.startsWith(cleanHeroSearchQuery) && !bTitle.startsWith(cleanHeroSearchQuery)) return -1;
+        if (!aTitle.startsWith(cleanHeroSearchQuery) && bTitle.startsWith(cleanHeroSearchQuery)) return 1;
+        if (aTitle.includes(cleanHeroSearchQuery) && !bTitle.includes(cleanHeroSearchQuery)) return -1;
+        if (!aTitle.includes(cleanHeroSearchQuery) && bTitle.includes(cleanHeroSearchQuery)) return 1;
+        return 0;
+      })
+      .map(toProductShape);
+  }, [heroCategoryFilteredProducts, cleanHeroSearchQuery]);
+
+  // Helper: highlight matched characters in text
+  const renderHighlightedMatch = (text: string, query: string) => {
+    if (!query.trim() || !text) return text;
+    const q = query.trim();
+    const regex = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    return parts.map((part, i) =>
+      regex.test(part) ? (
+        <span
+          key={i}
+          className="text-[#17365D] bg-[#D6AD62]/40 font-bold px-0.5 rounded underline decoration-[#D6AD62]"
+        >
+          {part}
+        </span>
+      ) : (
+        part
+      )
+    );
+  };
+
+  const heroCategoryOptions = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    liveProducts.forEach((p) => {
+      const slug = ((p as any).category_slug || (p as any).parent_slug || (p as any).category || '').toLowerCase();
+      if (slug) counts[slug] = (counts[slug] || 0) + 1;
+    });
+
+    return categories.map((c) => {
+      const slug = (c.slug || '').toLowerCase();
+      const count = counts[slug] ?? (c.product_count ?? 0);
+      return {
+        id: c.id,
+        slug: c.slug,
+        name: c.name,
+        count,
+      };
+    });
+  }, [categories, liveProducts]);
 
   const allProducts: Product[] = React.useMemo(
     () => liveProducts.map(toProductShape),
@@ -590,27 +782,41 @@ export const HomePage: React.FC<HomePageProps> = ({
     if (selectedFilter === 'all') return source;
 
     const sFilter = selectedFilter.toLowerCase().trim();
+    const filterCatObj = categories.find((c) => c.slug === selectedFilter);
+    const sFilterName = filterCatObj ? filterCatObj.name.toLowerCase() : '';
 
     return source.filter((p) => {
       const pCat = (p.category || '').toLowerCase();
+      const pCatName = ((p as any).categoryName || (p as any).category_name || '').toLowerCase();
       const pCatSlug = ((p as any).category_slug || '').toLowerCase();
-      const pParentSlug = ((p as any).parent_slug || '').toLowerCase();
+      const pParentSlug = ((p as any).parent_slug || (p as any).parent_category_slug || '').toLowerCase();
+      const pCatId = (p as any).categoryId ?? (p as any).category_id;
       const pTitle = (p.title || '').toLowerCase();
 
-      if (pCatSlug === sFilter || pParentSlug === sFilter || pCat === sFilter) return true;
+      // 1. Direct Category ID Match (Directly handles when admin selects category without subcategory)
+      if (filterCatObj && pCatId && String(filterCatObj.id) === String(pCatId)) return true;
 
-      if (sFilter === 'rings' && (pCat.includes('ring') || pTitle.includes('ring')) && !pCat.includes('earring') && !pTitle.includes('earring')) return true;
-      if (sFilter === 'earrings' && (pCat.includes('earring') || pTitle.includes('earring') || pTitle.includes('jhumka') || pTitle.includes('stud'))) return true;
-      if (sFilter === 'necklaces' && (pCat.includes('necklace') || pTitle.includes('necklace') || pTitle.includes('choker') || pTitle.includes('collar'))) return true;
-      if (sFilter === 'pendants' && (pCat.includes('pendant') || pCat.includes('pandent') || pTitle.includes('pendant') || pTitle.includes('pandent'))) return true;
-      if (sFilter.includes('bracelet') && (pCat.includes('bracelet') || pCat.includes('bangle') || pTitle.includes('bracelet') || pTitle.includes('bangle') || pTitle.includes('kada'))) return true;
-      if (sFilter === 'mangalsutra' && (pCat.includes('mangal') || pTitle.includes('mangal') || pTitle.includes('tanmaniya'))) return true;
-      if (sFilter.includes('nose') && (pCat.includes('nose') || pTitle.includes('nose') || pTitle.includes('nath'))) return true;
-      if (sFilter.includes('polki') && (pCat.includes('polki') || pTitle.includes('polki') || pTitle.includes('jadau'))) return true;
+      // 2. Direct Slug or Name Match
+      if (
+        pCatSlug === sFilter ||
+        pParentSlug === sFilter ||
+        pCat === sFilter ||
+        pCatName === sFilter ||
+        (sFilterName && (pCat === sFilterName || pCatName === sFilterName))
+      ) return true;
+
+      if (sFilter === 'rings' && (pCat.includes('ring') || pCatName.includes('ring') || pCatSlug.includes('ring') || pTitle.includes('ring')) && !pCat.includes('earring') && !pCatSlug.includes('earring') && !pTitle.includes('earring')) return true;
+      if (sFilter === 'earrings' && (pCat.includes('earring') || pCatName.includes('earring') || pCatSlug.includes('earring') || pTitle.includes('earring') || pTitle.includes('jhumka') || pTitle.includes('stud'))) return true;
+      if (sFilter === 'necklaces' && (pCat.includes('necklace') || pCatName.includes('necklace') || pCatSlug.includes('necklace') || pTitle.includes('necklace') || pTitle.includes('choker') || pTitle.includes('collar'))) return true;
+      if (sFilter === 'pendants' && (pCat.includes('pendant') || pCatName.includes('pendant') || pCatSlug.includes('pendant') || pCat.includes('pandent') || pTitle.includes('pendant') || pTitle.includes('pandent'))) return true;
+      if (sFilter.includes('bracelet') && (pCat.includes('bracelet') || pCatName.includes('bracelet') || pCatSlug.includes('bracelet') || pCat.includes('bangle') || pTitle.includes('bracelet') || pTitle.includes('bangle') || pTitle.includes('kada'))) return true;
+      if (sFilter === 'mangalsutra' && (pCat.includes('mangal') || pCatName.includes('mangal') || pCatSlug.includes('mangal') || pTitle.includes('mangal') || pTitle.includes('tanmaniya'))) return true;
+      if (sFilter.includes('nose') && (pCat.includes('nose') || pCatName.includes('nose') || pCatSlug.includes('nose') || pTitle.includes('nose') || pTitle.includes('nath'))) return true;
+      if (sFilter.includes('polki') && (pCat.includes('polki') || pCatName.includes('polki') || pCatSlug.includes('polki') || pTitle.includes('polki') || pTitle.includes('jadau'))) return true;
 
       return false;
     });
-  }, [liveProducts, selectedFilter]);
+  }, [liveProducts, selectedFilter, categories]);
 
   // Paginated visible products: 3 rows initially (12 items), expands via "View More"
   const displayedProducts = React.useMemo(
@@ -622,48 +828,31 @@ export const HomePage: React.FC<HomePageProps> = ({
   return (
     <div className="min-h-screen bg-white text-[#17243B] overflow-x-clip relative">
 
-      {/* SECTION 1: LUXURY HERO (INSPIRED BY REFERENCE DESIGN) */}
-      <section className="relative min-h-[92vh] sm:min-h-screen flex items-center justify-center pt-28 pb-16 sm:py-24 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-[#FFFDF9] via-[#FFF9F0] to-[#FFFFFF] overflow-hidden">
-        {/* Soft studio illumination glows */}
-        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-[#D9B66F]/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute top-1/3 right-1/4 w-[600px] h-[600px] bg-[#FFF9F0] rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 inset-x-0 h-40 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none" />
-
-        {/* LEFT LUXURY RING COMPOSITION */}
-        <div className="hidden lg:block absolute left-[-1%] xl:left-[1%] 2xl:left-[3%] top-1/2 -translate-y-1/2 w-[300px] xl:w-[380px] 2xl:w-[440px] pointer-events-none select-none z-10 transition-transform duration-700 hover:scale-105">
-          <img
-            src="/assets/redesign/hero_ring_left.png"
-            alt="Shiuli Luxury Fine Diamond Ring"
-            className="w-full h-auto object-contain drop-shadow-[0_20px_40px_rgba(23,52,92,0.12)]"
-            loading="eager"
-          />
-        </div>
-
-        {/* RIGHT TECHNICAL CAD SKETCH COMPOSITION */}
-        <div className="hidden lg:block absolute right-[-1%] xl:right-[1%] 2xl:right-[3%] top-1/2 -translate-y-1/2 w-[300px] xl:w-[380px] 2xl:w-[440px] pointer-events-none select-none z-10 opacity-95 transition-transform duration-700 hover:scale-105">
-          <img
-            src="/assets/redesign/hero_cad_sketch_right.png"
-            alt="Technical 3D Rhino CAD Engineering Sketch"
-            className="w-full h-auto object-contain drop-shadow-[0_15px_30px_rgba(23,52,92,0.08)]"
-            loading="eager"
-          />
-        </div>
-
+      {/* SECTION 1: LUXURY HERO (UNIFIED SEAMLESS BACKGROUND - NO BLURRY VEIL, COMPACT HEIGHT) */}
+      <section
+        className="relative flex items-center justify-center pt-20 pb-4 sm:pt-22 sm:pb-5 lg:pt-24 lg:pb-5 px-4 sm:px-6 lg:px-8 bg-cover bg-center bg-no-repeat overflow-visible"
+        style={{
+          backgroundImage: "url('/assets/redesign/hero_bg_clean.jpg')",
+        }}
+      >
         {/* CENTER EDITORIAL CONTENT */}
-        <div className="relative z-20 max-w-4xl mx-auto text-center flex flex-col items-center space-y-6 sm:space-y-8">
+        <div className="relative z-20 max-w-4xl xl:max-w-5xl 2xl:max-w-6xl mx-auto text-center flex flex-col items-center space-y-2 sm:space-y-2.5">
           
-          {/* Top Decorative Line & Badge */}
+          {/* Top Decorative Line & Eyebrow (Generous top clearance from fixed navbar) */}
           <motion.div
             initial={{ opacity: 0, y: -15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
             className="flex items-center justify-center gap-3"
           >
-            <div className="h-px w-8 sm:w-16 bg-gradient-to-r from-transparent to-[#D9B66F]" />
-            <span className="text-[11px] sm:text-xs font-semibold tracking-[0.25em] text-[#B88732] uppercase">
-              PREMIUM JEWELLERY CAD STUDIO
-            </span>
-            <div className="h-px w-8 sm:w-16 bg-gradient-to-l from-transparent to-[#D9B66F]" />
+            <div className="h-px w-8 sm:w-16 bg-gradient-to-r from-transparent to-[#D6AD62]" />
+            <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-white/90 border border-[#E8D7B7] shadow-2xs">
+              <Gem className="w-3 h-3 text-[#B88735]" />
+              <span className="text-[10px] sm:text-[11px] font-bold tracking-[0.24em] text-[#B88735] uppercase">
+                PREMIUM JEWELLERY CAD STUDIO
+              </span>
+            </div>
+            <div className="h-px w-8 sm:w-16 bg-gradient-to-l from-transparent to-[#D6AD62]" />
           </motion.div>
 
           {/* Main Headline & Subtitle */}
@@ -671,194 +860,399 @@ export const HomePage: React.FC<HomePageProps> = ({
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.1 }}
-            className="space-y-2.5 sm:space-y-3"
+            className="space-y-1"
           >
-            <h1 className="font-serif text-4xl sm:text-6xl md:text-7xl lg:text-[76px] font-bold text-[#17345C] tracking-tight leading-[1.08]">
-              Custom CAD Design
+            <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl lg:text-[44px] xl:text-[48px] font-bold tracking-tight leading-[1.12]">
+              <span className="block text-[#17365D]">Where Imagination</span>
+              <span className="block text-[#D6AD62] bg-gradient-to-r from-[#C99A45] via-[#D6AD62] to-[#B88735] bg-clip-text text-transparent">
+                Becomes Jewellery
+              </span>
             </h1>
-            <p className="font-serif text-lg sm:text-2xl md:text-[26px] text-[#17345C]/85 font-normal tracking-wide">
-              From concept to perfect 3D model in 48h
+            <p className="font-serif text-xs sm:text-[13px] md:text-[14px] text-[#626875] font-normal tracking-wide max-w-xl mx-auto leading-relaxed">
+              From your imagination to a perfect 3D model — unique, high-precision CAD designs tailored just for you.
             </p>
           </motion.div>
 
-          {/* 4 Feature Highlights Chips */}
-          <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-            className="grid grid-cols-2 sm:flex sm:flex-wrap items-center justify-center gap-2.5 sm:gap-6 pt-1 text-xs sm:text-[13px] text-[#17345C] font-medium"
+          {/* CENTRAL SEARCH BAR WITH DIRECT ANCHORED DROPDOWN */}
+          <div
+            ref={heroSearchRef}
+            className="w-full max-w-2xl sm:max-w-3xl pt-1 relative z-40"
           >
-            <div className="flex items-center justify-center gap-2 px-3 py-1.5 rounded-full bg-white/80 border border-[#E8D7B7] shadow-xs">
-              <Gem className="w-4 h-4 text-[#B88732] shrink-0" />
-              <span>Photorealistic 3D Modelling</span>
-            </div>
-            <div className="flex items-center justify-center gap-2 px-3 py-1.5 rounded-full bg-white/80 border border-[#E8D7B7] shadow-xs">
-              <FileCheck2 className="w-4 h-4 text-[#B88732] shrink-0" />
-              <span>Production Ready CAD Files</span>
-            </div>
-            <div className="flex items-center justify-center gap-2 px-3 py-1.5 rounded-full bg-white/80 border border-[#E8D7B7] shadow-xs">
-              <ShieldCheck className="w-4 h-4 text-[#236E6A] shrink-0" />
-              <span>High Precision &amp; Accuracy</span>
-            </div>
-            <div className="flex items-center justify-center gap-2 px-3 py-1.5 rounded-full bg-white/80 border border-[#E8D7B7] shadow-xs">
-              <Clock className="w-4 h-4 text-[#B88732] shrink-0" />
-              <span>Fast Turnaround (48 Hours)</span>
-            </div>
-          </motion.div>
-
-          {/* CENTRAL SEARCH BAR (HIGHEST PRIORITY) */}
-          <motion.form
-            onSubmit={handleHeroSearch}
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.7, delay: 0.3 }}
-            className="w-full max-w-2xl sm:max-w-3xl pt-2"
-          >
-            <div className="relative flex items-center bg-white rounded-full border border-[#D9B66F] shadow-[0_12px_36px_rgba(23,52,92,0.1)] hover:shadow-[0_16px_45px_rgba(23,52,92,0.14)] transition-all p-1.5 sm:p-2">
-              <div className="pl-3 sm:pl-4 text-[#17345C]">
-                <Search className="w-5 h-5 sm:w-5 sm:h-5 text-[#17345C]" />
+            <form
+              onSubmit={handleHeroSearch}
+              className="relative flex items-center bg-white rounded-full border border-[#E2CEAB] shadow-[0_12px_36px_rgba(23,54,93,0.08)] hover:shadow-[0_16px_42px_rgba(23,54,93,0.12)] focus-within:shadow-[0_16px_42px_rgba(23,54,93,0.14)] focus-within:border-[#D6AD62] transition-all p-1.5 sm:p-2"
+            >
+              <div className="pl-3 sm:pl-4 text-[#17365D]">
+                <Search className="w-5 h-5 text-[#17365D]" />
               </div>
 
               <input
                 type="text"
                 value={heroSearchQuery}
-                onChange={(e) => setHeroSearchQuery(e.target.value)}
-                placeholder="Search rings, earrings, chains, pendants..."
-                className="w-full bg-transparent px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base text-[#17243B] placeholder-[#687386]/70 focus:outline-hidden"
+                onChange={(e) => {
+                  setHeroSearchQuery(e.target.value);
+                  setIsHeroSearchOpen(true);
+                }}
+                onFocus={() => setIsHeroSearchOpen(true)}
+                placeholder="Search rings, earrings, pendants, chains, bangles..."
+                className="w-full bg-transparent px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base text-[#17243B] placeholder-[#626875]/70 focus:outline-hidden"
               />
+
+              {heroSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHeroSearchQuery('');
+                  }}
+                  className="p-1.5 text-gray-400 hover:text-[#17365D] rounded-full transition-colors mr-1 cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
 
               <button
                 type="button"
-                onClick={() => onNavigate('collections')}
-                className="p-2 sm:p-2.5 text-[#17345C] hover:text-[#B88732] hover:bg-[#FFF9F0] rounded-full transition-colors mr-1 cursor-pointer"
-                title="Filter Collections"
+                onClick={() => setIsHeroSearchOpen((prev) => !prev)}
+                className={`p-2 sm:p-2.5 rounded-full transition-colors mr-1 cursor-pointer ${
+                  isHeroSearchOpen
+                    ? 'text-[#B88735] bg-[#FFF9F0]'
+                    : 'text-[#17365D] hover:text-[#B88735] hover:bg-[#FFF9F0]'
+                }`}
+                title="Filter Categories"
               >
                 <SlidersHorizontal className="w-4 h-4" />
               </button>
 
               <button
                 type="submit"
-                className="bg-[#17345C] hover:bg-[#102442] text-white px-5 sm:px-8 py-2.5 sm:py-3 rounded-full text-xs sm:text-sm font-bold uppercase tracking-wider flex items-center gap-2 transition-all shadow-md shrink-0 cursor-pointer"
+                className="bg-[#17365D] hover:bg-[#122b4a] text-white px-5 sm:px-8 py-2.5 sm:py-3 rounded-full text-xs sm:text-sm font-semibold tracking-wide flex items-center gap-2 transition-all shadow-md shrink-0 cursor-pointer"
               >
                 <span>Search</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
-            </div>
-          </motion.form>
+            </form>
 
-          {/* 4 JEWELLERY CATEGORY SHORTCUTS */}
+            {/* INLINE ATTACHED RESULTS PANEL DIRECTLY BELOW SEARCH BAR */}
+            <AnimatePresence>
+              {isHeroSearchOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6, scale: 0.99 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.99 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute left-0 right-0 top-[calc(100%+8px)] z-50 bg-white/98 backdrop-blur-xl rounded-3xl border border-[#E2CEAB] shadow-[0_24px_60px_rgba(23,54,93,0.18)] p-4 sm:p-5 text-left transition-all"
+                >
+                  {/* Top Header bar */}
+                  <div className="flex items-center justify-between pb-3 border-b border-[#EADCC8]/80">
+                    <div className="flex items-center gap-2 text-[11px] sm:text-xs font-semibold tracking-wider text-[#B88735] uppercase">
+                      <Search className="w-3.5 h-3.5 text-[#B88735]" />
+                      <span>Quick Search CAD Files &amp; Categories</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsHeroSearchOpen(false);
+                      }}
+                      className="w-7 h-7 rounded-full bg-[#FFF9F0] hover:bg-[#F3E6D0] text-[#17365D] flex items-center justify-center transition-colors cursor-pointer border border-[#E2CEAB]"
+                      title="Close"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Categories Row */}
+                  <div className="pt-3 pb-2 space-y-2">
+                    <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#B88735] uppercase tracking-wider">
+                      <Layers className="w-3.5 h-3.5 text-[#B88735]" />
+                      <span>Categories ({categories.length || 8})</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-2 pt-0.5 thin-gold-scrollbar scroll-smooth">
+                      {/* All Categories Chip */}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedHeroCategorySlug('all')}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium shrink-0 transition-all flex items-center gap-1.5 cursor-pointer ${
+                          selectedHeroCategorySlug === 'all'
+                            ? 'bg-[#17365D] text-white shadow-sm'
+                            : 'bg-[#FFF9F0] text-[#17365D] border border-[#E2CEAB] hover:border-[#D6AD62] hover:bg-white'
+                        }`}
+                      >
+                        <span>All Categories</span>
+                        <span
+                          className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                            selectedHeroCategorySlug === 'all'
+                              ? 'bg-white/20 text-white'
+                              : 'bg-[#EADCC8] text-[#17365D]'
+                          }`}
+                        >
+                          {liveProducts.length}
+                        </span>
+                      </button>
+
+                      {/* Category Pills */}
+                      {heroCategoryOptions.map((cat) => {
+                        const isSelected = selectedHeroCategorySlug === cat.slug;
+                        return (
+                          <button
+                            key={cat.slug || cat.id}
+                            type="button"
+                            onClick={() => setSelectedHeroCategorySlug(cat.slug)}
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium shrink-0 transition-all flex items-center gap-1.5 cursor-pointer ${
+                              isSelected
+                                ? 'bg-[#17365D] text-white shadow-sm'
+                                : 'bg-[#FFF9F0] text-[#17365D] border border-[#E2CEAB] hover:border-[#D6AD62] hover:bg-white'
+                            }`}
+                          >
+                            <span>{cat.name}</span>
+                            {cat.count > 0 && (
+                              <span
+                                className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                                  isSelected
+                                    ? 'bg-white/20 text-white'
+                                    : 'bg-[#EADCC8] text-[#17365D]'
+                                }`}
+                              >
+                                {cat.count}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Subtitle status bar */}
+                  <div className="pt-2 pb-2 text-[11px] sm:text-xs text-[#B88735] font-medium tracking-wide">
+                    Showing {heroSearchResults.length} CAD models in Atelier
+                  </div>
+
+                  {/* Product Grid Results */}
+                  <div className="max-h-[300px] sm:max-h-[340px] overflow-y-auto pr-1 sm:pr-1.5 space-y-2 custom-scrollbar">
+                    {heroSearchResults.length === 0 ? (
+                      <div className="py-8 text-center text-[#626875] space-y-2">
+                        <AlertTriangle className="w-6 h-6 text-[#D6AD62] mx-auto" />
+                        <p className="text-xs sm:text-sm">
+                          No CAD models found matching &quot;{heroSearchQuery}&quot;
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setHeroSearchQuery('');
+                            setSelectedHeroCategorySlug('all');
+                          }}
+                          className="text-xs text-[#B88735] underline font-medium hover:text-[#17365D] cursor-pointer"
+                        >
+                          Clear search filters
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
+                        {heroSearchResults.map((prod) => (
+                          <div
+                            key={prod.id}
+                            onClick={() => {
+                              setIsHeroSearchOpen(false);
+                              onQuickView(prod);
+                            }}
+                            className="group flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-[#FFFDF9] hover:bg-[#FFF9F0] border border-[#EADCC8] hover:border-[#D6AD62] transition-all cursor-pointer shadow-2xs hover:shadow-sm"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                              {/* Dark thumbnail box */}
+                              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-[#111927] p-1 shrink-0 flex items-center justify-center overflow-hidden border border-[#EADCC8]/60">
+                                <img
+                                  src={prod.imageUrl}
+                                  alt={prod.title}
+                                  className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                                  onError={(e) => handleImgError(e, prod.category)}
+                                />
+                              </div>
+
+                              {/* Details */}
+                              <div className="min-w-0 flex-1">
+                                <div className="text-xs sm:text-[13px] font-semibold text-[#17365D] group-hover:text-[#B88735] transition-colors truncate">
+                                  {renderHighlightedMatch(prod.title, heroSearchQuery)}
+                                </div>
+                                <div className="text-[11px] text-[#626875] truncate">
+                                  {prod.categoryName || 'Jewellery CAD'} &bull; .3DM + .STL
+                                </div>
+                                <div className="text-xs sm:text-[13px] font-bold text-[#17365D] mt-0.5">
+                                  ₹{formatINR(prod.price)}
+                                </div>
+                              </div>
+                            </div>
+
+                            <ChevronRight className="w-4 h-4 text-[#D6AD62] group-hover:text-[#17365D] group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Bottom Footer bar */}
+                  <div className="pt-3 mt-2 border-t border-[#EADCC8]/80 flex items-center justify-between text-xs">
+                    <span className="text-[11px] text-[#626875] hidden sm:inline">
+                      Press <kbd className="px-1.5 py-0.5 text-[10px] bg-gray-100 border border-gray-300 rounded-sm">Esc</kbd> or click outside to dismiss
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsHeroSearchOpen(false);
+                        onNavigate('collections', heroSearchQuery.trim());
+                      }}
+                      className="ml-auto text-xs font-semibold text-[#17365D] hover:text-[#B88735] flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>Explore all matching collections</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* 4 SERVICE SHORTCUT CARDS (SECOND HIGHEST PRIORITY) */}
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.4 }}
-            className="w-full max-w-3xl grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3.5 pt-1"
+            transition={{ duration: 0.7, delay: 0.3 }}
+            className="w-full max-w-4xl xl:max-w-5xl grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pt-1"
           >
             {[
               {
-                id: 'rings',
-                label: 'Rings',
-                icon: (
-                  <svg className="w-6 h-6 text-[#17345C]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                    <circle cx="12" cy="14" r="7" />
-                    <path d="M12 7L10 3h4l-2 4z" fill="currentColor" opacity="0.25" />
-                    <path d="M9 3h6l1.5 4h-9L9 3z" />
-                  </svg>
-                ),
+                id: 'custom-design',
+                title: 'Custom Design',
+                desc: 'Share your idea & get unique CAD design',
+                image: '/assets/redesign/card_ring_hd.png',
+                imageAlt: 'Custom Design Jewellery CAD',
+                isHighlighted: true,
+                onClick: () => onNavigate('custom-design'),
               },
               {
-                id: 'earrings',
-                label: 'Earrings',
-                icon: (
-                  <svg className="w-6 h-6 text-[#17345C]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                    <circle cx="8" cy="8" r="3" />
-                    <circle cx="8" cy="17" r="4" />
-                    <circle cx="16" cy="8" r="3" />
-                    <circle cx="16" cy="17" r="4" />
-                  </svg>
-                ),
+                id: 'ready-cad-files',
+                title: 'Ready CAD Files',
+                desc: 'Browse high-quality jewellery CAD models',
+                image: '/assets/redesign/card_cad_files.png',
+                imageAlt: 'Ready CAD Files Catalog',
+                isHighlighted: false,
+                onClick: () => onNavigate('collections'),
               },
               {
-                id: 'necklaces',
-                label: 'Necklace',
-                icon: (
-                  <svg className="w-6 h-6 text-[#17345C]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                    <path d="M4 6c3 8 13 8 16 0" />
-                    <circle cx="12" cy="15" r="2.5" fill="currentColor" opacity="0.25" />
-                  </svg>
-                ),
+                id: 'our-portfolio',
+                title: 'Our Portfolio',
+                desc: 'Explore our latest designs & creations',
+                image: '/assets/redesign/card_portfolio.png',
+                imageAlt: 'Our Jewellery CAD Portfolio',
+                isHighlighted: false,
+                onClick: () => onNavigate('portfolio'),
               },
               {
-                id: 'bracelets-bangles',
-                label: 'Bracelet',
-                icon: (
-                  <svg className="w-6 h-6 text-[#17345C]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                    <ellipse cx="12" cy="12" rx="8" ry="6" strokeDasharray="2 2" strokeWidth="2.5" />
-                    <ellipse cx="12" cy="12" rx="8" ry="6" />
-                  </svg>
-                ),
+                id: 'file-editing',
+                title: 'File Editing',
+                desc: 'Modify your existing CAD files',
+                image: '/assets/redesign/card_file_editing.png',
+                imageAlt: 'Jewellery CAD File Editing',
+                isHighlighted: false,
+                onClick: () => onNavigate('file-editing'),
               },
-            ].map((catItem) => (
+            ].map((card) => (
               <button
-                key={catItem.id}
+                key={card.id}
                 type="button"
-                onClick={() => onNavigate('collections', catItem.id)}
-                className="group flex items-center justify-between p-3 sm:p-3.5 bg-[#FFF9F0]/90 hover:bg-[#FFF9F0] rounded-2xl border border-[#E8D7B7] hover:border-[#D9B66F] shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer text-left"
+                onClick={card.onClick}
+                className={`group relative flex flex-col items-center justify-between p-2.5 sm:p-3 rounded-2xl cursor-pointer text-center transition-all duration-300 hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-[#D6AD62] min-h-[120px] sm:min-h-[135px] ${
+                  card.isHighlighted
+                    ? 'bg-gradient-to-b from-[#FFFDF9] to-[#FCF6EC] border border-[#D6AD62] shadow-[0_6px_20px_rgba(214,173,98,0.15)] hover:shadow-[0_12px_28px_rgba(214,173,98,0.22)]'
+                    : 'bg-white/95 border border-[#EADCC8] hover:border-[#D6AD62] shadow-[0_4px_16px_rgba(23,54,93,0.04)] hover:shadow-[0_10px_24px_rgba(23,54,93,0.08)]'
+                }`}
               >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="shrink-0 p-1 rounded-xl bg-white border border-[#E8D7B7]/60 group-hover:border-[#D9B66F] transition-colors">
-                    {catItem.icon}
-                  </div>
-                  <span className="text-xs sm:text-sm font-serif font-bold text-[#17345C] group-hover:text-[#B88732] truncate transition-colors">
-                    {catItem.label}
-                  </span>
+                <div className="h-8 sm:h-9 flex items-center justify-center shrink-0 mb-1">
+                  <img
+                    src={card.image}
+                    alt={card.imageAlt}
+                    className="max-h-8 sm:max-h-9 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
+                  />
                 </div>
-                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border border-[#D9B66F] flex items-center justify-center text-[#B88732] group-hover:bg-[#17345C] group-hover:text-white group-hover:border-[#17345C] transition-colors shrink-0 ml-1">
-                  <ChevronRight className="w-3.5 h-3.5" />
+
+                <div className="space-y-0.5 min-w-0 flex-1 flex flex-col justify-center">
+                  <h3 className="font-serif font-bold text-xs sm:text-[13px] text-[#17365D] group-hover:text-[#B88735] transition-colors">
+                    {card.title}
+                  </h3>
+                  <p className="text-[10px] sm:text-[11px] text-[#626875] line-clamp-1 sm:line-clamp-2 leading-snug">
+                    {card.desc}
+                  </p>
+                </div>
+
+                <div className="w-full flex justify-end mt-1">
+                  <div className="w-5 h-5 rounded-full border border-[#D6AD62]/70 group-hover:border-[#D6AD62] group-hover:bg-[#D6AD62] group-hover:text-white flex items-center justify-center text-[#B88735] transition-colors shrink-0">
+                    <ChevronRight className="w-3 h-3 transition-transform duration-200 group-hover:translate-x-0.5" />
+                  </div>
                 </div>
               </button>
             ))}
           </motion.div>
 
+          {/* 4 FEATURE BENEFITS ROW */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.4 }}
+            className="w-full max-w-4xl xl:max-w-5xl mx-auto flex flex-wrap lg:flex-nowrap items-center justify-center lg:justify-between gap-3 sm:gap-5 pt-1.5 sm:pt-2 text-xs sm:text-[13px] text-[#17365D]"
+          >
+            <div className="flex items-center gap-2">
+              <Gem className="w-4 h-4 text-[#B88735] shrink-0" />
+              <div className="text-left">
+                <div className="font-semibold text-xs sm:text-[12px] text-[#17365D]">Photorealistic</div>
+                <div className="text-[10px] sm:text-[11px] text-[#626875]">3D Modelling</div>
+              </div>
+            </div>
+
+            <div className="hidden lg:block w-px h-5 bg-[#EADCC8]" />
+
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-[#B88735] shrink-0" />
+              <div className="text-left">
+                <div className="font-semibold text-xs sm:text-[12px] text-[#17365D]">High Precision</div>
+                <div className="text-[10px] sm:text-[11px] text-[#626875]">&amp; Accuracy</div>
+              </div>
+            </div>
+
+            <div className="hidden lg:block w-px h-5 bg-[#EADCC8]" />
+
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-[#B88735] shrink-0" />
+              <div className="text-left">
+                <div className="font-semibold text-xs sm:text-[12px] text-[#17365D]">Fast Turnaround</div>
+                <div className="text-[10px] sm:text-[11px] text-[#626875]">(48 Hours)</div>
+              </div>
+            </div>
+
+            <div className="hidden lg:block w-px h-5 bg-[#EADCC8]" />
+
+            <div className="flex items-center gap-2">
+              <Headphones className="w-4 h-4 text-[#B88735] shrink-0" />
+              <div className="text-left">
+                <div className="font-semibold text-xs sm:text-[12px] text-[#17365D]">Expert Support</div>
+                <div className="text-[10px] sm:text-[11px] text-[#626875]">for Your Designs</div>
+              </div>
+            </div>
+          </motion.div>
+
         </div>
       </section>
 
-      {/* SECTION 2: TRUST STRIP (ANIMATED METRICS REVEAL) */}
-      <section className="relative py-10 bg-[#FFF9F0] border-y border-[#E8D7B7]">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12">
-          <StaggerGrid className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center divide-y sm:divide-y-0 sm:divide-x divide-[#E8D7B7]">
-            {[
-              { number: '500+', label: 'Designs Delivered' },
-              { number: '120+', label: 'Happy Jewellers & Ateliers' },
-              { number: '15+', label: 'Countries Served' },
-              { number: '48-Hour', label: 'Avg. Custom Turnaround' },
-            ].map((metric, i) => (
-              <StaggerItem key={i} className="space-y-1 py-2 sm:py-0">
-                <motion.div
-                  whileHover={{ scale: 1.08 }}
-                  transition={{ duration: 0.2 }}
-                  className="font-serif text-3xl sm:text-4xl text-[#17345C] font-semibold tracking-tight cursor-default"
-                >
-                  {metric.number}
-                </motion.div>
-                <div className="text-xs text-[#687386] uppercase tracking-wider font-medium">
-                  {metric.label}
-                </div>
-              </StaggerItem>
-            ))}
-          </StaggerGrid>
-        </div>
-      </section>
-
-      {/* SECTION 3: FEATURED COLLECTIONS (Category Showcase) */}
-      <section className="py-24 bg-white relative">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12 space-y-12">
-          <RevealOnScroll className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      {/* SECTION 2: FEATURED COLLECTIONS (Category Showcase) */}
+      <section className="pt-4 pb-10 sm:pt-5 sm:pb-12 bg-white relative">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12 space-y-4 sm:space-y-6">
+          <RevealOnScroll className="flex flex-col md:flex-row md:items-end justify-between gap-3">
             <div>
-              <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-[#B88732] font-semibold mb-2">
+              <div className="inline-flex items-center gap-2 text-[11px] sm:text-xs uppercase tracking-[0.22em] text-[#B88732] font-semibold mb-1.5">
                 <Gem className="w-3.5 h-3.5" />
                 Signature Archives
               </div>
-              <h2 className="font-serif text-3xl sm:text-5xl text-[#17345C]">
+              <h2 className="font-serif text-2xl sm:text-3xl lg:text-[34px] font-bold text-[#17345C] tracking-tight leading-snug">
                 Explore Our Ready CAD Collections
               </h2>
             </div>
@@ -905,6 +1299,33 @@ export const HomePage: React.FC<HomePageProps> = ({
                 onNavigate={onNavigate}
                 onQuickView={onQuickView}
               />
+            ))}
+          </StaggerGrid>
+        </div>
+      </section>
+
+      {/* SECTION 3: TRUST STRIP (ANIMATED METRICS REVEAL - MOVED BELOW READY COLLECTIONS) */}
+      <section className="relative py-10 bg-[#FFF9F0] border-y border-[#E8D7B7]">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12">
+          <StaggerGrid className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center divide-y sm:divide-y-0 sm:divide-x divide-[#E8D7B7]">
+            {[
+              { number: '500+', label: 'Designs Delivered' },
+              { number: '120+', label: 'Happy Jewellers & Ateliers' },
+              { number: '15+', label: 'Countries Served' },
+              { number: '48-Hour', label: 'Avg. Custom Turnaround' },
+            ].map((metric, i) => (
+              <StaggerItem key={i} className="space-y-1 py-2 sm:py-0">
+                <motion.div
+                  whileHover={{ scale: 1.08 }}
+                  transition={{ duration: 0.2 }}
+                  className="font-serif text-3xl sm:text-4xl text-[#17345C] font-semibold tracking-tight cursor-default"
+                >
+                  {metric.number}
+                </motion.div>
+                <div className="text-xs text-[#687386] uppercase tracking-wider font-medium">
+                  {metric.label}
+                </div>
+              </StaggerItem>
             ))}
           </StaggerGrid>
         </div>

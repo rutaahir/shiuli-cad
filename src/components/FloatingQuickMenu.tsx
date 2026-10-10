@@ -13,17 +13,27 @@ import {
   Info,
   LayoutGrid,
   Briefcase,
+  MessageCircle,
 } from 'lucide-react';
 import { PageId } from '../types';
 
 interface FloatingQuickMenuProps {
   onNavigate: (page: PageId) => void;
+  currentPage?: PageId;
 }
 
-export const FloatingQuickMenu: React.FC<FloatingQuickMenuProps> = ({ onNavigate }) => {
+export const FloatingQuickMenu: React.FC<FloatingQuickMenuProps> = ({ onNavigate, currentPage }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [pulseRing, setPulseRing] = useState(true);
+
+  // Check if user is on Custom Design page
+  const isCustomDesignPage =
+    currentPage === 'custom-design' ||
+    (typeof window !== 'undefined' && (
+      window.location.pathname.includes('custom-design') ||
+      window.location.pathname.includes('custom_design')
+    ));
 
   // Track scroll position for scroll-to-top button
   useEffect(() => {
@@ -68,23 +78,26 @@ export const FloatingQuickMenu: React.FC<FloatingQuickMenuProps> = ({ onNavigate
 
   return (
     <>
-      {/* Overlay Backdrop */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-[45] bg-black/50 backdrop-blur-sm transition-opacity duration-300"
-          onClick={() => setIsOpen(false)}
-        />
-      )}
+      {/* Quick Menu Backdrop & Panel (Only on non-custom-design pages) */}
+      {!isCustomDesignPage && (
+        <>
+          {/* Overlay Backdrop */}
+          {isOpen && (
+            <div
+              className="fixed inset-0 z-[45] bg-black/50 backdrop-blur-sm transition-opacity duration-300"
+              onClick={() => setIsOpen(false)}
+            />
+          )}
 
-      {/* Quick Menu Panel */}
-      <div
-        className={`fixed bottom-20 sm:bottom-24 right-4 sm:right-5 z-[50] w-[calc(100vw-32px)] max-w-[340px] max-h-[calc(100vh-120px)] sm:max-h-[calc(100vh-140px)] overflow-y-auto transition-all duration-400 origin-bottom-right ${
-          isOpen
-            ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto'
-            : 'opacity-0 scale-90 translate-y-6 pointer-events-none'
-        }`}
-        style={{ transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)' }}
-      >
+          {/* Quick Menu Panel */}
+          <div
+            className={`fixed bottom-20 sm:bottom-24 right-4 sm:right-5 z-[50] w-[calc(100vw-32px)] max-w-[340px] max-h-[calc(100vh-120px)] sm:max-h-[calc(100vh-140px)] overflow-y-auto transition-all duration-400 origin-bottom-right ${
+              isOpen
+                ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto'
+                : 'opacity-0 scale-90 translate-y-6 pointer-events-none'
+            }`}
+            style={{ transitionTimingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)' }}
+          >
         <div className="bg-[#080E24]/95 backdrop-blur-xl border border-[#D4AF37]/30 rounded-2xl shadow-[0_20px_60px_rgba(212,175,55,0.15)] overflow-hidden">
           {/* Quick Navigation Grid */}
           <div className="p-5 pb-3">
@@ -219,6 +232,8 @@ export const FloatingQuickMenu: React.FC<FloatingQuickMenuProps> = ({ onNavigate
           </div>
         </div>
       </div>
+    </>
+  )}
 
       {/* Scroll to Top Button */}
       <button
@@ -235,38 +250,61 @@ export const FloatingQuickMenu: React.FC<FloatingQuickMenuProps> = ({ onNavigate
         <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5 group-hover:animate-bounce transition-transform" />
       </button>
 
-      {/* Main FAB Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`fixed bottom-4 sm:bottom-6 right-4 sm:right-6 z-[50] w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(212,175,55,0.35)] transition-all duration-300 hover:scale-105 active:scale-95 ${
-          isOpen
-            ? 'bg-[#080E24] border-2 border-[#D4AF37]/60 rotate-0'
-            : 'bg-gradient-to-br from-[#D4AF37] to-[#C49B28] border-2 border-[#F5E7A3]/30 rotate-0'
-        }`}
-        title={isOpen ? 'Close quick menu' : 'Open quick menu'}
-        aria-label={isOpen ? 'Close quick menu' : 'Open quick menu'}
-      >
-        {/* Ping Ring (only when closed and pulseRing active) */}
-        {!isOpen && pulseRing && (
-          <span className="absolute inset-0 rounded-full">
-            <span className="absolute inset-0 rounded-full border-2 border-[#D4AF37] animate-ping opacity-50" />
-          </span>
-        )}
-
-        <div className={`transition-transform duration-300 ${isOpen ? 'rotate-[135deg]' : 'rotate-0'}`}>
-          {isOpen ? (
-            <X className="w-6 h-6 text-[#D4AF37]" />
-          ) : (
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-[#080E24]">
-              {/* Custom diamond/grid icon */}
-              <rect x="3" y="3" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.9" />
-              <rect x="14" y="3" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.7" />
-              <rect x="3" y="14" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.7" />
-              <rect x="14" y="14" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.5" />
+      {/* Main FAB Button OR Custom Design Page "Chat with Us" WhatsApp Button */}
+      {isCustomDesignPage ? (
+        <a
+          href="https://wa.me/919574787098?text=Hello%20Shiuli%20CAD%20Studio%2C%20I%20have%20an%20inquiry%20regarding%20custom%20jewellery%20CAD%20design."
+          target="_blank"
+          rel="noreferrer"
+          className="fixed bottom-4 sm:bottom-6 right-4 sm:right-6 z-[50] flex items-center gap-2.5 px-4 sm:px-5 py-3 sm:py-3.5 rounded-full bg-[#25D366] hover:bg-[#20ba5a] text-white font-bold text-xs sm:text-sm shadow-[0_10px_35px_rgba(37,211,102,0.45)] transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer group"
+          title="Chat with us on WhatsApp"
+        >
+          <div className="relative flex items-center justify-center">
+            {/* WhatsApp SVG Icon */}
+            <svg
+              className="w-5 h-5 sm:w-6 sm:h-6 fill-current"
+              viewBox="0 0 24 24"
+            >
+              <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86s.274.072.376-.043c.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564.289.13.332.202c.045.072.045.419-.1.824zm-3.423-14.416c-6.627 0-12 5.373-12 12 0 2.159.57 4.185 1.564 5.939l-1.564 5.889 6.088-1.597c1.705.936 3.659 1.471 5.742 1.471 6.627 0 12-5.373 12-12 0-6.627-5.373-12-12-12z" />
             </svg>
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-white rounded-full animate-ping opacity-75" />
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-200 rounded-full" />
+          </div>
+          <span className="tracking-wide">Chat with Us</span>
+        </a>
+      ) : (
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className={`fixed bottom-4 sm:bottom-6 right-4 sm:right-6 z-[50] w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center shadow-[0_8px_30px_rgba(212,175,55,0.35)] transition-all duration-300 hover:scale-105 active:scale-95 ${
+            isOpen
+              ? 'bg-[#080E24] border-2 border-[#D4AF37]/60 rotate-0'
+              : 'bg-gradient-to-br from-[#D4AF37] to-[#C49B28] border-2 border-[#F5E7A3]/30 rotate-0'
+          }`}
+          title={isOpen ? 'Close quick menu' : 'Open quick menu'}
+          aria-label={isOpen ? 'Close quick menu' : 'Open quick menu'}
+        >
+          {/* Ping Ring (only when closed and pulseRing active) */}
+          {!isOpen && pulseRing && (
+            <span className="absolute inset-0 rounded-full">
+              <span className="absolute inset-0 rounded-full border-2 border-[#D4AF37] animate-ping opacity-50" />
+            </span>
           )}
-        </div>
-      </button>
+
+          <div className={`transition-transform duration-300 ${isOpen ? 'rotate-[135deg]' : 'rotate-0'}`}>
+            {isOpen ? (
+              <X className="w-6 h-6 text-[#D4AF37]" />
+            ) : (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-[#080E24]">
+                {/* Custom diamond/grid icon */}
+                <rect x="3" y="3" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.9" />
+                <rect x="14" y="3" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.7" />
+                <rect x="3" y="14" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.7" />
+                <rect x="14" y="14" width="7" height="7" rx="1.5" fill="currentColor" opacity="0.5" />
+              </svg>
+            )}
+          </div>
+        </button>
+      )}
 
       {/* Keyframe Styles */}
       <style>{`

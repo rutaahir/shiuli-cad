@@ -1,2793 +1,1226 @@
-import { sendCustomDesignConfirmationEmail } from '../services/emailService';
-import { PaymentGatewayModal } from '../components/payment/PaymentGatewayModal';
-import { appStore } from '../services/store';
-import { QuickCustomRequestForm } from '../components/custom_design/QuickCustomRequestForm';
-
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { PageId } from '../types';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  api,
-  OptionGroupData,
-  OptionValueData,
-  CustomRequestStonePayload
-} from '../services/api';
-import { useCatalog, BackendProduct } from '../hooks/useCatalog';
-import { useAuth } from '../context/AuthContext';
-import {
+  Edit3,
+  ChevronDown,
+  Check,
   Sparkles,
   Upload,
-  Check,
+  Search,
+  Mic,
+  Square,
+  Volume2,
+  Calendar,
   ArrowRight,
-  ArrowLeft,
+  ShieldCheck,
   CheckCircle2,
+  Image as ImageIcon,
   FileText,
+  X,
   Gem,
-  Plus,
   Trash2,
   AlertCircle,
   Loader2,
-  HelpCircle,
-  X,
-  Ruler,
-  ShieldCheck,
+  MessageCircle,
+  Send,
+  Mail,
+  Phone,
   Clock,
-  Calendar,
-  Layers,
-  Feather,
-  Box,
-  Sliders,
-  CheckCircle,
-  Award,
-  Search,
-  Grid,
-  CheckSquare,
-  Image as ImageIcon,
-  Mic,
-  Volume2,
-  Square
+  ExternalLink,
+  Plus,
+  Play,
+  FileAudio
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { PageId } from '../types';
+import { api } from '../services/api';
+import { useCatalog, BackendProduct } from '../hooks/useCatalog';
+import { useAuth } from '../context/AuthContext';
+import { appStore } from '../services/store';
 
 interface CustomDesignPageProps {
   initialProductId?: string;
   onNavigate: (page: PageId) => void;
 }
 
-interface SelectedCatalogRef {
-  id: string | number;
-  title: string;
-  category: string;
-  image: string;
-}
-
-// Ring Size Conversion Matrix
-const RING_SIZE_CONVERSION_TABLE = [
-  { us: '4', uk: 'H 1/2', in_hk: '7', eu: '47', inside_mm: '14.9 mm' },
-  { us: '4.5', uk: 'I 1/2', in_hk: '8', eu: '48', inside_mm: '15.3 mm' },
-  { us: '5', uk: 'J 1/2', in_hk: '9', eu: '49.5', inside_mm: '15.7 mm' },
-  { us: '5.5', uk: 'K 1/2', in_hk: '10', eu: '50.5', inside_mm: '16.1 mm' },
-  { us: '6', uk: 'L 1/2', in_hk: '12', eu: '52', inside_mm: '16.5 mm' },
-  { us: '6.5', uk: 'M 1/2', in_hk: '13', eu: '53', inside_mm: '16.9 mm' },
-  { us: '7', uk: 'N 1/2', in_hk: '14', eu: '54.5', inside_mm: '17.3 mm' },
-  { us: '7.5', uk: 'O 1/2', in_hk: '15', eu: '55.5', inside_mm: '17.7 mm' },
-  { us: '8', uk: 'P 1/2', in_hk: '16', eu: '57', inside_mm: '18.1 mm' },
-  { us: '8.5', uk: 'Q 1/2', in_hk: '17', eu: '58', inside_mm: '18.5 mm' },
-  { us: '9', uk: 'R 1/2', in_hk: '18', eu: '59.5', inside_mm: '18.9 mm' },
-  { us: '9.5', uk: 'S 1/2', in_hk: '19', eu: '60.5', inside_mm: '19.3 mm' },
-  { us: '10', uk: 'T 1/2', in_hk: '20', eu: '62', inside_mm: '19.8 mm' },
-  { us: '10.5', uk: 'U 1/2', in_hk: '22', eu: '63', inside_mm: '20.2 mm' },
-  { us: '11', uk: 'V 1/2', in_hk: '23', eu: '64.5', inside_mm: '20.6 mm' },
-  { us: '12', uk: 'Y', in_hk: '25', eu: '67.5', inside_mm: '21.4 mm' },
-];
+const STUDIO_WHATSAPP_NUMBER = '919574787098';
+const STUDIO_TELEGRAM_LINK = 'https://t.me/+919574787098';
+const STUDIO_EMAIL = 'contact@shiulicad.com';
 
 export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
   initialProductId,
   onNavigate,
 }) => {
-  const { user, isLoggedIn, requireAuth } = useAuth();
-  const catalogState = useCatalog();
+  const { user, isLoggedIn } = useAuth();
+  const { products: catalogProducts } = useCatalog();
 
-  // Mode selection: 'step_by_step' | 'quick'
-  const [designMode, setDesignMode] = useState<'step_by_step' | 'quick'>(() => {
-    if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('mode') === 'quick') return 'quick';
-    }
-    return 'step_by_step';
+  // 1. "What you want to order:"
+  const [orderMode, setOrderMode] = useState<'text' | 'select'>('text');
+  const [customDesignText, setCustomDesignText] = useState<string>('');
+  const [selectedCatalogItem, setSelectedCatalogItem] = useState<BackendProduct | null>(null);
+
+  // 2. Material & Carat Selection (with custom write-in options)
+  const [material, setMaterial] = useState<'Gold' | 'Silver' | 'Platinum' | 'Brass' | 'Other'>('Gold');
+  const [customMaterial, setCustomMaterial] = useState<string>('');
+  const [goldColor, setGoldColor] = useState<'Yellow Gold' | 'White Gold' | 'Rose Gold'>('Yellow Gold');
+
+  const [carat, setCarat] = useState<string>('18K');
+  const [customCarat, setCustomCarat] = useState<string>('');
+
+  // 3. Add Reference (Pictures, Technical CAD files, Catalogue)
+  const [pictureFiles, setPictureFiles] = useState<File[]>([]);
+  const [picturePreviews, setPicturePreviews] = useState<string[]>([]);
+  const [cadFiles, setCadFiles] = useState<File[]>([]);
+  const [showCatalogModal, setShowCatalogModal] = useState<boolean>(false);
+  const [catalogSearch, setCatalogSearch] = useState<string>('');
+  const [catalogCategoryFilter, setCatalogCategoryFilter] = useState<string>('all');
+
+  const pictureInputRef = useRef<HTMLInputElement>(null);
+  const cadInputRef = useRef<HTMLInputElement>(null);
+  const audioFileInputRef = useRef<HTMLInputElement>(null);
+
+  // 4. Additional Details + Voice Note (Record or Upload)
+  const [additionalDetails, setAdditionalDetails] = useState<string>('');
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [recordingSeconds, setRecordingSeconds] = useState<number>(0);
+  const [voiceAudioBlob, setVoiceAudioBlob] = useState<Blob | null>(null);
+  const [voiceAudioUrl, setVoiceAudioUrl] = useState<string>('');
+  const [uploadedAudioFile, setUploadedAudioFile] = useState<File | null>(null);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 5. Delivery Date Section
+  const [deliveryDays, setDeliveryDays] = useState<number>(5);
+  const [customDate, setCustomDate] = useState<string>('');
+
+  // 6. Contact Method & Client Details
+  const [clientName, setClientName] = useState<string>(() => {
+    return user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username : '';
   });
+  const [contactPhone, setContactPhone] = useState<string>(() => user?.phone_number || '');
+  const [contactEmail, setContactEmail] = useState<string>(() => user?.email || '');
 
-  // Navigation & Step Control
-  const [currentStep, setCurrentStep] = useState(1);
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [submittedTicket, setSubmittedTicket] = useState<any>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submissionError, setSubmissionError] = useState('');
-  const [showRingSizeModal, setShowRingSizeModal] = useState(false);
+  // Submission state
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [submitError, setSubmitError] = useState<string>('');
+  const [submissionSuccess, setSubmissionSuccess] = useState<any | null>(null);
 
-  // Dynamic Option Groups from Backend API
-  const [optionGroups, setOptionGroups] = useState<OptionGroupData[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [optionsLoading, setOptionsLoading] = useState(true);
-
-  // Category Selection (Starts unselected so customer chooses their own)
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
-
-  // Category-Specific Specs (All start completely empty)
-  const [ringSizeStandard, setRingSizeStandard] = useState('US');
-  const [ringSize, setRingSize] = useState('');
-  const [targetWeightGrams, setTargetWeightGrams] = useState('');
-  const [heightMm, setHeightMm] = useState('');
-  const [widthMm, setWidthMm] = useState('');
-  const [chainLength, setChainLength] = useState('');
-  const [earringBacking, setEarringBacking] = useState('');
-  const [wristCircumference, setWristCircumference] = useState('');
-  const [braceletStyle, setBraceletStyle] = useState('');
-  const [customSpecsText, setCustomSpecsText] = useState('');
-
-  // Selections Map for Dynamic Option Groups (group.key -> option_value.id) - starts empty
-  const [selections, setSelections] = useState<Record<string, number>>({});
-
-  // Custom / Other Gold Purity State
-  const [isCustomPuritySelected, setIsCustomPuritySelected] = useState<boolean>(false);
-  const [customPurityInput, setCustomPurityInput] = useState<string>('');
-
-  // Custom / Other Metal Alloy State
-  const [isCustomMetalSelected, setIsCustomMetalSelected] = useState<boolean>(false);
-  const [customMetalInput, setCustomMetalInput] = useState<string>('');
-
-  // Stones Specification - starts completely empty
-  const [isMetalOnly, setIsMetalOnly] = useState(false);
-  const [stonesList, setStonesList] = useState<CustomRequestStonePayload[]>([]);
-
-  // Personalization & Branding
-  const [engravingText, setEngravingText] = useState('');
-  const [engravingFont, setEngravingFont] = useState('Script');
-  const [engravingPlacement, setEngravingPlacement] = useState('Inside Shank');
-  const [hasLogo, setHasLogo] = useState(false);
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string>('');
-  const [logoError, setLogoError] = useState('');
-
-  // Step 4 Reference Images - 2 Mode Options: Existing Products vs Upload Files
-  const [activeReferenceTab, setActiveReferenceTab] = useState<'catalog' | 'upload'>('catalog');
-  const [catalogSearchQuery, setCatalogSearchQuery] = useState('');
-  const [catalogCategoryFilter, setCatalogCategoryFilter] = useState('all');
-  const [selectedCatalogProducts, setSelectedCatalogProducts] = useState<SelectedCatalogRef[]>([]);
-
-  // Files & Attachments & Voice Note Requisition
-  const [sketchFiles, setSketchFiles] = useState<File[]>([]);
-  const [sketchPreviews, setSketchPreviews] = useState<string[]>([]);
-  const [specialInstructions, setSpecialInstructions] = useState(
-    initialProductId ? `Referencing SKU #${initialProductId} modifications.` : ''
-  );
-
-  // Voice Note & Speech Recognition State with Live Recording Timer
-  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
-  const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const [voiceAudioFile, setVoiceAudioFile] = useState<File | null>(null);
-  const [voiceAudioPreviewUrl, setVoiceAudioPreviewUrl] = useState<string>('');
-  const [mediaRecorderInstance, setMediaRecorderInstance] = useState<MediaRecorder | null>(null);
-  const [speechRecognitionInstance, setSpeechRecognitionInstance] = useState<any>(null);
-
-  // Timer Effect when recording
+  // Pre-select if initialProductId is passed in props
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    if (isRecordingVoice) {
-      interval = setInterval(() => {
-        setRecordingSeconds(prev => prev + 1);
-      }, 1000);
-    } else {
-      setRecordingSeconds(0);
+    if (initialProductId && catalogProducts.length > 0) {
+      const found = catalogProducts.find(
+        (p) => String(p.id) === String(initialProductId) || p.slug === initialProductId
+      );
+      if (found) {
+        setSelectedCatalogItem(found);
+        setCustomDesignText(`Based on Catalogue Design: ${found.title}`);
+        setOrderMode('select');
+      }
     }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isRecordingVoice]);
+  }, [initialProductId, catalogProducts]);
 
-  const formatRecordingTime = (sec: number) => {
-    const mins = Math.floor(sec / 60);
-    const secs = sec % 60;
-    return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  // Compute active effective material & carat strings
+  const effectiveMaterial = useMemo(() => {
+    if (material === 'Other') return customMaterial.trim() || 'Custom Alloy';
+    if (material === 'Gold') return `${material} (${goldColor})`;
+    return material;
+  }, [material, customMaterial, goldColor]);
+
+  const effectiveCarat = useMemo(() => {
+    if (carat === 'Other') return customCarat.trim() || 'Custom Purity';
+    return carat;
+  }, [carat, customCarat]);
+
+  // Dynamic Expected Delivery Date calculation
+  const expectedDateString = useMemo(() => {
+    if (customDate) {
+      try {
+        const d = new Date(customDate);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+      } catch {}
+    }
+    const target = new Date();
+    target.setDate(target.getDate() + deliveryDays);
+    return target.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  }, [deliveryDays, customDate]);
+
+  // Handle Picture Uploads
+  const handlePictureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
+      setPictureFiles((prev) => [...prev, ...files]);
+      const newPreviews = files.map((f) => URL.createObjectURL(f));
+      setPicturePreviews((prev) => [...prev, ...newPreviews]);
+    }
   };
 
-  const handleStartVoiceRecording = async () => {
-    setRecordingSeconds(0);
-    setVoiceAudioFile(null);
-    setVoiceAudioPreviewUrl('');
+  const removePicture = (index: number) => {
+    setPictureFiles((prev) => prev.filter((_, i) => i !== index));
+    setPicturePreviews((prev) => {
+      URL.revokeObjectURL(prev[index]);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  // Handle Technical CAD File Uploads
+  const handleCadUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
+      setCadFiles((prev) => [...prev, ...files]);
+    }
+  };
 
-    // Start Audio Stream via MediaRecorder (Guarantees recorded voice file creation + live timer)
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      try {
+  const removeCadFile = (index: number) => {
+    setCadFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Voice Note Recording Functions
+  const startRecording = async () => {
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         const mediaRecorder = new MediaRecorder(stream);
-        const audioChunks: Blob[] = [];
+        mediaRecorderRef.current = mediaRecorder;
+        audioChunksRef.current = [];
 
         mediaRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0) audioChunks.push(event.data);
+          if (event.data.size > 0) {
+            audioChunksRef.current.push(event.data);
+          }
         };
 
         mediaRecorder.onstop = () => {
-          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-          const audioFile = new File([audioBlob], `Voice_Instruction_${Date.now()}.webm`, { type: 'audio/webm' });
-          setVoiceAudioFile(audioFile);
-          setVoiceAudioPreviewUrl(URL.createObjectURL(audioBlob));
-          setSpecialInstructions(prev => {
-            const label = '[Live Recorded Voice Note Uploaded]';
-            return prev ? `${prev}\n\n${label}` : label;
-          });
-          stream.getTracks().forEach(track => track.stop());
-          setIsRecordingVoice(false);
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          setVoiceAudioBlob(audioBlob);
+          const url = URL.createObjectURL(audioBlob);
+          setVoiceAudioUrl(url);
+          setUploadedAudioFile(null);
+          stream.getTracks().forEach((track) => track.stop());
         };
 
-        mediaRecorder.start();
-        setMediaRecorderInstance(mediaRecorder);
-        setIsRecordingVoice(true);
-
-        // Also start speech recognition parallel transcriber if supported by browser
-        if (SpeechRecognition) {
-          try {
-            const recognition = new SpeechRecognition();
-            recognition.continuous = true;
-            recognition.interimResults = true;
-            recognition.lang = 'en-US';
-
-            recognition.onresult = (event: any) => {
-              let transcript = '';
-              for (let i = 0; i < event.results.length; i++) {
-                transcript += event.results[i][0].transcript + ' ';
-              }
-              const text = transcript.trim();
-              if (text) {
-                setSpecialInstructions(prev => {
-                  const cleanBase = prev.replace(/\n\n\[Speech Transcribed\]:.*/s, '').replace(/\[Live Recorded Voice Note Uploaded\].*/s, '').trim();
-                  return cleanBase ? `${cleanBase}\n\n[Speech Transcribed]: ${text}` : `[Speech Transcribed]: ${text}`;
-                });
-              }
-            };
-
-            recognition.start();
-            setSpeechRecognitionInstance(recognition);
-          } catch (err) {
-            console.warn('Speech recognition parallel failed:', err);
-          }
-        }
-      } catch (err: any) {
-        alert(`Microphone permission error: ${err.message || 'Access denied'}. Please check microphone permissions in your browser.`);
-        setIsRecordingVoice(false);
+        mediaRecorder.start(200);
+        setIsRecording(true);
+        setRecordingSeconds(0);
+        timerIntervalRef.current = setInterval(() => {
+          setRecordingSeconds((prev) => prev + 1);
+        }, 1000);
+      } else {
+        alert('Voice recording is not supported in this browser environment.');
       }
-    } else {
-      alert('Microphone access is not supported in this browser environment. Please use the Upload Voice Note file option.');
+    } catch (err) {
+      console.warn('Microphone access denied:', err);
+      alert('Unable to access microphone. Please check browser permissions.');
     }
   };
 
-  const handleStopVoiceRecording = () => {
-    if (mediaRecorderInstance && mediaRecorderInstance.state !== 'inactive') {
-      mediaRecorderInstance.stop();
-      setMediaRecorderInstance(null);
-    }
-    if (speechRecognitionInstance) {
-      try {
-        speechRecognitionInstance.stop();
-      } catch {
-        // Safe fallback
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
       }
-      setSpeechRecognitionInstance(null);
     }
-    setIsRecordingVoice(false);
   };
 
-  const handleVoiceFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const clearVoiceNote = () => {
+    if (voiceAudioUrl) URL.revokeObjectURL(voiceAudioUrl);
+    setVoiceAudioBlob(null);
+    setVoiceAudioUrl('');
+    setUploadedAudioFile(null);
+    setRecordingSeconds(0);
+  };
+
+  // Handle Audio File Upload
+  const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
-      setVoiceAudioFile(file);
-      setVoiceAudioPreviewUrl(URL.createObjectURL(file));
+      setUploadedAudioFile(file);
+      setVoiceAudioBlob(file);
+      const url = URL.createObjectURL(file);
+      setVoiceAudioUrl(url);
     }
   };
 
-  // Project Complexity Tier & Needed By Date (Starts unselected)
-  const [projectTier, setProjectTier] = useState('');
-  const [neededByDate, setNeededByDate] = useState('');
-  const dateInputRef = useRef<HTMLInputElement>(null);
+  // Generate Complete Order Details Text for WhatsApp / Telegram / Email / Admin
+  const generateCompleteOrderText = () => {
+    const designDesc =
+      orderMode === 'select' && selectedCatalogItem
+        ? `Catalogue Reference: ${selectedCatalogItem.title} (SKU: ${selectedCatalogItem.sku || selectedCatalogItem.id})`
+        : customDesignText.trim() || 'Bespoke Custom Jewellery CAD';
 
-  const openCalendarPicker = () => {
-    if (dateInputRef.current) {
-      try {
-        if (typeof dateInputRef.current.showPicker === 'function') {
-          dateInputRef.current.showPicker();
-        } else {
-          dateInputRef.current.focus();
-        }
-      } catch {
-        dateInputRef.current.focus();
-      }
-    }
+    const pictureNames = pictureFiles.map((f) => f.name).join(', ') || 'None';
+    const cadFileNames = cadFiles.map((f) => f.name).join(', ') || 'None';
+    const voiceStatus = voiceAudioBlob || uploadedAudioFile ? 'Voice note attached' : 'None';
+
+    return `💎 NEW CUSTOM CAD DESIGN ORDER — SHIULI CAD STUDIO 💎
+
+👤 Customer Details:
+• Name: ${clientName.trim() || 'Not provided'}
+• WhatsApp / Phone: ${contactPhone.trim() || 'Not provided'}
+• Email: ${contactEmail.trim() || 'Not provided'}
+
+💍 Design Requirement:
+• Order Type: ${orderMode === 'text' ? 'Custom Idea (Text Box)' : 'Catalogue Reference'}
+• Description / Title: ${designDesc}
+
+✨ Metal & Carat Specifications:
+• Material: ${effectiveMaterial}
+• Carat / Purity: ${effectiveCarat}
+
+📎 Attached References:
+• Uploaded Pictures (${pictureFiles.length}): ${pictureNames}
+• Uploaded CAD / Tech Files (${cadFiles.length}): ${cadFileNames}
+${selectedCatalogItem ? `• Selected Catalogue Item: ${selectedCatalogItem.title}` : ''}
+
+🎙️ Additional Details & Voice Note:
+• Details: ${additionalDetails.trim() || 'No additional notes'}
+• Voice Recording: ${voiceStatus}
+
+📅 Delivery Requirement:
+• Turnaround: ${deliveryDays} Days
+• Target Delivery Date: ${expectedDateString}
+
+Please confirm feasibility and provide the production CAD quotation.`;
   };
 
-  const minSelectableDate = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    return d.toISOString().split('T')[0];
-  }, []);
-
-  const quick3d = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 3);
-    return d.toISOString().split('T')[0];
-  }, []);
-
-  const quick5d = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 5);
-    return d.toISOString().split('T')[0];
-  }, []);
-
-  const quick7d = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 7);
-    return d.toISOString().split('T')[0];
-  }, []);
-
-  const [selectedDeliverySpeedId, setSelectedDeliverySpeedId] = useState<number | null>(null);
-
-  // Contact Info & Portfolio Consent
-  const [clientName, setClientName] = useState('');
-  const [clientEmail, setClientEmail] = useState('');
-  const [clientPhone, setClientPhone] = useState('');
-  const [clientConsent, setClientConsent] = useState(false);
-
-  // Prefill Auth User Info
-  useEffect(() => {
-    if (user) {
-      if (user.first_name) setClientName(`${user.first_name} ${user.last_name || ''}`.trim());
-      if (user.email) setClientEmail(user.email);
-      if (user.phone_number) setClientPhone(user.phone_number);
+  // Open Direct WhatsApp with Full Filled Details
+  const handleOpenWhatsApp = () => {
+    if (!clientName.trim() || !contactPhone.trim()) {
+      setSubmitError('Please enter your Name and WhatsApp / Phone Number below so the atelier can address your chat.');
+      return;
     }
-  }, [user]);
-
-  // Merge Catalog Products for Reference Selection (Backend + Mock fallback)
-  const availableCatalogProducts = useMemo<SelectedCatalogRef[]>(() => {
-    const list: SelectedCatalogRef[] = [];
-
-    // Add backend products
-    if (catalogState.products && catalogState.products.length > 0) {
-      catalogState.products.forEach(bp => {
-        list.push({
-          id: bp.id || bp.slug,
-          title: bp.title,
-          category: bp.category_name || 'Jewelry',
-          image: bp.primary_image || '/unsplash-img/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=600&q=80'
-        });
-      });
-    }
-
-    return list;
-  }, [catalogState.products]);
-
-  // Filtered Catalog Items for Reference Picker
-  const filteredCatalogItems = useMemo(() => {
-    return availableCatalogProducts.filter(item => {
-      const matchesSearch = item.title.toLowerCase().includes(catalogSearchQuery.toLowerCase()) ||
-        String(item.id).toLowerCase().includes(catalogSearchQuery.toLowerCase());
-      const matchesCategory = catalogCategoryFilter === 'all' ||
-        item.category.toLowerCase().includes(catalogCategoryFilter.toLowerCase());
-      return matchesSearch && matchesCategory;
-    });
-  }, [availableCatalogProducts, catalogSearchQuery, catalogCategoryFilter]);
-
-  // Auto-select initialProductId if passed (either catalog product or category pre-selection)
-  useEffect(() => {
-    if (initialProductId) {
-      // 1. Pre-select category if initialProductId matches a category slug
-      const cleanId = initialProductId.toLowerCase().replace('-cad-design', '').replace('-cad', '');
-      if (categories.length > 0) {
-        const matchedCat = categories.find((c: any) =>
-          (c.slug && c.slug.toLowerCase().includes(cleanId)) ||
-          (c.name && c.name.toLowerCase().includes(cleanId)) ||
-          cleanId.includes(c.slug?.toLowerCase() || '')
-        );
-        if (matchedCat) {
-          setSelectedCategory(matchedCat.slug || matchedCat.name.toLowerCase());
-          setSelectedCategoryId(matchedCat.id);
-        } else {
-          // Fallback category matching for common keywords
-          if (cleanId.includes('ring')) setSelectedCategory('rings');
-          else if (cleanId.includes('earring')) setSelectedCategory('earrings');
-          else if (cleanId.includes('pendant')) setSelectedCategory('pendants');
-          else if (cleanId.includes('necklace')) setSelectedCategory('necklaces');
-          else if (cleanId.includes('bracelet')) setSelectedCategory('bracelets');
-          else if (cleanId.includes('bangle')) setSelectedCategory('bangles');
-          else if (cleanId.includes('bridal')) setSelectedCategory('bridal');
-          else if (cleanId.includes('men')) setSelectedCategory('mens');
-        }
-      }
-
-      // 2. Select catalog product reference if available
-      if (availableCatalogProducts.length > 0) {
-        const match = availableCatalogProducts.find(p => String(p.id) === String(initialProductId));
-        if (match && !selectedCatalogProducts.some(p => String(p.id) === String(match.id))) {
-          setSelectedCatalogProducts(prev => [...prev, match]);
-        }
-      }
-    }
-  }, [initialProductId, availableCatalogProducts, categories]);
-
-  const DEFAULT_OPTION_GROUPS: OptionGroupData[] = [
-    {
-      id: 1,
-      key: 'metal',
-      label: 'Metal Alloy',
-      description: 'Target metal alloy and color',
-      is_required: true,
-      display_order: 1,
-      options: [
-        { id: 101, group: 1, group_key: 'metal', key: 'yellow_gold', label: 'Yellow Gold', description: '', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '#E5C158', is_active: true, display_order: 1 },
-        { id: 102, group: 1, group_key: 'metal', key: 'rose_gold', label: 'Rose Gold', description: '', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '#E8A398', is_active: true, display_order: 2 },
-        { id: 103, group: 1, group_key: 'metal', key: 'white_gold', label: 'White Gold', description: '', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '#E0E5EC', is_active: true, display_order: 3 },
-        { id: 104, group: 1, group_key: 'metal', key: 'platinum', label: 'Platinum 950', description: '', price_modifier: '20', modifier_type: 'PERCENT', swatch_color: '#D4D8E2', is_active: true, display_order: 4 },
-        { id: 105, group: 1, group_key: 'metal', key: 'sterling_silver', label: '925 Sterling Silver', description: '', price_modifier: '-15', modifier_type: 'PERCENT', swatch_color: '#C0C0C0', is_active: true, display_order: 5 },
-      ]
-    },
-    {
-      id: 2,
-      key: 'gold_purity',
-      label: 'Gold Purity',
-      description: 'Gold Karat / Purity Standard',
-      is_required: true,
-      display_order: 2,
-      options: [
-        { id: 201, group: 2, group_key: 'gold_purity', key: '18k', label: '18K (750)', description: '', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 1 },
-        { id: 202, group: 2, group_key: 'gold_purity', key: '14k', label: '14K (585)', description: '', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 2 },
-        { id: 203, group: 2, group_key: 'gold_purity', key: '22k', label: '22K (916)', description: '', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 3 },
-        { id: 204, group: 2, group_key: 'gold_purity', key: '10k', label: '10K (417)', description: '', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 4 },
-        { id: 205, group: 2, group_key: 'gold_purity', key: '9k', label: '9K (375)', description: '', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 5 },
-      ]
-    },
-
-    {
-      id: 4,
-      key: 'cad_file_format',
-      label: 'Required CAD Output Format',
-      description: 'File delivery format',
-      is_required: true,
-      display_order: 4,
-      options: [
-        { id: 401, group: 4, group_key: 'cad_file_format', key: '3dm', label: '.3DM Rhino 8 Native + .STL', description: 'Layered NURBS source file & wax print mesh', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 1 },
-        { id: 402, group: 4, group_key: 'cad_file_format', key: 'stl', label: '.STL High-Density Mesh Only', description: 'Watertight ready for direct 3D printing', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 2 },
-        { id: 403, group: 4, group_key: 'cad_file_format', key: 'obj', label: '.OBJ / .STEP Universal CAD', description: 'Universal CAD assembly format', price_modifier: '0', modifier_type: 'FLAT', swatch_color: '', is_active: true, display_order: 3 },
-      ]
-    }
-  ];
-
-  // Load Option Groups & Categories from Backend
-  useEffect(() => {
-    let isMounted = true;
-    async function loadData() {
-      setOptionsLoading(true);
-      try {
-        const [groupsData, catsData] = await Promise.all([
-          api.getOptionGroups().catch(() => []),
-          api.getCategories(false).catch(() => [])
-        ]);
-
-        if (!isMounted) return;
-
-        const effectiveGroups = Array.isArray(groupsData) && groupsData.length > 0 ? groupsData : DEFAULT_OPTION_GROUPS;
-        setOptionGroups(effectiveGroups);
-        // Exclusively keep main / parent categories (parent is null / undefined)
-        const mainCats = Array.isArray(catsData)
-          ? catsData.filter((c: any) => !c.parent && !c.parent_id && !c.name?.toLowerCase().includes('test'))
-          : [];
-        setCategories(mainCats);
-
-        // Do not pre-populate defaults: let selections start empty so customer chooses their own
-        setSelections({});
-        setSelectedDeliverySpeedId(null);
-      } catch (err) {
-        console.error('Failed to load custom design option groups:', err);
-        setOptionGroups(DEFAULT_OPTION_GROUPS);
-      } finally {
-        if (isMounted) setOptionsLoading(false);
-      }
-    }
-    loadData();
-    return () => { isMounted = false; };
-  }, []);
-
-  // Helper maps for option groups with fallbacks
-  const groupMap = useMemo(() => {
-    const map: Record<string, OptionGroupData> = {};
-    // Seed default option groups first so no group is ever missing
-    DEFAULT_OPTION_GROUPS.forEach(g => {
-      map[g.key] = g;
-    });
-    // Merge actual loaded option groups over defaults
-    optionGroups.forEach(g => {
-      if (g && g.key && (g.options || []).length > 0) {
-        map[g.key] = g;
-      }
-    });
-    return map;
-  }, [optionGroups]);
-
-  // Selected Metal object to check if Gold Purity should be shown
-  const selectedMetalObj = useMemo(() => {
-    const metalGroupId = selections['metal'];
-    if (!metalGroupId || !groupMap['metal']) return null;
-    return groupMap['metal'].options.find(o => o.id === metalGroupId);
-  }, [selections, groupMap]);
-
-  const isGoldSelected = useMemo(() => {
-    if (!selectedMetalObj) return true;
-    const label = selectedMetalObj.label.toLowerCase();
-    const key = selectedMetalObj.key.toLowerCase();
-    return label.includes('gold') || key.includes('gold');
-  }, [selectedMetalObj]);
-
-  // Selected Option Values summary helper
-  const selectedValuesSummary = useMemo(() => {
-    const summary: { group: string; value: string; color?: string }[] = [];
-    Object.entries(selections).forEach(([groupKey, valueId]) => {
-      if (groupKey === 'gold_purity' && isCustomPuritySelected) {
-        summary.push({
-          group: groupMap['gold_purity']?.label || 'Gold Purity Standard',
-          value: customPurityInput.trim() ? `Custom: ${customPurityInput.trim()}` : 'Custom / Other',
-          color: '#D4AF37'
-        });
-        return;
-      }
-      const g = groupMap[groupKey];
-      if (g) {
-        const val = (g.options || []).find(o => o.id === valueId);
-        if (val) {
-          summary.push({ group: g.label, value: val.label, color: val.swatch_color });
-        }
-      }
-    });
-    // In case gold_purity wasn't in selections map yet when custom was picked
-    if (isCustomPuritySelected && isGoldSelected && !summary.some(s => s.group.toLowerCase().includes('purity'))) {
-      summary.push({
-        group: groupMap['gold_purity']?.label || 'Gold Purity Standard',
-        value: customPurityInput.trim() ? `Custom: ${customPurityInput.trim()}` : 'Custom / Other',
-        color: '#D4AF37'
-      });
-    }
-    return summary;
-  }, [selections, groupMap, isCustomPuritySelected, customPurityInput, isGoldSelected]);
-
-  // Toggle Selection of a Catalog Product
-  const toggleCatalogProductRef = (item: SelectedCatalogRef) => {
-    setSelectedCatalogProducts(prev => {
-      const exists = prev.some(p => String(p.id) === String(item.id));
-      if (exists) {
-        return prev.filter(p => String(p.id) !== String(item.id));
-      } else {
-        return [...prev, item];
-      }
-    });
+    const fullText = generateCompleteOrderText();
+    const url = `https://wa.me/${STUDIO_WHATSAPP_NUMBER}?text=${encodeURIComponent(fullText)}`;
+    window.open(url, '_blank');
   };
 
-  // Handle Logo Upload with Format Validation
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setLogoError('');
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const validExtensions = ['.svg', '.ai', '.eps', '.pdf', '.png', '.jpg', '.jpeg'];
-      const ext = '.' + file.name.split('.').pop()?.toLowerCase();
-      if (!validExtensions.includes(ext)) {
-        setLogoError(`Invalid logo format (${ext}). Allowed formats: SVG, AI, EPS, PDF, PNG, JPG`);
-        return;
-      }
-      setLogoFile(file);
-      setLogoPreviewUrl(URL.createObjectURL(file as Blob));
-      setHasLogo(true);
+  // Open Direct Telegram with Full Filled Details
+  const handleOpenTelegram = () => {
+    if (!clientName.trim() || !contactPhone.trim()) {
+      setSubmitError('Please enter your Name and Phone / Username below so the atelier can address your chat.');
+      return;
     }
+    const fullText = generateCompleteOrderText();
+    const url = `${STUDIO_TELEGRAM_LINK}?text=${encodeURIComponent(fullText)}`;
+    window.open(url, '_blank');
   };
 
-  // Handle Sketches Upload
-  const handleSketchUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const filesArr = Array.from(e.target.files);
-      setSketchFiles(prev => [...prev, ...filesArr]);
-      const newPreviews = filesArr.map(f => URL.createObjectURL(f as Blob));
-      setSketchPreviews(prev => [...prev, ...newPreviews]);
+  // Open Direct Email with Full Filled Details
+  const handleOpenEmail = () => {
+    if (!clientName.trim() || !contactEmail.trim()) {
+      setSubmitError('Please enter your Name and Email Address below so our team can reply to your inquiry.');
+      return;
     }
+    const fullText = generateCompleteOrderText();
+    const subject = `New Custom CAD Order from ${clientName.trim()} — Shiuli CAD Studio`;
+    const mailto = `mailto:${STUDIO_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(fullText)}`;
+    window.location.href = mailto;
   };
 
-  const removeSketch = (index: number) => {
-    setSketchFiles(prev => prev.filter((_, i) => i !== index));
-    setSketchPreviews(prev => prev.filter((_, i) => i !== index));
-  };
+  // Place Order Button Handler: sends all verified customer details to Admin Panel
+  const handlePlaceOrder = async () => {
+    setSubmitError('');
 
-  // Stone Add/Remove
-  const addStoneRow = () => {
-    setStonesList(prev => [
-      ...prev,
-      {
-        stone_type: 'Natural Diamond',
-        shape: 'Round Brilliant',
-        setting_style: 'Prong',
-        size_value: '0.50',
-        size_unit: 'carat',
-        clarity: 'VS1',
-        quantity: 1,
-        is_center_stone: false
-      }
-    ]);
-  };
+    if (!clientName.trim()) {
+      setSubmitError('Please enter your Full Name so our CAD studio can register your order.');
+      return;
+    }
+    if (!contactPhone.trim()) {
+      setSubmitError('Please enter your Mobile / WhatsApp Phone Number.');
+      return;
+    }
+    if (!contactEmail.trim()) {
+      setSubmitError('Please enter your Email Address for CAD dispatch and invoice.');
+      return;
+    }
+    if (orderMode === 'text' && !customDesignText.trim()) {
+      setSubmitError('Please write what you want to order in the text box, or select a reference template.');
+      return;
+    }
 
-  const removeStoneRow = (index: number) => {
-    setStonesList(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const updateStoneRow = (index: number, field: keyof CustomRequestStonePayload, val: any) => {
-    setStonesList(prev => {
-      const copy = [...prev];
-      copy[index] = { ...copy[index], [field]: val };
-      return copy;
-    });
-  };
-
-  // Handle Form Submission (Submits brief directly to Admin review without payment prompt)
-  const handleSubmit = async () => {
-    requireAuth(async () => {
-      await doExecuteSubmit('quote_only');
-    }, {
-      intent: 'custom-request',
-      message: 'Sign in or register to submit your bespoke CAD design brief & collaborate with our artisans.',
-    });
-  };
-
-  const doExecuteSubmit = async (
-    submissionIntent: 'quote_only' | 'place_order',
-    transactionId?: string,
-    paymentMethod?: string
-  ) => {
-    setSubmissionError('');
     setIsSubmitting(true);
 
     try {
-      // Format selections with group_key, group_label, value_label, and swatch_color
-      const selectedOptionsPayload = Object.entries(selections)
-        .filter(([_, valId]) => Boolean(valId))
-        .map(([groupKey, valId]) => {
-          if (groupKey === 'gold_purity' && isCustomPuritySelected) {
-            const groupObj = groupMap['gold_purity'];
-            const customVal = customPurityInput.trim() || 'Custom / Other';
-            return {
-              group_key: 'gold_purity',
-              group_label: groupObj?.label || 'Gold Purity Standard',
-              option_group: groupObj?.id || 'gold_purity',
-              option_value: -1,
-              value_label: customPurityInput.trim() ? `Custom: ${customPurityInput.trim()}` : 'Custom / Other',
-              other_text: customVal,
-              swatch_color: '#D4AF37'
-            };
-          }
-          if (groupKey === 'metal' && isCustomMetalSelected) {
-            const groupObj = groupMap['metal'];
-            const customVal = customMetalInput.trim() || 'Custom / Other';
-            return {
-              group_key: 'metal',
-              group_label: groupObj?.label || 'Metal Alloy',
-              option_group: groupObj?.id || 'metal',
-              option_value: -1,
-              value_label: customMetalInput.trim() ? `Custom: ${customMetalInput.trim()}` : 'Custom / Other',
-              other_text: customVal,
-              swatch_color: '#D4AF37'
-            };
-          }
-          const groupObj = groupMap[groupKey] || optionGroups.find(g => g.key === groupKey || (g.options || []).some(o => o.id === valId));
-          const valObj = groupObj?.options?.find(o => o.id === valId);
-          return {
-            group_key: groupKey,
-            group_label: groupObj?.label || groupKey,
-            option_group: groupObj?.id || groupKey,
-            option_value: valId,
-            value_label: valObj?.label || '',
-            other_text: valObj?.label || '',
-            swatch_color: valObj?.swatch_color || ''
-          };
-        });
+      const designTitle =
+        orderMode === 'select' && selectedCatalogItem
+          ? selectedCatalogItem.title
+          : customDesignText.trim() || 'Custom Jewellery CAD Design';
 
-      // Ensure custom gold purity is attached if selected
-      if (isGoldSelected && isCustomPuritySelected && !selectedOptionsPayload.some(s => s.group_key === 'gold_purity')) {
-        const groupObj = groupMap['gold_purity'];
-        const customVal = customPurityInput.trim() || 'Custom / Other';
-        selectedOptionsPayload.push({
-          group_key: 'gold_purity',
-          group_label: groupObj?.label || 'Gold Purity Standard',
-          option_group: groupObj?.id || 'gold_purity',
-          option_value: -1,
-          value_label: customPurityInput.trim() ? `Custom: ${customPurityInput.trim()}` : 'Custom / Other',
-          other_text: customVal,
-          swatch_color: '#D4AF37'
-        });
+      const fullOrderDetails = generateCompleteOrderText();
+
+      const formData = new FormData();
+      formData.append('client_name', clientName.trim());
+      formData.append('contact_name', clientName.trim());
+      formData.append('contact_phone', contactPhone.trim());
+      formData.append('contact_email', contactEmail.trim());
+      formData.append('title', designTitle);
+      formData.append('description', fullOrderDetails);
+      formData.append('special_instructions', additionalDetails.trim());
+      formData.append('metal_alloy_name', `${effectiveCarat} ${effectiveMaterial}`);
+      formData.append('timeline', `${deliveryDays} Days`);
+      formData.append('needed_by_date', expectedDateString);
+      formData.append('submission_intent', 'place_order');
+      formData.append('status', 'pending_review');
+
+      if (selectedCatalogItem) {
+        formData.append('reference_product', String(selectedCatalogItem.id));
+        formData.append('reference_product_title', selectedCatalogItem.title);
       }
 
-      // Upload draft sketch files if user attached any
-      let draftSketchIds: number[] = [];
-      if (sketchFiles && sketchFiles.length > 0) {
-        try {
-          const uploadPromises = sketchFiles.map(f => api.uploadDraftSketch(f));
-          const uploadResults = await Promise.all(uploadPromises);
-          draftSketchIds = uploadResults.map(r => r.id).filter(Boolean);
-        } catch (uploadErr) {
-          console.warn('Draft sketches upload warning:', uploadErr);
-        }
-      }
-
-      // Format catalog references into structured array and notes
-      const catalogRefsPayload = selectedCatalogProducts.map(p => ({
-        id: p.id,
-        title: p.title,
-        image: p.image,
-        sku: p.sku || `SKU-${p.id}`,
-        price: p.price
-      }));
-
-      let fullNotes = specialInstructions;
-      if (isGoldSelected && isCustomPuritySelected && customPurityInput.trim()) {
-        fullNotes = `${fullNotes ? fullNotes + '\n' : ''}[Client Custom Gold Purity Standard: ${customPurityInput.trim()}]`;
-      }
-      if (isCustomMetalSelected && customMetalInput.trim()) {
-        fullNotes = `${fullNotes ? fullNotes + '\n' : ''}[Client Custom Metal Alloy: ${customMetalInput.trim()}]`;
-      }
-      if (selectedCatalogProducts.length > 0) {
-        const catRefsText = selectedCatalogProducts.map(p => `[Ref SKU: ${p.id} - ${p.title}]`).join(', ');
-        fullNotes = `${fullNotes ? fullNotes + '\n' : ''}Catalog References: ${catRefsText}`;
-      }
-      if (transactionId) {
-        fullNotes = `${fullNotes ? fullNotes + '\n' : ''}[Advance CAD Initiation Deposit: ₹2,500 Paid via ${paymentMethod || 'Gateway'} | Ref: ${transactionId}]`;
-      }
-
-      const bodyData = {
-        category: selectedCategoryId,
-        category_group: selectedCategory,
-        ring_size_standard: selectedCategory === 'rings' ? (ringSizeStandard ? ringSizeStandard.toLowerCase() : 'in_hk') : '',
-        ring_size: selectedCategory === 'rings' ? ringSize : '',
-        target_weight_grams: selectedCategory === 'rings' ? targetWeightGrams : '',
-        height_mm: heightMm,
-        width_mm: widthMm,
-        chain_length: chainLength,
-        earring_backing: earringBacking,
-        wrist_circumference: wristCircumference,
-        bracelet_style: braceletStyle,
-        custom_specs_text: customSpecsText,
-        is_metal_only: isMetalOnly,
-        engraving_text: engravingText,
-        engraving_font: engravingFont,
-        engraving_placement: engravingPlacement,
-        has_logo: hasLogo,
-        budget_range: projectTier,
-        needed_by_date: neededByDate || null,
-        description: fullNotes || customSpecsText || `Custom ${selectedCategory} design request`,
-        special_instructions: fullNotes,
-        client_consent_to_feature: clientConsent,
-        submission_intent: submissionIntent,
-        contact_name: clientName || user?.first_name || user?.username || 'Client',
-        contact_phone: clientPhone || user?.phone_number || '',
-        contact_email: clientEmail || user?.email || '',
-        client_name: clientName || user?.first_name || user?.username || 'Client',
-        client_email: clientEmail || user?.email || '',
-        client_phone: clientPhone || user?.phone_number || '',
-        reference_image: selectedCatalogProducts[0]?.image || '',
-        catalog_references: catalogRefsPayload,
-        catalog_references_data: catalogRefsPayload,
-        selected_options: selectedOptionsPayload,
-        selections_data: selectedOptionsPayload,
-        stones: isMetalOnly ? [] : stonesList,
-        stones_data: isMetalOnly ? [] : stonesList,
-        draft_sketch_ids: draftSketchIds
-      };
-
-      let res: any = null;
-      try {
-        res = await api.createCustomRequest(bodyData);
-      } catch (apiErr) {
-        console.warn('API custom request submission warning, using local appStore sync:', apiErr);
-      }
-
-      // Save locally to appStore as well to guarantee 100% offline & session persistence
-      const localId = res?.id || 'req_' + Date.now();
-      const userContactEmail = clientEmail || user?.email || '';
-      if (userContactEmail) {
-        localStorage.setItem('shiuli_contact_email', userContactEmail.trim());
-      }
-      localStorage.setItem('shiuli_last_submitted_req_id', String(localId));
-
-      const savedLocal = appStore.addCustomRequest({
-        id: localId,
-        request_mode: 'step_by_step',
-        clientName: clientName || user?.first_name || user?.username || 'Client',
-        clientEmail: userContactEmail,
-        clientPhone: clientPhone || user?.phone_number || '',
-        jewelleryType: selectedCategory || 'Custom Jewellery',
-        metalPreference: selectedCategory || 'Gold',
-        targetBudget: projectTier || 'Standard',
-        currentQuote: 2500,
-        status: 'new',
-        description: fullNotes || customSpecsText || `Custom ${selectedCategory} design request`,
-        createdAt: new Date().toISOString(),
-        referenceImage: selectedCatalogProducts[0]?.image || '',
-        voice_recording_url: voiceAudioPreviewUrl || '',
-        messages: [],
+      // Attach pictures
+      pictureFiles.forEach((file) => {
+        formData.append('images', file);
       });
 
-      // Dispatch real email via Gmail SMTP
-      if (clientEmail || user?.email) {
-        sendCustomDesignConfirmationEmail(
-          clientEmail || user?.email || '',
-          customSpecsText || `${selectedCategory} Custom Project`,
-          clientName || user?.first_name || 'Valued Jeweller',
-          selectedCategory || 'Jewellery CAD',
-          fullNotes || 'Full design specifications attached.'
-        ).catch((e) => console.warn('Background email dispatch notice:', e));
+      // Attach CAD files
+      cadFiles.forEach((file) => {
+        formData.append('cad_files', file);
+      });
+
+      // Attach voice note
+      if (voiceAudioBlob) {
+        formData.append('voice_recording', voiceAudioBlob, 'customer_voice_note.webm');
       }
 
-      setSubmittedTicket(res || savedLocal[0]);
-      setIsSubmitted(true);
-      confetti({ particleCount: 140, spread: 90, origin: { y: 0.55 } });
+      // 1. Submit to API endpoint for backend database
+      let apiResult;
+      try {
+        apiResult = await api.submitCustomRequest(formData);
+      } catch (err) {
+        console.warn('API custom-requests submission fallback:', err);
+        apiResult = {
+          id: Math.floor(100000 + Math.random() * 900000),
+          client_name: clientName.trim(),
+          title: designTitle,
+          status: 'pending_review',
+        };
+      }
+
+      // 2. Register into appStore so Admin Panel & Client Dashboard see it immediately
+      appStore.createCustomRequest({
+        title: designTitle,
+        client_name: clientName.trim(),
+        contact_name: clientName.trim(),
+        contact_phone: contactPhone.trim(),
+        contact_email: contactEmail.trim(),
+        metal_alloy_name: `${effectiveCarat} ${effectiveMaterial}`,
+        description: fullOrderDetails,
+        special_instructions: additionalDetails.trim(),
+        needed_by_date: expectedDateString,
+        timeline: `${deliveryDays} Days`,
+        status: 'pending_review',
+        submission_intent: 'place_order',
+        reference_product_title: selectedCatalogItem?.title,
+        reference_product_image: selectedCatalogItem?.image || selectedCatalogItem?.primaryImage,
+        voice_recording_url: voiceAudioUrl,
+      });
+
+      setSubmissionSuccess(apiResult);
+
+      try {
+        confetti({
+          particleCount: 90,
+          spread: 75,
+          origin: { y: 0.6 },
+          colors: ['#D6AD62', '#17365D', '#E2CEAB', '#B88735'],
+        });
+      } catch {}
     } catch (err: any) {
-      console.error('Submission error:', err);
-      setSubmissionError(err.message || 'Failed to submit design specification. Please try again.');
+      setSubmitError(err?.message || 'Failed to place order. Please check your network connection.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const [apiCategories, setApiCategories] = useState<any[]>([]);
-
-  useEffect(() => {
-    api.getCategories(false).then((cats) => {
-      if (cats && Array.isArray(cats) && cats.length > 0) {
-        // Strictly main categories only (no subcategories, parent must be null/undefined)
-        const mainCats = cats.filter((c: any) => !c.parent && !c.parent_id && !c.name?.toLowerCase().includes('test'));
-        setApiCategories(mainCats);
-      }
-    }).catch(() => { });
-  }, []);
-
-  // Dynamic Category Selector Config from API - MAIN CATEGORIES ONLY
-  const categoryGroups = useMemo(() => {
-    // Strictly filter out any subcategories (only categories without a parent)
-    const validMainCategories = apiCategories.filter((c: any) => !c.parent && !c.parent_id);
-    if (validMainCategories.length > 0) {
-      return validMainCategories.map((c) => ({
-        id: c.slug,
-        categoryId: c.id,
-        name: c.name,
-        icon: c.slug?.includes('ring') ? Sparkles : c.slug?.includes('ear') ? Gem : (c.slug?.includes('pendant') || c.slug?.includes('neck')) ? Layers : Ruler,
-        desc: c.tagline || `Bespoke ${c.name} 3D CAD modeling & precision engineering.`
-      }));
-    }
-    return [
-      { id: 'rings', name: 'Rings', icon: Sparkles, desc: 'Engagement, Solitaire, Eternity, Wedding & Fashion Rings' },
-      { id: 'pendants', name: 'Pendants & Necklaces', icon: Layers, desc: 'Pendants, Solitaire Drops, Statement Chokers & Chains' },
-      { id: 'earrings', name: 'Earrings', icon: Gem, desc: 'Studs, Drop Earrings, Dangles, Hoops & Huggies' },
-      { id: 'bracelets', name: 'Bracelets & Bangles', icon: Ruler, desc: 'Kadas, Tennis Bracelets, Stackable Bangles & Cuffs' },
-      { id: 'other', name: 'Custom / Other', icon: Feather, desc: 'Brooches, Cufflinks, Sculptures & Specialty Concepts' },
-    ];
-  }, [apiCategories]);
-
-  if (isSubmitted) {
-    return (
-      <div className="min-h-screen bg-[#FFFDF9] text-[#17243B] pt-24 pb-24 px-4 sm:px-8 lg:px-12 relative overflow-hidden">
-        <div className="max-w-3xl mx-auto bg-white/90 backdrop-blur-xl rounded-3xl border border-[#E8D7B7] shadow-2xl p-8 sm:p-12 text-center my-8">
-          <div className="w-20 h-20 bg-gradient-to-br from-[#F5E7A3] via-[#D4AF37] to-[#B8860B] rounded-full flex items-center justify-center mx-auto mb-6 text-[#0B1330] shadow-[0_0_30px_rgba(212,175,55,0.4)]">
-            <CheckCircle2 className="w-10 h-10 animate-pulse" />
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-serif gold-gradient-text font-bold mb-3 tracking-wide">
-            Custom 3D CAD Brief Submitted!
-          </h1>
-          <p className="text-[#687386] text-base sm:text-lg mb-8 max-w-xl mx-auto leading-relaxed">
-            Your custom specification brief <span className="font-mono font-bold text-[#B88732] bg-[#D4AF37]/20 px-3 py-1 rounded-full border border-[#E8D7B7]">#{submittedTicket?.ticket_id || 'CR-SUCCESS'}</span> has been sent to our Senior CAD Engineer for review. Once the official quote is issued, step-by-step stage payment options will activate in your dashboard.
-          </p>
-
-          {/* Specification Summary Card */}
-          <div className="bg-[#FFF9F0]/80 border border-[#E8D7B7] rounded-2xl p-6 text-left mb-8 max-w-md mx-auto space-y-3">
-            <h3 className="font-serif gold-gradient-text text-sm font-bold uppercase tracking-widest pb-2 border-b border-[#E8D7B7]">
-              Specification Details
-            </h3>
-            <div className="space-y-2 text-xs text-[#687386]">
-              <div className="flex justify-between">
-                <span className="text-[#687386]">Design Category:</span>
-                <span className="font-bold text-[#17243B] capitalize">{selectedCategory}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#687386]">Client Contact:</span>
-                <span className="font-bold text-[#B88732]">{clientName || user?.first_name || 'Valued Client'}</span>
-              </div>
-              {selectedCatalogProducts.length > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-[#687386]">Catalog Reference:</span>
-                  <span className="font-bold text-[#B88732]">{selectedCatalogProducts.length} Product(s) Selected</span>
-                </div>
-              )}
-              <div className="flex justify-between">
-                <span className="text-[#687386]">Included Assets:</span>
-                <span className="font-bold text-[#B88732]">3DM + Printable STL + 4K Renders</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button
-              onClick={() => onNavigate('account')}
-              className="px-8 py-3.5 btn-gold-luxury font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
-            >
-              View My CAD Submissions <ArrowRight className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => {
-                setIsSubmitted(false);
-                setCurrentStep(1);
-              }}
-              className="px-8 py-3.5 bg-transparent border border-[#E8D7B7] text-[#B88732] font-bold rounded-xl hover:bg-[#D4AF37]/10 transition-all"
-            >
-              Start Another Custom Specification
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Filtered Catalogue Items for Modal Picker
+  const filteredCatalogItems = useMemo(() => {
+    return catalogProducts.filter((item) => {
+      const matchesCategory =
+        catalogCategoryFilter === 'all' ||
+        item.category_slug === catalogCategoryFilter ||
+        (item.category_name && item.category_name.toLowerCase().includes(catalogCategoryFilter));
+      const matchesSearch =
+        !catalogSearch.trim() ||
+        item.title.toLowerCase().includes(catalogSearch.toLowerCase()) ||
+        (item.description && item.description.toLowerCase().includes(catalogSearch.toLowerCase()));
+      return matchesCategory && matchesSearch;
+    });
+  }, [catalogProducts, catalogCategoryFilter, catalogSearch]);
 
   return (
-    <div className="min-h-screen bg-[#FFFDF9] text-[#17243B] pt-20 sm:pt-28 pb-24 px-3 sm:px-6 lg:px-8 xl:px-12 relative overflow-hidden">
-      {/* Container aligned with site width */}
-      <div className="max-w-[1600px] mx-auto space-y-6 relative z-10">
+    <div className="min-h-screen bg-[#FCFAF6] text-[#17243B] pt-24 pb-20 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto space-y-6">
 
-        {/* STREAMLINED COMPACT HEADER */}
-        <div className="text-center max-w-3xl mx-auto space-y-2">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif gold-gradient-text font-bold tracking-tight">
-            Custom Design & 3D CAD Studio
+        {/* PAGE HEADER */}
+        <div className="text-center space-y-1">
+          <h1 className="text-3xl sm:text-4xl lg:text-[42px] font-serif font-bold text-[#17345C] tracking-tight">
+            Place Order
           </h1>
-          <p className="text-[#687386] text-xs sm:text-sm">
-            Configure your exact jewelry specifications for 100% 3D printability and precision casting.
+          <p className="text-xs sm:text-sm text-[#626875] max-w-xl mx-auto">
+            Configure your bespoke jewellery CAD requirements. All details will be sent directly to our atelier &amp; admin panel.
           </p>
         </div>
 
-        {/* TWO-OPTION MODE SELECTOR: STEP BY STEP VS QUICK */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4 max-w-4xl mx-auto">
-          {/* OPTION 1: STEP-BY-STEP */}
-          <div
-            onClick={() => setDesignMode('step_by_step')}
-            className={`p-3.5 sm:p-5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden flex items-start gap-3 sm:gap-4 ${designMode === 'step_by_step'
-              ? 'bg-gradient-to-br from-[#09112B] to-[#121F4D] border-[#D9B66F] shadow-[0_0_25px_rgba(212,175,55,0.25)] ring-1 ring-[#D4AF37]'
-              : 'bg-white/60 hover:bg-white border-[#E8D7B7] hover:border-[#E8D7B7]'
-              }`}
+        {/* ORDER SUCCESS SCREEN */}
+        {submissionSuccess && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="p-6 sm:p-10 rounded-3xl bg-white border border-[#D6AD62] shadow-[0_20px_60px_rgba(23,54,93,0.12)] space-y-6 text-center"
           >
-            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0 border ${designMode === 'step_by_step'
-              ? 'bg-gradient-to-tr from-[#D4AF37] to-[#F5E7A3] text-[#09112B] border-[#D9B66F]'
-              : 'bg-white/5 text-[#687386] border-[#E8D7B7]'
-              }`}>
-              <Layers className="w-5 h-5 sm:w-6 sm:h-6" />
+            <div className="w-16 h-16 rounded-full bg-[#FFF9F0] border border-[#D6AD62] text-[#B88735] flex items-center justify-center mx-auto shadow-inner">
+              <CheckCircle2 className="w-8 h-8" />
             </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <h3 className="font-bold text-sm sm:text-base text-white">
-                  Step-by-Step 3D Studio
-                </h3>
-                {designMode === 'step_by_step' && (
-                  <span className="px-2 py-0.5 rounded-full bg-[#D4AF37] text-[#09112B] text-[10px] font-extrabold uppercase">
-                    Active
-                  </span>
-                )}
+
+            <div className="space-y-2">
+              <h2 className="text-2xl sm:text-3xl font-serif font-bold text-[#17345C]">
+                Custom Design Order Placed Successfully!
+              </h2>
+              <div className="inline-block px-4 py-1.5 rounded-full bg-[#FFF9F0] border border-[#E8D7B7] text-xs font-mono font-bold text-[#17345C]">
+                Order Reference: #{submissionSuccess.id || 'CAD-892401'}
               </div>
-              <p className="text-xs text-[#687386] leading-relaxed">
-                Full 5-step configurator: choose base jewelry category, metal alloy, gemstone layout, dimensions &amp; branding.
+              <p className="text-xs sm:text-sm text-[#626875] max-w-lg mx-auto pt-1">
+                Your order details, material specifications, and references have been transmitted directly to the Shiuli CAD Admin Panel.
               </p>
             </div>
-          </div>
 
-          {/* OPTION 2: QUICK REQUEST */}
-          <div
-            onClick={() => setDesignMode('quick')}
-            className={`p-3.5 sm:p-5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden flex items-start gap-3 sm:gap-4 ${designMode === 'quick'
-              ? 'bg-gradient-to-br from-[#09112B] to-[#121F4D] border-[#D9B66F] shadow-[0_0_25px_rgba(212,175,55,0.25)] ring-1 ring-[#D4AF37]'
-              : 'bg-white/60 hover:bg-white border-[#E8D7B7] hover:border-[#E8D7B7]'
-              }`}
-          >
-            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0 border ${designMode === 'quick'
-              ? 'bg-gradient-to-tr from-[#D4AF37] to-[#F5E7A3] text-[#09112B] border-[#D9B66F]'
-              : 'bg-white/5 text-[#687386] border-[#E8D7B7]'
-              }`}>
-              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <h3 className="font-bold text-sm sm:text-base text-white">
-                  ⚡ Quick Custom Request
-                </h3>
-                {designMode === 'quick' && (
-                  <span className="px-2 py-0.5 rounded-full bg-[#D4AF37] text-[#09112B] text-[10px] font-extrabold uppercase">
-                    Active
-                  </span>
-                )}
+            {/* Quick Action: Also open in WhatsApp */}
+            <div className="p-4 rounded-2xl bg-[#25D366]/10 border border-[#25D366]/30 text-left flex flex-col sm:flex-row items-center justify-between gap-3 max-w-xl mx-auto">
+              <div className="flex items-center gap-2.5">
+                <MessageCircle className="w-5 h-5 text-[#25D366] shrink-0" />
+                <span className="text-xs text-[#17345C]">
+                  Want instant confirmation on WhatsApp? Click here to start direct chat with your filled specifications.
+                </span>
               </div>
-              <p className="text-xs text-[#687386] leading-relaxed">
-                Fast brief: upload photos/sketches, choose catalog references, describe or record voice instructions.
-              </p>
+              <button
+                type="button"
+                onClick={handleOpenWhatsApp}
+                className="px-4 py-2 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white text-xs font-bold transition-all shadow-sm shrink-0 cursor-pointer flex items-center gap-1.5"
+              >
+                <span>Chat on WhatsApp</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </button>
             </div>
-          </div>
-        </div>
 
-        {designMode === 'quick' ? (
-          <div className="max-w-5xl mx-auto pt-2">
-            <QuickCustomRequestForm
-              onNavigate={onNavigate}
-              onSwitchToStepByStep={() => setDesignMode('step_by_step')}
-            />
-          </div>
-        ) : (
-          <>
-            {/* Stepper Header (Compact Bar) */}
-            <div className="w-full bg-white/80 backdrop-blur-md p-3 sm:p-3.5 rounded-2xl border border-[#E8D7B7] shadow-xl">
-              <div className="flex justify-between items-center relative">
-                {[
-                  { step: 1, title: 'Category & Specs' },
-                  { step: 2, title: 'Metal Alloy' },
-                  { step: 3, title: 'Stones & Gemstones' },
-                  { step: 4, title: 'Branding & References' },
-                  { step: 5, title: 'Review & Dispatch' },
-                ].map((s) => (
-                  <div key={s.step} className="flex-1 flex flex-col items-center relative z-10">
-                    <button
-                      onClick={() => currentStep > s.step && setCurrentStep(s.step)}
-                      disabled={currentStep < s.step}
-                      className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 ${currentStep === s.step
-                        ? 'bg-gradient-to-r from-[#F5E7A3] via-[#D4AF37] to-[#B8860B] text-[#0B1330] shadow-[0_0_15px_rgba(212,175,55,0.5)] scale-110 font-extrabold'
-                        : currentStep > s.step
-                          ? 'bg-[#1E4FA3] text-white border border-[#5B8DEF]/40 cursor-pointer'
-                          : 'bg-[#FFF9F0]/60 text-[#687386] border border-[#E8D7B7] cursor-not-allowed'
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => onNavigate('dashboard')}
+                className="px-6 py-2.5 rounded-full bg-[#17345C] text-white text-xs font-semibold hover:bg-[#122b4a] transition-all shadow-md cursor-pointer"
+              >
+                View in Client Dashboard
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSubmissionSuccess(null);
+                  setPictureFiles([]);
+                  setPicturePreviews([]);
+                  setCadFiles([]);
+                  setAdditionalDetails('');
+                  setCustomDesignText('');
+                  setSelectedCatalogItem(null);
+                }}
+                className="px-6 py-2.5 rounded-full border border-[#E2CEAB] text-[#17345C] hover:bg-[#FFF9F0] text-xs font-semibold transition-all cursor-pointer"
+              >
+                Place Another Order
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* MAIN ORDER FORM (Full Width / Centered — No Order Summary Card) */}
+        {!submissionSuccess && (
+          <div className="bg-white rounded-3xl border border-[#E8D7B7] p-5 sm:p-8 md:p-10 shadow-[0_12px_45px_rgba(23,54,93,0.05)] space-y-7">
+
+            {/* SECTION 1: WHAT YOU WANT TO ORDER */}
+            <div className="space-y-3">
+              <label className="block text-sm sm:text-base font-bold text-[#17345C]">
+                What you want to order:
+              </label>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                {/* Option A: Text Box */}
+                <div
+                  onClick={() => setOrderMode('text')}
+                  className={`flex items-center gap-3.5 p-3.5 sm:p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                    orderMode === 'text'
+                      ? 'border-[#008080] bg-[#F2FAF9] shadow-sm'
+                      : 'border-[#E8D7B7] hover:border-[#D6AD62] bg-[#FFFDF9]'
+                  }`}
+                >
+                  <div className="w-10 h-10 rounded-full bg-[#008080] text-white flex items-center justify-center shrink-0 shadow-sm">
+                    <Edit3 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-sm text-[#17345C]">Text Box</div>
+                    <div className="text-[11px] text-[#626875]">Describe custom design in detail</div>
+                  </div>
+                </div>
+
+                {/* Option B: Select from Catalogue */}
+                <div
+                  onClick={() => {
+                    setOrderMode('select');
+                    setShowCatalogModal(true);
+                  }}
+                  className={`flex items-center gap-3.5 p-3.5 sm:p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                    orderMode === 'select'
+                      ? 'border-[#17345C] bg-[#F4F7FB] shadow-sm'
+                      : 'border-[#E8D7B7] hover:border-[#D6AD62] bg-[#FFFDF9]'
+                  }`}
+                >
+                  <div className="w-10 h-10 rounded-full bg-[#17345C] text-white flex items-center justify-center shrink-0 shadow-sm">
+                    <ChevronDown className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-sm text-[#17345C]">Select Here</div>
+                    <div className="text-[11px] text-[#626875]">
+                      {selectedCatalogItem ? selectedCatalogItem.title : 'Choose from catalogue templates'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Text Box Input for Custom Design Details */}
+              <div className="pt-1">
+                <input
+                  type="text"
+                  value={customDesignText}
+                  onChange={(e) => setCustomDesignText(e.target.value)}
+                  placeholder={
+                    orderMode === 'text'
+                      ? 'Describe what you want to order (e.g. Vintage Solitaire Diamond Ring with floral prongs, 2ct centre stone)...'
+                      : 'Custom notes on selected catalogue template...'
+                  }
+                  className="w-full px-4 py-3 rounded-xl border border-[#E8D7B7] focus:border-[#D6AD62] bg-[#FFFDF9] text-xs sm:text-sm text-[#17243B] font-medium focus:outline-hidden transition-colors"
+                />
+              </div>
+
+              {/* Attached catalogue product badge */}
+              {selectedCatalogItem && (
+                <div className="flex items-center gap-3 p-2.5 rounded-xl bg-[#FFF9F0] border border-[#D6AD62] text-xs text-[#17345C]">
+                  <img
+                    src={selectedCatalogItem.image || selectedCatalogItem.primaryImage}
+                    alt=""
+                    className="w-10 h-10 rounded-lg object-contain bg-white border border-[#E8D7B7]"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold truncate">{selectedCatalogItem.title}</div>
+                    <div className="text-[11px] text-[#626875]">Catalogue Reference Template</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCatalogItem(null);
+                      setOrderMode('text');
+                    }}
+                    className="text-gray-400 hover:text-red-500 p-1 cursor-pointer"
+                    title="Remove reference"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* SECTION 2: SELECT MATERIAL & CARAT */}
+            <div className="space-y-3 pt-1">
+              <label className="block text-sm sm:text-base font-bold text-[#17345C]">
+                Select Material
+              </label>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Material Selection Card */}
+                <div className="p-4 rounded-2xl border border-[#E8D7B7] bg-[#FFFDF9] space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-bold text-[#17345C]">
+                      <Gem className="w-4 h-4 text-[#B88735]" />
+                      <span>Material Selection</span>
+                    </div>
+                    <span className="text-[11px] text-[#B88735] font-semibold">{effectiveMaterial}</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1">
+                    {(['Gold', 'Silver', 'Platinum', 'Other'] as const).map((mat) => (
+                      <button
+                        key={mat}
+                        type="button"
+                        onClick={() => setMaterial(mat)}
+                        className={`py-2 text-xs font-medium rounded-xl border transition-all cursor-pointer ${
+                          material === mat
+                            ? 'bg-[#17345C] text-white border-[#17345C] shadow-xs'
+                            : 'bg-white text-[#17345C] border-[#E8D7B7] hover:border-[#D6AD62]'
                         }`}
+                      >
+                        {mat === 'Other' ? 'Other Alloy' : mat}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Gold Hue Options */}
+                  {material === 'Gold' && (
+                    <div className="flex items-center gap-1.5 pt-1">
+                      {(['Yellow Gold', 'White Gold', 'Rose Gold'] as const).map((hue) => (
+                        <button
+                          key={hue}
+                          type="button"
+                          onClick={() => setGoldColor(hue)}
+                          className={`flex-1 py-1.5 text-[11px] font-medium rounded-lg border transition-all cursor-pointer ${
+                            goldColor === hue
+                              ? 'bg-[#D6AD62]/25 border-[#D6AD62] text-[#B88735] font-bold'
+                              : 'bg-white/90 border-[#E8D7B7] text-[#626875] hover:border-[#D6AD62]'
+                          }`}
+                        >
+                          {hue}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Custom Material Write-in */}
+                  {material === 'Other' && (
+                    <div className="pt-1">
+                      <input
+                        type="text"
+                        value={customMaterial}
+                        onChange={(e) => setCustomMaterial(e.target.value)}
+                        placeholder="Type custom metal (e.g. Titanium, Brass, Palladium, Bronze)..."
+                        className="w-full px-3 py-2 rounded-xl border border-[#D6AD62] bg-white text-xs text-[#17243B] focus:outline-hidden"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Carat Select Card */}
+                <div className="p-4 rounded-2xl border border-[#E8D7B7] bg-[#FFFDF9] space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-bold text-[#17345C]">
+                      <Sparkles className="w-4 h-4 text-[#B88735]" />
+                      <span>Carat Select</span>
+                    </div>
+                    <span className="text-[11px] text-[#B88735] font-semibold">{effectiveCarat}</span>
+                  </div>
+
+                  {/* Carat Buttons */}
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 pt-1">
+                    {(material === 'Silver'
+                      ? ['925 Sterling', '999 Pure', 'Other']
+                      : material === 'Platinum'
+                      ? ['950 Platinum', '900 Platinum', 'Other']
+                      : ['14K', '18K', '22K', '24K', 'Other']
+                    ).map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setCarat(c)}
+                        className={`py-2 text-xs font-medium rounded-xl border transition-all cursor-pointer ${
+                          carat === c
+                            ? 'bg-[#17345C] text-white border-[#17345C] shadow-xs'
+                            : 'bg-white text-[#17345C] border-[#E8D7B7] hover:border-[#D6AD62]'
+                        }`}
+                      >
+                        {c === 'Other' ? 'Custom' : c}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Custom Carat / Purity Write-in */}
+                  {carat === 'Other' && (
+                    <div className="pt-1">
+                      <input
+                        type="text"
+                        value={customCarat}
+                        onChange={(e) => setCustomCarat(e.target.value)}
+                        placeholder="Type custom purity (e.g. 21K, 19K, 916 Hallmark, 10K)..."
+                        className="w-full px-3 py-2 rounded-xl border border-[#D6AD62] bg-white text-xs text-[#17243B] focus:outline-hidden"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION 3: ADD REFERENCE (Pictures & CAD Files) */}
+            <div className="space-y-3 pt-1">
+              <label className="block text-sm sm:text-base font-bold text-[#17345C]">
+                Add Reference
+              </label>
+
+              {/* 3 Upload / Selection Action Buttons */}
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Upload Picture */}
+                <button
+                  type="button"
+                  onClick={() => pictureInputRef.current?.click()}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#E8D7B7] hover:border-[#D6AD62] bg-[#FFFDF9] hover:bg-[#FFF9F0] text-xs font-semibold text-[#17345C] transition-all cursor-pointer shadow-2xs"
+                >
+                  <Upload className="w-4 h-4 text-[#B88735]" />
+                  <span>Upload Picture</span>
+                </button>
+                <input
+                  ref={pictureInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handlePictureUpload}
+                  className="hidden"
+                />
+
+                {/* Upload File */}
+                <button
+                  type="button"
+                  onClick={() => cadInputRef.current?.click()}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#E8D7B7] hover:border-[#D6AD62] bg-[#FFFDF9] hover:bg-[#FFF9F0] text-xs font-semibold text-[#17345C] transition-all cursor-pointer shadow-2xs"
+                >
+                  <FileText className="w-4 h-4 text-[#B88735]" />
+                  <span>Upload File (.3DM, .STL, .PDF)</span>
+                </button>
+                <input
+                  ref={cadInputRef}
+                  type="file"
+                  multiple
+                  accept=".3dm,.stl,.obj,.step,.stp,.dxf,.pdf,.zip"
+                  onChange={handleCadUpload}
+                  className="hidden"
+                />
+
+                {/* Search in our catalogue */}
+                <button
+                  type="button"
+                  onClick={() => setShowCatalogModal(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#E8D7B7] hover:border-[#D6AD62] bg-[#FFFDF9] hover:bg-[#FFF9F0] text-xs font-semibold text-[#17345C] transition-all cursor-pointer shadow-2xs"
+                >
+                  <Search className="w-4 h-4 text-[#B88735]" />
+                  <span>Search in our catalogue</span>
+                </button>
+              </div>
+
+              {/* Uploaded Reference List Preview */}
+              {(picturePreviews.length > 0 || cadFiles.length > 0) && (
+                <div className="p-3.5 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] space-y-2.5">
+                  <div className="text-[11px] font-bold text-[#B88735] uppercase tracking-wider">
+                    Attached Files ({pictureFiles.length + cadFiles.length}):
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    {/* Pictures preview */}
+                    {picturePreviews.map((url, idx) => (
+                      <div key={idx} className="relative group w-16 h-16 rounded-xl overflow-hidden border border-[#E8D7B7] shadow-xs bg-white">
+                        <img src={url} alt="upload preview" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => removePicture(idx)}
+                          className="absolute inset-0 bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                          title="Remove picture"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-400" />
+                        </button>
+                      </div>
+                    ))}
+
+                    {/* CAD files preview */}
+                    {cadFiles.map((file, idx) => (
+                      <div key={idx} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-[#E8D7B7] text-xs text-[#17345C] shadow-2xs">
+                        <FileText className="w-4 h-4 text-[#B88735]" />
+                        <span className="truncate max-w-[150px] font-medium">{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeCadFile(idx)}
+                          className="text-gray-400 hover:text-red-500 cursor-pointer ml-1"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* SECTION 4: ADDITIONAL DETAILS + VOICE NOTE */}
+            <div className="space-y-3 pt-1">
+              <label className="block text-sm sm:text-base font-bold text-[#17345C]">
+                Additional Details + Voice Note
+              </label>
+
+              {/* Textarea with voice buttons */}
+              <div className="relative rounded-2xl border border-[#E8D7B7] bg-[#FFFDF9] focus-within:border-[#D6AD62] transition-colors p-4 space-y-3">
+                <textarea
+                  rows={4}
+                  value={additionalDetails}
+                  onChange={(e) => setAdditionalDetails(e.target.value)}
+                  placeholder="Describe your design, specifications, requirements, gemstone details, finger ring size, weight constraints, or any special casting preferences..."
+                  className="w-full bg-transparent text-xs sm:text-sm text-[#17243B] focus:outline-hidden resize-none placeholder-[#626875]/70"
+                />
+
+                {/* Voice Actions Row */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#E8D7B7]/60">
+                  <div className="text-[11px] text-[#626875]">
+                    Record live voice instructions or upload an audio file:
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {/* 1. Upload audio recording file */}
+                    <button
+                      type="button"
+                      onClick={() => audioFileInputRef.current?.click()}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#E8D7B7] hover:border-[#D6AD62] bg-white text-xs font-semibold text-[#17345C] transition-all cursor-pointer"
+                      title="Upload existing audio file"
                     >
-                      {currentStep > s.step ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : s.step}
+                      <FileAudio className="w-3.5 h-3.5 text-[#B88735]" />
+                      <span>Upload Recording</span>
                     </button>
-                    <span className={`text-[11px] font-semibold mt-1.5 hidden sm:block ${currentStep === s.step ? 'text-[#B88732]' : 'text-[#687386]'}`}>
-                      {s.title}
+                    <input
+                      ref={audioFileInputRef}
+                      type="file"
+                      accept="audio/*,.mp3,.wav,.m4a,.webm,.ogg"
+                      onChange={handleAudioUpload}
+                      className="hidden"
+                    />
+
+                    {/* 2. Live Record Microphone Button */}
+                    {isRecording ? (
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-50 border border-red-300 text-red-600 animate-pulse text-xs font-mono font-bold">
+                        <span className="w-2 h-2 rounded-full bg-red-600 animate-ping" />
+                        <span>00:{recordingSeconds < 10 ? `0${recordingSeconds}` : recordingSeconds}</span>
+                        <button
+                          type="button"
+                          onClick={stopRecording}
+                          className="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center ml-1 cursor-pointer"
+                          title="Stop recording"
+                        >
+                          <Square className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={startRecording}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#17345C] hover:bg-[#122b4a] text-white text-xs font-semibold transition-all shadow-sm cursor-pointer"
+                        title="Record Voice Note"
+                      >
+                        <Mic className="w-3.5 h-3.5 text-white" />
+                        <span>Record Voice</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Voice Note Audio Player */}
+              {voiceAudioUrl && (
+                <div className="p-3 rounded-2xl bg-white border border-[#D6AD62] flex items-center justify-between gap-3 shadow-2xs">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-[#17345C]">
+                    <Volume2 className="w-4 h-4 text-[#B88735]" />
+                    <span>
+                      {uploadedAudioFile ? `Audio File: ${uploadedAudioFile.name}` : `Voice Note Recorded (${recordingSeconds}s)`}
                     </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <audio controls src={voiceAudioUrl} className="h-8 max-w-[240px]" />
+                    <button
+                      type="button"
+                      onClick={clearVoiceNote}
+                      className="p-1 text-gray-400 hover:text-red-500 cursor-pointer"
+                      title="Delete recording"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* SECTION 5: DELIVERY DATE REQUIREMENT */}
+            <div className="space-y-3 pt-1">
+              <label className="block text-sm sm:text-base font-bold text-[#17345C]">
+                Delivery Date Requirement:
+              </label>
+
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Date Picker Input */}
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={customDate}
+                    onChange={(e) => setCustomDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="px-3.5 py-2.5 rounded-xl border border-[#E8D7B7] hover:border-[#D6AD62] bg-[#FFFDF9] text-xs font-semibold text-[#17345C] focus:outline-hidden cursor-pointer"
+                  />
+                </div>
+
+                {/* Turnaround presets */}
+                {[
+                  { days: 3, label: '3 Days (Express)' },
+                  { days: 5, label: '5 Days (Standard)' },
+                  { days: 7, label: '7 Days (Relaxed)' },
+                ].map((preset) => (
+                  <button
+                    key={preset.days}
+                    type="button"
+                    onClick={() => {
+                      setDeliveryDays(preset.days);
+                      setCustomDate('');
+                    }}
+                    className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${
+                      !customDate && deliveryDays === preset.days
+                        ? 'bg-[#17345C] text-white border-[#17345C] shadow-xs'
+                        : 'bg-[#FFFDF9] text-[#17345C] border-[#E8D7B7] hover:border-[#D6AD62]'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+
+                {/* Expected Delivery Badge */}
+                <div className="p-2.5 rounded-xl bg-[#FFF9F0] border border-[#E8D7B7] flex items-center gap-2 text-xs font-semibold text-[#B88735]">
+                  <Calendar className="w-4 h-4 text-[#B88735]" />
+                  <span>Target Date: {expectedDateString}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION 6: CONTACT METHOD (LAST SECTION BEFORE PLACE ORDER) */}
+            <div className="space-y-3 pt-2 border-t border-[#E8D7B7]/80">
+              <label className="block text-sm sm:text-base font-bold text-[#17345C]">
+                Contact Method:
+              </label>
+
+              {/* Customer Inputs: Name, Phone, Email */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#626875] mb-1">
+                    Your Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={clientName}
+                    onChange={(e) => setClientName(e.target.value)}
+                    placeholder="E.g. Sarah Jenkins"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8D7B7] focus:border-[#D6AD62] bg-[#FFFDF9] text-xs sm:text-sm text-[#17243B] focus:outline-hidden"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#626875] mb-1">
+                    WhatsApp / Phone Number *
+                  </label>
+                  <input
+                    type="text"
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                    placeholder="+91 98765 43210"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8D7B7] focus:border-[#D6AD62] bg-[#FFFDF9] text-xs sm:text-sm text-[#17243B] focus:outline-hidden font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#626875] mb-1">
+                    Email Address *
+                  </label>
+                  <input
+                    type="email"
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                    placeholder="sarah@example.com"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8D7B7] focus:border-[#D6AD62] bg-[#FFFDF9] text-xs sm:text-sm text-[#17243B] focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              {/* Direct Communication Buttons: WhatsApp / Telegram / Email */}
+              <div className="pt-2">
+                <div className="text-[11px] font-bold text-[#626875] mb-2 uppercase tracking-wider">
+                  Or Connect Directly With Pre-Filled Details:
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* WhatsApp redirect button */}
+                  <button
+                    type="button"
+                    onClick={handleOpenWhatsApp}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+                    title="Open WhatsApp with full pre-filled details"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    <span>Chat on WhatsApp</span>
+                    <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+                  </button>
+
+                  {/* Telegram redirect button */}
+                  <button
+                    type="button"
+                    onClick={handleOpenTelegram}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#229ED9] hover:bg-[#1e8ec3] text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+                    title="Open Telegram with full pre-filled details"
+                  >
+                    <Send className="w-4 h-4" />
+                    <span>Telegram Atelier</span>
+                    <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+                  </button>
+
+                  {/* Email redirect button */}
+                  <button
+                    type="button"
+                    onClick={handleOpenEmail}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-[#17345C] hover:bg-[#17345C] text-[#17345C] hover:text-white text-xs font-bold transition-all cursor-pointer"
+                    title="Open Email client with full pre-filled details"
+                  >
+                    <Mail className="w-4 h-4" />
+                    <span>Send via Email</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Error Message Banner */}
+            {submitError && (
+              <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                <span>{submitError}</span>
+              </div>
+            )}
+
+            {/* PRIMARY PLACE ORDER BUTTON (At Bottom — No Order Summary Sidebar) */}
+            <div className="pt-4 border-t border-[#E8D7B7] space-y-3">
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={handlePlaceOrder}
+                className="w-full py-4 px-8 rounded-2xl bg-gradient-to-r from-[#C99A45] via-[#D6AD62] to-[#B88735] hover:opacity-95 text-[#17345C] text-base font-bold tracking-wide shadow-md hover:shadow-xl transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin text-[#17345C]" />
+                    <span>Submitting Order to Admin Panel...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Place Order</span>
+                    <ArrowRight className="w-5 h-5 text-[#17345C]" />
+                  </>
+                )}
+              </button>
+
+              <div className="flex items-center justify-center gap-2 text-xs text-[#626875] text-center">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span>Your order &amp; files are directly sent to Shiuli CAD Admin Panel &bull; No upfront payment required</span>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+      </div>
+
+      {/* MODAL: SEARCH IN OUR CATALOGUE */}
+      <AnimatePresence>
+        {showCatalogModal && (
+          <div className="fixed inset-0 z-50 bg-[#17345C]/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              className="bg-white rounded-3xl max-w-2xl w-full max-h-[85vh] overflow-hidden shadow-2xl border border-[#E8D7B7] flex flex-col"
+            >
+              {/* Modal Header */}
+              <div className="p-5 bg-[#FFF9F0] border-b border-[#E8D7B7] flex items-center justify-between">
+                <div>
+                  <h3 className="font-serif font-bold text-base sm:text-lg text-[#17345C]">
+                    Choose from Catalogue Templates
+                  </h3>
+                  <p className="text-[11px] text-[#626875]">
+                    Select a ready reference design to customize with your own metal, gemstones, and measurements.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCatalogModal(false)}
+                  className="w-8 h-8 rounded-full bg-white text-gray-400 hover:text-[#17345C] border border-[#E8D7B7] flex items-center justify-center transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Search & Filter Bar */}
+              <div className="p-4 border-b border-[#E8D7B7] space-y-2.5">
+                <div className="relative">
+                  <Search className="w-4 h-4 text-[#626875] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={catalogSearch}
+                    onChange={(e) => setCatalogSearch(e.target.value)}
+                    placeholder="Search templates (e.g. solitaire, halo, chandelier, kundan)..."
+                    className="w-full pl-10 pr-4 py-2 rounded-xl border border-[#E8D7B7] focus:border-[#D6AD62] bg-[#FFFDF9] text-xs text-[#17243B] focus:outline-hidden"
+                  />
+                </div>
+
+                {/* Category Quick Chips */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px]">
+                  {['all', 'rings', 'earrings', 'necklaces', 'pendants', 'bracelets-bangles'].map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setCatalogCategoryFilter(cat)}
+                      className={`px-3 py-1 rounded-full whitespace-nowrap transition-colors cursor-pointer capitalize ${
+                        catalogCategoryFilter === cat
+                          ? 'bg-[#17345C] text-white font-semibold'
+                          : 'bg-[#FFF9F0] text-[#17345C] border border-[#E8D7B7] hover:border-[#D6AD62]'
+                      }`}
+                    >
+                      {cat.replace('-', ' & ')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Items Grid */}
+              <div className="p-4 overflow-y-auto max-h-[50vh] grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {filteredCatalogItems.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => {
+                      setSelectedCatalogItem(item);
+                      setCustomDesignText(`Catalogue Reference: ${item.title}`);
+                      setOrderMode('select');
+                      setShowCatalogModal(false);
+                    }}
+                    className={`p-2.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                      selectedCatalogItem?.id === item.id
+                        ? 'border-[#008080] bg-[#F2FAF9] shadow-sm'
+                        : 'border-[#E8D7B7] hover:border-[#D6AD62] bg-[#FFFDF9]'
+                    }`}
+                  >
+                    <div className="w-full h-24 rounded-xl bg-white p-1 mb-2 border border-[#E8D7B7]/40 flex items-center justify-center overflow-hidden">
+                      <img
+                        src={item.image || item.primaryImage}
+                        alt={item.title}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    <div className="space-y-0.5">
+                      <div className="text-xs font-bold text-[#17345C] line-clamp-1">{item.title}</div>
+                      <div className="text-[10px] text-[#626875] capitalize">
+                        {item.category_name || 'Jewellery CAD'}
+                      </div>
+                      <div className="text-xs font-semibold text-[#B88735]">
+                        ₹{item.price}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
-              <div className="sm:hidden text-center mt-2.5 pt-2 border-t border-[#E8D7B7]">
-                <span className="text-xs font-semibold text-[#B88732]">
-                  Step {currentStep} of 5: {[
-                    'Category & Specs',
-                    'Metal Alloy',
-                    'Stones & Gemstones',
-                    'Branding & References',
-                    'Review & Dispatch'
-                  ][currentStep - 1]}
-                </span>
-              </div>
-            </div>
-
-            {/* Main Form Grid & Specification Summary Sidebar */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-              {/* Main Content Area */}
-              <div className="lg:col-span-8 bg-white/85 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-[#E8D7B7] shadow-2xl">
-                {optionsLoading ? (
-                  <div className="py-20 text-center">
-                    <Loader2 className="w-10 h-10 text-[#B88732] animate-spin mx-auto mb-4" />
-                    <p className="text-[#687386] font-medium text-sm">Loading studio design parameters from database...</p>
-                  </div>
-                ) : (
-                  <>
-                    {/* STEP 1: CATEGORY & CATEGORY-SPECIFIC SPECS */}
-                    {currentStep === 1 && (
-                      <div className="space-y-6">
-                        <div>
-                          <h2 className="text-xl font-serif gold-gradient-text font-bold mb-1">Step 1: Select Jewelry Type</h2>
-                          <p className="text-xs text-[#687386]">Choose your base design category to reveal tailored dimension controls.</p>
-                        </div>
-
-                        {/* Category Selector Cards */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                          {categoryGroups.map(cat => {
-                            const IconComp = cat.icon;
-                            const isSel = selectedCategory === cat.id;
-                            return (
-                              <div
-                                key={cat.id}
-                                onClick={() => {
-                                  setSelectedCategory(cat.id);
-                                  const catItem = cat as any;
-                                  if (catItem.categoryId) {
-                                    setSelectedCategoryId(catItem.categoryId);
-                                  } else {
-                                    const matched = categories.find(c => c.slug?.toLowerCase() === cat.id || c.name?.toLowerCase().includes(cat.id.slice(0, 4)));
-                                    if (matched) setSelectedCategoryId(matched.id);
-                                  }
-                                }}
-                                className={`p-4 rounded-2xl border cursor-pointer transition-all duration-300 ${isSel
-                                  ? 'border-[#D9B66F] bg-[#FFF9F0]/90 shadow-[0_0_20px_rgba(212,175,55,0.2)] ring-1 ring-[#D4AF37]/50'
-                                  : 'border-[#E8D7B7] hover:border-[#E8D7B7] bg-white/60'
-                                  }`}
-                              >
-                                <div className="flex items-center gap-3 mb-2">
-                                  <div className={`p-2 rounded-xl ${isSel ? 'bg-[#D4AF37] text-[#0B1330]' : 'bg-[#FFF9F0] text-[#B88732]'}`}>
-                                    <IconComp className="w-5 h-5" />
-                                  </div>
-                                  <span className="font-bold text-[#17243B] text-sm">{cat.name}</span>
-                                </div>
-                                <p className="text-xs text-[#687386] line-clamp-2">{cat.desc}</p>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {/* Ring Specific Dimension Options */}
-                        {selectedCategory === 'rings' && (
-                          <div className="bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-5 space-y-4">
-                            <div className="flex justify-between items-center">
-                              <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
-                                <Ruler className="w-4 h-4 text-[#B88732]" /> Ring Sizing & Metal Weight Specs
-                              </h3>
-                              <button
-                                type="button"
-                                onClick={() => setShowRingSizeModal(true)}
-                                className="text-xs font-semibold text-[#B88732] hover:text-white flex items-center gap-1 underline"
-                              >
-                                <HelpCircle className="w-3.5 h-3.5 text-[#B88732]" /> Size Chart & Conversion
-                              </button>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                              <div>
-                                <label className="block text-xs font-semibold text-[#687386] mb-1.5">Sizing Standard</label>
-                                <select
-                                  value={ringSizeStandard}
-                                  onChange={e => setRingSizeStandard(e.target.value)}
-                                  className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2.5 px-3 focus:border-[#D9B66F] focus:ring-[#D4AF37]"
-                                >
-                                  <option value="MM">Inside Diameter(mm)</option>
-                                  <option value="US">US / Canada</option>
-                                  <option value="UK">UK / Australia</option>
-                                  <option value="IN_HK">Indian / Hong Kong</option>
-                                  <option value="EU">European (ISO)</option>
-
-                                </select>
-                              </div>
-
-                              <div>
-                                <label className="block text-xs font-semibold text-[#687386] mb-1.5">Target Ring Size</label>
-                                <input
-                                  type="text"
-                                  value={ringSize}
-                                  onChange={e => setRingSize(e.target.value)}
-                                  placeholder="e.g. 6.5 or 16.9mm"
-                                  className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-3 focus:border-[#D9B66F] focus:ring-[#D4AF37]"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="block text-xs font-semibold text-[#687386] mb-1.5">Target Metal Weight (g)</label>
-                                <input
-                                  type="text"
-                                  value={targetWeightGrams}
-                                  onChange={e => setTargetWeightGrams(e.target.value)}
-                                  placeholder="e.g. 4.5g"
-                                  className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-3 focus:border-[#D9B66F] focus:ring-[#D4AF37]"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Pendants Specific Specs */}
-                        {selectedCategory === 'pendants' && (
-                          <div className="bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-5 space-y-4">
-                            <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
-                              <Ruler className="w-4 h-4 text-[#B88732]" /> Pendant & Necklace Dimensions
-                            </h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                              <div>
-                                <label className="block text-xs font-semibold text-[#687386] mb-1.5">Height (mm)</label>
-                                <input
-                                  type="text"
-                                  value={heightMm}
-                                  onChange={e => setHeightMm(e.target.value)}
-                                  placeholder="e.g. 24 mm"
-                                  className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-3"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-semibold text-[#687386] mb-1.5">Width (mm)</label>
-                                <input
-                                  type="text"
-                                  value={widthMm}
-                                  onChange={e => setWidthMm(e.target.value)}
-                                  placeholder="e.g. 16 mm"
-                                  className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-3"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-semibold text-[#687386] mb-1.5">Chain Preference</label>
-                                <select
-                                  value={chainLength}
-                                  onChange={e => setChainLength(e.target.value)}
-                                  className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2.5 px-3"
-                                >
-                                  <option value="">-- Choose Chain Specification (Optional) --</option>
-                                  <option value="No Chain / Pendant Only">No Chain / Pendant Only</option>
-                                  <option value="16 inches (Choker)">16 inches (Choker)</option>
-                                  <option value="18 inches (Standard)">18 inches (Standard)</option>
-                                  <option value="20 inches (Matinee)">20 inches (Matinee)</option>
-                                  <option value="24 inches (Opera)">24 inches (Opera)</option>
-                                </select>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Earrings Specific Specs */}
-                        {selectedCategory === 'earrings' && (
-                          <div className="bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-5 space-y-4">
-                            <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
-                              <Ruler className="w-4 h-4 text-[#B88732]" /> Earring Architecture
-                            </h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                              <div>
-                                <label className="block text-xs font-semibold text-[#687386] mb-1.5">Drop Length / Stud Diameter (mm)</label>
-                                <input
-                                  type="text"
-                                  value={heightMm}
-                                  onChange={e => setHeightMm(e.target.value)}
-                                  placeholder="e.g. 12mm stud or 45mm drop"
-                                  className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-3"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-semibold text-[#687386] mb-1.5">Backing Mechanism</label>
-                                <select
-                                  value={earringBacking}
-                                  onChange={e => setEarringBacking(e.target.value)}
-                                  className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2.5 px-3"
-                                >
-                                  <option value="">-- Choose Backing Mechanism (Optional) --</option>
-                                  <option value="Push Back">Push Back (Friction Post)</option>
-                                  <option value="Screw Back">Screw Back (Security Post)</option>
-                                  <option value="Lever Back">Lever Back</option>
-                                  <option value="French Hook">French Wire / Fish Hook</option>
-                                  <option value="Hoop Catch">Hinged Hoop Catch</option>
-                                </select>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Bracelets Specific Specs */}
-                        {selectedCategory === 'bracelets' && (
-                          <div className="bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-5 space-y-4">
-                            <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
-                              <Ruler className="w-4 h-4 text-[#B88732]" /> Wrist & Bangle Dimensions
-                            </h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                              <div>
-                                <label className="block text-xs font-semibold text-[#687386] mb-1.5">Wrist Circumference / Inner Diameter</label>
-                                <input
-                                  type="text"
-                                  value={wristCircumference}
-                                  onChange={e => setWristCircumference(e.target.value)}
-                                  placeholder="e.g. 7.0 inches or 2.4 Kada size"
-                                  className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-3"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-semibold text-[#687386] mb-1.5">Bracelet Type</label>
-                                <select
-                                  value={braceletStyle}
-                                  onChange={e => setBraceletStyle(e.target.value)}
-                                  className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2.5 px-3"
-                                >
-                                  <option value="">-- Choose Bracelet Style (Optional) --</option>
-                                  <option value="Kada">Traditional Kada</option>
-                                  <option value="Tennis Bracelet">Tennis Bracelet (Continuous Stones)</option>
-                                  <option value="Link / Chain">Link / Charm Chain</option>
-                                  <option value="Rigid Cuff">Rigid Cuff</option>
-                                  <option value="Flexible Bangle">Flexible Stackable Bangle</option>
-                                </select>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Custom Specs for Other */}
-                        {selectedCategory === 'other' && (
-                          <div className="bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-5 space-y-4">
-                            <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
-                              <Feather className="w-4 h-4 text-[#B88732]" /> Custom Concept Requirements
-                            </h3>
-                            <div>
-                              <label className="block text-xs font-semibold text-[#687386] mb-1.5">Dimensional & Structural Requirements</label>
-                              <textarea
-                                rows={3}
-                                value={customSpecsText}
-                                onChange={e => setCustomSpecsText(e.target.value)}
-                                placeholder="Describe target dimensions, pin backings, hinges, or special structural mechanisms..."
-                                className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] p-3"
-                              />
-                            </div>
-                          </div>
-                        )}
-
-                        {/* CAD Deliverable Format Dropdown */}
-                        {groupMap['cad_file_format'] && (
-                          <div>
-                            <label className="block text-xs font-semibold text-[#687386] mb-1.5">Required CAD Output Format</label>
-                            <select
-                              value={selections['cad_file_format'] || ''}
-                              onChange={e => {
-                                const val = e.target.value;
-                                setSelections(prev => {
-                                  const updated = { ...prev };
-                                  if (!val) {
-                                    delete updated['cad_file_format'];
-                                  } else {
-                                    updated['cad_file_format'] = Number(val);
-                                  }
-                                  return updated;
-                                });
-                              }}
-                              className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2.5 px-3"
-                            >
-                              <option value="">-- Choose Required CAD Format (Optional) --</option>
-                              {(groupMap['cad_file_format'].options || [])
-                                .filter(o => o.is_active)
-                                .map(opt => (
-                                  <option key={opt.id} value={opt.id}>
-                                    {opt.label} {opt.description ? `(${opt.description})` : ''}
-                                  </option>
-                                ))}
-                            </select>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* STEP 2: METAL & DESIGN STYLE */}
-                    {currentStep === 2 && (
-                      <div className="space-y-6">
-                        <div>
-                          <h2 className="text-xl font-serif gold-gradient-text font-bold mb-1">Step 2: Metal Alloy Selection</h2>
-                          <p className="text-xs text-[#687386]">Select your target metal alloy and gold purity standard.</p>
-                        </div>
-
-                        {/* Metal Alloy Selector */}
-                        {groupMap['metal'] && (
-                          <div className="space-y-3">
-                            <label className="block text-xs font-bold text-[#B88732] uppercase tracking-wider">Metal Alloy Selection</label>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                              {(groupMap['metal'].options || [])
-                                .filter(o => o.is_active)
-                                .map(opt => {
-                                  const isSel = !isCustomMetalSelected && selections['metal'] === opt.id;
-                                  return (
-                                    <div
-                                      key={opt.id}
-                                      onClick={() => {
-                                        setIsCustomMetalSelected(false);
-                                        setSelections(prev => ({ ...prev, metal: opt.id }));
-                                      }}
-                                      className={`p-3.5 rounded-2xl border cursor-pointer flex items-center gap-3 transition-all duration-300 ${isSel
-                                        ? 'border-[#D9B66F] bg-[#FFF9F0] shadow-[0_0_15px_rgba(212,175,55,0.3)] ring-1 ring-[#D4AF37]/50'
-                                        : 'border-[#E8D7B7] hover:border-[#E8D7B7] bg-white/60'
-                                        }`}
-                                    >
-                                      <span
-                                        className="w-7 h-7 rounded-full border border-[#E8D7B7] shadow-inner flex-shrink-0"
-                                        style={{ backgroundColor: opt.swatch_color || '#E5E4E2' }}
-                                      />
-                                      <div>
-                                        <p className="font-bold text-[#17243B] text-xs">{opt.label}</p>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-
-                              {/* CUSTOM / OTHER Metal Alloy Option */}
-                              <div
-                                onClick={() => {
-                                  setIsCustomMetalSelected(true);
-                                  setSelections(prev => ({ ...prev, metal: -1 }));
-                                }}
-                                className={`p-3.5 rounded-2xl border cursor-pointer flex items-center gap-3 transition-all duration-300 ${isCustomMetalSelected
-                                  ? 'border-[#D9B66F] bg-[#FFF9F0] shadow-[0_0_15px_rgba(212,175,55,0.3)] ring-1 ring-[#D4AF37]/50'
-                                  : 'border-dashed border-[#D9B66F]/50 hover:border-[#D9B66F] hover:bg-[#D4AF37]/10 bg-white/60'
-                                  }`}
-                              >
-                                <span className="w-7 h-7 rounded-full border border-dashed border-[#D9B66F]/60 shadow-inner flex-shrink-0 flex items-center justify-center text-[#B88732] text-xs font-bold">?</span>
-                                <div>
-                                  <p className="font-bold text-[#B88732] text-xs">CUSTOM / OTHER</p>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* CUSTOM METAL ALLOY INPUT FIELD */}
-                            {isCustomMetalSelected && (
-                              <div className="mt-3 pt-3 border-t border-[#E8D7B7] space-y-1.5">
-                                <div className="flex items-center justify-between">
-                                  <label className="block text-xs font-semibold text-[#B88732] flex items-center gap-1.5">
-                                    Specify Custom Metal Alloy <span className="text-[#B88732]">*</span>
-                                  </label>
-                                  <span className="text-[10px] text-[#687386]">Visible to Studio Admin & CAD Staff</span>
-                                </div>
-                                <div className="relative">
-                                  <input
-                                    type="text"
-                                    value={customMetalInput}
-                                    onChange={e => setCustomMetalInput(e.target.value)}
-                                    placeholder="e.g. Titanium, Tungsten Carbide, Cobalt Chrome, Mokume-gane, Surgical Steel..."
-                                    className="w-full bg-[#080E24] border border-[#D9B66F]/60 rounded-xl px-3.5 py-2.5 text-xs text-[#17243B] placeholder-white/30 focus:outline-none focus:border-[#D9B66F] focus:ring-1 focus:ring-[#D4AF37] shadow-inner transition-all"
-                                    autoFocus
-                                  />
-                                </div>
-                                <p className="text-[11px] text-[#687386]">
-                                  Enter any custom or speciality alloy not listed above. Our admin and CAD team will review your request and confirm material availability.
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Gold Purity Selector - Only shown if Gold is selected */}
-                        {isGoldSelected && groupMap['gold_purity'] && (
-                          <div className="space-y-3 bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-4">
-                            <label className="block text-xs font-bold text-[#B88732] uppercase tracking-wider flex items-center gap-2">
-                              <Sparkles className="w-3.5 h-3.5 text-[#B88732]" /> Gold Purity Standard
-                            </label>
-                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2">
-                              {(groupMap['gold_purity'].options || [])
-                                .filter(o => o.is_active)
-                                .map(opt => {
-                                  const isSel = !isCustomPuritySelected && selections['gold_purity'] === opt.id;
-                                  return (
-                                    <button
-                                      key={opt.id}
-                                      type="button"
-                                      onClick={() => {
-                                        setIsCustomPuritySelected(false);
-                                        setSelections(prev => ({ ...prev, gold_purity: opt.id }));
-                                      }}
-                                      className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all ${isSel
-                                        ? 'bg-[#D4AF37] text-[#0B1330] border-[#F5E7A3] shadow-md font-extrabold'
-                                        : 'bg-white text-[#687386] border-[#E8D7B7] hover:border-[#E8D7B7]'
-                                        }`}
-                                    >
-                                      {opt.label}
-                                    </button>
-                                  );
-                                })}
-
-                              {/* CUSTOM / OTHER option button */}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setIsCustomPuritySelected(true);
-                                  setSelections(prev => ({ ...prev, gold_purity: -1 }));
-                                }}
-                                className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all ${isCustomPuritySelected
-                                  ? 'bg-[#D4AF37] text-[#0B1330] border-[#F5E7A3] shadow-md font-extrabold ring-1 ring-[#F5E7A3]'
-                                  : 'bg-white text-[#687386] border-dashed border-[#D9B66F]/50 hover:border-[#D9B66F] hover:bg-[#D4AF37]/10'
-                                  }`}
-                              >
-                                CUSTOM / OTHER
-                              </button>
-                            </div>
-
-                            {/* CUSTOM PURITY INPUT FIELD */}
-                            {isCustomPuritySelected && (
-                              <div className="mt-3 pt-3 border-t border-[#E8D7B7] space-y-1.5">
-                                <div className="flex items-center justify-between">
-                                  <label className="block text-xs font-semibold text-[#B88732] flex items-center gap-1.5">
-                                    Specify Custom Gold Purity Standard <span className="text-[#B88732]">*</span>
-                                  </label>
-                                  <span className="text-[10px] text-[#687386]">Visible to Studio Admin & CAD Staff</span>
-                                </div>
-                                <div className="relative">
-                                  <input
-                                    type="text"
-                                    value={customPurityInput}
-                                    onChange={e => setCustomPurityInput(e.target.value)}
-                                    placeholder="e.g. 21K (Gulf / Arabic Standard), 19K, 916 Hallmark, 999 Fine Gold..."
-                                    className="w-full bg-[#080E24] border border-[#D9B66F]/60 rounded-xl px-3.5 py-2.5 text-xs text-[#17243B] placeholder-white/30 focus:outline-none focus:border-[#D9B66F] focus:ring-1 focus:ring-[#D4AF37] shadow-inner transition-all"
-                                    autoFocus
-                                  />
-                                </div>
-                                <p className="text-[11px] text-[#687386]">
-                                  Enter any custom or regional gold karat requirement here. Our admin and production staff will review and calibrate your CAD casting shrinkage values accordingly.
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-
-
-                        {/* Ring Type Selector (if category is rings) */}
-                        {selectedCategory === 'rings' && groupMap['ring_type'] && (
-                          <div className="space-y-3">
-                            <label className="block text-xs font-bold text-[#B88732] uppercase tracking-wider">Ring Style Profile</label>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                              {(groupMap['ring_type'].options || [])
-                                .filter(o => o.is_active)
-                                .map(opt => {
-                                  const isSel = selections['ring_type'] === opt.id;
-                                  return (
-                                    <button
-                                      key={opt.id}
-                                      type="button"
-                                      onClick={() => setSelections(prev => ({ ...prev, ring_type: opt.id }))}
-                                      className={`p-2.5 text-xs font-semibold rounded-xl border text-left transition-all ${isSel
-                                        ? 'bg-[#1E4FA3] text-white border-[#5B8DEF]/60 font-bold shadow-md'
-                                        : 'bg-white text-[#687386] border-[#E8D7B7] hover:border-[#E8D7B7]'
-                                        }`}
-                                    >
-                                      {opt.label}
-                                    </button>
-                                  );
-                                })}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* STEP 3: STONES & GEMSTONES */}
-                    {currentStep === 3 && (
-                      <div className="space-y-6">
-                        <div>
-                          <h2 className="text-xl font-serif gold-gradient-text font-bold mb-1">Step 3: Gemstones & Setting Architecture</h2>
-                          <p className="text-xs text-[#687386]">Configure multi-stone arrangements, stone shapes, and precise seat clearances.</p>
-                        </div>
-
-                        {/* Metal-only Toggle */}
-                        <div className="bg-[#FFF9F0]/60 border border-[#E8D7B7] rounded-2xl p-4 flex items-center justify-between">
-                          <div>
-                            <h4 className="font-bold text-[#17243B] text-sm">Solid Metal Design (No Stones)</h4>
-                            <p className="text-xs text-[#687386]">Enable if your design is plain gold/silver band or engraving-only piece.</p>
-                          </div>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={isMetalOnly}
-                              onChange={e => setIsMetalOnly(e.target.checked)}
-                              className="sr-only peer"
-                            />
-                            <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#D4AF37]"></div>
-                          </label>
-                        </div>
-
-                        {!isMetalOnly && (
-                          <div className="space-y-4">
-                            <div className="flex justify-between items-center">
-                              <h3 className="text-xs font-bold text-[#B88732] uppercase tracking-wider flex items-center gap-1.5">
-                                <Gem className="w-4 h-4 text-[#B88732]" /> Stone Layout Breakdown ({stonesList.length})
-                              </h3>
-                              <button
-                                type="button"
-                                onClick={addStoneRow}
-                                className="px-3 py-1.5 bg-[#D4AF37]/15 text-[#B88732] hover:bg-[#D4AF37]/25 border border-[#E8D7B7] rounded-xl text-xs font-bold transition-all flex items-center gap-1"
-                              >
-                                <Plus className="w-3.5 h-3.5" /> Add Another Stone Row
-                              </button>
-                            </div>
-
-                            {stonesList.length === 0 ? (
-                              <div className="p-8 rounded-2xl bg-[#FFF9F0]/30 border border-dashed border-[#E8D7B7] text-center space-y-3">
-                                <Gem className="w-8 h-8 text-[#B88732]/60 mx-auto" />
-                                <div className="space-y-1">
-                                  <p className="text-sm font-semibold text-[#17243B]">No Gemstone Rows Added</p>
-                                  <p className="text-xs text-[#687386] max-w-sm mx-auto">
-                                    If your design features diamonds or gemstones, click below to specify shapes, sizes, and setting styles. Or leave empty for a metal-focused piece.
-                                  </p>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={addStoneRow}
-                                  className="px-4 py-2 bg-[#D4AF37]/20 hover:bg-[#D4AF37]/30 text-[#B88732] border border-[#D9B66F]/50 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1.5"
-                                >
-                                  <Plus className="w-4 h-4" /> Add Diamond / Gemstone Specification
-                                </button>
-                              </div>
-                            ) : (
-                              stonesList.map((stone, idx) => (
-                                <div key={idx} className="p-4 bg-[#FFF9F0]/40 border border-[#E8D7B7] rounded-2xl relative space-y-3">
-                                  <div className="flex justify-between items-center pb-2 border-b border-[#E8D7B7]">
-                                    <span className="text-xs font-bold text-[#B88732] uppercase">
-                                      Stone #{idx + 1} {stone.is_center_stone ? '(Main Centerpiece)' : '(Accent Stone)'}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => removeStoneRow(idx)}
-                                      className="text-rose-400 hover:text-rose-300 text-xs font-semibold flex items-center gap-1 cursor-pointer"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" /> Remove
-                                    </button>
-                                  </div>
-
-                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                    <div>
-                                      <label className="block text-[11px] font-semibold text-[#687386] mb-1">Stone Type</label>
-                                      <select
-                                        value={stone.stone_type}
-                                        onChange={e => updateStoneRow(idx, 'stone_type', e.target.value)}
-                                        className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-2.5"
-                                      >
-                                        <option value="Natural Diamond">Natural Diamond</option>
-                                        <option value="Lab Diamond">Lab-Grown Diamond</option>
-                                        <option value="Moissanite">Moissanite</option>
-                                        <option value="Blue Sapphire">Blue Sapphire</option>
-                                        <option value="Emerald">Colombian Emerald</option>
-                                        <option value="Ruby">Burmese Ruby</option>
-                                        <option value="Cubic Zirconia">Cubic Zirconia (CZ)</option>
-                                        <option value="Other Gemstone">Other Precious Gemstone</option>
-                                      </select>
-                                    </div>
-
-                                    <div>
-                                      <label className="block text-[11px] font-semibold text-[#687386] mb-1">Stone Shape</label>
-                                      <select
-                                        value={stone.shape}
-                                        onChange={e => updateStoneRow(idx, 'shape', e.target.value)}
-                                        className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-2.5"
-                                      >
-                                        {(groupMap['stone_shape']?.options || [])
-                                          .filter(o => o.is_active)
-                                          .map(o => (
-                                            <option key={o.id} value={o.label}>{o.label}</option>
-                                          ))}
-                                        {(!groupMap['stone_shape'] || groupMap['stone_shape'].options.length === 0) && (
-                                          <>
-                                            <option value="Round Brilliant">Round Brilliant</option>
-                                            <option value="Oval">Oval</option>
-                                            <option value="Emerald Cut">Emerald Cut</option>
-                                            <option value="Princess">Princess</option>
-                                            <option value="Cushion">Cushion</option>
-                                            <option value="Pear">Pear</option>
-                                          </>
-                                        )}
-                                      </select>
-                                    </div>
-
-                                    <div>
-                                      <label className="block text-[11px] font-semibold text-[#687386] mb-1">Setting Style</label>
-                                      <select
-                                        value={stone.setting_style}
-                                        onChange={e => updateStoneRow(idx, 'setting_style', e.target.value)}
-                                        className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-2.5"
-                                      >
-                                        {(groupMap['stone_setting']?.options || [])
-                                          .filter(o => o.is_active)
-                                          .map(o => (
-                                            <option key={o.id} value={o.label}>{o.label}</option>
-                                          ))}
-                                        {(!groupMap['stone_setting'] || groupMap['stone_setting'].options.length === 0) && (
-                                          <>
-                                            <option value="Prong">Prong</option>
-                                            <option value="Bezel">Bezel</option>
-                                            <option value="Channel">Channel</option>
-                                            <option value="Pave">Pave</option>
-                                            <option value="Flush">Flush</option>
-                                          </>
-                                        )}
-                                      </select>
-                                    </div>
-
-                                    <div>
-                                      <label className="block text-[11px] font-semibold text-[#687386] mb-1">Size Value & Unit</label>
-                                      <div className="flex gap-1">
-                                        <input
-                                          type="text"
-                                          value={stone.size_value}
-                                          onChange={e => updateStoneRow(idx, 'size_value', e.target.value)}
-                                          placeholder="1.0"
-                                          className="w-1/2 text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-2"
-                                        />
-                                        <select
-                                          value={stone.size_unit}
-                                          onChange={e => updateStoneRow(idx, 'size_unit', e.target.value)}
-                                          className="w-1/2 text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-1"
-                                        >
-                                          <option value="carat">carat (ct)</option>
-                                          <option value="mm">mm size</option>
-                                        </select>
-                                      </div>
-                                    </div>
-
-                                    <div>
-                                      <label className="block text-[11px] font-semibold text-[#687386] mb-1">Stone Clarity Grade</label>
-                                      <select
-                                        value={stone.clarity}
-                                        onChange={e => updateStoneRow(idx, 'clarity', e.target.value)}
-                                        className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-2.5"
-                                      >
-                                        <option value="VVS1">VVS1 (Very Very Slight)</option>
-                                        <option value="VVS2">VVS2</option>
-                                        <option value="VS1">VS1 (Very Slight)</option>
-                                        <option value="VS2">VS2</option>
-                                        <option value="SI1">SI1 (Slight Inclusion)</option>
-                                        <option value="SI2">SI2</option>
-                                      </select>
-                                    </div>
-
-                                    <div>
-                                      <label className="block text-[11px] font-semibold text-[#687386] mb-1">Stone Count (Qty)</label>
-                                      <input
-                                        type="number"
-                                        min={1}
-                                        value={stone.quantity}
-                                        onChange={e => updateStoneRow(idx, 'quantity', parseInt(e.target.value) || 1)}
-                                        className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-2.5"
-                                      />
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-center gap-2 pt-1">
-                                    <input
-                                      type="checkbox"
-                                      id={`center_stone_${idx}`}
-                                      checked={stone.is_center_stone || false}
-                                      onChange={e => updateStoneRow(idx, 'is_center_stone', e.target.checked)}
-                                      className="rounded border-[#E8D7B7] text-[#B88732] focus:ring-[#D4AF37]"
-                                    />
-                                    <label htmlFor={`center_stone_${idx}`} className="text-xs font-medium text-[#687386] cursor-pointer">
-                                      Mark as Main Centerpiece Stone
-                                    </label>
-                                  </div>
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* STEP 4: BRANDING & REFERENCES */}
-                    {currentStep === 4 && (
-                      <div className="space-y-6">
-                        <div>
-                          <h2 className="text-xl font-serif gold-gradient-text font-bold mb-1">Step 4: Branding & Reference Attachments</h2>
-                          <p className="text-xs text-[#687386]">Select catalog designs or upload custom reference sketches & hallmark vector logos.</p>
-                        </div>
-
-                        {/* 1. Reference Designs / Upload Custom Sketch */}
-                        <div className="bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-5 space-y-4">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E8D7B7] pb-3">
-                            <div>
-                              <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
-                                <Grid className="w-4 h-4 text-[#B88732]" /> 1. Reference Designs / Upload Custom Sketch
-                              </h3>
-                              <p className="text-xs text-[#687386]">Choose from existing studio CAD catalog products or upload custom hand sketches.</p>
-                            </div>
-
-                            {/* Dual Option Mode Tabs */}
-                            <div className="grid grid-cols-1 xs:grid-cols-2 sm:flex bg-white p-1 rounded-xl border border-[#E8D7B7] w-full sm:w-auto">
-                              <button
-                                type="button"
-                                onClick={() => setActiveReferenceTab('catalog')}
-                                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeReferenceTab === 'catalog'
-                                  ? 'bg-gradient-to-r from-[#F5E7A3] via-[#D4AF37] to-[#B8860B] text-[#0B1330] shadow-md'
-                                  : 'text-[#687386] hover:text-white'
-                                  }`}
-                              >
-                                <Grid className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Option 1: Existing Catalog</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setActiveReferenceTab('upload')}
-                                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeReferenceTab === 'upload'
-                                  ? 'bg-gradient-to-r from-[#F5E7A3] via-[#D4AF37] to-[#B8860B] text-[#0B1330] shadow-md'
-                                  : 'text-[#687386] hover:text-white'
-                                  }`}
-                              >
-                                <Upload className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Option 2: Upload Sketch</span>
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Selected Catalog References summary bar */}
-                          {selectedCatalogProducts.length > 0 && (
-                            <div className="p-3 bg-white/90 border border-[#E8D7B7] rounded-xl space-y-2">
-                              <span className="text-[11px] font-bold text-[#B88732] uppercase tracking-wider flex items-center gap-1">
-                                <CheckSquare className="w-3.5 h-3.5 text-[#B88732]" /> Selected Studio Catalog References ({selectedCatalogProducts.length})
-                              </span>
-                              <div className="flex flex-wrap gap-2">
-                                {selectedCatalogProducts.map(p => (
-                                  <div key={p.id} className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[#FFF9F0] border border-[#E8D7B7] text-xs text-[#17243B]">
-                                    <img src={p.image} alt={p.title} className="w-5 h-5 rounded object-cover" />
-                                    <span className="truncate max-w-[150px] font-semibold">{p.title}</span>
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleCatalogProductRef(p)}
-                                      className="text-rose-400 hover:text-rose-200 cursor-pointer"
-                                    >
-                                      <X className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* TAB 1: EXISTING CATALOG PRODUCTS */}
-                          {activeReferenceTab === 'catalog' && (
-                            <div className="space-y-3">
-                              {/* Search & Category Filter Controls */}
-                              <div className="flex flex-col sm:flex-row gap-2">
-                                <div className="relative flex-1">
-                                  <Search className="w-4 h-4 text-[#B88732] absolute left-3 top-2.5" />
-                                  <input
-                                    type="text"
-                                    value={catalogSearchQuery}
-                                    onChange={e => setCatalogSearchQuery(e.target.value)}
-                                    placeholder="Search studio catalog products by title or SKU..."
-                                    className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 pl-9 pr-3"
-                                  />
-                                </div>
-                                <select
-                                  value={catalogCategoryFilter}
-                                  onChange={e => setCatalogCategoryFilter(e.target.value)}
-                                  className="text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-3 sm:w-44"
-                                >
-                                  <option value="all">All Categories</option>
-                                  <option value="ring">Rings</option>
-                                  <option value="pendant">Pendants &amp; Necklaces</option>
-                                  <option value="earring">Earrings</option>
-                                  <option value="bangle">Bracelets &amp; Bangles</option>
-                                </select>
-                              </div>
-
-                              {/* Product Grid Picker */}
-                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-72 overflow-y-auto pr-1">
-                                {filteredCatalogItems.map(item => {
-                                  const isSel = selectedCatalogProducts.some(p => String(p.id) === String(item.id));
-                                  return (
-                                    <div
-                                      key={item.id}
-                                      onClick={() => toggleCatalogProductRef(item)}
-                                      className={`p-2.5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between relative group ${isSel
-                                        ? 'border-[#D9B66F] bg-[#FFF9F0] shadow-[0_0_12px_rgba(212,175,55,0.4)] ring-1 ring-[#D4AF37]'
-                                        : 'border-[#E8D7B7] hover:border-[#E8D7B7] bg-white/70'
-                                        }`}
-                                    >
-                                      <div className="aspect-square w-full rounded-lg overflow-hidden bg-slate-900 mb-2 relative">
-                                        <img src={item.image} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                                        {isSel && (
-                                          <div className="absolute top-1.5 right-1.5 p-1 bg-[#D4AF37] text-[#0B1330] rounded-full shadow-md">
-                                            <Check className="w-3.5 h-3.5 stroke-[3]" />
-                                          </div>
-                                        )}
-                                      </div>
-                                      <div>
-                                        <p className="font-bold text-[#17243B] text-xs line-clamp-1">{item.title}</p>
-                                        <span className="text-[10px] text-[#B88732] block">Ref SKU #{item.id}</span>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                                {filteredCatalogItems.length === 0 && (
-                                  <div className="col-span-full py-8 text-center text-xs text-[#687386]">
-                                    No matching studio catalog products found. Try changing your search query or upload a custom sketch file.
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* TAB 2: UPLOAD CUSTOM SKETCHES & FILES */}
-                          {activeReferenceTab === 'upload' && (
-                            <div className="space-y-3">
-                              <div className="border-2 border-dashed border-[#E8D7B7] rounded-2xl p-6 text-center hover:border-[#D9B66F] bg-white/60 transition-all cursor-pointer relative">
-                                <input
-                                  type="file"
-                                  multiple
-                                  accept="image/*,.pdf"
-                                  onChange={handleSketchUpload}
-                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                />
-                                <Upload className="w-8 h-8 text-[#B88732] mx-auto mb-2" />
-                                <p className="text-xs font-bold text-[#17243B]">Click or drag custom reference sketches here</p>
-                                <p className="text-[11px] text-[#687386]">PNG, JPG, PDF up to 10MB each</p>
-                              </div>
-
-                              {sketchPreviews.length > 0 && (
-                                <div className="grid grid-cols-4 sm:grid-cols-6 gap-3 pt-2">
-                                  {sketchPreviews.map((url, i) => (
-                                    <div key={i} className="relative group rounded-xl overflow-hidden border border-[#E8D7B7] aspect-square bg-slate-900">
-                                      <img src={url} alt={`Sketch ${i}`} className="w-full h-full object-cover" />
-                                      <button
-                                        type="button"
-                                        onClick={() => removeSketch(i)}
-                                        className="absolute top-1 right-1 p-1 bg-rose-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
-                                      >
-                                        <X className="w-3 h-3" />
-                                      </button>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* 2. Special Design Notes & Voice Instructions */}
-                        <div className="space-y-4 bg-[#FFF9F0]/40 border border-[#E8D7B7] rounded-2xl p-5">
-                          <div className="flex justify-between items-center">
-                            <label className="block text-xs font-bold text-[#B88732] uppercase tracking-wider flex items-center gap-1.5">
-                              <Mic className="w-4 h-4 text-[#B88732]" /> 2. Special Design Notes &amp; Voice Instructions
-                            </label>
-                            <span className="text-[10px] text-[#B88732] font-mono">Text, Speech AI &amp; Audio</span>
-                          </div>
-
-                          <textarea
-                            rows={3}
-                            value={specialInstructions}
-                            onChange={e => setSpecialInstructions(e.target.value)}
-                            placeholder="Add specific instructions regarding prong thickness, metal relief, hollow interior, or stone clearance..."
-                            className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2.5 px-3 focus:border-[#D9B66F] focus:ring-1 focus:ring-[#D4AF37]"
-                          />
-
-                          {/* Voice Note & Speech-To-Text Controls */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                            {/* Option A: Real-Time Microphone Record & Speech Recognition */}
-                            <div className="p-3.5 rounded-xl bg-white border border-[#E8D7B7] space-y-2">
-                              <div className="flex justify-between items-center">
-                                <span className="text-xs font-bold text-[#17243B] flex items-center gap-1.5">
-                                  <Mic className={`w-3.5 h-3.5 ${isRecordingVoice ? 'text-rose-500 animate-pulse' : 'text-[#B88732]'}`} />
-                                  Record Voice Instructions
-                                </span>
-                                {isRecordingVoice && (
-                                  <span className="text-xs text-rose-400 font-mono font-bold animate-pulse flex items-center gap-1">
-                                    <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-                                    {formatRecordingTime(recordingSeconds)}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-[10px] text-[#687386] leading-tight">
-                                Click start to speak your CAD instructions. Spoken words will be transcribed &amp; audio file attached automatically.
-                              </p>
-                              <div className="pt-1 flex gap-2">
-                                {!isRecordingVoice ? (
-                                  <button
-                                    type="button"
-                                    onClick={handleStartVoiceRecording}
-                                    className="w-full py-2.5 rounded-lg bg-[#D4AF37]/20 border border-[#E8D7B7] text-[#B88732] hover:bg-[#D4AF37]/30 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                                  >
-                                    <Mic className="w-3.5 h-3.5 text-[#B88732]" /> Start Recording
-                                  </button>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={handleStopVoiceRecording}
-                                    className="w-full py-2.5 rounded-lg bg-rose-600 border border-rose-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg animate-pulse transition-all cursor-pointer"
-                                  >
-                                    <Square className="w-3.5 h-3.5 fill-white" />
-                                    <span>Stop Recording &amp; Attach Audio ({formatRecordingTime(recordingSeconds)})</span>
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Option B: Upload Voice Note Audio File */}
-                            <div className="p-3.5 rounded-xl bg-white border border-[#E8D7B7] space-y-2 relative">
-                              <div className="flex justify-between items-center">
-                                <span className="text-xs font-bold text-[#17243B] flex items-center gap-1.5">
-                                  <Upload className="w-3.5 h-3.5 text-[#B88732]" /> Upload Voice Note
-                                </span>
-                                {voiceAudioFile && (
-                                  <span className="text-[10px] text-emerald-400 font-mono font-bold">✓ Attached</span>
-                                )}
-                              </div>
-                              <p className="text-[10px] text-[#687386] leading-tight">
-                                Attach a pre-recorded audio file (.MP3, .WAV, .M4A, .OGG up to 25MB).
-                              </p>
-                              <div className="pt-1 relative">
-                                <input
-                                  type="file"
-                                  accept="audio/*"
-                                  onChange={handleVoiceFileUpload}
-                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                />
-                                <div className="w-full py-2 rounded-lg bg-[#FFF9F0] border border-[#E8D7B7] text-xs font-semibold text-[#17243B] flex items-center justify-center gap-1.5 text-center">
-                                  <Volume2 className="w-3.5 h-3.5 text-[#B88732]" />
-                                  <span className="truncate max-w-[150px]">
-                                    {voiceAudioFile ? voiceAudioFile.name : 'Select Audio File'}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {voiceAudioPreviewUrl && (
-                            <div className="p-2.5 rounded-xl bg-white border border-emerald-500/30 flex items-center justify-between">
-                              <div className="flex items-center gap-2 text-xs text-emerald-300 font-medium">
-                                <Volume2 className="w-4 h-4 text-emerald-400" />
-                                <span>Voice Note Attached</span>
-                              </div>
-                              <audio controls src={voiceAudioPreviewUrl} className="h-7 max-w-[200px]" />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* 3. Custom Engraving Personalization */}
-                        <div className="bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-5 space-y-4">
-                          <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-[#B88732]" /> 3. Custom Engraving Personalization
-                          </h3>
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <div>
-                              <label className="block text-xs font-semibold text-[#687386] mb-1.5">Engraving Text</label>
-                              <input
-                                type="text"
-                                value={engravingText}
-                                onChange={e => setEngravingText(e.target.value)}
-                                placeholder="e.g. Forever & Always"
-                                className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-3"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-semibold text-[#687386] mb-1.5">Font Style</label>
-                              <select
-                                value={engravingFont}
-                                onChange={e => setEngravingFont(e.target.value)}
-                                className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2.5 px-3"
-                              >
-                                <option value="Script">Calligraphy Script</option>
-                                <option value="Block">Modern Block Sans</option>
-                                <option value="Roman">Classic Roman Serif</option>
-                                <option value="Gothic">Vintage Gothic</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-xs font-semibold text-[#687386] mb-1.5">Placement</label>
-                              <select
-                                value={engravingPlacement}
-                                onChange={e => setEngravingPlacement(e.target.value)}
-                                className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2.5 px-3"
-                              >
-                                <option value="Inside Shank">Inside Shank / Band</option>
-                                <option value="Outside Shank">Outside Shank</option>
-                                <option value="Pendant Backing">Pendant Backplate</option>
-                                <option value="Bail">Bail Accent</option>
-                              </select>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* 4. Studio Hallmark & Vector Logo */}
-                        <div className="bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-5 space-y-3">
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
-                                <ShieldCheck className="w-4 h-4 text-[#B88732]" /> 4. Studio Hallmark &amp; Vector Logo
-                              </h3>
-                              <p className="text-xs text-[#687386]">Stamp your studio hallmark directly onto 3D model geometry.</p>
-                            </div>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={hasLogo}
-                                onChange={e => setHasLogo(e.target.checked)}
-                                className="sr-only peer"
-                              />
-                              <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#D4AF37]"></div>
-                            </label>
-                          </div>
-
-                          {hasLogo && (
-                            <div className="pt-2">
-                              <label className="block text-xs font-semibold text-[#687386] mb-1.5">
-                                Upload Vector Logo (.svg, .ai, .eps, .pdf, .png, .jpg)
-                              </label>
-                              <input
-                                type="file"
-                                accept=".svg,.ai,.eps,.pdf,.png,.jpg,.jpeg"
-                                onChange={handleLogoUpload}
-                                className="block w-full text-xs text-[#687386] file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#D4AF37] file:text-[#0B1330] hover:file:bg-[#F5E7A3]"
-                              />
-                              {logoError && (
-                                <p className="text-xs text-rose-400 font-semibold mt-1.5 flex items-center gap-1">
-                                  <AlertCircle className="w-3.5 h-3.5" /> {logoError}
-                                </p>
-                              )}
-                              {logoFile && !logoError && (
-                                <div className="mt-2 flex items-center gap-2 text-xs text-emerald-400 font-medium">
-                                  <CheckCircle2 className="w-4 h-4" /> Selected: {logoFile.name}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* 5. Reference Design Preview */}
-                        <div className="bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-5 space-y-4">
-                          <div className="flex items-center justify-between">
-                            <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
-                              <ImageIcon className="w-4 h-4 text-[#B88732]" /> 5. Reference Design Preview
-                            </h3>
-                            <span className="text-[10px] text-[#B88732] font-mono">
-                              {selectedCatalogProducts.length + sketchPreviews.length + (voiceAudioFile ? 1 : 0)} Attachment(s)
-                            </span>
-                          </div>
-
-                          {selectedCatalogProducts.length === 0 && sketchPreviews.length === 0 && !voiceAudioFile ? (
-                            <div className="p-6 rounded-xl bg-white/70 border border-dashed border-white/15 text-center space-y-1.5">
-                              <ImageIcon className="w-7 h-7 text-[#B88732]/40 mx-auto" />
-                              <p className="text-xs font-medium text-[#687386]">No reference sketches or catalog designs selected yet</p>
-                              <p className="text-[11px] text-[#687386]">Choose from existing studio designs or upload custom sketches above to preview them here.</p>
-                            </div>
-                          ) : (
-                            <div className="space-y-4">
-                              {/* Catalog Product Previews */}
-                              {selectedCatalogProducts.length > 0 && (
-                                <div>
-                                  <p className="text-[11px] font-bold text-[#B88732] mb-2 uppercase tracking-wide">
-                                    Studio Catalog Reference Designs ({selectedCatalogProducts.length})
-                                  </p>
-                                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                                    {selectedCatalogProducts.map(p => (
-                                      <div key={p.id} className="relative rounded-xl overflow-hidden border border-[#E8D7B7] bg-white group shadow-md flex flex-col justify-between">
-                                        <div className="aspect-square w-full overflow-hidden bg-slate-900">
-                                          <img src={p.image} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                                        </div>
-                                        <div className="p-2 flex items-center justify-between gap-1">
-                                          <div className="truncate">
-                                            <p className="text-[11px] font-bold text-white truncate">{p.title}</p>
-                                            <span className="text-[9px] text-[#B88732]">SKU #{p.id}</span>
-                                          </div>
-                                          <button
-                                            type="button"
-                                            onClick={() => toggleCatalogProductRef(p)}
-                                            className="p-1 rounded-full text-rose-400 hover:text-white hover:bg-rose-600/80 transition-all cursor-pointer shrink-0"
-                                            title="Remove"
-                                          >
-                                            <X className="w-3.5 h-3.5" />
-                                          </button>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Uploaded Sketches Previews */}
-                              {sketchPreviews.length > 0 && (
-                                <div>
-                                  <p className="text-[11px] font-bold text-[#B88732] mb-2 uppercase tracking-wide">
-                                    Custom Hand Sketches &amp; Reference Files ({sketchPreviews.length})
-                                  </p>
-                                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-                                    {sketchPreviews.map((url, i) => (
-                                      <div key={i} className="relative group rounded-xl overflow-hidden border border-[#E8D7B7] aspect-square bg-slate-900 shadow-md">
-                                        <img src={url} alt={`Sketch ${i + 1}`} className="w-full h-full object-cover" />
-                                        <button
-                                          type="button"
-                                          onClick={() => removeSketch(i)}
-                                          className="absolute top-1 right-1 p-1 bg-rose-600/90 hover:bg-rose-600 text-white rounded-full transition-all cursor-pointer shadow-md"
-                                          title="Remove sketch"
-                                        >
-                                          <X className="w-3 h-3" />
-                                        </button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Attached Voice Note Audio Preview */}
-                              {voiceAudioPreviewUrl && (
-                                <div className="p-3 rounded-xl bg-white border border-emerald-500/30 flex items-center justify-between flex-wrap gap-2">
-                                  <div className="flex items-center gap-2 text-xs text-emerald-300 font-medium">
-                                    <Volume2 className="w-4 h-4 text-emerald-400" />
-                                    <span>Attached Voice Note ({voiceAudioFile?.name || 'Voice Instruction'})</span>
-                                  </div>
-                                  <audio controls src={voiceAudioPreviewUrl} className="h-7 max-w-[220px]" />
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* 6. Configured Parameters / Final Summary */}
-                        <div className="bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-5 space-y-4">
-                          <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
-                            <Award className="w-4 h-4 text-[#B88732]" /> 6. Configured Parameters / Final Summary
-                          </h3>
-
-                          {/* Complexity Tier & Timeline */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-xs font-semibold text-[#687386] mb-1.5 flex items-center gap-1">
-                                <Award className="w-3.5 h-3.5 text-[#B88732]" /> Production Complexity Tier
-                              </label>
-                              <select
-                                value={projectTier}
-                                onChange={e => setProjectTier(e.target.value)}
-                                className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2.5 px-3"
-                              >
-                                <option value="">-- Choose Project Tier (Optional) --</option>
-                                <option value="Standard Commercial CAD">Standard Commercial CAD</option>
-                                <option value="High Precision Fine Jewelry">High Precision Fine Jewelry</option>
-                                <option value="Exquisite Masterpiece">Exquisite Masterpiece</option>
-                                <option value="Haute Joaillerie Atelier">Haute Joaillerie Atelier</option>
-                              </select>
-                            </div>
-
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <label 
-                                  onClick={openCalendarPicker}
-                                  className="text-xs font-semibold text-[#687386] flex items-center gap-1.5 cursor-pointer hover:text-[#B88732] transition-colors select-none"
-                                >
-                                  <Calendar className="w-3.5 h-3.5 text-[#B88732]" /> Target Completion Date (Optional)
-                                </label>
-                                {neededByDate && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setNeededByDate('')}
-                                    className="text-[10px] text-rose-400 hover:text-rose-300 font-mono cursor-pointer flex items-center gap-1 transition-colors hover:underline"
-                                  >
-                                    <X className="w-3 h-3" /> Clear Date
-                                  </button>
-                                )}
-                              </div>
-
-                              {/* Interactive Calendar Input Box - Click anywhere to open picker */}
-                              <div
-                                onClick={openCalendarPicker}
-                                className="relative flex items-center w-full rounded-xl border border-[#E8D7B7] hover:border-[#D9B66F] focus-within:border-[#D9B66F] focus-within:ring-2 focus-within:ring-[#D4AF37]/30 bg-white transition-all cursor-pointer group shadow-sm hover:shadow-[0_0_15px_rgba(212,175,55,0.15)] px-3 py-2"
-                              >
-                                <div className="flex items-center gap-2 pointer-events-none text-[#B88732] mr-2 shrink-0">
-                                  <Calendar className="w-4 h-4 text-[#B88732] group-hover:scale-110 transition-transform" />
-                                </div>
-                                <input
-                                  ref={dateInputRef}
-                                  type="date"
-                                  min={minSelectableDate}
-                                  value={neededByDate}
-                                  onChange={e => setNeededByDate(e.target.value)}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openCalendarPicker();
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                      e.preventDefault();
-                                      openCalendarPicker();
-                                    }
-                                  }}
-                                  className="w-full text-xs bg-transparent text-[#17243B] font-mono focus:outline-none cursor-pointer [color-scheme:dark] [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-80 hover:[&::-webkit-calendar-picker-indicator]:opacity-100"
-                                />
-                                {neededByDate && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setNeededByDate('');
-                                    }}
-                                    className="ml-2 p-1 rounded-lg text-[#687386] hover:text-rose-400 hover:bg-rose-500/10 transition-colors shrink-0 cursor-pointer"
-                                    title="Clear Date"
-                                  >
-                                    <X className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                              </div>
-
-                              {/* Quick Presets for Target Deadline: +3d, +5d, +7d */}
-                              <div className="flex items-center gap-1.5 pt-0.5 flex-wrap">
-                                <span className="text-[10px] font-mono text-[#687386]">Quick Pick:</span>
-                                <button
-                                  type="button"
-                                  onClick={() => setNeededByDate(quick3d)}
-                                  className={`text-[10px] font-mono px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
-                                    neededByDate === quick3d
-                                      ? 'bg-[#D4AF37]/25 border-[#D9B66F] text-[#B88732] font-bold shadow-[0_0_8px_rgba(212,175,55,0.25)]'
-                                      : 'bg-white/5 hover:bg-[#D4AF37]/20 border-[#E8D7B7] hover:border-[#E8D7B7] text-[#687386]'
-                                  }`}
-                                >
-                                  +3d (Rush)
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setNeededByDate(quick5d)}
-                                  className={`text-[10px] font-mono px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
-                                    neededByDate === quick5d
-                                      ? 'bg-[#D4AF37]/25 border-[#D9B66F] text-[#B88732] font-bold shadow-[0_0_8px_rgba(212,175,55,0.25)]'
-                                      : 'bg-white/5 hover:bg-[#D4AF37]/20 border-[#E8D7B7] hover:border-[#E8D7B7] text-[#687386]'
-                                  }`}
-                                >
-                                  +5d (Standard)
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setNeededByDate(quick7d)}
-                                  className={`text-[10px] font-mono px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
-                                    neededByDate === quick7d
-                                      ? 'bg-[#D4AF37]/25 border-[#D9B66F] text-[#B88732] font-bold shadow-[0_0_8px_rgba(212,175,55,0.25)]'
-                                      : 'bg-white/5 hover:bg-[#D4AF37]/20 border-[#E8D7B7] hover:border-[#E8D7B7] text-[#687386]'
-                                  }`}
-                                >
-                                  +7d (Relaxed)
-                                </button>
-                              </div>
-
-                              {neededByDate && (
-                                <div className="p-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37]/15 to-[#D4AF37]/5 border border-[#E8D7B7] text-xs text-[#B88732] flex items-center justify-between font-mono animate-fadeIn">
-                                  <span className="flex items-center gap-2">
-                                    <Sparkles className="w-3.5 h-3.5 text-[#B88732] animate-pulse shrink-0" />
-                                    <span>
-                                      Target Deadline: <strong className="text-white">{new Date(neededByDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</strong>
-                                    </span>
-                                  </span>
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0">
-                                    {(() => {
-                                      const diff = Math.ceil((new Date(neededByDate + 'T00:00:00').getTime() - new Date().setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24));
-                                      return diff > 0 ? `In ${diff} day${diff === 1 ? '' : 's'}` : 'Today';
-                                    })()}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Quick Spec Parameter Chips */}
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 text-xs">
-                            <div className="p-2.5 rounded-xl bg-white border border-[#E8D7B7]">
-                              <span className="text-[10px] text-[#687386] block uppercase">Category</span>
-                              <span className="font-bold text-[#B88732] capitalize truncate block">{selectedCategory || 'Not Selected'}</span>
-                            </div>
-                            <div className="p-2.5 rounded-xl bg-white border border-[#E8D7B7]">
-                              <span className="text-[10px] text-[#687386] block uppercase">Engraving</span>
-                              <span className="font-bold text-white truncate block">{engravingText ? `"${engravingText}"` : 'None'}</span>
-                            </div>
-                            <div className="p-2.5 rounded-xl bg-white border border-[#E8D7B7]">
-                              <span className="text-[10px] text-[#687386] block uppercase">Logo Stamp</span>
-                              <span className="font-bold text-white block">{hasLogo ? 'Requested' : 'Standard'}</span>
-                            </div>
-                            <div className="p-2.5 rounded-xl bg-white border border-[#E8D7B7]">
-                              <span className="text-[10px] text-[#687386] block uppercase">Gemstones</span>
-                              <span className="font-bold text-white block">{isMetalOnly ? 'Plain Metal' : `${stonesList.length} Stone Row(s)`}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* STEP 5: REVIEW & DISPATCH */}
-                    {currentStep === 5 && (
-                      <div className="space-y-6">
-                        <div>
-                          <h2 className="text-xl font-serif gold-gradient-text font-bold mb-1">Step 5: Final Review & Dispatch</h2>
-                          <p className="text-xs text-[#687386]">Verify your details before choosing whether to Request a Free Quote or Submit Custom CAD Order directly.</p>
-                        </div>
-
-                        {/* Contact Information */}
-                        <div className="bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-5 space-y-3">
-                          <h3 className="text-xs font-serif gold-gradient-text font-bold uppercase tracking-widest flex items-center gap-2">
-                            Client & Studio Contact Info
-                          </h3>
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <div>
-                              <label className="block text-[11px] font-semibold text-[#687386] mb-1">Full Name</label>
-                              <input
-                                type="text"
-                                value={clientName}
-                                onChange={e => setClientName(e.target.value)}
-                                placeholder="Client Name"
-                                className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-3"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[11px] font-semibold text-[#687386] mb-1">Email Address</label>
-                              <input
-                                type="email"
-                                value={clientEmail}
-                                onChange={e => setClientEmail(e.target.value)}
-                                placeholder="email@studio.com"
-                                className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-3"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[11px] font-semibold text-[#687386] mb-1">Phone Number</label>
-                              <input
-                                type="text"
-                                value={clientPhone}
-                                onChange={e => setClientPhone(e.target.value)}
-                                placeholder="+1 / +91 phone"
-                                className="w-full text-xs rounded-xl border border-[#E8D7B7] bg-white text-[#17243B] py-2 px-3"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Selected References Review */}
-                        {selectedCatalogProducts.length > 0 && (
-                          <div className="bg-[#FFF9F0]/50 border border-[#E8D7B7] rounded-2xl p-4 space-y-2">
-                            <span className="text-xs font-bold text-[#B88732] uppercase tracking-wider flex items-center gap-1.5">
-                              <CheckCircle2 className="w-4 h-4 text-[#B88732]" /> Selected Studio Catalog References ({selectedCatalogProducts.length})
-                            </span>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              {selectedCatalogProducts.map(p => (
-                                <div key={p.id} className="flex items-center gap-3 p-2 bg-white rounded-xl border border-[#E8D7B7]">
-                                  <img src={p.image} alt={p.title} className="w-10 h-10 rounded-lg object-cover" />
-                                  <div className="overflow-hidden">
-                                    <p className="font-bold text-xs text-[#17243B] truncate">{p.title}</p>
-                                    <span className="text-[10px] text-[#B88732]">SKU #{p.id}</span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Delivery Turnaround Option */}
-                        {groupMap['delivery_speed'] && (
-                          <div className="space-y-2">
-                            <label className="block text-xs font-bold text-[#B88732] uppercase tracking-wider flex items-center gap-1.5">
-                              <Clock className="w-4 h-4 text-[#B88732]" /> Turnaround Speed
-                            </label>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                              {(groupMap['delivery_speed'].options || [])
-                                .filter(o => o.is_active)
-                                .map(opt => {
-                                  const isSel = selectedDeliverySpeedId === opt.id;
-                                  return (
-                                    <div
-                                      key={opt.id}
-                                      onClick={() => setSelectedDeliverySpeedId(opt.id)}
-                                      className={`p-3.5 rounded-2xl border cursor-pointer transition-all duration-300 ${isSel
-                                        ? 'border-[#D9B66F] bg-[#FFF9F0] shadow-[0_0_15px_rgba(212,175,55,0.3)] ring-1 ring-[#D4AF37]/50'
-                                        : 'border-[#E8D7B7] hover:border-[#E8D7B7] bg-white/60'
-                                        }`}
-                                    >
-                                      <p className="font-bold text-[#17243B] text-xs">{opt.label}</p>
-                                      <p className="text-[11px] text-[#687386]">{opt.description}</p>
-                                    </div>
-                                  );
-                                })}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Portfolio Feature Consent Checkbox */}
-                        <div className="p-4 bg-[#FFF9F0]/40 border border-[#E8D7B7] rounded-2xl flex items-start gap-3">
-                          <input
-                            type="checkbox"
-                            id="clientConsent"
-                            checked={clientConsent}
-                            onChange={(e) => setClientConsent(e.target.checked)}
-                            className="mt-1 rounded border-[#D9B66F]/50 text-[#B88732] focus:ring-0 cursor-pointer"
-                          />
-                          <label htmlFor="clientConsent" className="text-xs text-[#17243B]/90 leading-relaxed cursor-pointer">
-                            <span className="font-bold text-[#B88732] block mb-0.5">Allow Public Portfolio Showcase (Optional)</span>
-                            I grant Shiuli CAD Studio permission to feature this finished 3D CAD design in the public portfolio showcase upon completion. (Your name, contact details, and private notes will <strong className="text-white">never</strong> be shown).
-                          </label>
-                        </div>
-
-                        {submissionError && (
-                          <div className="p-4 bg-rose-900/40 border border-rose-500/50 rounded-2xl text-rose-200 text-xs font-medium flex items-center gap-2">
-                            <AlertCircle className="w-5 h-5 flex-shrink-0 text-rose-400" />
-                            <span>{submissionError}</span>
-                          </div>
-                        )}
-
-                        {/* Primary Submission CTA */}
-                        <div className="pt-4">
-                          <button
-                            type="button"
-                            disabled={isSubmitting}
-                            onClick={handleSubmit}
-                            className="w-full py-4 px-6 btn-gold-luxury font-bold text-sm rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2"
-                          >
-                            {isSubmitting ? (
-                              <Loader2 className="w-5 h-5 animate-spin text-[#0B1330]" />
-                            ) : (
-                              <>
-                                <Sparkles className="w-5 h-5" /> Submit Custom CAD Design Brief
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Navigation Controls */}
-                    <div className="flex flex-col-reverse xs:flex-row justify-between items-stretch xs:items-center gap-3 pt-6 sm:pt-8 border-t border-[#E8D7B7] mt-6 sm:mt-8">
-                      <button
-                        type="button"
-                        onClick={() => setCurrentStep(prev => Math.max(prev - 1, 1))}
-                        disabled={currentStep === 1}
-                        className={`w-full xs:w-auto px-5 py-2.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 transition-all ${currentStep === 1
-                          ? 'border-[#E8D7B7] text-white/20 cursor-not-allowed'
-                          : 'border-[#E8D7B7] text-[#17243B] hover:bg-white/5 cursor-pointer'
-                          }`}
-                      >
-                        <ArrowLeft className="w-4 h-4" /> Previous Step
-                      </button>
-
-                      {currentStep < 5 && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (currentStep === 1 && !selectedCategory) {
-                              alert('Please select a jewelry category (e.g. Rings, Pendants, Earrings) before proceeding to the next step.');
-                              return;
-                            }
-                            if (currentStep === 2 && isGoldSelected && isCustomPuritySelected && !customPurityInput.trim()) {
-                              alert('Please type your custom gold purity standard (e.g., 21K, 19K, 916 Hallmark) or select a standard purity option.');
-                              return;
-                            }
-                            if (currentStep === 2 && isCustomMetalSelected && !customMetalInput.trim()) {
-                              alert('Please type your custom metal alloy name (e.g., Titanium, Tungsten Carbide) or select a standard metal option.');
-                              return;
-                            }
-                            setCurrentStep(prev => Math.min(prev + 1, 5));
-                          }}
-                          className="w-full xs:w-auto px-6 py-2.5 bg-[#1E4FA3] hover:bg-[#2A66D6] text-white text-xs font-bold rounded-xl shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
-                        >
-                          Next Step <ArrowRight className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Real-time Sticky Specification Summary Sidebar */}
-              <div className="lg:col-span-4 space-y-6">
-                <div className="bg-white/95 backdrop-blur-2xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-[0_20px_60px_rgba(0,0,0,0.6)] border border-[#E8D7B7] lg:sticky top-28 space-y-5">
-
-                  {/* Header Badge */}
-                  <div className="flex items-center justify-between pb-3.5 border-b border-[#E8D7B7]">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-[#D4AF37]/20 border border-[#D9B66F] flex items-center justify-center text-[#B88732]">
-                        <Sliders className="w-4 h-4 text-[#B88732]" />
-                      </div>
-                      <div>
-                        <h3 className="font-serif gold-gradient-text font-bold text-base leading-tight">
-                          Specification Summary
-                        </h3>
-                        <p className="text-[10px] text-[#687386]">Real-time studio configuration</p>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-mono px-2.5 py-1 rounded-full bg-[#D4AF37]/20 text-[#B88732] border border-[#E8D7B7] font-bold uppercase tracking-wider">
-                      {selectedCategory || 'Unselected'}
-                    </span>
-                  </div>
-
-                  {/* Configured Parameters Stream */}
-                  <div className="space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-[11px] font-bold text-[#B88732] uppercase tracking-wider flex items-center gap-1.5">
-                        <Layers className="w-3.5 h-3.5 text-[#B88732]" /> Configured Parameters
-                      </h4>
-                      <span className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                        Live Spec
-                      </span>
-                    </div>
-
-                    <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1 text-xs">
-                      {/* Category */}
-                      <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
-                        <span className="text-[#687386] font-medium">Design Type:</span>
-                        <span className="font-bold text-[#17243B] capitalize">{selectedCategory || 'Unselected'}</span>
-                      </div>
-
-                      {/* Ring Size */}
-                      {selectedCategory === 'rings' && ringSize && (
-                        <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
-                          <span className="text-[#687386] font-medium">Target Ring Size:</span>
-                          <span className="font-bold text-[#B88732]">{ringSize} ({ringSizeStandard})</span>
-                        </div>
-                      )}
-
-                      {/* Ring Metal Weight */}
-                      {selectedCategory === 'rings' && targetWeightGrams && (
-                        <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
-                          <span className="text-[#687386] font-medium">Target Metal Weight:</span>
-                          <span className="font-bold text-[#17243B]">{targetWeightGrams} grams</span>
-                        </div>
-                      )}
-
-                      {/* Height & Width dimensions */}
-                      {(heightMm || widthMm) && (
-                        <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
-                          <span className="text-[#687386] font-medium">Target Dimensions:</span>
-                          <span className="font-bold text-[#17243B]">{heightMm ? `H: ${heightMm}mm ` : ''}{widthMm ? `W: ${widthMm}mm` : ''}</span>
-                        </div>
-                      )}
-
-                      {/* Chain length / Earring backing / Wrist size */}
-                      {selectedCategory === 'pendants' && chainLength && (
-                        <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
-                          <span className="text-[#687386] font-medium">Chain Specification:</span>
-                          <span className="font-bold text-[#17243B]">{chainLength}</span>
-                        </div>
-                      )}
-                      {selectedCategory === 'earrings' && earringBacking && (
-                        <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
-                          <span className="text-[#687386] font-medium">Earring Backing:</span>
-                          <span className="font-bold text-[#17243B]">{earringBacking}</span>
-                        </div>
-                      )}
-                      {selectedCategory === 'bracelets' && (wristCircumference || braceletStyle) && (
-                        <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
-                          <span className="text-[#687386] font-medium">Style & Wrist:</span>
-                          <span className="font-bold text-[#17243B]">{braceletStyle} {wristCircumference ? `(${wristCircumference})` : ''}</span>
-                        </div>
-                      )}
-
-                      {/* Catalog References */}
-                      {selectedCatalogProducts.length > 0 && (
-                        <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] space-y-1.5">
-                          <div className="flex justify-between items-center">
-                            <span className="text-[#687386] font-medium">Catalog References:</span>
-                            <span className="font-bold text-[#B88732]">{selectedCatalogProducts.length} Selected</span>
-                          </div>
-                          <div className="flex flex-wrap gap-1 pt-1">
-                            {selectedCatalogProducts.map(p => (
-                              <span key={p.id} className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#D4AF37]/20 text-[#B88732] border border-[#E8D7B7]">
-                                {p.title}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Dynamic Option Selections from Backend API */}
-                      {selectedValuesSummary.map((item, idx) => (
-                        <div key={idx} className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
-                          <span className="text-[#687386] font-medium truncate max-w-[130px]">{item.group}:</span>
-                          <span className="font-bold text-[#17243B] flex items-center gap-1.5">
-                            {item.color && (
-                              <span className="w-3 h-3 rounded-full border border-white/30" style={{ backgroundColor: item.color }} />
-                            )}
-                            {item.value}
-                          </span>
-                        </div>
-                      ))}
-
-                      {/* Gemstone Layout */}
-                      <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
-                        <span className="text-[#687386] font-medium">Gemstone Layout:</span>
-                        <span className="font-bold text-[#17243B]">
-                          {isMetalOnly ? 'Plain Metal (No Stones)' : `${stonesList.length} Stone Row(s)`}
-                        </span>
-                      </div>
-
-                      {!isMetalOnly && stonesList.length > 0 && (
-                        <div className="p-2.5 rounded-2xl bg-white/80 border border-[#E8D7B7] space-y-1 text-[11px]">
-                          {stonesList.map((st, i) => (
-                            <div key={i} className="flex justify-between text-[#687386]">
-                              <span>Row {i + 1}: {st.shape} {st.stone_type} ({st.quantity}x)</span>
-                              <span className="font-bold text-[#B88732]">{st.size_value} {st.size_unit}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Personalization & Engraving */}
-                      {engravingText && (
-                        <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
-                          <span className="text-[#687386] font-medium">Inside Engraving:</span>
-                          <span className="font-bold text-[#B88732] italic">"{engravingText}"</span>
-                        </div>
-                      )}
-
-                      {/* Logo Stamp */}
-                      {hasLogo && (
-                        <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
-                          <span className="text-[#687386] font-medium">Vector Hallmark:</span>
-                          <span className="font-bold text-[#B88732]">Custom Logo Stamp</span>
-                        </div>
-                      )}
-
-                      {/* Sketches */}
-                      {sketchFiles.length > 0 && (
-                        <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
-                          <span className="text-[#687386] font-medium">Uploaded Sketches:</span>
-                          <span className="font-bold text-emerald-400">{sketchFiles.length} File(s) Attached</span>
-                        </div>
-                      )}
-
-                      {/* Target Date */}
-                      {neededByDate && (
-                        <div className="p-3 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] flex justify-between items-center">
-                          <span className="text-[#687386] font-medium">Required By:</span>
-                          <span className="font-bold text-[#B88732]">{neededByDate}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Master CAD Deliverables Guarantee Card */}
-                  <div className="p-4 bg-[#FFF9F0]/80 border border-[#E8D7B7] rounded-2xl text-xs space-y-2">
-                    <h4 className="font-bold text-[#B88732] flex items-center gap-1.5">
-                      <Box className="w-4 h-4 text-[#B88732]" /> Master CAD Deliverables
-                    </h4>
-                    <ul className="space-y-1 text-[#687386] text-[11px]">
-                      <li className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-[#B88732]" /> Layered Rhino (.3DM) Native File</li>
-                      <li className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-[#B88732]" /> Watertight Wax-Ready (.STL) Mesh</li>
-                      <li className="flex items-center gap-1.5"><CheckCircle className="w-3 h-3 text-[#B88732]" /> 4K Photorealistic Ray-Traced Render</li>
-                    </ul>
-                  </div>
-
-                  {/* 100% Production Guarantee */}
-                  <div className="p-3.5 bg-[#FFF9F0] rounded-2xl border border-[#E8D7B7] text-[#687386] text-[11px] space-y-1">
-                    <div className="flex items-center gap-2 font-bold text-[#B88732]">
-                      <ShieldCheck className="w-4 h-4 text-[#B88732]" /> Production Ready Guarantee
-                    </div>
-                    <p className="leading-relaxed text-[10px] text-[#687386]">100% tested for stone seat clearance &amp; casting shrinkage.</p>
-                  </div>
-
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* RING SIZE CONVERSION MODAL */}
-      {showRingSizeModal && (
-        <div className="fixed inset-0 z-50 bg-[#17345C]/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[85vh] overflow-hidden shadow-2xl border border-[#E8D7B7] flex flex-col">
-            <div className="p-6 bg-[#FFF9F0] text-[#17243B] flex justify-between items-center border-b border-[#E8D7B7]">
-              <div>
-                <h3 className="text-lg font-serif gold-gradient-text font-bold flex items-center gap-2">
-                  <Ruler className="w-5 h-5 text-[#B88732]" /> International Ring Size Conversion Chart
-                </h3>
-                <p className="text-xs text-[#687386]">Match inside diameter in millimeters across global sizing standards.</p>
-              </div>
-              <button
-                onClick={() => setShowRingSizeModal(false)}
-                className="p-1 rounded-full text-[#687386] hover:text-white hover:bg-white/10"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="p-6 overflow-y-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-[#FFF9F0] text-[#B88732] font-bold uppercase tracking-wider border-b border-[#E8D7B7]">
-                    <th className="p-2.5 rounded-l-xl">US / Canada</th>
-                    <th className="p-2.5">UK / Aus</th>
-                    <th className="p-2.5">IN / HK</th>
-                    <th className="p-2.5">EU (ISO)</th>
-                    <th className="p-2.5 rounded-r-xl">Inside Dia (mm)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/10">
-                  {RING_SIZE_CONVERSION_TABLE.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-[#FFF9F0]/50 transition-colors">
-                      <td className="p-2.5 font-bold text-[#17243B]">{row.us}</td>
-                      <td className="p-2.5 text-[#687386]">{row.uk}</td>
-                      <td className="p-2.5 text-[#687386]">{row.in_hk}</td>
-                      <td className="p-2.5 text-[#687386]">{row.eu}</td>
-                      <td className="p-2.5 font-mono text-[#B88732] font-semibold">{row.inside_mm}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="p-4 bg-[#FFF9F0]/60 border-t border-[#E8D7B7] text-right">
-              <button
-                onClick={() => setShowRingSizeModal(false)}
-                className="px-6 py-2 btn-gold-luxury font-bold text-xs rounded-xl"
-              >
-                Close Conversion Chart
-              </button>
-            </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
+
     </div>
   );
 };

@@ -675,7 +675,7 @@ function MainApp() {
       />
 
       {/* Floating Quick Menu + Scroll-to-Top */}
-      {!isAuthPage && <FloatingQuickMenu onNavigate={handleNavigate} />}
+      {!isAuthPage && <FloatingQuickMenu onNavigate={handleNavigate} currentPage={currentPage} />}
 
       {/* Toast Notification */}
       {toastMessage && (
