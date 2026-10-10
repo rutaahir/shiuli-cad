@@ -37,7 +37,7 @@ import { RevealOnScroll } from '../components/motion/RevealOnScroll';
 import { StaggerGrid, StaggerItem } from '../components/motion/StaggerGrid';
 import { LazyImage } from '../components/motion/LazyImage';
 import { formatINR, formatRupee } from '../utils/currencyHelper';
-import { getMainShowcaseCategories, getSanitizedCategories, formatCategoryName } from '../utils/categoryHelper';
+import { getMainShowcaseCategories, getSanitizedCategories, formatCategoryName, isProductInCategory } from '../utils/categoryHelper';
 import { getOptimizedImageUrl, handleImgError } from '../utils/imageHelper';
 
 // Dynamic Category Box with slowly moving product slideshow + hover/touch selector
@@ -113,74 +113,7 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
 
   // 1. Gather all strictly matching products from live inventory
   const categoryProducts = React.useMemo(() => {
-    const matched = allProducts.filter((p) => {
-      const pCat = (p.category || '').toLowerCase();
-      const pCatName = ((p as any).categoryName || (p as any).category_name || '').toLowerCase();
-      const pCatSlug = ((p as any).category_slug || '').toLowerCase();
-      const pParentSlug = ((p as any).parent_slug || (p as any).parent_category_slug || '').toLowerCase();
-      const pCatId = (p as any).categoryId ?? (p as any).category_id;
-      const pTitle = (p.title || '').toLowerCase();
-
-      // 1. Exact Category ID Match (Directly handles when admin selects category without subcategory)
-      if (cat.id && pCatId && String(cat.id) === String(pCatId)) return true;
-
-      // 2. Exact Slug / Name Match
-      if (
-        pCatSlug === cSlug ||
-        pParentSlug === cSlug ||
-        pCat === cSlug ||
-        pCat === cName ||
-        pCatName === cName ||
-        pCatName === cSlug
-      ) return true;
-
-      // 3. Check EARRINGS first so 'earrings' never falsely matches 'ring' substring!
-      if (cSlug.includes('earring') || cName.includes('earring')) {
-        return (
-          pCat.includes('earring') || pCatName.includes('earring') || pTitle.includes('earring') || pTitle.includes('jhumka') || pTitle.includes('stud')
-        );
-      }
-
-      // 2. RINGS strictly check for ring, and exclude earrings
-      if (
-        (cSlug.includes('ring') || cName.includes('ring')) &&
-        !cSlug.includes('earring') && !cName.includes('earring')
-      ) {
-        return (
-          (pCat.includes('ring') || pCatName.includes('ring') || pTitle.includes('ring')) &&
-          !pCat.includes('earring') && !pCatName.includes('earring') && !pTitle.includes('earring')
-        );
-      }
-
-      if (cSlug.includes('necklace') || cName.includes('necklace')) {
-        return pCat.includes('necklace') || pCatName.includes('necklace') || pTitle.includes('necklace') || pTitle.includes('choker');
-      }
-
-      if (cSlug.includes('pendant') || cName.includes('pendant') || cSlug.includes('pandent') || cName.includes('pandent')) {
-        return pCat.includes('pendant') || pCatName.includes('pendant') || pTitle.includes('pendant') || pCat.includes('pandent') || pTitle.includes('pandent');
-      }
-
-      if (cSlug.includes('bracelet') || cName.includes('bracelet') || cSlug.includes('bangle') || cName.includes('bangle')) {
-        return (
-          pCat.includes('bracelet') || pCatName.includes('bracelet') || pTitle.includes('bracelet') ||
-          pCat.includes('bangle') || pCatName.includes('bangle') || pTitle.includes('bangle') || pTitle.includes('kada')
-        );
-      }
-
-      if (cSlug.includes('mangal') || cName.includes('mangal')) {
-        return pCat.includes('mangal') || pCatName.includes('mangal') || pTitle.includes('mangal') || pTitle.includes('tanmaniya');
-      }
-
-      if (cSlug.includes('nose') || cName.includes('nose')) {
-        return pCat.includes('nose') || pCatName.includes('nose') || pTitle.includes('nose') || pTitle.includes('nath');
-      }
-
-      if (cSlug.includes('polki') || cName.includes('polki')) {
-        return pCat.includes('polki') || pCatName.includes('polki') || pTitle.includes('polki') || pTitle.includes('jadau');
-      }
-
-      return false;
-    });
+    const matched = allProducts.filter((p) => isProductInCategory(p, cSlug, cat));
 
     // Strictly deduplicate matched live products by ID or Title
     const uniqueMap = new Map<string, Product>();
@@ -674,15 +607,8 @@ export const HomePage: React.FC<HomePageProps> = ({
 
   const heroCategoryFilteredProducts = React.useMemo(() => {
     if (selectedHeroCategorySlug === 'all') return liveProducts;
-    const catObj = categories.find((c) => c.slug === selectedHeroCategorySlug);
-    return liveProducts.filter((p) => {
-      return (
-        p.category_slug === selectedHeroCategorySlug ||
-        (p as any).parent_slug === selectedHeroCategorySlug ||
-        (catObj && p.category === catObj.id) ||
-        (p.category_name && p.category_name.toLowerCase().includes(selectedHeroCategorySlug.replace(/-/g, ' ')))
-      );
-    });
+    const catObj = categories.find((c) => c.slug === selectedHeroCategorySlug || String(c.id) === selectedHeroCategorySlug);
+    return liveProducts.filter((p) => isProductInCategory(p, selectedHeroCategorySlug, catObj));
   }, [liveProducts, selectedHeroCategorySlug, categories]);
 
   const heroSearchResults = React.useMemo(() => {
@@ -737,20 +663,13 @@ export const HomePage: React.FC<HomePageProps> = ({
   };
 
   const heroCategoryOptions = React.useMemo(() => {
-    const counts: Record<string, number> = {};
-    liveProducts.forEach((p) => {
-      const slug = ((p as any).category_slug || (p as any).parent_slug || (p as any).category || '').toLowerCase();
-      if (slug) counts[slug] = (counts[slug] || 0) + 1;
-    });
-
     return categories.map((c) => {
-      const slug = (c.slug || '').toLowerCase();
-      const count = counts[slug] ?? (c.product_count ?? 0);
+      const count = liveProducts.filter((p) => isProductInCategory(p, c.slug, c)).length;
       return {
         id: c.id,
         slug: c.slug,
         name: c.name,
-        count,
+        count: count > 0 ? count : (c.product_count ?? 0),
       };
     });
   }, [categories, liveProducts]);
@@ -776,46 +695,14 @@ export const HomePage: React.FC<HomePageProps> = ({
     ];
   }, [categories]);
 
-  // Robust matching for Section 6 filter
+  // Robust matching for Section 6 filter: matches strictly against assigned category, never title strings
   const filteredProducts: Product[] = React.useMemo(() => {
     const source = liveProducts.map(toProductShape);
     if (selectedFilter === 'all') return source;
 
-    const sFilter = selectedFilter.toLowerCase().trim();
-    const filterCatObj = categories.find((c) => c.slug === selectedFilter);
-    const sFilterName = filterCatObj ? filterCatObj.name.toLowerCase() : '';
+    const filterCatObj = categories.find((c) => c.slug === selectedFilter || String(c.id) === selectedFilter);
 
-    return source.filter((p) => {
-      const pCat = (p.category || '').toLowerCase();
-      const pCatName = ((p as any).categoryName || (p as any).category_name || '').toLowerCase();
-      const pCatSlug = ((p as any).category_slug || '').toLowerCase();
-      const pParentSlug = ((p as any).parent_slug || (p as any).parent_category_slug || '').toLowerCase();
-      const pCatId = (p as any).categoryId ?? (p as any).category_id;
-      const pTitle = (p.title || '').toLowerCase();
-
-      // 1. Direct Category ID Match (Directly handles when admin selects category without subcategory)
-      if (filterCatObj && pCatId && String(filterCatObj.id) === String(pCatId)) return true;
-
-      // 2. Direct Slug or Name Match
-      if (
-        pCatSlug === sFilter ||
-        pParentSlug === sFilter ||
-        pCat === sFilter ||
-        pCatName === sFilter ||
-        (sFilterName && (pCat === sFilterName || pCatName === sFilterName))
-      ) return true;
-
-      if (sFilter === 'rings' && (pCat.includes('ring') || pCatName.includes('ring') || pCatSlug.includes('ring') || pTitle.includes('ring')) && !pCat.includes('earring') && !pCatSlug.includes('earring') && !pTitle.includes('earring')) return true;
-      if (sFilter === 'earrings' && (pCat.includes('earring') || pCatName.includes('earring') || pCatSlug.includes('earring') || pTitle.includes('earring') || pTitle.includes('jhumka') || pTitle.includes('stud'))) return true;
-      if (sFilter === 'necklaces' && (pCat.includes('necklace') || pCatName.includes('necklace') || pCatSlug.includes('necklace') || pTitle.includes('necklace') || pTitle.includes('choker') || pTitle.includes('collar'))) return true;
-      if (sFilter === 'pendants' && (pCat.includes('pendant') || pCatName.includes('pendant') || pCatSlug.includes('pendant') || pCat.includes('pandent') || pTitle.includes('pendant') || pTitle.includes('pandent'))) return true;
-      if (sFilter.includes('bracelet') && (pCat.includes('bracelet') || pCatName.includes('bracelet') || pCatSlug.includes('bracelet') || pCat.includes('bangle') || pTitle.includes('bracelet') || pTitle.includes('bangle') || pTitle.includes('kada'))) return true;
-      if (sFilter === 'mangalsutra' && (pCat.includes('mangal') || pCatName.includes('mangal') || pCatSlug.includes('mangal') || pTitle.includes('mangal') || pTitle.includes('tanmaniya'))) return true;
-      if (sFilter.includes('nose') && (pCat.includes('nose') || pCatName.includes('nose') || pCatSlug.includes('nose') || pTitle.includes('nose') || pTitle.includes('nath'))) return true;
-      if (sFilter.includes('polki') && (pCat.includes('polki') || pCatName.includes('polki') || pCatSlug.includes('polki') || pTitle.includes('polki') || pTitle.includes('jadau'))) return true;
-
-      return false;
-    });
+    return source.filter((p) => isProductInCategory(p, selectedFilter, filterCatObj));
   }, [liveProducts, selectedFilter, categories]);
 
   // Paginated visible products: 3 rows initially (12 items), expands via "View More"

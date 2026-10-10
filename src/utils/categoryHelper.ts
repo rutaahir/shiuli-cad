@@ -228,3 +228,97 @@ export function getMainShowcaseCategories(rawCats: any[] = []): CleanCategory[] 
 
   return result;
 }
+
+/**
+ * Normalizes a category key (slug or name) by stripping non-alphanumeric characters
+ * and trailing 's' for resilient, plural-insensitive comparison.
+ */
+export function normalizeCategoryKey(val?: string | null): string {
+  if (!val) return '';
+  return String(val)
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .replace(/s$/, '');
+}
+
+/**
+ * Checks whether a product strictly belongs to a target category.
+ * Matches strictly against category IDs, slugs, parent category IDs/slugs, and category names.
+ * NEVER matches against product titles or arbitrary description text to prevent cross-category bleeding.
+ */
+export function isProductInCategory(
+  product: any,
+  targetFilterSlug: string,
+  targetCategoryObj?: any
+): boolean {
+  if (!product) return false;
+  if (!targetFilterSlug || targetFilterSlug === 'all') return true;
+
+  const targetId = targetCategoryObj && targetCategoryObj.id !== undefined && targetCategoryObj.id !== null
+    ? String(targetCategoryObj.id)
+    : null;
+
+  const pCatId = product.categoryId !== undefined && product.categoryId !== null
+    ? String(product.categoryId)
+    : product.category_id !== undefined && product.category_id !== null
+    ? String(product.category_id)
+    : product.category !== undefined && product.category !== null && typeof product.category !== 'object'
+    ? String(product.category)
+    : null;
+
+  const pParentId = product.parent_category_id !== undefined && product.parent_category_id !== null
+    ? String(product.parent_category_id)
+    : null;
+
+  // 1. Direct Category ID Match (e.g. admin selected this category directly)
+  if (targetId && pCatId && targetId === pCatId) {
+    return true;
+  }
+
+  // 2. Direct Parent Category ID Match (e.g. product belongs to a subcategory whose parent is target)
+  if (targetId && pParentId && targetId === pParentId) {
+    return true;
+  }
+
+  // 3. Subcategories check if targetCategoryObj has subcategories
+  if (targetCategoryObj && Array.isArray(targetCategoryObj.subcategories) && targetCategoryObj.subcategories.length > 0) {
+    for (const sub of targetCategoryObj.subcategories) {
+      if (!sub) continue;
+      const subId = sub.id !== undefined && sub.id !== null ? String(sub.id) : null;
+      if (subId && pCatId && subId === pCatId) return true;
+
+      const subSlugKey = normalizeCategoryKey(sub.slug);
+      const subNameKey = normalizeCategoryKey(sub.name);
+
+      const pSlug = product.category_slug || '';
+      const pName = product.categoryName || product.category_name || (typeof product.category === 'string' ? product.category : '');
+
+      if (subSlugKey && normalizeCategoryKey(pSlug) === subSlugKey) return true;
+      if (subNameKey && normalizeCategoryKey(pName) === subNameKey) return true;
+    }
+  }
+
+  // 4. Normalized Slug & Name Matching
+  const targetSlugKey = normalizeCategoryKey(targetCategoryObj?.slug || targetFilterSlug);
+  const targetNameKey = normalizeCategoryKey(targetCategoryObj?.name);
+
+  const pSlugKey = normalizeCategoryKey(product.category_slug);
+  const pParentSlugKey = normalizeCategoryKey(product.parent_slug || product.parent_category_slug);
+  const pNameKey = normalizeCategoryKey(
+    product.categoryName || product.category_name || (typeof product.category === 'string' ? product.category : '')
+  );
+
+  if (targetSlugKey) {
+    if (pSlugKey && pSlugKey === targetSlugKey) return true;
+    if (pParentSlugKey && pParentSlugKey === targetSlugKey) return true;
+    if (pNameKey && pNameKey === targetSlugKey) return true;
+  }
+
+  if (targetNameKey) {
+    if (pNameKey && pNameKey === targetNameKey) return true;
+    if (pSlugKey && pSlugKey === targetNameKey) return true;
+    if (pParentSlugKey && pParentSlugKey === targetNameKey) return true;
+  }
+
+  return false;
+}
