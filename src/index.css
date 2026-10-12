@@ -577,3 +577,121 @@ img {
   }
 }
 
+/* ═════════════════════════════════════════════════════════════════
+   SUPER ADMIN PORTAL LUXURY ATELIER THEME
+   Scoped systematically under .admin-portal to transform all 19
+   admin modules to match the Shiuli Studio public website aesthetic
+   without altering any operational logic or API interactions.
+═════════════════════════════════════════════════════════════════ */
+
+.admin-portal {
+  background-color: #FFFDF9;
+  color: #17243B;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+/* Luxury hairline borders for cards, containers & dividers */
+.admin-portal .border-\[\#E5E7EF\],
+.admin-portal .border-slate-200 {
+  border-color: rgba(232, 215, 183, 0.6) !important;
+}
+
+.admin-portal .border-slate-300 {
+  border-color: #E8D7B7 !important;
+}
+
+.admin-portal .divide-\[\#E5E7EF\] > * + *,
+.admin-portal .divide-slate-200 > * + * {
+  border-color: rgba(232, 215, 183, 0.45) !important;
+}
+
+/* Warm ivory & cream card backgrounds */
+.admin-portal .bg-\[\#FAF9F5\],
+.admin-portal .bg-\[\#F6F7FB\],
+.admin-portal .bg-slate-50 {
+  background-color: #FFF9F0 !important;
+}
+
+/* Elegant white card elevation */
+.admin-portal .bg-white.border {
+  border-color: #E8D7B7 !important;
+  box-shadow: 0 4px 20px rgba(23, 52, 92, 0.04);
+}
+
+/* Table header & heavy dark bars -> Royal Navy with Gold Accents */
+.admin-portal table thead tr,
+.admin-portal thead tr.bg-\[\#09112B\] {
+  background: linear-gradient(135deg, #17345C 0%, #142C4E 100%) !important;
+  color: #FFF9F0 !important;
+  border-bottom: 1px solid #E8D7B7 !important;
+}
+
+.admin-portal table thead th,
+.admin-portal thead th.font-medium,
+.admin-portal thead th.text-\[\#F5E7A3\] {
+  color: #D9B66F !important;
+  font-family: var(--font-serif, 'Playfair Display', serif) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.06em !important;
+}
+
+/* Soft luxury hover highlight on table rows */
+.admin-portal table tbody tr:hover,
+.admin-portal table tbody tr.hover\:bg-slate-50:hover {
+  background-color: rgba(255, 249, 240, 0.75) !important;
+}
+
+/* Typography harmonization */
+.admin-portal .text-\[\#1E2230\],
+.admin-portal .text-\[\#09112B\] {
+  color: #17345C !important;
+}
+
+.admin-portal .text-\[\#6B7280\] {
+  color: #687386 !important;
+}
+
+.admin-portal h1,
+.admin-portal h2,
+.admin-portal h3 {
+  font-family: var(--font-serif, 'Playfair Display', serif);
+  color: #17345C;
+}
+
+/* Form controls (Inputs, Selects, Textareas) inside Admin Portal */
+.admin-portal input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.admin-portal select,
+.admin-portal textarea {
+  border-color: #E8D7B7 !important;
+  background-color: #FFFDF9 !important;
+  color: #17243B !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.admin-portal input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
+.admin-portal select:focus,
+.admin-portal textarea:focus {
+  border-color: #D9B66F !important;
+  box-shadow: 0 0 0 2px rgba(217, 182, 111, 0.25) !important;
+  outline: none !important;
+}
+
+/* Custom scrollbars inside Admin Portal */
+.admin-portal ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.admin-portal ::-webkit-scrollbar-track {
+  background: #FFF9F0;
+}
+
+.admin-portal ::-webkit-scrollbar-thumb {
+  background: #E8D7B7;
+  border-radius: 9999px;
+}
+
+.admin-portal ::-webkit-scrollbar-thumb:hover {
+  background: #D9B66F;
+}
+

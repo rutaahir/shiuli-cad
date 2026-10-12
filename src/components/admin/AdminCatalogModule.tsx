@@ -603,28 +603,30 @@ export const AdminCatalogModule: React.FC = () => {
       )}
 
       {/* Top Header & Navigation Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-[#E5E7EF] shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-[#E8D7B7] shadow-[0_4px_20px_rgba(23,52,92,0.04)]">
         <div>
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-[#09112B] text-[#F5E7A3] text-[10px] font-mono font-bold uppercase tracking-widest">
+            <span className="px-2.5 py-0.5 rounded-full bg-[#17345C] text-[#D9B66F] border border-[#E8D7B7]/40 text-[10px] font-mono font-bold uppercase tracking-widest shadow-xs">
               Live Database Integration
             </span>
-            <span className="text-xs text-[#6B7280] font-mono">• Catalog Admin</span>
+            <span className="text-xs text-[#B88732] font-mono">• Catalog Admin</span>
           </div>
-          <h1 className="font-serif text-2xl font-bold text-[#1E2230] tracking-tight mt-1">
+          <h1 className="font-serif text-2xl md:text-3xl font-bold text-[#17345C] tracking-tight mt-1.5">
             Categories & Published Catalog
           </h1>
-          <p className="text-xs text-[#6B7280]">
+          <p className="text-xs text-[#687386] mt-0.5 font-light">
             Manage ready-to-download CAD models, 3DM/STL attachments, and category taxonomies.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 bg-[#F6F7FB] p-1 rounded-xl border border-[#E5E7EF] text-xs font-semibold">
+          <div className="flex items-center gap-1 bg-[#FFF9F0] p-1 rounded-xl border border-[#E8D7B7] text-xs font-semibold">
             <button
               onClick={() => setActiveTab('products')}
               className={`px-3.5 py-1.5 rounded-lg transition-all ${
-                activeTab === 'products' ? 'bg-[#09112B] text-white shadow-sm' : 'text-[#6B7280] hover:text-[#1E2230]'
+                activeTab === 'products'
+                  ? 'bg-[#17345C] text-[#FFF9F0] shadow-sm font-bold'
+                  : 'text-[#17345C]/70 hover:text-[#17345C] hover:bg-white/60'
               }`}
             >
               Products ({totalProductCount || products.length})
@@ -632,7 +634,9 @@ export const AdminCatalogModule: React.FC = () => {
             <button
               onClick={() => setActiveTab('categories')}
               className={`px-3.5 py-1.5 rounded-lg transition-all ${
-                activeTab === 'categories' ? 'bg-[#09112B] text-white shadow-sm' : 'text-[#6B7280] hover:text-[#1E2230]'
+                activeTab === 'categories'
+                  ? 'bg-[#17345C] text-[#FFF9F0] shadow-sm font-bold'
+                  : 'text-[#17345C]/70 hover:text-[#17345C] hover:bg-white/60'
               }`}
             >
               Category Tree
@@ -654,27 +658,27 @@ export const AdminCatalogModule: React.FC = () => {
 
       {/* Main Tab View */}
       {activeTab === 'products' ? (
-        <div className="bg-white rounded-2xl border border-[#E5E7EF] shadow-sm overflow-hidden space-y-4">
+        <div className="bg-white rounded-2xl border border-[#E8D7B7] shadow-[0_4px_20px_rgba(23,52,92,0.04)] overflow-hidden space-y-0">
           {/* Filter Bar */}
-          <div className="p-4 border-b border-[#E5E7EF] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#FAF9F5]">
+          <div className="p-4 border-b border-[#E8D7B7] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#FFFDF9]">
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B7280]" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#B88732]" />
               <input
                 type="text"
                 placeholder="Search products by title or category..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded-xl bg-white border border-[#E5E7EF] text-xs text-[#1E2230] focus:outline-none focus:border-[#C9A227]"
+                className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#FFF9F0] border border-[#E8D7B7] text-xs text-[#17243B] placeholder-[#687386]/70 focus:outline-none focus:border-[#D9B66F] focus:ring-1 focus:ring-[#D9B66F]"
               />
             </div>
 
             <div className="flex items-center gap-2 text-xs">
-              <Filter className="w-3.5 h-3.5 text-[#6B7280]" />
-              <span className="text-[#6B7280] font-mono">Status:</span>
+              <Filter className="w-3.5 h-3.5 text-[#B88732]" />
+              <span className="text-[#687386] font-mono">Status:</span>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-1.5 rounded-xl bg-white border border-[#E5E7EF] text-xs text-[#1E2230] focus:outline-none"
+                className="px-3 py-1.5 rounded-xl bg-[#FFF9F0] border border-[#E8D7B7] text-xs text-[#17243B] font-medium focus:outline-none focus:border-[#D9B66F]"
               >
                 <option value="all">All Products</option>
                 <option value="featured">⭐ Show in Home (Marquee)</option>
@@ -688,55 +692,55 @@ export const AdminCatalogModule: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-[#09112B] text-[#F5E7A3] text-[11px] font-mono uppercase tracking-wider">
-                  <th className="p-4 font-medium">Design & Title</th>
-                  <th className="p-4 font-medium">Category & Designer</th>
-                  <th className="p-4 font-medium">Pricing</th>
-                  <th className="p-4 font-medium">Show in Home</th>
-                  <th className="p-4 font-medium">Store Visibility</th>
-                  <th className="p-4 font-medium">Status</th>
-                  <th className="p-4 font-medium text-right">Actions</th>
+                <tr className="bg-gradient-to-r from-[#17345C] to-[#142C4E] text-[#FFF9F0] text-[11px] font-mono uppercase tracking-wider border-b border-[#E8D7B7]">
+                  <th className="p-4 font-semibold text-[#D9B66F]">Design & Title</th>
+                  <th className="p-4 font-semibold text-[#D9B66F]">Category & Designer</th>
+                  <th className="p-4 font-semibold text-[#D9B66F]">Pricing</th>
+                  <th className="p-4 font-semibold text-[#D9B66F]">Show in Home</th>
+                  <th className="p-4 font-semibold text-[#D9B66F]">Store Visibility</th>
+                  <th className="p-4 font-semibold text-[#D9B66F]">Status</th>
+                  <th className="p-4 font-semibold text-[#D9B66F] text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E5E7EF] text-xs">
+              <tbody className="divide-y divide-[#E8D7B7]/40 text-xs">
                 {paginatedProducts.map((prod) => (
-                  <tr key={prod.id} className="hover:bg-slate-50 transition-colors">
+                  <tr key={prod.id} className="hover:bg-[#FFF9F0]/60 transition-colors">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         {prod.primary_image ? (
                           <img
                             src={prod.primary_image}
                             alt={prod.title}
-                            className="w-11 h-11 rounded-xl object-cover border border-[#E5E7EF] shadow-sm"
+                            className="w-11 h-11 rounded-xl object-cover border border-[#E8D7B7] shadow-xs"
                           />
                         ) : (
-                          <div className="w-11 h-11 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 font-mono text-[10px]">
+                          <div className="w-11 h-11 rounded-xl bg-[#FFF9F0] border border-[#E8D7B7] flex items-center justify-center text-[#B88732] font-mono text-[10px] font-bold">
                             NO IMG
                           </div>
                         )}
                         <div>
-                          <div className="font-serif font-bold text-[#1E2230] text-sm">{prod.title}</div>
-                          <div className="text-[10px] text-[#6B7280] font-mono">SKU: {prod.slug}</div>
+                          <div className="font-serif font-bold text-[#17345C] text-sm">{prod.title}</div>
+                          <div className="text-[10px] text-[#687386] font-mono">SKU: {prod.slug}</div>
                         </div>
                       </div>
                     </td>
 
-                    <td className="p-4 font-medium text-[#1E2230]">
+                    <td className="p-4 font-medium text-[#17243B]">
                       <div className="space-y-1">
-                        <span className="px-2.5 py-0.5 rounded-lg bg-slate-100 border border-slate-200 font-mono text-[11px] inline-block">
+                        <span className="px-2.5 py-0.5 rounded-lg bg-[#FFF9F0] border border-[#E8D7B7] font-mono text-[11px] text-[#17345C] inline-block font-semibold">
                           {prod.category_name || 'Uncategorized'}
                         </span>
-                        <div className="text-[10px] text-slate-500 font-mono">
-                          By: <strong className="text-slate-700">{prod.uploaded_by_name || 'Admin'}</strong>
+                        <div className="text-[10px] text-[#687386] font-mono">
+                          By: <strong className="text-[#17345C]">{prod.uploaded_by_name || 'Admin'}</strong>
                         </div>
                       </div>
                     </td>
 
-                    <td className="p-4 font-mono font-bold text-[#1E2230]">
+                    <td className="p-4 font-mono font-bold text-[#17345C]">
                       <div>
                         ${prod.price}
                         {prod.compare_at_price && (
-                          <span className="text-[10px] text-[#9CA3AF] line-through ml-1.5">
+                          <span className="text-[10px] text-[#8C9AA8] line-through ml-1.5">
                             ${prod.compare_at_price}
                           </span>
                         )}
@@ -755,12 +759,12 @@ export const AdminCatalogModule: React.FC = () => {
                         onClick={() => handleToggleProductFeatured(prod)}
                         className={`px-3 py-1 rounded-full text-[11px] font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
                           prod.is_featured
-                            ? 'bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200'
-                            : 'bg-slate-100 text-slate-500 border border-slate-300 hover:bg-slate-200'
+                            ? 'bg-[#FFF9F0] text-[#B88732] border border-[#D9B66F] hover:bg-[#D9B66F]/20'
+                            : 'bg-slate-50 text-slate-500 border border-slate-200 hover:bg-slate-100'
                         }`}
                         title={prod.is_featured ? 'Click to Remove from Home Marquee' : 'Click to Show in Home Marquee'}
                       >
-                        <Sparkles className={`w-3.5 h-3.5 ${prod.is_featured ? 'text-amber-600 fill-amber-500' : 'text-slate-400'}`} />
+                        <Sparkles className={`w-3.5 h-3.5 ${prod.is_featured ? 'text-[#B88732] fill-[#D9B66F]' : 'text-slate-400'}`} />
                         <span>{prod.is_featured ? 'In Marquee' : 'Off'}</span>
                       </button>
                     </td>
@@ -772,8 +776,8 @@ export const AdminCatalogModule: React.FC = () => {
                         onClick={() => handleToggleProductActive(prod)}
                         className={`px-3 py-1 rounded-full text-[11px] font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
                           prod.is_active !== false
-                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200'
-                            : 'bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-200'
+                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100'
+                            : 'bg-slate-50 text-slate-600 border border-slate-300 hover:bg-slate-100'
                         }`}
                         title={prod.is_active !== false ? 'Click to Disable / Hide from store' : 'Click to Enable / Show on store'}
                       >
@@ -786,8 +790,8 @@ export const AdminCatalogModule: React.FC = () => {
                       <span
                         className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold ${
                           prod.status === 'approved'
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-amber-50 text-amber-700 border border-amber-200'
+                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
+                            : 'bg-amber-50 text-amber-800 border border-amber-300'
                         }`}
                       >
                         <span
@@ -811,10 +815,10 @@ export const AdminCatalogModule: React.FC = () => {
                             setIsEditModalOpen(true);
                           }
                         }}
-                        className="p-2 rounded-lg text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-colors inline-flex items-center gap-1 text-[11px] font-semibold"
+                        className="p-2 rounded-xl text-[#17345C] bg-[#FFF9F0] hover:bg-[#D9B66F]/20 border border-[#E8D7B7] transition-all inline-flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
                         title="Edit Product"
                       >
-                        <Edit2 className="w-3.5 h-3.5" />
+                        <Edit2 className="w-3.5 h-3.5 text-[#B88732]" />
                         <span>Edit</span>
                       </button>
 
@@ -829,7 +833,7 @@ export const AdminCatalogModule: React.FC = () => {
                               showToast(err.message || 'Failed to publish product. Please try again.');
                             }
                           }}
-                          className="p-2 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors inline-flex items-center gap-1 text-[11px] font-semibold"
+                          className="p-2 rounded-xl text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 transition-all inline-flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
                           title="Publish — approve and make live on store"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
@@ -851,7 +855,7 @@ export const AdminCatalogModule: React.FC = () => {
                             }
                           }
                         }}
-                        className="p-2 rounded-lg text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors cursor-pointer"
+                        className="p-2 rounded-xl text-rose-600 hover:bg-rose-50 border border-rose-200 transition-all cursor-pointer"
                         title="Delete Product"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -862,7 +866,7 @@ export const AdminCatalogModule: React.FC = () => {
 
                 {filteredProducts.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-[#6B7280] font-mono">
+                    <td colSpan={7} className="p-8 text-center text-[#687386] font-mono">
                       No products found in live database matching your query.
                     </td>
                   </tr>
@@ -872,7 +876,7 @@ export const AdminCatalogModule: React.FC = () => {
           </div>
 
           {/* Table Footer with Pagination & Page Size */}
-          <div className="p-4 border-t border-[#E5E7EF] flex flex-col sm:flex-row items-center justify-between gap-3 bg-[#FAF9F5] text-xs text-[#6B7280]">
+          <div className="p-4 border-t border-[#E8D7B7] flex flex-col sm:flex-row items-center justify-between gap-3 bg-[#FFFDF9] text-xs text-[#687386]">
             <div className="flex items-center gap-2">
               <span>Show</span>
               <select
@@ -881,7 +885,7 @@ export const AdminCatalogModule: React.FC = () => {
                   setItemsPerPage(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="px-2.5 py-1 rounded-lg bg-white border border-[#E5E7EF] text-[#1E2230] font-semibold focus:outline-none"
+                className="px-2.5 py-1 rounded-lg bg-[#FFF9F0] border border-[#E8D7B7] text-[#17345C] font-semibold focus:outline-none"
               >
                 <option value={20}>20</option>
                 <option value={50}>50</option>
@@ -889,10 +893,10 @@ export const AdminCatalogModule: React.FC = () => {
                 <option value={200}>200</option>
               </select>
               <span>products per page</span>
-              <span className="text-slate-400">|</span>
+              <span className="text-[#E8D7B7]">|</span>
               <span>
                 Showing{' '}
-                <strong className="text-[#1E2230]">
+                <strong className="text-[#17345C]">
                   {filteredProducts.length === 0
                     ? 0
                     : `${(validCurrentPage - 1) * itemsPerPage + 1}–${Math.min(
@@ -900,7 +904,7 @@ export const AdminCatalogModule: React.FC = () => {
                         filteredProducts.length
                       )}`}
                 </strong>{' '}
-                of <strong className="text-[#1E2230]">{totalProductCount || filteredProducts.length}</strong> total
+                of <strong className="text-[#17345C]">{totalProductCount || filteredProducts.length}</strong> total
               </span>
             </div>
 
@@ -909,17 +913,17 @@ export const AdminCatalogModule: React.FC = () => {
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={validCurrentPage === 1}
-                  className="px-3 py-1.5 rounded-lg border border-[#E5E7EF] bg-white text-[#1E2230] hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg border border-[#E8D7B7] bg-[#FFF9F0] text-[#17345C] hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 >
                   Previous
                 </button>
-                <span className="px-3 py-1 font-mono text-slate-700">
+                <span className="px-3 py-1 font-mono text-[#17345C] font-bold">
                   Page {validCurrentPage} of {totalPages}
                 </span>
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={validCurrentPage === totalPages}
-                  className="px-3 py-1.5 rounded-lg border border-[#E5E7EF] bg-white text-[#1E2230] hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg border border-[#E8D7B7] bg-[#FFF9F0] text-[#17345C] hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 >
                   Next
                 </button>
@@ -929,7 +933,7 @@ export const AdminCatalogModule: React.FC = () => {
         </div>
       ) : (
         /* Categories Taxonomy & Tree View */
-        <div className="bg-white rounded-2xl border border-[#E5E7EF] p-6 shadow-sm space-y-6">
+        <div className="bg-white rounded-2xl border border-[#E8D7B7] p-6 shadow-[0_4px_20px_rgba(23,52,92,0.04)] space-y-6">
           {catDeleteWarning && (
             <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between animate-fadeIn">
               <div className="flex items-center gap-2">
@@ -945,10 +949,10 @@ export const AdminCatalogModule: React.FC = () => {
             </div>
           )}
 
-          <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-4">
+          <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-4">
             <div>
-              <h3 className="font-serif text-lg font-bold text-[#1E2230]">Category Taxonomy Hierarchy</h3>
-              <p className="text-xs text-[#6B7280]">Live product counts auto-calculated from database.</p>
+              <h3 className="font-serif text-lg font-bold text-[#17345C]">Category Taxonomy Hierarchy</h3>
+              <p className="text-xs text-[#687386]">Live product counts auto-calculated from database.</p>
             </div>
             <button
               onClick={() => setShowAddCategoryDrawer(true)}
@@ -961,11 +965,11 @@ export const AdminCatalogModule: React.FC = () => {
 
           <div className="space-y-4 text-xs">
             {parentCategories.map((cat) => (
-              <div key={cat.id} className="p-5 rounded-2xl bg-[#FAF9F5] border border-[#E5E7EF] space-y-3 shadow-sm hover:border-[#D4AF37]/50 transition-all">
+              <div key={cat.id} className="p-5 rounded-2xl bg-[#FFFDF9] border border-[#E8D7B7] space-y-3 shadow-xs hover:border-[#D9B66F] transition-all">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     {/* Category Image Thumbnail */}
-                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-[#0A1333] border border-[#D4AF37]/40 flex items-center justify-center shrink-0 p-1 shadow-sm">
+                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-[#17345C] border border-[#E8D7B7]/40 flex items-center justify-center shrink-0 p-1 shadow-xs">
                       <img
                         src={(cat as any).image_display || (cat as any).image_url || cat.image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=200&q=80'}
                         alt={cat.name}
@@ -978,16 +982,16 @@ export const AdminCatalogModule: React.FC = () => {
 
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-serif text-base font-bold text-[#09112B]">{cat.name}</span>
-                        <span className="px-2 py-0.5 rounded-full bg-[#09112B] text-[#F5E7A3] text-[10px] font-mono font-bold shadow-xs">
+                        <span className="font-serif text-base font-bold text-[#17345C]">{cat.name}</span>
+                        <span className="px-2.5 py-0.5 rounded-full bg-[#17345C] text-[#FFF9F0] border border-[#E8D7B7]/40 text-[10px] font-mono font-bold shadow-xs">
                           Order #{cat.display_order ?? 0}
                         </span>
-                        <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-800 text-[10px] font-mono">
+                        <span className="px-2.5 py-0.5 rounded-full bg-[#FFF9F0] border border-[#E8D7B7] text-[#17345C] text-[10px] font-mono font-bold">
                           {cat.product_count} Products
                         </span>
                       </div>
                       {cat.tagline && (
-                        <p className="text-[11px] text-slate-500 font-light mt-0.5">{cat.tagline}</p>
+                        <p className="text-[11px] text-[#687386] font-light mt-0.5">{cat.tagline}</p>
                       )}
                     </div>
                   </div>
@@ -995,8 +999,8 @@ export const AdminCatalogModule: React.FC = () => {
                   <div className="flex items-center gap-2 flex-wrap">
                     {/* Category Commission Badge & Inline Editor */}
                     {editingCatCommissionId === cat.id ? (
-                      <div className="flex items-center gap-1 bg-white border border-[#C9A227] px-2 py-0.5 rounded-lg shadow-xs">
-                        <span className="text-[10px] text-slate-500 font-mono">Commission:</span>
+                      <div className="flex items-center gap-1 bg-white border border-[#D9B66F] px-2 py-0.5 rounded-lg shadow-xs">
+                        <span className="text-[10px] text-[#687386] font-mono">Commission:</span>
                         <input
                           type="number"
                           step="0.5"
@@ -1004,14 +1008,14 @@ export const AdminCatalogModule: React.FC = () => {
                           max="100"
                           value={editCommissionVal}
                           onChange={(e) => setEditCommissionVal(e.target.value)}
-                          className="w-14 px-1 py-0.5 text-xs font-mono font-bold border border-slate-300 rounded focus:outline-none"
+                          className="w-14 px-1 py-0.5 text-xs font-mono font-bold border border-[#E8D7B7] rounded focus:outline-none focus:border-[#D9B66F]"
                           autoFocus
                         />
-                        <span className="font-mono text-xs">%</span>
+                        <span className="font-mono text-xs text-[#17345C]">%</span>
                         <button
                           type="button"
                           onClick={() => handleUpdateCategoryCommission(cat.id, Number(editCommissionVal))}
-                          className="px-2 py-0.5 bg-[#09112B] text-[#F5E7A3] text-[10px] font-bold rounded cursor-pointer hover:bg-black"
+                          className="px-2 py-0.5 bg-[#17345C] text-[#FFF9F0] text-[10px] font-bold rounded cursor-pointer hover:bg-[#142C4E]"
                         >
                           Save
                         </button>
@@ -1024,7 +1028,7 @@ export const AdminCatalogModule: React.FC = () => {
                         </button>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-[10px] font-mono font-bold shadow-xs">
+                      <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#FFF9F0] border border-[#E8D7B7] text-[#B88732] text-[10px] font-mono font-bold shadow-xs">
                         <span>Commission: {cat.commission_percentage != null ? cat.commission_percentage : '20'}%</span>
                         <button
                           type="button"
@@ -1032,7 +1036,7 @@ export const AdminCatalogModule: React.FC = () => {
                             setEditingCatCommissionId(cat.id);
                             setEditCommissionVal(String(cat.commission_percentage != null ? cat.commission_percentage : '20'));
                           }}
-                          className="p-0.5 text-amber-700 hover:text-amber-950 rounded cursor-pointer"
+                          className="p-0.5 text-[#B88732] hover:text-[#17345C] rounded cursor-pointer"
                           title="Click to edit category commission percentage"
                         >
                           <Edit2 className="w-3 h-3" />
@@ -1044,10 +1048,10 @@ export const AdminCatalogModule: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleOpenEditCategory(cat)}
-                      className="px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 hover:bg-amber-100 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all shadow-xs"
+                      className="px-2.5 py-1 rounded-xl bg-[#FFF9F0] border border-[#E8D7B7] text-[#17345C] hover:bg-[#D9B66F]/15 text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all shadow-xs"
                       title="Edit Category Details, Display Order & Cover Image"
                     >
-                      <Edit2 className="w-3.5 h-3.5 text-amber-700" />
+                      <Edit2 className="w-3.5 h-3.5 text-[#B88732]" />
                       <span>Edit</span>
                     </button>
 
@@ -1058,16 +1062,16 @@ export const AdminCatalogModule: React.FC = () => {
                         setNewSubCatName('');
                         setNewSubCatSlug('');
                       }}
-                      className="text-xs text-[#2856C7] font-semibold hover:underline flex items-center gap-1 px-1.5"
+                      className="text-xs text-[#17345C] font-semibold hover:text-[#B88732] flex items-center gap-1 px-2 py-1 rounded-xl bg-[#FFF9F0] border border-[#E8D7B7] transition-all cursor-pointer"
                     >
-                      <Plus className="w-3.5 h-3.5" />
+                      <Plus className="w-3.5 h-3.5 text-[#B88732]" />
                       Add Sub
                     </button>
 
                     <button
                       type="button"
                       onClick={() => handleDeleteCategory(cat)}
-                      className="p-1.5 rounded text-rose-500 hover:bg-rose-100 cursor-pointer"
+                      className="p-1.5 rounded-xl text-rose-500 hover:bg-rose-50 border border-rose-200 cursor-pointer transition-colors"
                       title="Delete Category"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -1077,13 +1081,13 @@ export const AdminCatalogModule: React.FC = () => {
 
                 {/* Inline Sub-category Creator */}
                 {addingSubCatParentId === cat.id && (
-                  <div className="p-3 bg-white rounded-xl border border-[#C9A227]/40 flex items-center gap-2 animate-fadeIn">
+                  <div className="p-3 bg-white rounded-xl border border-[#D9B66F] flex items-center gap-2 animate-fadeIn">
                     <input
                       type="text"
                       placeholder="Sub-category name (e.g. Solitaires)"
                       value={newSubCatName}
                       onChange={(e) => handleSubCatNameChange(e.target.value)}
-                      className="flex-1 px-3 py-1.5 rounded-lg bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                      className="flex-1 px-3 py-1.5 rounded-lg bg-[#FFF9F0] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#D9B66F]"
                     />
                     <button
                       onClick={() => handleCreateSubCategory(cat.id)}
@@ -1103,18 +1107,18 @@ export const AdminCatalogModule: React.FC = () => {
                 {/* Subcategory Chips */}
                 <div className="pl-6 pt-1 flex flex-wrap gap-2">
                   {cat.subcategories.length === 0 ? (
-                    <span className="text-[11px] text-[#9CA3AF] italic">No subcategories created yet.</span>
+                    <span className="text-[11px] text-[#687386] italic">No subcategories created yet.</span>
                   ) : (
                     cat.subcategories.map((sub) => (
                       <span
                         key={sub.id}
-                        className="px-3.5 py-1.5 rounded-xl bg-white border border-[#E5E7EF] text-[#1E2230] text-xs shadow-sm flex items-center gap-2 group hover:border-[#C9A227] transition-all"
+                        className="px-3.5 py-1.5 rounded-xl bg-white border border-[#E8D7B7] text-[#17345C] text-xs shadow-xs flex items-center gap-2 group hover:border-[#D9B66F] transition-all"
                       >
-                        <span className="font-medium">{sub.name}</span>
-                        <span className="text-[10px] font-mono text-[#6B7280]">({sub.product_count})</span>
+                        <span className="font-semibold">{sub.name}</span>
+                        <span className="text-[10px] font-mono text-[#B88732]">({sub.product_count})</span>
                         <button
                           onClick={() => handleDeleteSubCategory(sub, cat)}
-                          className="p-1 rounded text-[#9CA3AF] hover:text-rose-600 hover:bg-rose-50 font-bold transition-all cursor-pointer"
+                          className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 font-bold transition-all cursor-pointer"
                           title={`Delete Sub-category "${sub.name}"`}
                         >
                           <Trash2 className="w-3.5 h-3.5" />

@@ -29,7 +29,10 @@ import {
   ExternalLink,
   Plus,
   Play,
-  FileAudio
+  FileAudio,
+  Camera,
+  RotateCcw,
+  RefreshCw
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { PageId } from '../types';
@@ -76,8 +79,19 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
   const [catalogCategoryFilter, setCatalogCategoryFilter] = useState<string>('all');
 
   const pictureInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const cadInputRef = useRef<HTMLInputElement>(null);
   const audioFileInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  // Camera Capture Modal State
+  const [showCameraModal, setShowCameraModal] = useState<boolean>(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [capturedPhotoUrl, setCapturedPhotoUrl] = useState<string | null>(null);
+  const [capturedPhotoBlob, setCapturedPhotoBlob] = useState<Blob | null>(null);
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const [isStartingCamera, setIsStartingCamera] = useState<boolean>(false);
 
   // 4. Additional Details + Voice Note (Record or Upload)
   const [additionalDetails, setAdditionalDetails] = useState<string>('');
@@ -148,15 +162,185 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
     return target.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   }, [deliveryDays, customDate]);
 
-  // Handle Picture Uploads
+  // Handle Picture Uploads (from device)
   const handlePictureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
       setPictureFiles((prev) => [...prev, ...files]);
       const newPreviews = files.map((f) => URL.createObjectURL(f as File));
       setPicturePreviews((prev) => [...prev, ...newPreviews]);
+      e.target.value = '';
     }
   };
+
+  // Handle Native Mobile Camera Capture
+  const handleNativeCameraCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
+      setPictureFiles((prev) => [...prev, ...files]);
+      const newPreviews = files.map((f) => URL.createObjectURL(f as File));
+      setPicturePreviews((prev) => [...prev, ...newPreviews]);
+      e.target.value = '';
+      stopCamera();
+    }
+  };
+
+  // Camera Stream Lifecycle Functions
+  const startCamera = async (mode: 'environment' | 'user' = facingMode) => {
+    setIsStartingCamera(true);
+    setCameraError(null);
+    setCapturedPhotoUrl(null);
+    setCapturedPhotoBlob(null);
+
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      setCameraStream(null);
+    }
+
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera access not supported in this browser.');
+      }
+
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: mode },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          },
+          audio: false
+        });
+      } catch (firstErr) {
+        // Fallback without constraints if specific facingMode fails
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false
+        });
+      }
+
+      setCameraStream(stream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play().catch(() => {});
+      }
+    } catch (err: any) {
+      console.warn('Camera error:', err);
+      setCameraError(
+        err?.name === 'NotAllowedError' || err?.message?.includes('Permission')
+          ? 'Camera permission denied. Please enable camera access in your browser or use the Native Camera button.'
+          : 'Unable to open camera stream. Please use your device native camera or upload from device.'
+      );
+    } finally {
+      setIsStartingCamera(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      setCameraStream(null);
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setCapturedPhotoUrl(null);
+    setCapturedPhotoBlob(null);
+    setCameraError(null);
+    setShowCameraModal(false);
+  };
+
+  const handleCapturePhoto = () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    if (facingMode === 'user') {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          setCapturedPhotoBlob(blob);
+          const previewUrl = URL.createObjectURL(blob);
+          setCapturedPhotoUrl(previewUrl);
+        }
+      },
+      'image/jpeg',
+      0.95
+    );
+  };
+
+  const handleRetakePhoto = () => {
+    if (capturedPhotoUrl) {
+      URL.revokeObjectURL(capturedPhotoUrl);
+    }
+    setCapturedPhotoUrl(null);
+    setCapturedPhotoBlob(null);
+    if (videoRef.current && cameraStream) {
+      videoRef.current.srcObject = cameraStream;
+      videoRef.current.play().catch(() => {});
+    }
+  };
+
+  const handleConfirmCapturedPhoto = () => {
+    if (!capturedPhotoBlob) return;
+    const fileName = `camera_reference_${Date.now()}.jpg`;
+    const file = new File([capturedPhotoBlob], fileName, { type: 'image/jpeg' });
+
+    setPictureFiles((prev) => [...prev, file]);
+    if (capturedPhotoUrl) {
+      setPicturePreviews((prev) => [...prev, capturedPhotoUrl]);
+    } else {
+      const url = URL.createObjectURL(file);
+      setPicturePreviews((prev) => [...prev, url]);
+    }
+
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      setCameraStream(null);
+    }
+    setCapturedPhotoUrl(null);
+    setCapturedPhotoBlob(null);
+    setShowCameraModal(false);
+  };
+
+  const toggleCameraFacingMode = () => {
+    const nextMode = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(nextMode);
+    startCamera(nextMode);
+  };
+
+  const openCameraModal = () => {
+    setShowCameraModal(true);
+    startCamera(facingMode);
+  };
+
+  // Sync video stream when modal opens
+  useEffect(() => {
+    if (videoRef.current && cameraStream && !capturedPhotoUrl) {
+      videoRef.current.srcObject = cameraStream;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [cameraStream, capturedPhotoUrl, showCameraModal]);
+
+  // Clean up camera stream on unmount
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [cameraStream]);
 
   const removePicture = (index: number) => {
     setPictureFiles((prev) => prev.filter((_, i) => i !== index));
@@ -753,16 +937,17 @@ Please confirm feasibility and provide the production CAD quotation.`;
                 Add Reference
               </label>
 
-              {/* 3 Upload / Selection Action Buttons */}
+              {/* Action Buttons: Upload from Device, Take Photo (Camera), CAD File, Catalogue */}
               <div className="flex flex-wrap items-center gap-3">
-                {/* Upload Picture */}
+                {/* 1. Upload from Device */}
                 <button
                   type="button"
                   onClick={() => pictureInputRef.current?.click()}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#E8D7B7] hover:border-[#D6AD62] bg-[#FFFDF9] hover:bg-[#FFF9F0] text-xs font-semibold text-[#17345C] transition-all cursor-pointer shadow-2xs"
+                  title="Upload picture from your device storage or gallery"
                 >
                   <Upload className="w-4 h-4 text-[#B88735]" />
-                  <span>Upload Picture</span>
+                  <span>Upload from Device</span>
                 </button>
                 <input
                   ref={pictureInputRef}
@@ -770,6 +955,25 @@ Please confirm feasibility and provide the production CAD quotation.`;
                   multiple
                   accept="image/*"
                   onChange={handlePictureUpload}
+                  className="hidden"
+                />
+
+                {/* 2. Take Photo (Camera) */}
+                <button
+                  type="button"
+                  onClick={openCameraModal}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#E8D7B7] hover:border-[#D6AD62] bg-[#FFFDF9] hover:bg-[#FFF9F0] text-xs font-semibold text-[#17345C] transition-all cursor-pointer shadow-2xs group"
+                  title="Capture reference photo directly using your camera"
+                >
+                  <Camera className="w-4 h-4 text-[#B88735] group-hover:scale-110 transition-transform" />
+                  <span>Take Photo (Camera)</span>
+                </button>
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleNativeCameraCapture}
                   className="hidden"
                 />
 
@@ -1215,6 +1419,184 @@ Please confirm feasibility and provide the production CAD quotation.`;
                     </div>
                   </div>
                 ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* CAMERA CAPTURE MODAL */}
+      <AnimatePresence>
+        {showCameraModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) stopCamera();
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.2 }}
+              className="bg-[#FFFDF9] border border-[#E8D7B7] rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl flex flex-col max-h-[92vh]"
+            >
+              {/* Modal Header */}
+              <div className="p-4 sm:p-5 border-b border-[#E8D7B7] flex items-center justify-between bg-white">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-[#FFF9F0] border border-[#E8D7B7] flex items-center justify-center text-[#B88735] shadow-2xs">
+                    <Camera className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-serif text-base sm:text-lg font-bold text-[#17345C]">
+                      Take Reference Photo
+                    </h3>
+                    <p className="text-[11px] text-[#626875]">
+                      Capture your jewellery reference, sketch, or physical sample
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={stopCamera}
+                  className="p-2 rounded-xl text-slate-400 hover:text-[#17345C] hover:bg-[#FFF9F0] transition-colors cursor-pointer"
+                  title="Close Camera"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Viewfinder / Live Stream Body */}
+              <div className="p-4 sm:p-5 flex-1 flex flex-col items-center justify-center bg-[#FAF7F0]/40 space-y-3.5">
+                <div className="relative w-full aspect-4/3 rounded-2xl overflow-hidden bg-black border border-[#E8D7B7] shadow-inner flex items-center justify-center">
+                  {/* Case 1: Captured Photo Preview */}
+                  {capturedPhotoUrl ? (
+                    <img
+                      src={capturedPhotoUrl}
+                      alt="Captured Reference"
+                      className="w-full h-full object-contain bg-black"
+                    />
+                  ) : (
+                    /* Case 2: Live Video Stream */
+                    <>
+                      <video
+                        ref={videoRef}
+                        playsInline
+                        autoPlay
+                        muted
+                        className={`w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
+                      />
+
+                      {/* Golden Framing Reticle Guides */}
+                      <div className="pointer-events-none absolute inset-5 sm:inset-7 border border-white/20 rounded-xl">
+                        <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-[#D9B66F]" />
+                        <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-[#D9B66F]" />
+                        <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-[#D9B66F]" />
+                        <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-[#D9B66F]" />
+                      </div>
+
+                      {/* Flip Camera Button */}
+                      {!cameraError && (
+                        <button
+                          type="button"
+                          onClick={toggleCameraFacingMode}
+                          className="absolute top-3 right-3 p-2.5 rounded-full bg-black/60 hover:bg-black/85 text-white backdrop-blur-xs border border-white/25 transition-all cursor-pointer shadow-md"
+                          title="Switch Camera (Front / Rear)"
+                        >
+                          <RefreshCw className="w-4 h-4 text-[#D9B66F]" />
+                        </button>
+                      )}
+                    </>
+                  )}
+
+                  {/* Starting Camera Loading State */}
+                  {isStartingCamera && (
+                    <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-white space-y-2 z-10">
+                      <Loader2 className="w-8 h-8 animate-spin text-[#D9B66F]" />
+                      <span className="text-xs font-mono">Initializing camera...</span>
+                    </div>
+                  )}
+
+                  {/* Camera Error Banner */}
+                  {cameraError && !capturedPhotoUrl && (
+                    <div className="absolute inset-0 bg-slate-950/90 p-6 flex flex-col items-center justify-center text-center space-y-3 z-10">
+                      <AlertCircle className="w-10 h-10 text-amber-400" />
+                      <p className="text-xs text-slate-200 max-w-xs leading-relaxed">{cameraError}</p>
+                      <button
+                        type="button"
+                        onClick={() => cameraInputRef.current?.click()}
+                        className="btn-gold-luxury px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-md"
+                      >
+                        <Camera className="w-4 h-4 text-[#0B1330]" />
+                        <span>Open Device Native Camera</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Subtitle / Status Guidance */}
+                <div className="text-center">
+                  {capturedPhotoUrl ? (
+                    <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-semibold">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      Photo captured! Click "Attach Photo" below to use it.
+                    </span>
+                  ) : (
+                    <p className="text-[11px] text-[#626875]">
+                      Position your jewellery design or sketch inside the frame and click Capture.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Modal Actions Footer */}
+              <div className="p-4 sm:p-5 border-t border-[#E8D7B7] bg-white flex items-center justify-between gap-3">
+                {capturedPhotoUrl ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleRetakePhoto}
+                      className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-[#E8D7B7] hover:border-[#D6AD62] bg-[#FFFDF9] hover:bg-[#FFF9F0] text-xs font-semibold text-[#17345C] transition-all cursor-pointer"
+                    >
+                      <RotateCcw className="w-4 h-4 text-[#B88735]" />
+                      <span>Retake Photo</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleConfirmCapturedPhoto}
+                      className="btn-gold-luxury flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer shadow-md"
+                    >
+                      <Check className="w-4 h-4 text-[#0B1330]" />
+                      <span>Attach Photo</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {/* Fallback to Native Mobile Camera */}
+                    <button
+                      type="button"
+                      onClick={() => cameraInputRef.current?.click()}
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[#E8D7B7] hover:border-[#D6AD62] bg-[#FFF9F0] text-xs font-semibold text-[#17345C] transition-all cursor-pointer"
+                      title="Open your device default camera application"
+                    >
+                      <Camera className="w-3.5 h-3.5 text-[#B88735]" />
+                      <span className="hidden sm:inline">Use Native Camera App</span>
+                      <span className="sm:hidden">Native App</span>
+                    </button>
+
+                    {/* Live Shutter Capture Button */}
+                    <button
+                      type="button"
+                      disabled={isStartingCamera || !!cameraError}
+                      onClick={handleCapturePhoto}
+                      className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#17345C] to-[#142C4E] hover:from-[#142C4E] hover:to-[#0E1F36] text-[#FFF9F0] text-xs font-bold tracking-wide uppercase shadow-md transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#D9B66F] animate-pulse" />
+                      <span>Capture Photo</span>
+                    </button>
+                  </>
+                )}
               </div>
             </motion.div>
           </div>
