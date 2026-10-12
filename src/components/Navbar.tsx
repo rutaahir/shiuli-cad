@@ -7,6 +7,7 @@ import { PageId } from '../types';
 import { getOptimizedImageUrl, handleImgError } from '../utils/imageHelper';
 import { formatINR } from '../utils/currencyHelper';
 import { isProductInCategory } from '../utils/categoryHelper';
+import { CountrySelector } from './common/CountrySelector';
 import {
   ShoppingBag,
   Heart,
@@ -534,6 +535,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <Search className="w-4 h-4" />
               </button>
 
+              {/* Country & Currency Switcher */}
+              <CountrySelector variant="navbar" />
+
               <button
                 onClick={onOpenCart}
                 className="p-2 text-[#17345C] hover:text-[#B88732] transition-colors relative rounded-full hover:bg-[#FFF9F0]"
@@ -676,6 +680,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                   Sign In
                 </button>
               )}
+            </div>
+
+            {/* Regional Pricing & Country Switcher on Mobile */}
+            <div className="mt-3">
+              <CountrySelector variant="mobile" />
             </div>
 
             <div className="space-y-2 py-6">

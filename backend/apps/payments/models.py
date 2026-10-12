@@ -125,6 +125,14 @@ class Purchase(models.Model):
     payment_details = models.TextField(blank=True, default="")
     payment_screenshot = models.FileField(upload_to="payment_proofs/", blank=True, null=True)
     status = models.CharField(max_length=15, choices=Status.choices, default=Status.PENDING)
+    # Regional Tier Pricing Snapshot
+    pricing_mode = models.CharField(max_length=20, default="global", blank=True)
+    pricing_tier = models.CharField(max_length=50, blank=True, default="")
+    country_code = models.CharField(max_length=10, blank=True, default="")
+    currency = models.CharField(max_length=10, default="INR", blank=True)
+    original_price_usd = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    exchange_rate = models.DecimalField(max_digits=12, decimal_places=6, null=True, blank=True)
+    pricing_snapshot = models.JSONField(default=dict, blank=True)
     admin_verified_at = models.DateTimeField(null=True, blank=True)
     admin_verified_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="verified_purchases"

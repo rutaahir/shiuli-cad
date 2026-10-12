@@ -47,6 +47,9 @@ export interface PaymentGatewayModalProps {
     itemsCount?: number;
     formats?: string[];
     notes?: string;
+    country?: string;
+    pricing_mode?: string;
+    pricing_tier?: string;
   };
   onPaymentSuccess: (result: PaymentSuccessResult) => Promise<void> | void;
 }
@@ -225,6 +228,7 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
             payment_details: chosenDetails,
             payment_screenshot: chosenScreenshot || undefined,
             auto_confirm: false,
+            country: orderDetails.country || undefined,
           });
         } catch (bkErr) {
           console.warn('Backend purchase submission notice:', bkErr);

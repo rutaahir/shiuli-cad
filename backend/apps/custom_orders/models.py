@@ -257,6 +257,12 @@ class Order(models.Model):
         limit_choices_to={'role': 'staff'}
     )
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=10, default="INR", blank=True)
+    country_code = models.CharField(max_length=10, blank=True, default="")
+    pricing_tier = models.CharField(max_length=50, blank=True, default="")
+    original_price_usd = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    exchange_rate = models.DecimalField(max_digits=12, decimal_places=6, null=True, blank=True)
+    pricing_snapshot = models.JSONField(default=dict, blank=True)
     admin_commission_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=20.00)
     staff_payout_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     advance_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)

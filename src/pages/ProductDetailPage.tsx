@@ -33,6 +33,8 @@ import { OTPVerificationModal } from '../components/delivery/OTPVerificationModa
 import { PaymentGatewayModal } from '../components/payment/PaymentGatewayModal';
 import { useAuth } from '../context/AuthContext';
 import { getOptimizedImageUrl, handleImgError } from '../utils/imageHelper';
+import { useCustomerCountry, resolveDisplayPrice } from '../utils/countryContext';
+import { ProductPriceTag } from '../components/common/ProductPriceTag';
 
 interface ProductDetailPageProps {
   productId: string;
@@ -167,8 +169,13 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
             reviewsCount: typeof res.reviews_count === 'number' ? res.reviews_count : 0,
             isBestseller: Boolean(res.is_bestseller),
             isNew: Boolean(res.is_new),
+            isFeatured: Boolean(res.is_featured),
+            is_featured: Boolean(res.is_featured),
             uploadedByName: res.uploaded_by_name || 'Studio Modeller',
             uploadedByAvatar: res.uploaded_by_avatar || undefined,
+            pricing_mode: res.pricing_mode || 'global',
+            regional_pricing: res.regional_pricing || undefined,
+            resolved_pricing: res.resolved_pricing || undefined,
             specs: {
               ...rawSpecs,
               metalWeight18k,
@@ -202,6 +209,9 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                   title: p.title,
                   category: p.category_name || (typeof p.category === 'object' ? p.category?.name : 'Jewellery'),
                   price: Number(p.price) || 0,
+                  pricing_mode: p.pricing_mode || 'global',
+                  regional_pricing: p.regional_pricing || undefined,
+                  resolved_pricing: p.resolved_pricing || undefined,
                   primaryImage: p.primary_image || '/unsplash-img/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=800&q=80',
                   formats: ['3DM', 'STL'],
                   images: [p.primary_image || ''],
@@ -223,10 +233,14 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
       });
   }, [productId]);
 
-  const currentPriceUSD = product
-    ? selectedLicense === 'commercial'
-      ? Math.round(product.price * 1.8)
-      : product.price
+  const { currentCountry, exchangeRates } = useCustomerCountry();
+
+  const priceDisplay = product
+    ? resolveDisplayPrice(product, selectedLicense, currentCountry.code, exchangeRates)
+    : null;
+
+  const currentPriceUSD = priceDisplay
+    ? priceDisplay.amount
     : 0;
 
   const currentPrice = currentPriceUSD;
@@ -596,14 +610,32 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
               {/* Price */}
               <div className="flex items-baseline justify-between gap-3">
                 <div>
-                  <div className="text-3xl sm:text-4xl font-serif font-bold text-[#17345C] tracking-tight">
-                    ₹{currentPriceINR.toLocaleString('en-IN')}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="text-3xl sm:text-4xl font-serif font-bold text-[#17345C] tracking-tight">
+                      {priceDisplay ? priceDisplay.display : `₹${currentPriceINR.toLocaleString('en-IN')}`}
+                    </div>
+                    {priceDisplay?.isRegional && priceDisplay.tierName && (
+                      <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-[#FFF9F0] border border-[#E8D7B7] text-[#B88732] font-semibold tracking-wide">
+                        {currentCountry.flag} {priceDisplay.tierName}
+                      </span>
+                    )}
                   </div>
                   <span className="text-[11px] text-[#687386] font-mono mt-0.5 block">
                     Instant Deliverables (.3DM + .STL + 4K Render Pack)
                   </span>
                 </div>
-                {product.originalPrice && (
+                {priceDisplay?.originalDisplay ? (
+                  <div className="text-right flex-shrink-0">
+                    <span className="text-sm text-[#687386] line-through block font-mono">
+                      {priceDisplay.originalDisplay}
+                    </span>
+                    {priceDisplay.savingsDisplay && (
+                      <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 uppercase tracking-wider font-bold inline-block mt-0.5">
+                        Save {priceDisplay.savingsDisplay}
+                      </span>
+                    )}
+                  </div>
+                ) : product.originalPrice ? (
                   <div className="text-right flex-shrink-0">
                     <span className="text-sm text-[#687386] line-through block font-mono">
                       ₹{originalPriceINR.toLocaleString('en-IN')}
@@ -612,7 +644,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                       Save ₹{(originalPriceINR - currentPriceINR).toLocaleString('en-IN')}
                     </span>
                   </div>
-                )}
+                ) : null}
               </div>
 
               {/* Action Buttons */}
@@ -623,7 +655,11 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                   className="w-full py-4 rounded-xl btn-gold-luxury text-xs font-bold tracking-wider uppercase flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all disabled:opacity-50 cursor-pointer"
                 >
                   <ShieldCheck className="w-4 h-4 text-[#17345C]" />
-                  <span>{purchasing ? 'Initiating Secure Purchase...' : `Buy Now & Verify OTP — ₹${currentPriceINR.toLocaleString('en-IN')}`}</span>
+                  <span>
+                    {purchasing
+                      ? 'Initiating Secure Purchase...'
+                      : `Buy Now & Verify OTP — ${priceDisplay ? priceDisplay.display : `₹${currentPriceINR.toLocaleString('en-IN')}`}`}
+                  </span>
                 </button>
 
                 <div className="flex gap-2">
@@ -925,7 +961,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                       className="w-full h-full object-contain p-3 group-hover:scale-105 transition-transform duration-500"
                     />
                     <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-white/90 backdrop-blur-md border border-[#E8D7B7] text-[10px] font-semibold text-[#17345C] shadow-sm">
-                      ${relProd.price}
+                      <ProductPriceTag product={relProd} size="xs" showOriginalPrice={false} />
                     </div>
                   </div>
                   <div className="p-4 flex flex-col flex-1 justify-between">
@@ -964,7 +1000,9 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-xs font-serif text-[#17345C] truncate">{product.title}</div>
-            <div className="text-sm font-bold text-[#17345C] font-serif">₹{currentPriceINR.toLocaleString('en-IN')}</div>
+            <div className="text-sm font-bold text-[#17345C] font-serif">
+              {priceDisplay ? priceDisplay.display : `₹${currentPriceINR.toLocaleString('en-IN')}`}
+            </div>
           </div>
           <button
             onClick={handleBuyNow}
@@ -983,14 +1021,17 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
         onClose={() => setIsPaymentModalOpen(false)}
         title={product.title}
         subtitle={`${selectedLicense === 'commercial' ? 'Commercial Production License' : 'Standard Atelier License'} • Layered 3DM + STL Meshes`}
-        amount={currentPrice}
-        currency="USD"
+        amount={priceDisplay?.amount || currentPrice}
+        currency={(priceDisplay?.currency as 'INR' | 'USD') || 'USD'}
         itemType="ready_cad"
         orderDetails={{
           id: product.id,
           category: typeof product.category === 'string' ? product.category : (product.category as any)?.name,
           license: selectedLicense,
           formats: product.formats,
+          country: currentCountry.code,
+          pricing_mode: product.pricing_mode,
+          pricing_tier: priceDisplay?.tierName,
         }}
         onPaymentSuccess={handlePaymentSuccess}
       />

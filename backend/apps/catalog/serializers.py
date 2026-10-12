@@ -1,6 +1,7 @@
 from django.utils import timezone
 from rest_framework import serializers
 from .models import Category, DesignStyle, Product, ProductImage, ProductFile
+from .pricing_service import detect_customer_country, resolve_product_pricing, validate_regional_pricing
 
 class CategorySerializer(serializers.ModelSerializer):
     subcategories = serializers.SerializerMethodField()
@@ -96,6 +97,7 @@ class ProductListSerializer(serializers.ModelSerializer):
     primary_image = serializers.SerializerMethodField()
     uploaded_by_name = serializers.SerializerMethodField()
     uploaded_by_avatar = serializers.SerializerMethodField()
+    resolved_pricing = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -103,10 +105,16 @@ class ProductListSerializer(serializers.ModelSerializer):
             'id', 'title', 'slug', 'category', 'category_name', 'category_slug',
             'parent_category_id', 'parent_category_slug', 'parent_category_name',
             'price', 'compare_at_price', 'staff_price', 'commission_rate', 'commission_amount',
+            'pricing_mode', 'regional_pricing', 'resolved_pricing',
             'is_active', 'agreed_terms', 'uploaded_by', 'uploaded_by_name', 'uploaded_by_avatar',
             'metal_weight_grams', 'stone_count',
             'status', 'is_bestseller', 'is_new', 'is_featured', 'primary_image', 'created_at'
         ]
+
+    def get_resolved_pricing(self, obj):
+        request = self.context.get('request')
+        country_code, _ = detect_customer_country(request)
+        return resolve_product_pricing(obj, country_code=country_code)
 
     def get_uploaded_by_name(self, obj):
         if obj.uploaded_by:
@@ -146,6 +154,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     has_purchased = serializers.SerializerMethodField()
     uploaded_by_name = serializers.SerializerMethodField()
     uploaded_by_avatar = serializers.SerializerMethodField()
+    resolved_pricing = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -153,6 +162,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'id', 'title', 'slug', 'category', 'style_tags', 'uploaded_by',
             'uploaded_by_name', 'uploaded_by_avatar',
             'price', 'compare_at_price', 'staff_price', 'commission_rate', 'commission_amount',
+            'pricing_mode', 'regional_pricing', 'resolved_pricing',
             'is_active', 'agreed_terms',
             'commercial_price_markup',
             'atelier_license_desc', 'commercial_license_desc',
@@ -161,6 +171,11 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'is_new', 'is_featured', 'casting_tips', 'specs', 'formats_available',
             'images', 'primary_image', 'files', 'has_purchased', 'created_at', 'approved_at'
         ]
+
+    def get_resolved_pricing(self, obj):
+        request = self.context.get('request')
+        country_code, _ = detect_customer_country(request)
+        return resolve_product_pricing(obj, country_code=country_code)
 
     def get_primary_image(self, obj):
         primary = obj.images.filter(is_primary=True).first() or obj.images.first()
@@ -247,18 +262,36 @@ class ProductDetailSerializer(serializers.ModelSerializer):
 class ProductWriteSerializer(serializers.ModelSerializer):
     category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
     style_tags = serializers.PrimaryKeyRelatedField(queryset=DesignStyle.objects.all(), many=True, required=False)
+    price = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
 
     class Meta:
         model = Product
         fields = [
             'id', 'slug', 'title', 'category', 'style_tags', 'price', 'compare_at_price',
             'staff_price', 'commission_rate', 'commission_amount', 'agreed_terms', 'is_active',
+            'pricing_mode', 'regional_pricing',
             'commercial_price_markup', 'atelier_license_desc', 'commercial_license_desc',
             'description', 'metal_weight_grams', 'stone_count',
             'is_bestseller', 'is_new', 'is_featured', 'casting_tips', 'specs', 'formats_available',
             'status'
         ]
         read_only_fields = ['id', 'slug']
+
+    def validate(self, data):
+        pricing_mode = data.get('pricing_mode', getattr(self.instance, 'pricing_mode', 'global') if self.instance else 'global')
+        regional_pricing = data.get('regional_pricing', getattr(self.instance, 'regional_pricing', {}) if self.instance else {})
+
+        if pricing_mode == 'regional':
+            try:
+                clean_regional = validate_regional_pricing(regional_pricing)
+                data['regional_pricing'] = clean_regional
+                if not data.get('price'):
+                    fallback_price = clean_regional.get('base_tier', {}).get('price_usd') or clean_regional.get('rest_of_world', {}).get('price_usd') or 20.00
+                    data['price'] = fallback_price
+            except ValueError as ve:
+                raise serializers.ValidationError({"regional_pricing": str(ve)})
+
+        return data
 
     def create(self, validated_data):
         style_tags = validated_data.pop('style_tags', [])

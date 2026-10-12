@@ -147,6 +147,8 @@ export function getSanitizedCategories(rawCats: any[] = [], products?: any[]): C
       if (!hasProductsInCategory(cat, products)) {
         continue;
       }
+    } else if (typeof cat.product_count === 'number' && cat.product_count <= 0) {
+      continue;
     }
 
     // Normalizing slug key for deduplication
@@ -220,7 +222,14 @@ export function getMainShowcaseCategories(rawCats: any[] = [], products?: any[])
       finalImg = matchCanon?.image || CANONICAL_MAIN_CATEGORIES[0].image;
     }
 
-    const prodCount = products ? products.filter((p) => isProductInCategory(p, liveCat.slug || slug, liveCat)).length : (liveCat.product_count ?? 0);
+    const prodCount = products
+      ? products.filter((p) => isProductInCategory(p, liveCat.slug || slug, liveCat)).length
+      : (typeof liveCat.product_count === 'number' ? liveCat.product_count : 0);
+
+    // Strictly skip empty categories with 0 products (they show only in Admin)
+    if (prodCount <= 0) {
+      continue;
+    }
 
     result.push({
       ...liveCat,
@@ -232,19 +241,6 @@ export function getMainShowcaseCategories(rawCats: any[] = [], products?: any[])
       product_count: prodCount,
     });
     addedSlugs.add(slug);
-  }
-
-  // Only if products is NOT provided and we have zero categories, fallback to canonical
-  if (!products && result.length === 0) {
-    for (const canon of CANONICAL_MAIN_CATEGORIES) {
-      result.push({
-        id: canon.slug,
-        name: canon.name,
-        slug: canon.slug,
-        image: canon.image,
-        product_count: 0,
-      });
-    }
   }
 
   return result;

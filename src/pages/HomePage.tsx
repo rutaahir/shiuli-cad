@@ -39,59 +39,7 @@ import { LazyImage } from '../components/motion/LazyImage';
 import { formatINR, formatRupee } from '../utils/currencyHelper';
 import { getMainShowcaseCategories, getSanitizedCategories, formatCategoryName, isProductInCategory } from '../utils/categoryHelper';
 import { getOptimizedImageUrl, handleImgError } from '../utils/imageHelper';
-
-// Dynamic Category Box with slowly moving product slideshow + hover/touch selector
-// Curated category design presets to ensure rich, distinct previews for each category
-const CATEGORY_DESIGN_PRESETS: Record<string, { title: string; price: number; image: string }[]> = {
-  rings: [
-    { title: 'Solitaire Emerald Diamond Ring', price: 2499, image: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=800&q=85' },
-    { title: 'Royal Halo Pavé Engagement Ring', price: 1899, image: 'https://images.unsplash.com/photo-1603561591411-07134e71a2a9?auto=format&fit=crop&w=800&q=85' },
-    { title: 'Baguette Diamond Eternity Band', price: 1499, image: 'https://images.unsplash.com/photo-1602751584552-8ba73aad10e1?auto=format&fit=crop&w=800&q=85' },
-    { title: 'Vintage Gents Signet Crown Ring', price: 2199, image: 'https://images.unsplash.com/photo-1598560917505-59a3ad559071?auto=format&fit=crop&w=800&q=85' },
-  ],
-  earrings: [
-    { title: 'Royal Chandelier Drop Earrings', price: 2899, image: 'https://images.unsplash.com/photo-1630019852942-f89202989a59?auto=format&fit=crop&w=800&q=85' },
-    { title: 'Diamond Studded Huggie Hoops', price: 1699, image: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=800&q=85' },
-    { title: 'Heritage Antique Temple Jhumka', price: 3499, image: 'https://images.unsplash.com/photo-1589674781759-c21c37956a44?auto=format&fit=crop&w=800&q=85' },
-    { title: 'Teardrop Solitaire Diamond Dangle', price: 1999, image: 'https://images.unsplash.com/photo-1588444837495-c6cfeb53f32d?auto=format&fit=crop&w=800&q=85' },
-  ],
-  necklaces: [
-    { title: 'Royal Kundan Choker Necklace', price: 4999, image: 'https://images.unsplash.com/photo-1599643477877-530eb83abc8e?auto=format&fit=crop&w=800&q=85' },
-    { title: 'Riviera Diamond Collar Necklace', price: 5899, image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=800&q=85' },
-    { title: 'Contemporary Diamond Waterfall', price: 4499, image: 'https://images.unsplash.com/photo-1611591475140-be38b638ed3d?auto=format&fit=crop&w=800&q=85' },
-    { title: 'Imperial Princess Filigree Chain', price: 3899, image: 'https://images.unsplash.com/photo-1576053139778-7e32f2ae3cfd?auto=format&fit=crop&w=800&q=85' },
-  ],
-  pendants: [
-    { title: 'Antique Peacock Kundan Pendant', price: 2299, image: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=800&q=85' },
-    { title: 'Solitaire Pear Diamond Pendant', price: 1899, image: 'https://images.unsplash.com/photo-1600003014755-ba31aa59c4b6?auto=format&fit=crop&w=800&q=85' },
-    { title: 'Lotus Floral Diamond Medallion', price: 2199, image: 'https://images.unsplash.com/photo-1617038220319-276d3cfab638?auto=format&fit=crop&w=800&q=85' },
-    { title: 'Celestial Sunburst Halo Pendant', price: 2499, image: 'https://images.unsplash.com/photo-1602173574767-37ac01994b2a?auto=format&fit=crop&w=800&q=85' },
-  ],
-  'bracelets-bangles': [
-    { title: 'Modern Baguette Diamond Kada', price: 3199, image: 'https://images.unsplash.com/photo-1573408301185-9146fe634ad0?auto=format&fit=crop&w=800&q=85' },
-    { title: 'Diamond Tennis Link Bracelet', price: 2799, image: 'https://images.unsplash.com/photo-1603561591411-07134e71a2a9?auto=format&fit=crop&w=800&q=85' },
-    { title: 'Geometric Solid Gold Bangle', price: 2499, image: 'https://images.unsplash.com/photo-1602751584552-8ba73aad10e1?auto=format&fit=crop&w=800&q=85' },
-    { title: 'Filigree Interlocking Cuff Bracelet', price: 3599, image: 'https://images.unsplash.com/photo-1598560917505-59a3ad559071?auto=format&fit=crop&w=800&q=85' },
-  ],
-  mangalsutra: [
-    { title: 'Dual-Strand Royal Tanmaniya', price: 2999, image: 'https://images.unsplash.com/photo-1601121141461-9d6647bca1ed?auto=format&fit=crop&w=800&q=85' },
-    { title: 'Infinity Diamond Mangalsutra', price: 2499, image: 'https://images.unsplash.com/photo-1539185441755-769473a23570?auto=format&fit=crop&w=800&q=85' },
-    { title: 'Auspicious Floral Cluster Cord', price: 2799, image: 'https://images.unsplash.com/photo-1600003014755-ba31aa59c4b6?auto=format&fit=crop&w=800&q=85' },
-    { title: 'Minimalist Solitaire Mangalsutra', price: 2199, image: 'https://images.unsplash.com/photo-1617038220319-276d3cfab638?auto=format&fit=crop&w=800&q=85' },
-  ],
-  nosepins: [
-    { title: 'Solitaire Diamond Nose Stud', price: 999, image: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=800&q=85' },
-    { title: 'Floral 7-Stone Diamond Nosepin', price: 1299, image: 'https://images.unsplash.com/photo-1589674781759-c21c37956a44?auto=format&fit=crop&w=800&q=85' },
-    { title: 'Traditional Bridal Gold Nath', price: 1899, image: 'https://images.unsplash.com/photo-1588444837495-c6cfeb53f32d?auto=format&fit=crop&w=800&q=85' },
-    { title: 'Star Cluster Diamond Screw Pin', price: 1199, image: 'https://images.unsplash.com/photo-1602173574767-37ac01994b2a?auto=format&fit=crop&w=800&q=85' },
-  ],
-  'polki-jewellery': [
-    { title: 'Mughal Heritage Polki Choker', price: 5499, image: 'https://images.unsplash.com/photo-1543290108-01ca9d329143?auto=format&fit=crop&w=800&q=85' },
-    { title: 'Royal Jadau Polki Chandbali', price: 3999, image: 'https://images.unsplash.com/photo-1599643477877-530eb83abc8e?auto=format&fit=crop&w=800&q=85' },
-    { title: 'Uncut Diamond Antique Kada', price: 4699, image: 'https://images.unsplash.com/photo-1576053139778-7e32f2ae3cfd?auto=format&fit=crop&w=800&q=85' },
-    { title: 'Royal Polki Tika & Earring Suite', price: 4899, image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=800&q=85' },
-  ],
-};
+import { ProductPriceTag } from '../components/common/ProductPriceTag';
 
 interface CategoryBoxCardProps {
   cat: any;
@@ -109,9 +57,8 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
   onQuickView,
 }) => {
   const cSlug = (cat.slug || cat.id || '').toLowerCase().trim();
-  const cName = (cat.name || '').toLowerCase().trim();
 
-  // 1. Gather all strictly matching products from live inventory
+  // 1. Gather all strictly matching products from live inventory (added by admin or staff)
   const categoryProducts = React.useMemo(() => {
     const matched = allProducts.filter((p) => isProductInCategory(p, cSlug, cat));
 
@@ -123,70 +70,41 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
         uniqueMap.set(key, p);
       }
     }
-    const uniqueList = Array.from(uniqueMap.values());
-
-    // If live inventory has products, use ONLY the real products from the database
-    if (uniqueList.length > 0) {
-      return uniqueList;
-    }
-
-    // Only if a category has 0 products in the database, supplement with curated preview designs
-    let presetKey = 'rings';
-    if (cSlug.includes('earring') || cName.includes('earring')) presetKey = 'earrings';
-    else if (cSlug.includes('necklace') || cName.includes('necklace')) presetKey = 'necklaces';
-    else if (cSlug.includes('pendant') || cName.includes('pendant') || cSlug.includes('pandent')) presetKey = 'pendants';
-    else if (cSlug.includes('bracelet') || cSlug.includes('bangle') || cName.includes('bracelet') || cName.includes('bangle')) presetKey = 'bracelets-bangles';
-    else if (cSlug.includes('mangal') || cName.includes('mangal')) presetKey = 'mangalsutra';
-    else if (cSlug.includes('nose') || cName.includes('nose')) presetKey = 'nosepins';
-    else if (cSlug.includes('polki') || cName.includes('polki')) presetKey = 'polki-jewellery';
-
-    const presets = CATEGORY_DESIGN_PRESETS[presetKey];
-    if (presets && presets.length > 0) {
-      return presets.slice(0, 4).map((preset, pIdx) => ({
-        id: `${cat.id || cSlug}-preset-${pIdx + 1}`,
-        title: preset.title,
-        category: cat.name,
-        categoryName: cat.name,
-        price: preset.price,
-        image: preset.image,
-        images: [preset.image],
-        primaryImage: preset.image,
-        description: `Precision engineered ${cat.name} 3D CAD deliverable. Watertight mesh ready for 3D wax printing.`,
-        rating: 4.9,
-        reviewsCount: 28,
-        formats: ['3DM', 'STL', 'Render'] as any,
-        specs: {
-          metalWeight18k: '4.80 gm',
-          metalWeight14k: '4.10 gm',
-          diamondCount: 24,
-          diamondTotalWeight: '0.45 ct',
-          dimensions: '18.2 x 2.1 mm',
-          meshTriangles: '124,000',
-          tolerance: '±0.02 mm',
-        },
-      } as unknown as Product));
-    }
-
-    return [];
-  }, [allProducts, cat, cSlug, cName]);
+    return Array.from(uniqueMap.values());
+  }, [allProducts, cat, cSlug]);
 
   // 1. Resolve Category Banner Cover image (fallback if category has no products)
   const categoryBannerImg = (cat as any).image_display || cat.image || (cat as any).image_url;
+
+  // 2. Filter for Admin-Selected products for Home Marquee (is_featured = true)
+  const homeSelectedProducts = React.useMemo(() => {
+    return categoryProducts.filter((p: any) => Boolean(p.is_featured || p.isFeatured));
+  }, [categoryProducts]);
+
+  // Display products for this category's Marquee & showcase:
+  // If the admin has specifically selected products with "Show in Home", show ONLY those admin selected products!
+  // If admin has not yet selected specific products for this category, fall back to all category products.
+  const marqueeDisplayProducts = React.useMemo(() => {
+    if (homeSelectedProducts.length > 0) {
+      return homeSelectedProducts;
+    }
+    return categoryProducts;
+  }, [homeSelectedProducts, categoryProducts]);
 
   const [hoveredProduct, setHoveredProduct] = useState<Product | null>(null);
   const [activeIdx, setActiveIdx] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
-  // Automatically cycle through category products one by one
+  // Automatically cycle through displayed marquee products one by one
   useEffect(() => {
-    if (categoryProducts.length <= 1 || isPaused || hoveredProduct !== null) return;
+    if (marqueeDisplayProducts.length <= 1 || isPaused || hoveredProduct !== null) return;
     const interval = setInterval(() => {
-      setActiveIdx((prev) => (prev + 1) % categoryProducts.length);
+      setActiveIdx((prev) => (prev + 1) % marqueeDisplayProducts.length);
     }, 2800);
     return () => clearInterval(interval);
-  }, [categoryProducts.length, isPaused, hoveredProduct]);
+  }, [marqueeDisplayProducts.length, isPaused, hoveredProduct]);
 
-  const currentProduct = hoveredProduct || (categoryProducts.length > 0 ? categoryProducts[activeIdx % categoryProducts.length] : null);
+  const currentProduct = hoveredProduct || (marqueeDisplayProducts.length > 0 ? marqueeDisplayProducts[activeIdx % marqueeDisplayProducts.length] : null);
 
   const getImg = (p: any) => {
     if (!p) return categoryBannerImg || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=800&q=80';
@@ -205,18 +123,18 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
   }, [categoryProducts]);
 
   const count = cat.product_count ?? categoryProducts.length;
-  const isMarqueeMode = categoryProducts.length > 3;
+  const isMarqueeMode = marqueeDisplayProducts.length > 3;
 
   // Memoize seamless marquee track items:
   // Ensure the track has at least 8 items so the loop never leaves an empty gap across card width
   const marqueeItems = React.useMemo(() => {
-    if (categoryProducts.length === 0) return [];
-    let list = [...categoryProducts];
+    if (marqueeDisplayProducts.length === 0) return [];
+    let list = [...marqueeDisplayProducts];
     while (list.length < 8) {
-      list = [...list, ...categoryProducts];
+      list = [...list, ...marqueeDisplayProducts];
     }
     return list;
-  }, [categoryProducts]);
+  }, [marqueeDisplayProducts]);
 
   // UNIFORM NORMAL SPEED:
   // Each thumbnail takes ~2.2 seconds to pass a reference point.
@@ -281,13 +199,13 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
           ) : null}
 
           {/* Elegant slide indicator dots */}
-          {categoryProducts.length > 1 && (
+          {marqueeDisplayProducts.length > 1 && (
             <div className="absolute bottom-2.5 inset-x-0 z-10 flex items-center justify-center gap-1.5 pointer-events-none">
-              {categoryProducts.slice(0, Math.min(8, categoryProducts.length)).map((_, dotIdx) => (
+              {marqueeDisplayProducts.slice(0, Math.min(8, marqueeDisplayProducts.length)).map((_, dotIdx) => (
                 <span
                   key={dotIdx}
                   className={`h-1 rounded-full transition-all duration-300 ${
-                    (activeIdx % categoryProducts.length) === dotIdx
+                    (activeIdx % marqueeDisplayProducts.length) === dotIdx
                       ? 'w-4 bg-[#B88732]'
                       : 'w-1 bg-[#B88732]/30'
                   }`}
@@ -340,13 +258,13 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
                           onMouseEnter={() => {
                             setIsPaused(true);
                             setHoveredProduct(prod);
-                            const found = categoryProducts.findIndex(p => p.id === prod.id || p.title === prod.title);
+                            const found = marqueeDisplayProducts.findIndex(p => p.id === prod.id || p.title === prod.title);
                             if (found >= 0) setActiveIdx(found);
                           }}
                           onTouchStart={() => {
                             setIsPaused(true);
                             setHoveredProduct(prod);
-                            const found = categoryProducts.findIndex(p => p.id === prod.id || p.title === prod.title);
+                            const found = marqueeDisplayProducts.findIndex(p => p.id === prod.id || p.title === prod.title);
                             if (found >= 0) setActiveIdx(found);
                           }}
                           onClick={(e) => {
@@ -391,13 +309,13 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
                           onMouseEnter={() => {
                             setIsPaused(true);
                             setHoveredProduct(prod);
-                            const found = categoryProducts.findIndex(p => p.id === prod.id || p.title === prod.title);
+                            const found = marqueeDisplayProducts.findIndex(p => p.id === prod.id || p.title === prod.title);
                             if (found >= 0) setActiveIdx(found);
                           }}
                           onTouchStart={() => {
                             setIsPaused(true);
                             setHoveredProduct(prod);
-                            const found = categoryProducts.findIndex(p => p.id === prod.id || p.title === prod.title);
+                            const found = marqueeDisplayProducts.findIndex(p => p.id === prod.id || p.title === prod.title);
                             if (found >= 0) setActiveIdx(found);
                           }}
                           onClick={(e) => {
@@ -424,10 +342,10 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
                   </div>
                 </div>
               </>
-            ) : categoryProducts.length > 0 ? (
+            ) : marqueeDisplayProducts.length > 0 ? (
               /* Centered Distinct Unique Designs Row */
               <div className="flex items-center justify-center gap-2 py-1">
-                {categoryProducts.map((prod, pIdx) => {
+                {marqueeDisplayProducts.map((prod, pIdx) => {
                   const isActive = currentProduct?.id === prod.id || (currentProduct && currentProduct.title === prod.title);
                   const imgUrl = getImg(prod);
                   return (
@@ -437,13 +355,13 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
                       onMouseEnter={() => {
                         setIsPaused(true);
                         setHoveredProduct(prod);
-                        const found = categoryProducts.findIndex(p => p.id === prod.id || p.title === prod.title);
+                        const found = marqueeDisplayProducts.findIndex(p => p.id === prod.id || p.title === prod.title);
                         if (found >= 0) setActiveIdx(found);
                       }}
                       onTouchStart={() => {
                         setIsPaused(true);
                         setHoveredProduct(prod);
-                        const found = categoryProducts.findIndex(p => p.id === prod.id || p.title === prod.title);
+                        const found = marqueeDisplayProducts.findIndex(p => p.id === prod.id || p.title === prod.title);
                         if (found >= 0) setActiveIdx(found);
                       }}
                       onClick={(e) => {
@@ -533,6 +451,31 @@ export const HomePage: React.FC<HomePageProps> = ({
   const [selectedFilter, setSelectedFilter] = useState('all');
   const INITIAL_VISIBLE_COUNT = 12; // 3 rows of 4 columns = 12 products
   const [visibleCount, setVisibleCount] = useState<number>(INITIAL_VISIBLE_COUNT);
+  const productTopRef = useRef<HTMLDivElement>(null);
+
+  // Smooth scroll back to top of product grid where products start
+  const handleViewMore = () => {
+    setVisibleCount((prev) => prev + INITIAL_VISIBLE_COUNT);
+
+    const scrollToProducts = () => {
+      const anchor = document.getElementById('product-start-anchor') || document.getElementById('bestselling-cad-section');
+      if (anchor) {
+        const rect = anchor.getBoundingClientRect();
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const targetY = rect.top + scrollTop - 75; // 75px offset for fixed navbar
+        window.scrollTo({
+          top: Math.max(0, targetY),
+          behavior: 'smooth',
+        });
+      } else if (productTopRef.current) {
+        productTopRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    };
+
+    // Trigger scroll reliably across re-renders
+    requestAnimationFrame(scrollToProducts);
+    setTimeout(scrollToProducts, 60);
+  };
 
   // Reset to 3 rows whenever the user changes the category filter tab
   useEffect(() => {
@@ -1374,8 +1317,18 @@ export const HomePage: React.FC<HomePageProps> = ({
             </p>
           </RevealOnScroll>
 
+          {/* Static Anchor for Product Catalog Start */}
+          <div
+            id="product-start-anchor"
+            ref={productTopRef}
+            className="scroll-mt-24 sm:scroll-mt-28"
+          />
+
           {/* Sticky Category Filter Bar — stays pinned below navbar when scrolling products */}
-          <div className="sticky top-[64px] sm:top-[84px] z-30 py-2.5 sm:py-3 px-3 sm:px-6 rounded-2xl bg-white/95 backdrop-blur-2xl border border-[#E8D7B7] shadow-sm flex overflow-x-auto no-scrollbar sm:flex-wrap items-center justify-start sm:justify-center gap-1.5 sm:gap-2 max-w-5xl mx-auto transition-all">
+          <div
+            id="bestselling-cad-section"
+            className="sticky top-[64px] sm:top-[84px] z-30 py-2.5 sm:py-3 px-3 sm:px-6 rounded-2xl bg-white/95 backdrop-blur-2xl border border-[#E8D7B7] shadow-sm flex overflow-x-auto no-scrollbar sm:flex-wrap items-center justify-start sm:justify-center gap-1.5 sm:gap-2 max-w-5xl mx-auto transition-all"
+          >
             {filterCategories.map((filter) => (
               <button
                 key={filter.id}
@@ -1539,14 +1492,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
                           <div className="flex items-center justify-between pt-2">
                             <div>
-                              <span className="text-xl font-serif font-bold text-[#B88732]">
-                                ₹{formatINR(product.price)}
-                              </span>
-                              {product.originalPrice && (
-                                <span className="text-xs text-[#687386] line-through ml-1.5">
-                                  ₹{formatINR(product.originalPrice)}
-                                </span>
-                              )}
+                              <ProductPriceTag product={product} size="lg" primaryColorClass="text-[#B88732]" />
                             </div>
 
                             <button
@@ -1581,7 +1527,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                     <motion.button
                       whileHover={{ scale: 1.04 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => setVisibleCount((prev) => prev + INITIAL_VISIBLE_COUNT)}
+                      onClick={handleViewMore}
                       className="btn-gold-luxury px-8 py-3.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm cursor-pointer"
                     >
                       <span>View More Products ({filteredProducts.length - visibleCount} More)</span>

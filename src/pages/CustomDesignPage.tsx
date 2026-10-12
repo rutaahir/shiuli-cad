@@ -153,7 +153,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
       setPictureFiles((prev) => [...prev, ...files]);
-      const newPreviews = files.map((f) => URL.createObjectURL(f));
+      const newPreviews = files.map((f) => URL.createObjectURL(f as File));
       setPicturePreviews((prev) => [...prev, ...newPreviews]);
     }
   };

@@ -38,7 +38,11 @@ export interface BackendProduct {
   stone_count?: number;
   is_bestseller: boolean;
   is_new: boolean;
+  is_featured?: boolean;
   status: string;
+  pricing_mode?: 'global' | 'regional';
+  regional_pricing?: any;
+  resolved_pricing?: any;
   style_tags?: any[];
   parent_category_id?: number | null;
   primary_image?: string | null;

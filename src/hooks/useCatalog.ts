@@ -48,6 +48,9 @@ export function toProductShape(bp: BackendProduct) {
     subcategory: '',
     price: Number(bp.price) || 0,
     originalPrice: bp.compare_at_price ? Number(bp.compare_at_price) : undefined,
+    pricing_mode: bp.pricing_mode || 'global',
+    regional_pricing: bp.regional_pricing,
+    resolved_pricing: bp.resolved_pricing,
     formats: ['3DM', 'STL', 'Render'] as any,
     images: [bp.primary_image || FALLBACK_IMG],
     primaryImage: bp.primary_image || FALLBACK_IMG,
@@ -58,6 +61,8 @@ export function toProductShape(bp: BackendProduct) {
     reviewsCount: 1,
     isBestseller: bp.is_bestseller,
     isNew: bp.is_new,
+    isFeatured: Boolean(bp.is_featured),
+    is_featured: Boolean(bp.is_featured),
     specs: {
       metalWeight18k: bp.metal_weight_grams ? `${bp.metal_weight_grams} gm` : '—',
       metalWeight14k: '—',

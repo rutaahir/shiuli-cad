@@ -3,6 +3,7 @@ import { Product, PageId } from '../types';
 import { X, Check, ShoppingBag, Heart, ExternalLink, ShieldCheck, Sparkles } from 'lucide-react';
 import { getOptimizedImageUrl, handleImgError } from '../utils/imageHelper';
 import { formatINR } from '../utils/currencyHelper';
+import { useCustomerCountry, resolveDisplayPrice } from '../utils/countryContext';
 
 interface QuickViewModalProps {
   product: Product | null;
@@ -24,8 +25,16 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
   const [selectedLicense, setSelectedLicense] = useState<'standard' | 'commercial'>('standard');
   const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
   const [addedNotice, setAddedNotice] = useState<boolean>(false);
+  const { currentCountry, exchangeRates } = useCustomerCountry();
 
   if (!product) return null;
+
+  const resolved = resolveDisplayPrice(
+    product,
+    selectedLicense,
+    currentCountry.code,
+    exchangeRates
+  );
 
   const currentPrice = selectedLicense === 'commercial' 
     ? Math.round(product.price * 1.8) 
@@ -100,13 +109,18 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
                 {product.title}
               </h3>
 
-              <div className="flex items-baseline gap-3">
+              <div className="flex items-baseline gap-3 flex-wrap">
                 <span className="text-2xl font-serif text-[#F5E7A3] font-bold">
-                  ₹{formatINR(currentPrice)}
+                  {resolved.display}
                 </span>
-                {product.originalPrice && (
+                {resolved.originalDisplay && (
                   <span className="text-sm text-[#C9C2A6] line-through">
-                    ₹{formatINR(product.originalPrice * (selectedLicense === 'commercial' ? 1.8 : 1))}
+                    {resolved.originalDisplay}
+                  </span>
+                )}
+                {resolved.isRegional && resolved.tierName && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#F5E7A3] font-medium">
+                    {currentCountry.flag} {resolved.tierName}
                   </span>
                 )}
                 <span className="text-[11px] text-[#C9C2A6]">
@@ -185,7 +199,7 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
                   className="btn-gold-luxury flex-1 py-3 rounded-xl font-medium tracking-wider uppercase text-xs flex items-center justify-center gap-2"
                 >
                   <ShoppingBag className="w-4 h-4 text-[#0B1330]" />
-                  Add To CAD Bag (₹{formatINR(currentPrice)})
+                  Add To CAD Bag ({resolved.display})
                 </button>
                 <button
                   onClick={() => onToggleWishlist(product)}

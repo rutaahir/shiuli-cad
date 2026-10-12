@@ -286,6 +286,41 @@ export interface ProductSpecs {
   minimumWallThickness?: string;
 }
 
+export interface PricingTierConfig {
+  name: string;
+  price_usd: number;
+  countries?: string[];
+}
+
+export interface RegionalPricing {
+  base_tier?: PricingTierConfig;
+  tier_1?: PricingTierConfig;
+  tier_2?: PricingTierConfig;
+  tier_3?: PricingTierConfig;
+  rest_of_world?: {
+    name: string;
+    price_usd: number;
+  };
+}
+
+export interface ResolvedPricing {
+  pricing_mode: 'global' | 'regional';
+  tier_key: string;
+  tier_name: string;
+  country_code: string;
+  country_name: string;
+  currency: string;
+  currency_symbol: string;
+  exchange_rate: number;
+  price_usd: number;
+  unit_price: number;
+  compare_at_price?: number | null;
+  license_type?: string;
+  commercial_markup_pct?: number;
+  formatted: string;
+  formatted_compare?: string | null;
+}
+
 export interface Product {
   id: string;
   dbId?: number | string;
@@ -296,6 +331,9 @@ export interface Product {
   subcategory: string;
   price: number;
   originalPrice?: number;
+  pricing_mode?: 'global' | 'regional';
+  regional_pricing?: RegionalPricing;
+  resolved_pricing?: ResolvedPricing;
   formats: string[];
   images: string[];
   primaryImage: string;
@@ -304,6 +342,8 @@ export interface Product {
   tags: string[];
   isBestseller?: boolean;
   isNew?: boolean;
+  isFeatured?: boolean;
+  is_featured?: boolean;
   rating?: number;
   reviewsCount?: number;
   specs: ProductSpecs;

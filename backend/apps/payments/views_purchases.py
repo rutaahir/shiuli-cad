@@ -61,11 +61,10 @@ def create_razorpay_purchase_order(request):
         return Response({"error": "Product not found."}, status=status.HTTP_404_NOT_FOUND)
 
     product = product_obj
-    if license_type == 'commercial':
-        markup_pct = float(product.commercial_price_markup or 80.0)
-        price_paid = float(product.price) * (1.0 + (markup_pct / 100.0))
-    else:
-        price_paid = float(product.price)
+    from apps.catalog.pricing_service import detect_customer_country, resolve_product_pricing
+    country_code, _ = detect_customer_country(request)
+    pricing_info = resolve_product_pricing(product, country_code=country_code, license_type=license_type)
+    price_paid = float(pricing_info['unit_price'])
 
     amount_paise = int(round(price_paid * 100))
     key_id = getattr(settings, 'RAZORPAY_KEY_ID', '').strip()
@@ -184,11 +183,10 @@ def verify_razorpay_purchase(request):
         return Response({"error": "Product not found."}, status=status.HTTP_404_NOT_FOUND)
 
     product = product_obj
-    if license_type == 'commercial':
-        markup_pct = float(product.commercial_price_markup or 80.0)
-        price_paid = float(product.price) * (1.0 + (markup_pct / 100.0))
-    else:
-        price_paid = float(product.price)
+    from apps.catalog.pricing_service import detect_customer_country, resolve_product_pricing
+    country_code, _ = detect_customer_country(request)
+    pricing_info = resolve_product_pricing(product, country_code=country_code, license_type=license_type)
+    price_paid = float(pricing_info['unit_price'])
 
     now = timezone.now()
     purchase = Purchase.objects.create(
@@ -196,6 +194,13 @@ def verify_razorpay_purchase(request):
         product=product,
         license_type=license_type,
         price_paid=price_paid,
+        pricing_mode=pricing_info.get('pricing_mode', 'global'),
+        pricing_tier=pricing_info.get('tier_name', ''),
+        country_code=country_code,
+        currency=pricing_info.get('currency', 'INR'),
+        original_price_usd=pricing_info.get('price_usd'),
+        exchange_rate=pricing_info.get('exchange_rate'),
+        pricing_snapshot=pricing_info,
         payment_transaction_id=razorpay_payment_id,
         status=Purchase.Status.PAID,
         otp_generation_count=1,
@@ -275,12 +280,11 @@ def create_purchase(request):
 
     product = product_obj
 
-    # Calculate price based on license
-    if license_type == 'commercial':
-        markup_pct = float(product.commercial_price_markup or 80.0)
-        price_paid = float(product.price) * (1.0 + (markup_pct / 100.0))
-    else:
-        price_paid = float(product.price)
+    # Calculate authoritative price and pricing snapshot
+    from apps.catalog.pricing_service import detect_customer_country, resolve_product_pricing
+    country_code, _ = detect_customer_country(request)
+    pricing_info = resolve_product_pricing(product, country_code=country_code, license_type=license_type)
+    price_paid = float(pricing_info['unit_price'])
 
     now = timezone.now()
 
@@ -292,6 +296,13 @@ def create_purchase(request):
         product=product,
         license_type=license_type,
         price_paid=price_paid,
+        pricing_mode=pricing_info.get('pricing_mode', 'global'),
+        pricing_tier=pricing_info.get('tier_name', ''),
+        country_code=country_code,
+        currency=pricing_info.get('currency', 'INR'),
+        original_price_usd=pricing_info.get('price_usd'),
+        exchange_rate=pricing_info.get('exchange_rate'),
+        pricing_snapshot=pricing_info,
         payment_transaction_id=payment_transaction_id,
         payment_method=payment_method,
         payment_details=payment_details,

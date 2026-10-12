@@ -4,7 +4,7 @@ from django.http import FileResponse, Http404
 from django.utils import timezone
 from django.db.models import Q
 from rest_framework import viewsets, status, permissions
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
@@ -101,7 +101,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         if self.action in ['list', 'retrieve']:
             return [permissions.AllowAny()]
-        elif self.action in ['create', 'upload_image', 'upload_file', 'toggle_active', 'destroy']:
+        elif self.action in ['create', 'upload_image', 'upload_file', 'toggle_active', 'toggle_featured', 'destroy']:
             return [IsStaffOrAdmin()]
         elif self.action in ['pending', 'approve', 'reject']:
             return [IsAdmin()]
@@ -271,6 +271,25 @@ class ProductViewSet(viewsets.ModelViewSet):
             "title": product.title,
             "is_active": product.is_active,
             "message": f"Product is now {'Active & Published' if product.is_active else 'Disabled & Hidden'}."
+        })
+
+    @action(detail=True, methods=['post'], permission_classes=[IsStaffOrAdmin], url_path='toggle-featured')
+    def toggle_featured(self, request, slug=None):
+        product = self.get_object()
+        user = request.user
+        if getattr(user, 'role', '') == 'staff' and product.uploaded_by != user:
+            return Response(
+                {"detail": "You can only edit your own products."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        product.is_featured = not product.is_featured
+        product.save(update_fields=['is_featured'])
+        return Response({
+            "id": product.id,
+            "slug": product.slug,
+            "title": product.title,
+            "is_featured": product.is_featured,
+            "message": f"Product is now {'selected for Home Marquee' if product.is_featured else 'removed from Home Marquee'}."
         })
 
     def get_serializer_class(self):
@@ -527,3 +546,36 @@ class ProductViewSet(viewsets.ModelViewSet):
         file_name = os.path.basename(product_file.file.name)
         response['Content-Disposition'] = f'attachment; filename="{file_name}"'
         return response
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def country_context_view(request):
+    """
+    GET /api/catalog/country-context/
+    Returns authoritative detected country, currency mapping, live rates, and supported countries list.
+    """
+    from .pricing_service import (
+        detect_customer_country,
+        get_country_info,
+        get_all_supported_countries,
+        get_latest_exchange_rates,
+        get_exchange_rate,
+    )
+    country_code, source = detect_customer_country(request)
+    country_info = get_country_info(country_code)
+    rates = get_latest_exchange_rates()
+    current_rate = get_exchange_rate(country_info["currency"])
+
+    return Response({
+        "country": country_code,
+        "country_name": country_info["name"],
+        "currency": country_info["currency"],
+        "symbol": country_info["symbol"],
+        "flag": country_info["flag"],
+        "exchange_rate": current_rate,
+        "source": source,
+        "supported_countries": get_all_supported_countries(),
+        "exchange_rates": rates,
+    })
+

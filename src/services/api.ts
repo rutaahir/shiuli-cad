@@ -745,6 +745,13 @@ class ApiClient {
     });
   }
 
+  async toggleProductFeatured(slug: string) {
+    await this.ensureAdminToken();
+    return this.request<any>(`/catalog/products/${slug}/toggle-featured/`, {
+      method: 'POST',
+    });
+  }
+
   async createProduct(productData: {
     title: string;
     category: number;

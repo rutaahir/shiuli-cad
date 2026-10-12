@@ -26,6 +26,7 @@ import { useCatalog, toProductShape, fetchCatalog } from '../hooks/useCatalog';
 import { formatINR } from '../utils/currencyHelper';
 import { getOptimizedImageUrl } from '../utils/imageHelper';
 import { isProductInCategory } from '../utils/categoryHelper';
+import { ProductPriceTag } from '../components/common/ProductPriceTag';
 
 interface CollectionsPageProps {
   initialCategory?: string;
@@ -756,9 +757,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                             </div>
                             <div className="flex items-center justify-between pt-2">
                               <div>
-                                <span className="text-lg font-serif font-bold text-[#17345C] block">
-                                  ₹{formatINR(product.price)}
-                                </span>
+                                <ProductPriceTag product={product} size="md" />
                               </div>
                               <button
                                 onClick={(e) => { e.stopPropagation(); onAddToCart(product, 'standard'); }}

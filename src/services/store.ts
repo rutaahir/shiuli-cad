@@ -254,6 +254,9 @@ export const appStore = {
     this.saveCustomRequests(list);
     return list;
   },
+  createCustomRequest(req: any) {
+    return this.addCustomRequest(req);
+  },
   updateCustomRequestNotes(requestId: string | number, notes: string) {
     const list = this.getCustomRequests().map((r: any) => {
       if (String(r.id) === String(requestId)) {

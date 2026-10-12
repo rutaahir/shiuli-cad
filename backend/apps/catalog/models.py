@@ -101,6 +101,21 @@ class Product(models.Model):
     is_bestseller = models.BooleanField(default=False)
     is_new = models.BooleanField(default=True)
     is_featured = models.BooleanField(default=False)
+    class PricingMode(models.TextChoices):
+        GLOBAL = "global", "Global Pricing"
+        REGIONAL = "regional", "Country-Based Tier Pricing"
+
+    pricing_mode = models.CharField(
+        max_length=20,
+        choices=PricingMode.choices,
+        default=PricingMode.GLOBAL,
+        help_text="Pricing mode: 'global' uses standard price; 'regional' uses 5-tier country assignments."
+    )
+    regional_pricing = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Configuration for the 5 pricing groups (Base Country, Tier 1, Tier 2, Tier 3, Rest of the World)"
+    )
     casting_tips = models.TextField(blank=True)
     specs = models.JSONField(default=dict, blank=True)
     formats_available = models.JSONField(default=list, blank=True)

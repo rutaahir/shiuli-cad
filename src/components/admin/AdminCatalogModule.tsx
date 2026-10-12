@@ -64,6 +64,7 @@ interface BackendProduct {
   status: 'approved' | 'pending' | 'rejected';
   is_bestseller: boolean;
   is_new: boolean;
+  is_featured?: boolean;
   primary_image?: string;
   created_at: string;
 }
@@ -199,6 +200,23 @@ export const AdminCatalogModule: React.FC = () => {
     }
   };
 
+  const handleToggleProductFeatured = async (prod: BackendProduct) => {
+    try {
+      const res = await api.toggleProductFeatured(prod.slug);
+      showToast(
+        res.is_featured
+          ? `⭐ "${prod.title}" will now SHOW in Home Marquee.`
+          : `"${prod.title}" removed from Home Marquee.`
+      );
+      setProducts((prev) =>
+        prev.map((p) => (p.slug === prod.slug ? { ...p, is_featured: res.is_featured } : p))
+      );
+      invalidateCatalog();
+    } catch (err: any) {
+      alert(err.message || 'Failed to toggle home marquee selection.');
+    }
+  };
+
   // Load Catalog Data from Backend — fetches ALL products across all pages
   const loadData = async () => {
     setIsLoading(true);
@@ -210,7 +228,8 @@ export const AdminCatalogModule: React.FC = () => {
         api.getDesignStyles(),
         api.getProducts({
           page_size: String(PAGE_SIZE),
-          ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
+          ...(statusFilter !== 'all' && statusFilter !== 'featured' ? { status: statusFilter } : {}),
+          ...(statusFilter === 'featured' ? { is_featured: 'true' } : {}),
         }),
       ]);
       setCategories(Array.isArray(catsRes) ? catsRes : (catsRes as any)?.results || []);
@@ -229,7 +248,8 @@ export const AdminCatalogModule: React.FC = () => {
             api.getProducts({
               page: String(page),
               page_size: String(PAGE_SIZE),
-              ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
+              ...(statusFilter !== 'all' && statusFilter !== 'featured' ? { status: statusFilter } : {}),
+              ...(statusFilter === 'featured' ? { is_featured: 'true' } : {}),
             })
           );
         }
@@ -556,10 +576,14 @@ export const AdminCatalogModule: React.FC = () => {
     setCurrentPage(1);
   }, [searchQuery, statusFilter]);
 
-  const filteredProducts = products.filter((p) =>
-    p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (p.category_name && p.category_name.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filteredProducts = products.filter((p) => {
+    const matchesSearch =
+      p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (p.category_name && p.category_name.toLowerCase().includes(searchQuery.toLowerCase()));
+    if (!matchesSearch) return false;
+    if (statusFilter === 'featured') return Boolean(p.is_featured);
+    return true;
+  });
 
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage) || 1;
   const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
@@ -653,6 +677,7 @@ export const AdminCatalogModule: React.FC = () => {
                 className="px-3 py-1.5 rounded-xl bg-white border border-[#E5E7EF] text-xs text-[#1E2230] focus:outline-none"
               >
                 <option value="all">All Products</option>
+                <option value="featured">⭐ Show in Home (Marquee)</option>
                 <option value="approved">Live / Approved</option>
                 <option value="pending">Draft / Pending</option>
               </select>
@@ -667,6 +692,7 @@ export const AdminCatalogModule: React.FC = () => {
                   <th className="p-4 font-medium">Design & Title</th>
                   <th className="p-4 font-medium">Category & Designer</th>
                   <th className="p-4 font-medium">Pricing</th>
+                  <th className="p-4 font-medium">Show in Home</th>
                   <th className="p-4 font-medium">Store Visibility</th>
                   <th className="p-4 font-medium">Status</th>
                   <th className="p-4 font-medium text-right">Actions</th>
@@ -720,6 +746,23 @@ export const AdminCatalogModule: React.FC = () => {
                           Staff: ${prod.staff_price} ({100 - (Number(prod.commission_rate) || 20)}%)
                         </div>
                       )}
+                    </td>
+
+                    {/* Show in Home Marquee Toggle */}
+                    <td className="p-4">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleProductFeatured(prod)}
+                        className={`px-3 py-1 rounded-full text-[11px] font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                          prod.is_featured
+                            ? 'bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200'
+                            : 'bg-slate-100 text-slate-500 border border-slate-300 hover:bg-slate-200'
+                        }`}
+                        title={prod.is_featured ? 'Click to Remove from Home Marquee' : 'Click to Show in Home Marquee'}
+                      >
+                        <Sparkles className={`w-3.5 h-3.5 ${prod.is_featured ? 'text-amber-600 fill-amber-500' : 'text-slate-400'}`} />
+                        <span>{prod.is_featured ? 'In Marquee' : 'Off'}</span>
+                      </button>
                     </td>
 
                     {/* Store Visibility Toggle */}

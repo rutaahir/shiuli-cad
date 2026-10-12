@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { sendCadDownloadEmail } from '../services/emailService';
 import { formatINR } from '../utils/currencyHelper';
+import { useCustomerCountry, resolveDisplayPrice } from '../utils/countryContext';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -52,11 +53,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     debugOtp: '',
   });
 
+  const { currentCountry, exchangeRates } = useCustomerCountry();
+
   if (!isOpen) return null;
 
   const subtotal = items.reduce((acc, item) => {
-    const unitPrice = item.license === 'commercial' ? item.product.price * 1.8 : item.product.price;
-    return acc + unitPrice * item.quantity;
+    const resolved = resolveDisplayPrice(item.product, item.license, currentCountry.code, exchangeRates);
+    return acc + resolved.amount * item.quantity;
   }, 0);
 
   const discountAmount = (subtotal * discountPercent) / 100;
@@ -97,6 +100,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             payment_details: _result.paymentDetails,
             payment_screenshot: _result.screenshotUrl,
             auto_confirm: false,
+            country: currentCountry.code,
           });
         }
       } catch (err) {
@@ -293,8 +297,12 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
               </div>
             ) : (
               items.map((item, idx) => {
-                const currentPrice =
-                  item.license === 'commercial' ? item.product.price * 1.8 : item.product.price;
+                const resolved = resolveDisplayPrice(
+                  item.product,
+                  item.license,
+                  currentCountry.code,
+                  exchangeRates
+                );
 
                 return (
                   <div
@@ -315,13 +323,18 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                         <p className="text-[11px] text-[#C9C2A6] capitalize">
                           {item.product.category} • {item.product.specs.diamondCount} Stones
                         </p>
-                        <div className="flex items-center gap-1.5 mt-1">
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#121F4D] text-[#D4AF37] border border-[#D4AF37]/20">
                             3DM + STL
                           </span>
                           <span className="text-xs font-semibold text-[#F5E7A3]">
-                            ₹{formatINR(currentPrice)}
+                            {resolved.display}
                           </span>
+                          {resolved.isRegional && resolved.tierName && (
+                            <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-[#D4AF37]/20 text-[#F5E7A3] font-medium">
+                              {resolved.tierName}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <button
@@ -418,7 +431,8 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
         itemType="cart"
         orderDetails={{
           itemsCount: items.length,
-          notes: items.map(i => `${i.product.title} (${i.license})`).join(', ')
+          notes: items.map(i => `${i.product.title} (${i.license})`).join(', '),
+          country: currentCountry.code,
         }}
         onPaymentSuccess={handlePaymentSuccess}
       />
