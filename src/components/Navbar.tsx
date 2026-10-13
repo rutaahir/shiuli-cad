@@ -7,7 +7,6 @@ import { PageId } from '../types';
 import { getOptimizedImageUrl, handleImgError } from '../utils/imageHelper';
 import { formatINR } from '../utils/currencyHelper';
 import { isProductInCategory } from '../utils/categoryHelper';
-import { CountrySelector } from './common/CountrySelector';
 import {
   ShoppingBag,
   Heart,
@@ -526,26 +525,25 @@ export const Navbar: React.FC<NavbarProps> = ({
             </nav>
 
             {/* Right Quick Action Icons */}
-            <div className="flex items-center space-x-1.5 sm:space-x-3">
+            <div className="flex items-center space-x-1 sm:space-x-2.5">
               <button
                 onClick={() => setSearchOverlayOpen(true)}
-                className="p-2 text-[#17345C] hover:text-[#B88732] transition-colors rounded-full hover:bg-[#FFF9F0]"
+                className="p-1.5 sm:p-2 text-[#17345C] hover:text-[#B88732] transition-colors rounded-full hover:bg-[#FFF9F0]"
                 title="Search CAD Files (Ctrl+K)"
+                aria-label="Search"
               >
-                <Search className="w-4 h-4" />
+                <Search className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
               </button>
-
-              {/* Country & Currency Switcher */}
-              <CountrySelector variant="navbar" />
 
               <button
                 onClick={onOpenCart}
-                className="p-2 text-[#17345C] hover:text-[#B88732] transition-colors relative rounded-full hover:bg-[#FFF9F0]"
+                className="p-1.5 sm:p-2 text-[#17345C] hover:text-[#B88732] transition-colors relative rounded-full hover:bg-[#FFF9F0]"
                 title="View Bag"
+                aria-label="View Shopping Bag"
               >
-                <ShoppingBag className="w-4 h-4" />
+                <ShoppingBag className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                 {cartCount > 0 && (
-                  <span className="absolute top-0 right-0 w-4 h-4 bg-[#B88732] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#B88732] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                     {cartCount}
                   </span>
                 )}
@@ -556,7 +554,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {isLoggedIn ? (
                   <button
                     onClick={() => setAccountDropdownOpen(prev => !prev)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FFF9F0] border border-[#E8D7B7] text-xs font-bold text-[#17345C] hover:border-[#D9B66F] shadow-sm transition-all"
+                    className="flex items-center gap-1.5 p-1.5 sm:px-3 sm:py-1.5 rounded-full bg-[#FFF9F0] border border-[#E8D7B7] text-xs font-bold text-[#17345C] hover:border-[#D9B66F] shadow-xs transition-all"
+                    title={user?.first_name || 'Account'}
+                    aria-label="My Account"
                   >
                     <User className="w-3.5 h-3.5 text-[#B88732]" />
                     <span className="hidden sm:inline">{user?.first_name || 'Account'}</span>
@@ -564,9 +564,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 ) : (
                   <button
                     onClick={() => onNavigate('login')}
-                    className="btn-gold-luxury px-3 sm:px-4 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5"
+                    className="p-1.5 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 bg-[#FFF9F0] sm:bg-gradient-to-r sm:from-[#D4AF37] sm:via-[#F5E7A3] sm:to-[#C59B27] border border-[#E8D7B7] sm:border-transparent text-[#17345C] sm:text-[#080E24] hover:border-[#D9B66F] transition-all shadow-xs"
+                    title="Sign In"
+                    aria-label="Sign In"
                   >
-                    <User className="w-3.5 h-3.5" />
+                    <User className="w-3.5 h-3.5 text-[#B88732] sm:text-inherit" />
                     <span className="hidden sm:inline">Sign In</span>
                   </button>
                 )}
@@ -682,10 +684,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
 
-            {/* Regional Pricing & Country Switcher on Mobile */}
-            <div className="mt-3">
-              <CountrySelector variant="mobile" />
-            </div>
 
             <div className="space-y-2 py-6">
               {[

@@ -149,14 +149,27 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         origin: { y: 0.6 },
         colors: ['#D4AF37', '#1E4FA3', '#F5E7A3', '#FAF8F3'],
       });
-    } catch {
-      // Safe fallback if confetti canvas fails
+    } catch (e) {
+      // Confetti fallback
     }
+
+    const recipientEmail = user?.email || 'shahharshil3103@gmail.com';
+    items.forEach((item) => {
+      sendCadDownloadEmail(
+        recipientEmail,
+        item.product.title,
+        ['.3DM', '.STL'],
+        'https://shiulicadstudio.com/downloads/sample-cad-pack.zip',
+        'Master CAD Production Package'
+      ).catch((err) => console.warn('Background CAD download email notification error:', err));
+    });
   };
 
   const handleSimulateDownload = () => {
-    // Generate sample CAD package text file download
-    const manifest = `SHIULI CAD STUDIO — INSTANT DOWNLOAD PACKAGE
+    const manifest = `SHIULI CAD STUDIO — MASTER CAD RELEASE PACKAGE
+================================================================
+Generated for: ${user?.email || 'Valued Atelier Jeweller'}
+Date: ${new Date().toISOString()}
 Order ID: SCS-ORD-${Math.floor(100000 + Math.random() * 900000)}
 Files included:
 ${items.map((it, i) => `  ${i + 1}. ${it.product.title}
@@ -164,7 +177,7 @@ ${items.map((it, i) => `  ${i + 1}. ${it.product.title}
      - Format: .STL (Watertight High-Res Mesh, 1.25% Casting Shrinkage Applied)
      - Format: .OBJ (Universal Quad Mesh)
      - 4K Studio Ray-traced Renders
-     - License: ${it.license.toUpperCase()} PRODUCTION`).join('\n\n')}
+     - Package: Master CAD Production Files`).join('\n\n')}
 
 Manufacturing Guarantee: 100% Watertight Solid Geometry. Zero non-manifold edges.
 Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
@@ -173,20 +186,11 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Shiuli_CAD_Files_Pack.txt`;
+    a.download = `Shiuli-CAD-Package-${Date.now()}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-
-    // Dispatch real email via Gmail SMTP
-    const firstTitle = items.length > 0 ? items[0].product.title : 'Master CAD Package';
-    sendCadDownloadEmail(
-      'shiulicad@gmail.com',
-      items.length > 1 ? `${firstTitle} (+${items.length - 1} more items)` : firstTitle,
-      ['.3DM (Rhino 8 Layered)', '.STL (Watertight Mesh)', '.OBJ (Universal Mesh)', '4K Renders'],
-      window.location.origin
-    ).catch((e) => console.warn('Background email dispatch notice:', e));
   };
 
   return (
@@ -194,25 +198,26 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
       {/* Backdrop */}
       <div
         onClick={onClose}
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
       />
 
       {/* Drawer */}
       <div className="absolute inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
-        <div className="w-screen max-w-full sm:max-w-md bg-[#0B1330] border-l border-[#D4AF37]/30 shadow-2xl flex flex-col">
+        <div className="w-screen max-w-full sm:max-w-md bg-gradient-to-b from-[#FFFDF9] via-[#FAF4E8] to-[#F5EAD6] border-l-2 border-[#E7CE97] shadow-[0_25px_70px_rgba(180,140,50,0.25)] flex flex-col text-[#0F264A]">
           {/* Header */}
-          <div className="p-5 border-b border-[#D4AF37]/20 flex items-center justify-between bg-[#080E24]">
+          <div className="p-5 border-b border-[#EADAC0] flex items-center justify-between bg-white/80 backdrop-blur-md">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-[#D4AF37]" />
-              <h2 className="font-serif text-lg tracking-wider text-[#FAF8F3]">
+              <Sparkles className="w-4 h-4 text-[#B88732]" />
+              <h2 className="font-serif text-lg tracking-wider text-[#0F264A] font-bold">
                 Your CAD File Bag ({items.length})
               </h2>
             </div>
             <button
               onClick={onClose}
-              className="p-1.5 text-[#C9C2A6] hover:text-[#FAF8F3] hover:bg-white/5 rounded-full transition-colors"
+              className="p-1.5 text-[#6B5A3E] hover:text-[#0F264A] hover:bg-white rounded-full border border-[#E5D2B0] shadow-2xs transition-all hover:scale-105 active:scale-95 cursor-pointer"
+              aria-label="Close cart"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4 stroke-[2.2]" />
             </button>
           </div>
 
@@ -221,14 +226,14 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
             {orderCompleted ? (
               /* Success confirmation state */
               <div className="text-center py-10 space-y-5">
-                <div className="w-16 h-16 mx-auto rounded-full bg-[#D4AF37]/20 border-2 border-[#D4AF37] flex items-center justify-center animate-bounce">
-                  <CheckCircle2 className="w-8 h-8 text-[#F5E7A3]" />
+                <div className="w-16 h-16 mx-auto rounded-full bg-emerald-50 border-2 border-emerald-500 flex items-center justify-center animate-bounce">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-600" />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="font-serif text-2xl text-[#FAF8F3]">
+                  <h3 className="font-serif text-2xl text-[#0F264A] font-bold">
                     Your CAD Files Are Ready!
                   </h3>
-                  <p className="text-xs text-[#C9C2A6] max-w-xs mx-auto">
+                  <p className="text-xs text-[#526075] max-w-xs mx-auto">
                     Payment confirmed. Instant download unlocked for Rhino .3DM, castable .STL meshes, and 4K renders.
                   </p>
                 </div>
@@ -236,17 +241,17 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                 {/* Download Simulator Button */}
                 <button
                   onClick={handleSimulateDownload}
-                  className="btn-gold-luxury w-full py-3.5 rounded-xl font-medium tracking-wider uppercase text-xs flex items-center justify-center gap-2 shadow-lg"
+                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#DFB35A] via-[#ECC976] to-[#C99834] text-[#0C2340] font-serif font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md border border-[#FFF0BA] cursor-pointer"
                 >
-                  <Download className="w-4 h-4 text-[#0B1330]" />
+                  <Download className="w-4 h-4 text-[#0C2340]" />
                   Download CAD Package (.ZIP)
                 </button>
 
-                <div className="p-4 rounded-xl bg-[#121F4D]/40 border border-[#D4AF37]/20 text-left text-xs space-y-2 text-[#C9C2A6]">
-                  <p className="font-medium text-[#FAF8F3]">What’s Inside Your Download:</p>
+                <div className="p-4 rounded-2xl bg-white border border-[#EADAC0] text-left text-xs space-y-2 text-[#526075] shadow-2xs">
+                  <p className="font-bold text-[#0F264A]">What’s Inside Your Download:</p>
                   <p>• Layered Rhino .3DM (Stone prongs, cutters, metal body)</p>
                   <p>• Watertight .STL (1.25% Shrinkage pre-compensated)</p>
-                  <p>• Production Spec Sheet & Stone Count PDF</p>
+                  <p>• Production Spec Sheet &amp; Stone Count PDF</p>
                 </div>
 
                 <div className="flex gap-2">
@@ -257,7 +262,7 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                       onClose();
                       onNavigate('account');
                     }}
-                    className="flex-1 py-2.5 rounded-xl border border-[#D4AF37]/30 text-xs text-[#FAF8F3] hover:bg-[#121F4D]"
+                    className="flex-1 py-2.5 rounded-xl border border-[#EADAC0] bg-white text-xs text-[#0F264A] font-semibold hover:bg-[#FFF9F0] transition-colors cursor-pointer"
                   >
                     View In My Account
                   </button>
@@ -268,7 +273,7 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                       onClose();
                       onNavigate('collections');
                     }}
-                    className="flex-1 py-2.5 rounded-xl bg-[#D4AF37]/20 text-xs text-[#F5E7A3] hover:bg-[#D4AF37]/30"
+                    className="flex-1 py-2.5 rounded-xl bg-[#FFF9ED] border border-[#E2C898] text-xs text-[#B88732] font-semibold hover:bg-[#FAF4E8] transition-colors cursor-pointer"
                   >
                     Browse More CAD
                   </button>
@@ -276,12 +281,12 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
               </div>
             ) : items.length === 0 ? (
               <div className="text-center py-16 space-y-4">
-                <div className="w-14 h-14 mx-auto rounded-full bg-[#121F4D]/50 border border-[#D4AF37]/20 flex items-center justify-center text-[#C9C2A6]">
-                  <Sparkles className="w-6 h-6 text-[#D4AF37]/60" />
+                <div className="w-14 h-14 mx-auto rounded-full bg-white border border-[#EADAC0] flex items-center justify-center text-[#B88732] shadow-2xs">
+                  <Sparkles className="w-6 h-6 text-[#B88732]" />
                 </div>
                 <div className="space-y-1">
-                  <p className="font-serif text-lg text-[#FAF8F3]">Your CAD bag is empty</p>
-                  <p className="text-xs text-[#C9C2A6]">
+                  <p className="font-serif text-lg font-bold text-[#0F264A]">Your CAD bag is empty</p>
+                  <p className="text-xs text-[#697A91]">
                     Explore our ready-to-cast collections and bespoke files.
                   </p>
                 </div>
@@ -290,7 +295,7 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                     onClose();
                     onNavigate('collections');
                   }}
-                  className="btn-gold-luxury px-5 py-2.5 rounded-full text-xs font-semibold uppercase tracking-wider"
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#DFB35A] via-[#ECC976] to-[#C99834] text-[#0C2340] font-serif font-bold text-xs uppercase tracking-wider shadow-sm hover:shadow-md transition-all cursor-pointer border border-[#FFF0BA]"
                 >
                   Explore Collections
                 </button>
@@ -307,39 +312,41 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                 return (
                   <div
                     key={`${item.product.id}-${idx}`}
-                    className="p-3.5 rounded-xl bg-[#0E183D] border border-[#D4AF37]/20 space-y-3"
+                    className="p-3.5 rounded-2xl bg-white/95 border border-[#EADAC0] shadow-2xs space-y-3 transition-all hover:border-[#D4AF37]"
                   >
                     <div className="flex gap-3">
-                      <img
-                        src={item.product.primaryImage}
-                        alt={item.product.title}
-                        referrerPolicy="no-referrer"
-                        className="w-16 h-16 rounded-lg object-contain p-1 bg-[#09112B] border border-[#D4AF37]/20 flex-shrink-0"
-                      />
+                      <div className="w-16 h-16 rounded-xl overflow-hidden bg-gradient-to-b from-white to-[#F7EFE0] border border-[#EADAC0] flex-shrink-0 flex items-center justify-center p-1">
+                        <img
+                          src={item.product.primaryImage}
+                          alt={item.product.title}
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-contain drop-shadow-sm"
+                        />
+                      </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-xs font-medium text-[#FAF8F3] line-clamp-1">
+                        <h4 className="text-xs font-bold text-[#0F264A] line-clamp-1 font-serif">
                           {item.product.title}
                         </h4>
-                        <p className="text-[11px] text-[#C9C2A6] capitalize">
-                          {item.product.category} • {item.product.specs.diamondCount} Stones
+                        <p className="text-[11px] text-[#697A91] capitalize mt-0.5">
+                          {item.product.category} • {item.product.specs?.diamondCount || 0} Stones
                         </p>
-                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#121F4D] text-[#D4AF37] border border-[#D4AF37]/20">
+                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                          <span className="text-[9.5px] px-2 py-0.5 rounded-full bg-[#FFF9ED] text-[#B88732] border border-[#E8D7B7] font-semibold tracking-wider">
                             3DM + STL
                           </span>
-                          <span className="text-xs font-semibold text-[#F5E7A3]">
+                          <span className="text-xs font-serif font-bold text-[#0F264A]">
                             {resolved.display}
                           </span>
                           {resolved.isRegional && resolved.tierName && (
-                            <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-[#D4AF37]/20 text-[#F5E7A3] font-medium">
-                              {resolved.tierName}
+                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#FFF9ED] border border-[#E2C898] text-[#A67823] font-semibold">
+                              {currentCountry.flag} {resolved.tierName}
                             </span>
                           )}
                         </div>
                       </div>
                       <button
                         onClick={() => onRemoveItem(idx)}
-                        className="text-[#C9C2A6] hover:text-red-400 p-1 transition-colors"
+                        className="text-[#8E9CAE] hover:text-rose-500 p-1.5 transition-colors cursor-pointer self-start"
                         title="Remove"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -353,7 +360,7 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
           {/* Footer / Summary */}
           {items.length > 0 && !orderCompleted && (
-            <div className="p-5 border-t border-[#D4AF37]/20 bg-[#080E24] space-y-4">
+            <div className="p-5 border-t border-[#EADAC0] bg-white/90 backdrop-blur-md space-y-4">
               {/* Promo code */}
               <form onSubmit={handleApplyPromo} className="flex gap-2">
                 <input
@@ -361,34 +368,34 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                   placeholder="Promo (use ROYAL10)"
                   value={promoCode}
                   onChange={(e) => setPromoCode(e.target.value)}
-                  className="flex-1 px-3 py-1.5 text-xs rounded-lg bg-[#0B1330] border border-[#D4AF37]/30 text-[#FAF8F3] uppercase placeholder-[#C9C2A6]/40 focus:outline-none focus:border-[#D4AF37]"
+                  className="flex-1 px-3 py-2 text-xs rounded-xl bg-[#FFF9F0] border border-[#EADAC0] text-[#0F264A] uppercase placeholder-[#8E9CAE] focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]"
                 />
                 <button
                   type="submit"
-                  className="px-3 py-1.5 rounded-lg border border-[#D4AF37]/40 text-xs text-[#F5E7A3] hover:bg-[#D4AF37]/10"
+                  className="px-4 py-2 rounded-xl border border-[#EADAC0] bg-white hover:bg-[#FFF9F0] text-xs font-semibold text-[#0F264A] shadow-2xs cursor-pointer transition-all"
                 >
                   Apply
                 </button>
               </form>
               {promoMessage && (
-                <p className="text-[11px] text-[#D4AF37] -mt-2">{promoMessage}</p>
+                <p className="text-[11px] text-[#B88732] -mt-2 font-medium">{promoMessage}</p>
               )}
 
               {/* Price Calculation */}
               <div className="space-y-1.5 text-xs">
-                <div className="flex justify-between text-[#C9C2A6]">
+                <div className="flex justify-between text-[#697A91]">
                   <span>Subtotal:</span>
-                  <span>₹{formatINR(subtotal)}</span>
+                  <span className="font-medium text-[#0F264A]">₹{formatINR(subtotal)}</span>
                 </div>
                 {discountAmount > 0 && (
-                  <div className="flex justify-between text-emerald-400">
+                  <div className="flex justify-between text-emerald-700 font-semibold">
                     <span>Discount (10%):</span>
                     <span>-₹{formatINR(discountAmount)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-sm font-semibold text-[#FAF8F3] pt-2 border-t border-white/5">
+                <div className="flex justify-between text-sm font-bold text-[#0F264A] pt-2 border-t border-[#EADAC0]">
                   <span className="font-serif">Total Payable:</span>
-                  <span className="text-[#F5E7A3]">₹{formatINR(total)}</span>
+                  <span className="font-serif text-base text-[#0F264A]">₹{formatINR(total)}</span>
                 </div>
               </div>
 
@@ -396,23 +403,23 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
               <button
                 onClick={handleCheckout}
                 disabled={isCheckingOut}
-                className="btn-gold-luxury w-full py-3 rounded-xl font-medium tracking-wider uppercase text-xs flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
+                className="w-full py-3.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#DFB35A] via-[#ECC976] to-[#C99834] hover:from-[#E6BC64] hover:to-[#D4A33F] text-[#0C2340] font-serif font-bold text-xs sm:text-[13px] tracking-wider uppercase flex items-center justify-center gap-2 shadow-[0_6px_20px_rgba(209,161,54,0.32)] border border-[#FFF0BA] transition-all hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
               >
                 {isCheckingOut ? (
                   <span className="flex items-center gap-2">
-                    <span className="w-3.5 h-3.5 border-2 border-[#0B1330] border-t-transparent rounded-full animate-spin" />
+                    <span className="w-3.5 h-3.5 border-2 border-[#0C2340] border-t-transparent rounded-full animate-spin" />
                     Generating Instant CAD Links...
                   </span>
                 ) : (
                   <>
-                    <span>Confirm & Download Files</span>
-                    <ArrowRight className="w-3.5 h-3.5 text-[#0B1330]" />
+                    <span>Confirm &amp; Download Files</span>
+                    <ArrowRight className="w-4 h-4 text-[#0C2340]" />
                   </>
                 )}
               </button>
 
-              <div className="flex items-center justify-center gap-2 text-[10px] text-[#C9C2A6]">
-                <ShieldCheck className="w-3.5 h-3.5 text-[#D4AF37]" />
+              <div className="flex items-center justify-center gap-2 text-[10px] text-[#697A91]">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#B88732]" />
                 <span>Instant Digital Delivery • Watertight Mesh Guarantee</span>
               </div>
             </div>
@@ -431,7 +438,7 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
         itemType="cart"
         orderDetails={{
           itemsCount: items.length,
-          notes: items.map(i => `${i.product.title} (${i.license})`).join(', '),
+          notes: items.map(i => i.product.title).join(', '),
           country: currentCountry.code,
         }}
         onPaymentSuccess={handlePaymentSuccess}

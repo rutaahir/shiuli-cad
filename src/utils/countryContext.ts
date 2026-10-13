@@ -85,16 +85,88 @@ function notifyListeners() {
   listeners.forEach((listener) => listener({ ...globalCountryState }));
 }
 
-/** Initialize state from local cache or remote country-context endpoint */
-export async function initCountryContext(): Promise<void> {
-  const savedCountry = localStorage.getItem('shiuli_customer_country') || 'IN';
-
+/** Helper to guess country code from browser timezone and locale */
+function guessCountryFromBrowser(): string {
   try {
-    const res = await fetch(`/api/catalog/country-context/?country=${encodeURIComponent(savedCountry)}`);
+    const tz = (Intl.DateTimeFormat().resolvedOptions().timeZone || '').toLowerCase();
+    if (tz.includes('kolkata') || tz.includes('calcutta') || tz.includes('india')) return 'IN';
+    if (tz.includes('new_york') || tz.includes('chicago') || tz.includes('los_angeles') || tz.includes('denver') || tz.includes('phoenix')) return 'US';
+    if (tz.includes('london')) return 'GB';
+    if (tz.includes('sydney') || tz.includes('melbourne') || tz.includes('brisbane') || tz.includes('perth') || tz.includes('adelaide')) return 'AU';
+    if (tz.includes('toronto') || tz.includes('vancouver') || tz.includes('montreal') || tz.includes('edmonton')) return 'CA';
+    if (tz.includes('auckland') || tz.includes('christchurch')) return 'NZ';
+    if (tz.includes('singapore')) return 'SG';
+    if (tz.includes('dubai')) return 'AE';
+    if (tz.includes('tokyo')) return 'JP';
+    if (tz.includes('dhaka')) return 'BD';
+    if (tz.includes('kathmandu')) return 'NP';
+    if (tz.includes('colombo')) return 'LK';
+    if (tz.includes('berlin') || tz.includes('frankfurt')) return 'DE';
+    if (tz.includes('paris')) return 'FR';
+    if (tz.includes('rome')) return 'IT';
+
+    // Fallback: Check navigator.languages
+    const lang = (navigator.language || '').toUpperCase();
+    if (lang.includes('-IN')) return 'IN';
+    if (lang.includes('-US')) return 'US';
+    if (lang.includes('-GB')) return 'GB';
+    if (lang.includes('-AU')) return 'AU';
+    if (lang.includes('-CA')) return 'CA';
+    if (lang.includes('-NZ')) return 'NZ';
+    if (lang.includes('-SG')) return 'SG';
+    if (lang.includes('-AE')) return 'AE';
+  } catch {
+    // ignore
+  }
+  return 'IN';
+}
+
+/** Automatic Geo-IP detection */
+async function autoDetectCustomerCountry(): Promise<string> {
+  // 1. Try real-time fast Geo-IP lookup
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2000);
+    const res = await fetch('https://api.country.is/', { signal: controller.signal });
+    clearTimeout(timer);
     if (res.ok) {
       const data = await res.json();
+      if (data && typeof data.country === 'string' && data.country.trim().length === 2) {
+        const detected = data.country.trim().toUpperCase();
+        localStorage.setItem('shiuli_customer_country', detected);
+        return detected;
+      }
+    }
+  } catch {
+    // GeoIP fetch timed out or offline, proceed to fallback
+  }
+
+  // 2. Check cached country in localStorage
+  const saved = localStorage.getItem('shiuli_customer_country');
+  if (saved && saved.length === 2) {
+    return saved.toUpperCase();
+  }
+
+  // 3. Fallback to Browser Timezone & Locale
+  const guessed = guessCountryFromBrowser();
+  localStorage.setItem('shiuli_customer_country', guessed);
+  return guessed;
+}
+
+/** Initialize state automatically via Geo-IP and backend context */
+export async function initCountryContext(): Promise<void> {
+  globalCountryState.isLoading = true;
+  notifyListeners();
+
+  const detectedCountry = await autoDetectCustomerCountry();
+
+  try {
+    const res = await fetch(`/api/catalog/country-context/?country=${encodeURIComponent(detectedCountry)}`);
+    if (res.ok) {
+      const data = await res.json();
+      const finalCountry = data.country || detectedCountry;
       globalCountryState = {
-        country: data.country || savedCountry,
+        country: finalCountry,
         countryName: data.country_name || 'India',
         currency: data.currency || 'INR',
         symbol: data.symbol || '₹',
@@ -104,6 +176,7 @@ export async function initCountryContext(): Promise<void> {
         supportedCountries: data.supported_countries || FALLBACK_COUNTRIES,
         isLoading: false,
       };
+      localStorage.setItem('shiuli_customer_country', finalCountry);
       notifyListeners();
       return;
     }
@@ -112,7 +185,7 @@ export async function initCountryContext(): Promise<void> {
   }
 
   // Fallback if network offline
-  const match = FALLBACK_COUNTRIES.find((c) => c.code === savedCountry) || FALLBACK_COUNTRIES[0];
+  const match = FALLBACK_COUNTRIES.find((c) => c.code === detectedCountry) || FALLBACK_COUNTRIES[0];
   globalCountryState = {
     ...globalCountryState,
     country: match.code,
@@ -121,7 +194,9 @@ export async function initCountryContext(): Promise<void> {
     symbol: match.symbol,
     flag: match.flag,
     exchangeRate: FALLBACK_RATES[match.currency] || 1.0,
+    isLoading: false,
   };
+  localStorage.setItem('shiuli_customer_country', match.code);
   notifyListeners();
 }
 

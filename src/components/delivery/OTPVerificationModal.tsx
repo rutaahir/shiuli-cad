@@ -307,7 +307,7 @@ export const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
                 </div>
                 <p>• Authentic production files (.3DM & .STL) packaged and ready.</p>
                 <p>• Single-use download link sent to your email inbox.</p>
-                <p>• Download status and license tracked in your account.</p>
+                <p>• Download status and order details tracked in your account.</p>
               </div>
 
               <div className="pt-2 flex gap-3">

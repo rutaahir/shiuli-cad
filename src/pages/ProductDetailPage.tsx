@@ -266,7 +266,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
       setIsPaymentModalOpen(false);
       requireAuth(() => {}, {
         intent: 'purchase',
-        message: 'Sign in to complete your purchase & register your CAD license token.',
+        message: 'Sign in to complete your purchase & download your CAD file package.',
         productId: product.id,
       });
       return;
@@ -1020,7 +1020,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
         isOpen={isPaymentModalOpen}
         onClose={() => setIsPaymentModalOpen(false)}
         title={product.title}
-        subtitle={`${selectedLicense === 'commercial' ? 'Commercial Production License' : 'Standard Atelier License'} • Layered 3DM + STL Meshes`}
+        subtitle="Master CAD Package • Layered 3DM + STL Meshes"
         amount={priceDisplay?.amount || currentPrice}
         currency={(priceDisplay?.currency as 'INR' | 'USD') || 'USD'}
         itemType="ready_cad"

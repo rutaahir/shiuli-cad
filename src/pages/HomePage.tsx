@@ -959,43 +959,39 @@ export const HomePage: React.FC<HomePageProps> = ({
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.3 }}
-            className="w-full max-w-4xl xl:max-w-5xl grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pt-1"
+            className="w-full max-w-4xl xl:max-w-5xl grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5 pt-1"
           >
             {[
               {
                 id: 'custom-design',
                 title: 'Custom Design',
                 desc: 'Share your idea & get unique CAD design',
-                image: '/assets/redesign/card_ring_hd.png',
+                image: '/assets/redesign/box_custom_design.png',
                 imageAlt: 'Custom Design Jewellery CAD',
-                isHighlighted: true,
                 onClick: () => onNavigate('custom-design'),
               },
               {
                 id: 'ready-cad-files',
                 title: 'Ready CAD Files',
                 desc: 'Browse high-quality jewellery CAD models',
-                image: '/assets/redesign/card_cad_files.png',
+                image: '/assets/redesign/box_ready_cad_files.png',
                 imageAlt: 'Ready CAD Files Catalog',
-                isHighlighted: false,
                 onClick: () => onNavigate('collections'),
               },
               {
                 id: 'our-portfolio',
                 title: 'Our Portfolio',
                 desc: 'Explore our latest designs & creations',
-                image: '/assets/redesign/card_portfolio.png',
+                image: '/assets/redesign/box_our_portfolio.png',
                 imageAlt: 'Our Jewellery CAD Portfolio',
-                isHighlighted: false,
                 onClick: () => onNavigate('portfolio'),
               },
               {
                 id: 'file-editing',
                 title: 'File Editing',
                 desc: 'Modify your existing CAD files',
-                image: '/assets/redesign/card_file_editing.png',
+                image: '/assets/redesign/box_file_editing.png',
                 imageAlt: 'Jewellery CAD File Editing',
-                isHighlighted: false,
                 onClick: () => onNavigate('file-editing'),
               },
             ].map((card) => (
@@ -1003,34 +999,15 @@ export const HomePage: React.FC<HomePageProps> = ({
                 key={card.id}
                 type="button"
                 onClick={card.onClick}
-                className={`group relative flex flex-col items-center justify-between p-2.5 sm:p-3 rounded-2xl cursor-pointer text-center transition-all duration-300 hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-[#D6AD62] min-h-[120px] sm:min-h-[135px] ${
-                  card.isHighlighted
-                    ? 'bg-gradient-to-b from-[#FFFDF9] to-[#FCF6EC] border border-[#D6AD62] shadow-[0_6px_20px_rgba(214,173,98,0.15)] hover:shadow-[0_12px_28px_rgba(214,173,98,0.22)]'
-                    : 'bg-white/95 border border-[#EADCC8] hover:border-[#D6AD62] shadow-[0_4px_16px_rgba(23,54,93,0.04)] hover:shadow-[0_10px_24px_rgba(23,54,93,0.08)]'
-                }`}
+                aria-label={`${card.title}: ${card.desc}`}
+                className="group relative rounded-[20px] sm:rounded-[22px] cursor-pointer overflow-hidden transition-all duration-300 hover:-translate-y-1.5 focus-visible:outline-2 focus-visible:outline-[#D6AD62] shadow-[0_6px_20px_rgba(23,54,93,0.06)] hover:shadow-[0_16px_36px_rgba(214,173,98,0.24)] text-left"
               >
-                <div className="h-8 sm:h-9 flex items-center justify-center shrink-0 mb-1">
-                  <img
-                    src={card.image}
-                    alt={card.imageAlt}
-                    className="max-h-8 sm:max-h-9 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
-                  />
-                </div>
-
-                <div className="space-y-0.5 min-w-0 flex-1 flex flex-col justify-center">
-                  <h3 className="font-serif font-bold text-xs sm:text-[13px] text-[#17365D] group-hover:text-[#B88735] transition-colors">
-                    {card.title}
-                  </h3>
-                  <p className="text-[10px] sm:text-[11px] text-[#626875] line-clamp-1 sm:line-clamp-2 leading-snug">
-                    {card.desc}
-                  </p>
-                </div>
-
-                <div className="w-full flex justify-end mt-1">
-                  <div className="w-5 h-5 rounded-full border border-[#D6AD62]/70 group-hover:border-[#D6AD62] group-hover:bg-[#D6AD62] group-hover:text-white flex items-center justify-center text-[#B88735] transition-colors shrink-0">
-                    <ChevronRight className="w-3 h-3 transition-transform duration-200 group-hover:translate-x-0.5" />
-                  </div>
-                </div>
+                <img
+                  src={card.image}
+                  alt={card.imageAlt}
+                  className="w-full h-auto object-contain transition-transform duration-500 group-hover:scale-[1.025]"
+                  loading="eager"
+                />
               </button>
             ))}
           </motion.div>
@@ -1040,43 +1017,71 @@ export const HomePage: React.FC<HomePageProps> = ({
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.4 }}
-            className="w-full max-w-4xl xl:max-w-5xl mx-auto flex flex-wrap lg:flex-nowrap items-center justify-center lg:justify-between gap-3 sm:gap-5 pt-1.5 sm:pt-2 text-xs sm:text-[13px] text-[#17365D]"
+            className="w-full max-w-4xl xl:max-w-5xl mx-auto flex flex-wrap lg:flex-nowrap items-center justify-around lg:justify-between gap-4 sm:gap-6 pt-3 sm:pt-4 bg-transparent"
           >
-            <div className="flex items-center gap-2">
-              <Gem className="w-4 h-4 text-[#B88735] shrink-0" />
+            <div className="flex items-center gap-3 group bg-transparent">
+              <div className="relative shrink-0 flex items-center justify-center">
+                <div className="absolute inset-0 bg-[#F5D061]/35 blur-md rounded-full pointer-events-none" />
+                <Gem className="relative w-6 h-6 sm:w-7 sm:h-7 text-[#C9972C] drop-shadow-[0_2px_10px_rgba(201,151,44,0.65)] transition-transform duration-300 group-hover:scale-110" />
+              </div>
               <div className="text-left">
-                <div className="font-semibold text-xs sm:text-[12px] text-[#17365D]">Photorealistic</div>
-                <div className="text-[10px] sm:text-[11px] text-[#626875]">3D Modelling</div>
+                <div className="font-bold text-sm sm:text-[15px] text-[#0C2340] tracking-tight leading-snug">
+                  Photorealistic
+                </div>
+                <div className="font-bold text-xs sm:text-[13px] text-[#A67823] tracking-wide leading-snug drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)]">
+                  3D Modelling
+                </div>
               </div>
             </div>
 
-            <div className="hidden lg:block w-px h-5 bg-[#EADCC8]" />
+            <div className="hidden lg:block w-px h-8 bg-gradient-to-b from-transparent via-[#D6AD62]/60 to-transparent" />
 
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-[#B88735] shrink-0" />
+            <div className="flex items-center gap-3 group bg-transparent">
+              <div className="relative shrink-0 flex items-center justify-center">
+                <div className="absolute inset-0 bg-[#F5D061]/35 blur-md rounded-full pointer-events-none" />
+                <ShieldCheck className="relative w-6 h-6 sm:w-7 sm:h-7 text-[#C9972C] drop-shadow-[0_2px_10px_rgba(201,151,44,0.65)] transition-transform duration-300 group-hover:scale-110" />
+              </div>
               <div className="text-left">
-                <div className="font-semibold text-xs sm:text-[12px] text-[#17365D]">High Precision</div>
-                <div className="text-[10px] sm:text-[11px] text-[#626875]">&amp; Accuracy</div>
+                <div className="font-bold text-sm sm:text-[15px] text-[#0C2340] tracking-tight leading-snug">
+                  High Precision
+                </div>
+                <div className="font-bold text-xs sm:text-[13px] text-[#A67823] tracking-wide leading-snug drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)]">
+                  &amp; Accuracy
+                </div>
               </div>
             </div>
 
-            <div className="hidden lg:block w-px h-5 bg-[#EADCC8]" />
+            <div className="hidden lg:block w-px h-8 bg-gradient-to-b from-transparent via-[#D6AD62]/60 to-transparent" />
 
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-[#B88735] shrink-0" />
+            <div className="flex items-center gap-3 group bg-transparent">
+              <div className="relative shrink-0 flex items-center justify-center">
+                <div className="absolute inset-0 bg-[#F5D061]/35 blur-md rounded-full pointer-events-none" />
+                <Clock className="relative w-6 h-6 sm:w-7 sm:h-7 text-[#C9972C] drop-shadow-[0_2px_10px_rgba(201,151,44,0.65)] transition-transform duration-300 group-hover:scale-110" />
+              </div>
               <div className="text-left">
-                <div className="font-semibold text-xs sm:text-[12px] text-[#17365D]">Fast Turnaround</div>
-                <div className="text-[10px] sm:text-[11px] text-[#626875]">(48 Hours)</div>
+                <div className="font-bold text-sm sm:text-[15px] text-[#0C2340] tracking-tight leading-snug">
+                  Fast Turnaround
+                </div>
+                <div className="font-bold text-xs sm:text-[13px] text-[#A67823] tracking-wide leading-snug drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)]">
+                  (48 Hours)
+                </div>
               </div>
             </div>
 
-            <div className="hidden lg:block w-px h-5 bg-[#EADCC8]" />
+            <div className="hidden lg:block w-px h-8 bg-gradient-to-b from-transparent via-[#D6AD62]/60 to-transparent" />
 
-            <div className="flex items-center gap-2">
-              <Headphones className="w-4 h-4 text-[#B88735] shrink-0" />
+            <div className="flex items-center gap-3 group bg-transparent">
+              <div className="relative shrink-0 flex items-center justify-center">
+                <div className="absolute inset-0 bg-[#F5D061]/35 blur-md rounded-full pointer-events-none" />
+                <Headphones className="relative w-6 h-6 sm:w-7 sm:h-7 text-[#C9972C] drop-shadow-[0_2px_10px_rgba(201,151,44,0.65)] transition-transform duration-300 group-hover:scale-110" />
+              </div>
               <div className="text-left">
-                <div className="font-semibold text-xs sm:text-[12px] text-[#17365D]">Expert Support</div>
-                <div className="text-[10px] sm:text-[11px] text-[#626875]">for Your Designs</div>
+                <div className="font-bold text-sm sm:text-[15px] text-[#0C2340] tracking-tight leading-snug">
+                  Expert Support
+                </div>
+                <div className="font-bold text-xs sm:text-[13px] text-[#A67823] tracking-wide leading-snug drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)]">
+                  for Your Designs
+                </div>
               </div>
             </div>
           </motion.div>
@@ -1268,7 +1273,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
             {[
               { num: '01', title: 'Browse or Request', desc: 'Pick a ready design from our collection or upload your customer’s pencil sketch for a custom quote.' },
-              { num: '02', title: 'Confirm Specifications', desc: 'Choose your license, metal karat, stone dimensions, and desired casting shrinkage parameters.' },
+              { num: '02', title: 'Confirm Specifications', desc: 'Confirm your metal karat, stone dimensions, and desired casting shrinkage parameters.' },
               { num: '03', title: 'Master CAD Crafting', desc: 'Our Rhino 3D modeler builds the geometry with calibrated seat angles and verifies watertight mesh.' },
               { num: '04', title: 'Instant CAD Download', desc: 'Receive your .3DM, production .STL, and 4K photorealistic studio renders straight to your dashboard.' },
             ].map((step, i) => (
@@ -1418,19 +1423,19 @@ export const HomePage: React.FC<HomePageProps> = ({
             </div>
           ) : (
             <div className="space-y-8">
-              <StaggerGrid key={`${selectedFilter}-${visibleCount}`} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <StaggerGrid key={`${selectedFilter}-${visibleCount}`} className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
                 {displayedProducts.map((product) => {
                   const isWishlisted = wishlistIds.includes(product.id);
                   return (
                     <StaggerItem key={product.id}>
                       <motion.div
-                        whileHover={{ y: -8 }}
+                        whileHover={{ y: -6 }}
                         transition={{ duration: 0.3 }}
                         onClick={() => onNavigate('product-detail', product.id)}
-                        className="group rounded-2xl bg-white border border-[#E8D7B7] overflow-hidden shadow-xs hover:shadow-xl hover:border-[#D9B66F] transition-all flex flex-col justify-between cursor-pointer"
+                        className="group rounded-xl sm:rounded-2xl bg-white border border-[#E8D7B7] overflow-hidden shadow-xs hover:shadow-xl hover:border-[#D9B66F] transition-all flex flex-col justify-between cursor-pointer"
                       >
                         {/* Image Frame (object-contain with padding prevents edge cutting) */}
-                        <div className="relative aspect-square overflow-hidden bg-gradient-to-b from-[#FFFDF9] via-white to-[#FFF9F0] flex items-center justify-center p-3">
+                        <div className="relative aspect-square overflow-hidden bg-gradient-to-b from-[#FFFDF9] via-white to-[#FFF9F0] flex items-center justify-center p-2 sm:p-3">
                           <LazyImage
                             src={getOptimizedImageUrl(product.primaryImage, product.category)}
                             alt={product.title}
@@ -1438,37 +1443,38 @@ export const HomePage: React.FC<HomePageProps> = ({
                           />
 
                           {/* Badges */}
-                          <div className="absolute top-3 left-3 flex flex-col gap-1 z-10">
+                          <div className="absolute top-2 sm:top-3 left-2 sm:left-3 flex flex-col gap-1 z-10">
                             {product.isBestseller && (
-                              <span className="px-2 py-0.5 rounded-md bg-[#B88732] text-white text-[10px] font-bold tracking-wider uppercase shadow-xs">
+                              <span className="px-1.5 sm:px-2 py-0.5 rounded-md bg-[#B88732] text-white text-[8.5px] sm:text-[10px] font-bold tracking-wider uppercase shadow-xs">
                                 Bestseller
                               </span>
                             )}
                             {product.isNew && (
-                              <span className="px-2 py-0.5 rounded-md bg-[#17345C] text-white text-[10px] font-bold tracking-wider uppercase shadow-xs">
+                              <span className="px-1.5 sm:px-2 py-0.5 rounded-md bg-[#17345C] text-white text-[8.5px] sm:text-[10px] font-bold tracking-wider uppercase shadow-xs">
                                 New
                               </span>
                             )}
                           </div>
 
                           {/* Quick View and Wishlist overlay */}
-                          <div className="absolute top-3 right-3 flex flex-col gap-1.5 z-10">
+                          <div className="absolute top-2 sm:top-3 right-2 sm:right-3 flex flex-col gap-1.5 z-10">
                             <button
                               onClick={(e) => { e.stopPropagation(); onToggleWishlist(product); }}
-                              className={`p-2 rounded-full backdrop-blur-md transition-colors ${
+                              className={`p-1.5 sm:p-2 rounded-full backdrop-blur-md transition-colors ${
                                 isWishlisted
                                   ? 'bg-[#B88732] text-white'
                                   : 'bg-white/90 text-[#17345C] border border-[#E8D7B7] hover:border-[#D9B66F]'
                               }`}
                               title="Wishlist"
+                              aria-label="Wishlist"
                             >
-                              <Heart className={`w-3.5 h-3.5 ${isWishlisted ? 'fill-current' : ''}`} />
+                              <Heart className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${isWishlisted ? 'fill-current' : ''}`} />
                             </button>
                           </div>
 
                           <button
                             onClick={(e) => { e.stopPropagation(); onQuickView(product); }}
-                            className="absolute inset-x-3 bottom-3 z-10 py-2 rounded-xl bg-white/95 backdrop-blur border border-[#E8D7B7] text-xs text-[#17345C] font-semibold flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                            className="absolute inset-x-2 sm:inset-x-3 bottom-2 sm:bottom-3 z-10 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-white/95 backdrop-blur border border-[#E8D7B7] text-[10px] sm:text-xs text-[#17345C] font-semibold hidden sm:flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
                           >
                             <Eye className="w-3.5 h-3.5 text-[#B88732]" />
                             <span>Quick View Specs</span>
@@ -1476,31 +1482,33 @@ export const HomePage: React.FC<HomePageProps> = ({
                         </div>
 
                         {/* Card Content */}
-                        <div className="p-4 space-y-3">
-                          <div className="text-[10px] uppercase tracking-wider text-[#B88732] font-semibold">
-                            {product.category} • {product.specs.diamondCount} Stones
+                        <div className="p-2.5 sm:p-4 space-y-1.5 sm:space-y-2">
+                          <div className="text-[8.5px] sm:text-[10px] uppercase tracking-wider text-[#B88732] font-semibold truncate">
+                            {product.category} • {product.specs?.diamondCount || 0} Stones
                           </div>
 
-                          <h3 className="font-serif text-lg text-[#17345C] group-hover:text-[#B88732] line-clamp-1 transition-colors">
+                          <h3 className="font-serif text-xs sm:text-base text-[#17345C] group-hover:text-[#B88732] line-clamp-1 transition-colors font-medium sm:font-normal">
                             {product.title}
                           </h3>
 
-                          <div className="flex items-center justify-between text-xs text-[#687386] pt-1 border-t border-[#E8D7B7]/60 font-normal">
-                            <span>18K: {product.specs?.metalWeight18k || '—'}</span>
-                            <span className="font-mono text-[#236E6A] font-semibold">STL Verified</span>
+                          <div className="flex items-center justify-between text-[9px] sm:text-xs text-[#687386] pt-1 border-t border-[#E8D7B7]/60 font-normal">
+                            <span className="truncate">18K: {product.specs?.metalWeight18k || '—'}</span>
+                            <span className="font-mono text-[#236E6A] font-semibold text-[8px] sm:text-xs shrink-0">STL Verified</span>
                           </div>
 
-                          <div className="flex items-center justify-between pt-2">
-                            <div>
-                              <ProductPriceTag product={product} size="lg" primaryColorClass="text-[#B88732]" />
+                          <div className="flex items-center justify-between pt-1 sm:pt-2 gap-1.5">
+                            <div className="min-w-0 flex-1">
+                              <ProductPriceTag product={product} size="sm" primaryColorClass="text-[#B88732]" />
                             </div>
 
                             <button
                               onClick={(e) => { e.stopPropagation(); onAddToCart(product, 'standard'); }}
-                              className="btn-gold-luxury px-3.5 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider flex items-center gap-1"
+                              className="btn-gold-luxury px-2 sm:px-3.5 py-1.5 rounded-lg text-[9.5px] sm:text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-1 shrink-0 cursor-pointer"
+                              title="Add to Bag"
+                              aria-label="Add to Bag"
                             >
-                              <ShoppingBag className="w-3 h-3" />
-                              <span>Add</span>
+                              <ShoppingBag className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#17345C]" />
+                              <span className="hidden xs:inline sm:inline">Add</span>
                             </button>
                           </div>
                         </div>
