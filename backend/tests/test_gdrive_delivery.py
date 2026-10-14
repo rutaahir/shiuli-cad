@@ -49,12 +49,15 @@ class TestGoogleDriveCADDelivery(APITestCase):
             status=Product.Status.APPROVED
         )
 
-    def test_01_storage_config_endpoint(self):
-        """Verify storage-config endpoint exposes active backend config."""
+    @patch('apps.core.gdrive_service.get_drive_credentials')
+    def test_01_storage_config_endpoint(self, mock_creds):
+        """Verify storage-config endpoint exposes active backend config and readiness."""
+        mock_creds.return_value = MagicMock()
         resp = self.client.get('/api/catalog/products/storage-config/')
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data.get('storage_backend'), 'gdrive')
         self.assertTrue(resp.data.get('is_gdrive'))
+        self.assertTrue(resp.data.get('gdrive_authorized'))
 
     @patch('apps.core.gdrive_service.create_resumable_upload_session')
     def test_02_gdrive_upload_session(self, mock_create_session):
@@ -337,10 +340,10 @@ class TestGoogleDriveCADDelivery(APITestCase):
             'mime_type': 'application/octet-stream'
         }
 
-        # Auth error -> 401
+        # Auth error -> 503 (external service unavailable, does NOT trigger frontend user logout)
         mock_session.side_effect = GoogleDriveAuthError("OAuth required")
         resp = self.client.post(f'/api/catalog/products/{self.product.slug}/gdrive-upload-session/', payload, format='json')
-        self.assertEqual(resp.status_code, 401)
+        self.assertEqual(resp.status_code, 503)
         self.assertEqual(resp.data.get('code'), 'gdrive_auth_required')
 
         # Quota error -> 507

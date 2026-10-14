@@ -126,9 +126,14 @@ class ApiClient {
          response.url.includes('/auth/token'))
       );
 
+      const isGDriveEndpoint = Boolean(response.url && response.url.includes('gdrive'));
+      const isGDriveAuthError = errorData?.code === 'gdrive_auth_required';
+
       // Intercept cryptic JWT token validation errors only for existing authenticated sessions
       if (
         !isAuthEndpoint &&
+        !isGDriveEndpoint &&
+        !isGDriveAuthError &&
         (
           response.status === 401 ||
           errorMessage === 'Given token not valid for any token type' ||
@@ -911,14 +916,14 @@ class ApiClient {
   ): Promise<any> {
     await this.ensureAdminToken();
 
-    // Check if Google Drive storage is enabled
+    // Check if Google Drive storage is enabled and authorized
     try {
       const config = await this.getCadStorageConfig();
       if (config.is_gdrive) {
         return await this.uploadProductFileToGDrive(slug, file, fileType, onProgress);
       }
     } catch (gdriveCheckErr) {
-      console.warn('Failed to upload directly to GDrive, falling back to direct upload:', gdriveCheckErr);
+      console.warn('Google Drive direct upload not available, falling back to direct server upload:', gdriveCheckErr);
     }
 
     return this.uploadProductFileDirect(slug, file, fileType, onProgress);
@@ -984,7 +989,15 @@ class ApiClient {
     fileType: '3dm' | 'stl' | 'render' | 'video' | 'zip',
     onProgress?: (percent: number) => void
   ): Promise<any> {
+    await this.ensureAdminToken();
     let token = localStorage.getItem('shiuli_access_token');
+    if (!token) {
+      try {
+        token = await this.refreshToken();
+      } catch {
+        // Fallback to token if present
+      }
+    }
 
     const formData = new FormData();
     formData.append('file', file);
@@ -1040,7 +1053,9 @@ class ApiClient {
       xhr.timeout = 30 * 60 * 1000; // 30 minutes timeout for very large files
 
       xhr.open('POST', `${API_BASE_URL}/catalog/products/${slug}/upload-file/`);
-      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
       xhr.send(formData);
     });
   }

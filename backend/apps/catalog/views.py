@@ -514,12 +514,23 @@ class ProductViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny], url_path='storage-config')
     def storage_config(self, request):
         """
-        Returns active CAD storage backend configuration.
+        Returns active CAD storage backend configuration and readiness.
         """
         backend = getattr(settings, 'CAD_STORAGE_BACKEND', 'local')
+        gdrive_ready = False
+        if backend == 'gdrive':
+            from apps.core.gdrive_service import get_drive_credentials
+            try:
+                get_drive_credentials()
+                gdrive_ready = True
+            except Exception:
+                gdrive_ready = False
+
         return Response({
             "storage_backend": backend,
-            "is_gdrive": backend == 'gdrive'
+            "is_gdrive": backend == 'gdrive' and gdrive_ready,
+            "gdrive_configured": backend == 'gdrive',
+            "gdrive_authorized": gdrive_ready
         })
 
     @action(detail=True, methods=['post'], permission_classes=[IsStaffOrAdmin], url_path='gdrive-upload-session')
@@ -587,7 +598,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             return Response({
                 "error": str(e),
                 "code": "gdrive_auth_required"
-            }, status=status.HTTP_401_UNAUTHORIZED)
+            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         except GoogleDriveQuotaError as e:
             return Response({
                 "error": str(e),
