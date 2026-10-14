@@ -138,9 +138,9 @@ PROTECTED_MEDIA_ROOT = BASE_DIR / 'protected_media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Upload limits (250 MB for large 3DM / STL CAD models and 360° videos)
-DATA_UPLOAD_MAX_MEMORY_SIZE = 262144000
-FILE_UPLOAD_MAX_MEMORY_SIZE = 262144000
+# Upload limits (300 MB buffer for large 250 MB 3DM / STL CAD models, multipart headers, and 360° videos)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 314572800  # 300 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 314572800  # 300 MB
 
 # Application-level file upload caps (enforced in views & frontend)
 MAX_CAD_FILE_UPLOAD_SIZE = 250 * 1024 * 1024   # 250 MB for .3DM, .STL, .ZIP, video
@@ -247,5 +247,11 @@ EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='').strip()
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='').strip().replace(' ', '')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='Shiuli CAD Studio <noreply@shiulicad.com>')
 SETTINGS_ENCRYPTION_KEY = config('SETTINGS_ENCRYPTION_KEY', default='').strip()
+
+# CAD Storage Backend Settings ('local' | 'gdrive')
+CAD_STORAGE_BACKEND = config('CAD_STORAGE_BACKEND', default='local').strip().lower()
+GDRIVE_FOLDER_ID = config('GDRIVE_FOLDER_ID', default='').strip()
+GDRIVE_SERVICE_ACCOUNT_JSON_PATH = config('GDRIVE_SERVICE_ACCOUNT_JSON_PATH', default='').strip()
+GDRIVE_SERVICE_ACCOUNT_BASE64 = config('GDRIVE_SERVICE_ACCOUNT_BASE64', default='').strip()
 
 

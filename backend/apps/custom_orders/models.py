@@ -1,4 +1,6 @@
 from django.db import models
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 from django.conf import settings
 from apps.catalog.models import Category, Product
 
@@ -336,11 +338,47 @@ class OrderDeliverable(models.Model):
     order = models.ForeignKey(Order, related_name="deliverables", on_delete=models.CASCADE)
     version = models.PositiveIntegerField(default=1)
     file_type = models.CharField(max_length=10)  # 3dm, stl, render, video
-    file = models.FileField(upload_to="orders/deliverables/")
+    storage_provider = models.CharField(max_length=10, default="local", help_text="Storage provider: 'local' or 'gdrive'")
+    drive_file_id = models.CharField(max_length=255, blank=True, null=True, db_index=True)
+    original_filename = models.CharField(max_length=500, blank=True, default='')
+    file_size_bytes = models.PositiveBigIntegerField(null=True, blank=True)
+    file = models.FileField(upload_to="orders/deliverables/", blank=True, null=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"Order #{self.order_id} Deliverable v{self.version} ({self.file_type})"
+
+    def save(self, *args, **kwargs):
+        if self.file and not self.original_filename:
+            import os
+            self.original_filename = os.path.basename(self.file.name)
+        if self.file and not self.file_size_bytes:
+            try:
+                self.file_size_bytes = self.file.size
+            except Exception:
+                pass
+        super().save(*args, **kwargs)
+
+
+@receiver(post_delete, sender=OrderDeliverable)
+def cleanup_order_deliverable_storage(sender, instance, **kwargs):
+    """
+    Cleans up underlying storage asset when an OrderDeliverable is deleted.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    if instance.storage_provider == 'gdrive' and instance.drive_file_id:
+        try:
+            from apps.core.gdrive_service import delete_file
+            delete_file(instance.drive_file_id)
+        except Exception as e:
+            logger.warning("Failed to delete Google Drive file %s on OrderDeliverable delete: %s", instance.drive_file_id, e)
+    elif instance.file:
+        try:
+            instance.file.delete(save=False)
+        except Exception as e:
+            logger.warning("Failed to delete local deliverable file on delete: %s", e)
 
 
 class RevisionRequest(models.Model):

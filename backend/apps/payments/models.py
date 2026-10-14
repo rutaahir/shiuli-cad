@@ -140,6 +140,10 @@ class Purchase(models.Model):
     redelivery_count = models.PositiveIntegerField(default=0)
     otp_generation_count = models.PositiveIntegerField(default=0)
     last_otp_generated_at = models.DateTimeField(null=True, blank=True)
+    download_enabled_by_admin = models.BooleanField(
+        default=True,
+        help_text="Studio Admin toggle to lock or unlock customer download access"
+    )
     purchased_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -161,11 +165,22 @@ class DownloadOTP(models.Model):
 
 
 class DownloadToken(models.Model):
+    class Status(models.TextChoices):
+        AVAILABLE = "available", "Available"
+        IN_PROGRESS = "in_progress", "In Progress"
+        COMPLETED = "completed", "Completed"
+        EXPIRED = "expired", "Expired"
+        REVOKED = "revoked", "Revoked by Admin"
+
     purchase = models.ForeignKey(Purchase, null=True, blank=True, on_delete=models.CASCADE, related_name="tokens")
     order = models.ForeignKey('custom_orders.Order', null=True, blank=True, on_delete=models.CASCADE, related_name="tokens")
     token = models.CharField(max_length=128, unique=True, db_index=True)
     locked_email = models.EmailField()
     expires_at = models.DateTimeField()
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.AVAILABLE)
+    in_progress_started_at = models.DateTimeField(null=True, blank=True)
+    attempt_count = models.PositiveIntegerField(default=0)
+    completed_at = models.DateTimeField(null=True, blank=True)
     is_used = models.BooleanField(default=False)
     used_at = models.DateTimeField(null=True, blank=True)
     used_from_ip = models.GenericIPAddressField(null=True, blank=True)
@@ -173,7 +188,7 @@ class DownloadToken(models.Model):
 
     def __str__(self):
         item_str = f"Purchase #{self.purchase_id}" if self.purchase_id else f"Order #{self.order_id}"
-        return f"Token for {item_str} (Used: {self.is_used})"
+        return f"Token for {item_str} ({self.status} - Used: {self.is_used})"
 
 
 

@@ -9,6 +9,7 @@ import {
   ShoppingBag, 
   Download, 
   Heart, 
+  Mail,
   Clock, 
   CheckCircle2, 
   FileCode2, 
@@ -573,38 +574,86 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
   };
 
   return (
-    <div className="min-h-screen bg-[#FFFDF9] text-[#17243B] pt-24 pb-24 px-4 sm:px-8 lg:px-12">
+    <div className="min-h-screen bg-[#FAF8F5] text-[#0B1330] pt-24 pb-24 px-4 sm:px-8 lg:px-12">
       <div className="max-w-[1400px] mx-auto space-y-8">
         
-        {/* HEADER PROFILE BANNER */}
-        <RevealOnScroll className="relative rounded-3xl bg-gradient-to-r from-[#FFF9F0] via-white to-[#FFF9F0] border-2 border-[#E8D7B7] p-6 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.6)] overflow-hidden">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-6 relative z-10">
-            <div className="flex items-center gap-5">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#1E4FA3] via-[#D4AF37] to-[#F5E7A3] p-[2.5px] shadow-[0_0_20px_rgba(212,175,55,0.4)] overflow-hidden">
-                {user?.profile_photo ? (
-                  <img src={user.profile_photo} alt={user.username} className="w-full h-full rounded-full object-cover" />
-                ) : (
-                  <div className="w-full h-full rounded-full bg-[#FFFDF9] flex items-center justify-center text-[#B88732]">
-                    <User className="w-9 h-9 text-[#B88732]" />
-                  </div>
-                )}
+        {/* LUXURY ATELIER HEADER PROFILE BANNER */}
+        <RevealOnScroll className="relative rounded-3xl bg-gradient-to-r from-white via-[#FCFAF7] to-white border border-[#E8D7B7] p-6 sm:p-7 shadow-[0_10px_35px_rgba(184,135,50,0.07)] overflow-hidden">
+          {/* Subtle gold decorative glow */}
+          <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-bl from-[#D4AF37]/10 via-transparent to-transparent rounded-full pointer-events-none -mr-20 -mt-20 blur-2xl" />
+
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
+            {/* User Info */}
+            <div className="flex items-center gap-4 sm:gap-5">
+              <div className="relative">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-[#1E4FA3] via-[#D4AF37] to-[#F5E7A3] p-[2.5px] shadow-[0_4px_20px_rgba(212,175,55,0.35)] overflow-hidden">
+                  {user?.profile_photo ? (
+                    <img src={user.profile_photo} alt={user.username} className="w-full h-full rounded-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full rounded-full bg-[#FFFDF9] flex items-center justify-center text-[#B88732]">
+                      <User className="w-8 h-8 sm:w-9 sm:h-9 text-[#B88732]" />
+                    </div>
+                  )}
+                </div>
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center shadow" title="Online Client Session">
+                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                </div>
               </div>
+
               <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <h1 className="font-serif text-2xl font-extrabold text-[#17243B]">
-                    {user?.first_name ? `${user.first_name} ${user.last_name || ''}` : 'Client Atelier Workspace'}
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h1 className="font-serif text-2xl sm:text-3xl font-extrabold text-[#0B1330] tracking-tight">
+                    {user?.first_name ? `${user.first_name} ${user.last_name || ''}` : (user?.username || 'Client Atelier')}
                   </h1>
-                  <span className="px-2.5 py-0.5 rounded-full bg-[#D4AF37]/20 border border-[#D9B66F]/50 text-[10px] text-[#B88732] font-mono uppercase tracking-widest font-bold">
-                    {user?.role?.toUpperCase() || 'VERIFIED CLIENT'}
+                  <span className="px-3 py-0.5 rounded-full bg-[#FFF8EC] border border-[#D4AF37]/60 text-[10px] text-[#9A6A1A] font-mono uppercase tracking-widest font-black shadow-xs">
+                    {user?.role === 'admin' ? 'ATELIER ADMIN' : user?.role === 'staff' ? 'CAD ARTISAN' : 'VERIFIED CLIENT'}
                   </span>
                 </div>
-                <p className="text-xs text-[#687386] font-mono">{user?.email || userEmail || 'rutasahir855@gmail.com'}</p>
+                <p className="text-xs text-[#5A6679] font-mono flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-[#B88732]" />
+                  <span>{user?.email || userEmail || 'client@shiulicadstudio.com'}</span>
+                </p>
               </div>
             </div>
 
+            {/* Quick Stat Counters */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 w-full lg:w-auto">
+              <div
+                onClick={() => setActiveTab('custom')}
+                className="px-4 py-2.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7]/80 hover:border-[#D4AF37] transition-all cursor-pointer text-center group shadow-xs"
+              >
+                <span className="block text-[10px] font-mono uppercase tracking-wider text-[#687386] font-semibold">Active Briefs</span>
+                <span className="font-serif text-lg sm:text-xl font-bold text-[#0B1330] group-hover:text-[#B88732]">{customRequests.length}</span>
+              </div>
+              <div
+                onClick={() => setActiveTab('custom')}
+                className="px-4 py-2.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7]/80 hover:border-[#D4AF37] transition-all cursor-pointer text-center group shadow-xs"
+              >
+                <span className="block text-[10px] font-mono uppercase tracking-wider text-[#687386] font-semibold">In Production</span>
+                <span className="font-serif text-lg sm:text-xl font-bold text-emerald-700 group-hover:text-emerald-800">
+                  {customRequests.filter(r => r.order?.assigned_staff || r.status === 'in_progress').length}
+                </span>
+              </div>
+              <div
+                onClick={() => setActiveTab('downloads')}
+                className="px-4 py-2.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7]/80 hover:border-[#D4AF37] transition-all cursor-pointer text-center group shadow-xs"
+              >
+                <span className="block text-[10px] font-mono uppercase tracking-wider text-[#687386] font-semibold">CAD Vault</span>
+                <span className="font-serif text-lg sm:text-xl font-bold text-[#0B1330] group-hover:text-[#B88732]">{purchases.length}</span>
+              </div>
+              <div
+                onClick={() => setActiveTab('wishlist')}
+                className="px-4 py-2.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7]/80 hover:border-[#D4AF37] transition-all cursor-pointer text-center group shadow-xs"
+              >
+                <span className="block text-[10px] font-mono uppercase tracking-wider text-[#687386] font-semibold">Saved Wishlist</span>
+                <span className="font-serif text-lg sm:text-xl font-bold text-[#0B1330] group-hover:text-rose-600">{wishlistIds.length}</span>
+              </div>
+            </div>
+
+            {/* CTA Button */}
             <button
               onClick={() => onNavigate('custom-design')}
-              className="btn-gold-luxury px-6 py-3 rounded-2xl text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 shadow-[0_0_20px_rgba(212,175,55,0.4)]"
+              className="btn-gold-luxury px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(212,175,55,0.35)] shrink-0 w-full sm:w-auto hover:brightness-105 transition-all cursor-pointer"
             >
               <Sparkles className="w-4 h-4 text-[#0B1330]" />
               <span>+ Start Custom Brief</span>
@@ -612,65 +661,85 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
           </div>
         </RevealOnScroll>
 
-        {/* LUXURY NAVIGATION TABS */}
-        <div className="flex border-b-2 border-[#E8D7B7] overflow-x-auto gap-2 sm:gap-4 text-xs sm:text-sm font-serif">
+        {/* LUXURY SEGMENTED NAVIGATION PILLS */}
+        <div className="p-1.5 rounded-2xl bg-[#F4EFE6]/80 backdrop-blur-md border border-[#E8D7B7] flex overflow-x-auto gap-1.5 shadow-sm text-xs sm:text-sm font-serif">
           <button
             onClick={() => setActiveTab('custom')}
-            className={`px-5 py-3.5 rounded-t-2xl flex items-center gap-2 font-bold transition-all whitespace-nowrap ${
+            className={`px-5 py-3 rounded-xl flex items-center gap-2.5 font-bold transition-all whitespace-nowrap cursor-pointer ${
               activeTab === 'custom'
-                ? 'bg-white text-[#B88732] border-t-2 border-x-2 border-[#D9B66F] shadow-lg'
-                : 'text-[#687386] hover:text-[#17345C]'
+                ? 'bg-[#0B1330] text-[#F5E7A3] shadow-md border border-[#D4AF37]/40'
+                : 'text-[#5A6679] hover:text-[#0B1330] hover:bg-white/70'
             }`}
           >
-            <Clock className="w-4 h-4 text-[#B88732]" />
-            <span>Custom Requests &amp; Journey ({customRequests.length})</span>
+            <Clock className={`w-4 h-4 ${activeTab === 'custom' ? 'text-[#D4AF37]' : 'text-[#8C97A7]'}`} />
+            <span>Custom Requests &amp; Journey</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+              activeTab === 'custom' ? 'bg-[#D4AF37]/20 text-[#F5E7A3] border border-[#D4AF37]/50' : 'bg-[#EAE2D2] text-[#5A6679]'
+            }`}>
+              {customRequests.length}
+            </span>
           </button>
 
           <button
             onClick={() => setActiveTab('downloads')}
-            className={`px-5 py-3.5 rounded-t-2xl flex items-center gap-2 font-bold transition-all whitespace-nowrap ${
+            className={`px-5 py-3 rounded-xl flex items-center gap-2.5 font-bold transition-all whitespace-nowrap cursor-pointer ${
               activeTab === 'downloads'
-                ? 'bg-white text-[#B88732] border-t-2 border-x-2 border-[#D9B66F] shadow-lg'
-                : 'text-[#687386] hover:text-[#17345C]'
+                ? 'bg-[#0B1330] text-[#F5E7A3] shadow-md border border-[#D4AF37]/40'
+                : 'text-[#5A6679] hover:text-[#0B1330] hover:bg-white/70'
             }`}
           >
-            <Download className="w-4 h-4 text-[#7EACFC]" />
-            <span>My CAD Vault ({purchases.length})</span>
+            <Download className={`w-4 h-4 ${activeTab === 'downloads' ? 'text-[#D4AF37]' : 'text-[#8C97A7]'}`} />
+            <span>My CAD Vault</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+              activeTab === 'downloads' ? 'bg-[#D4AF37]/20 text-[#F5E7A3] border border-[#D4AF37]/50' : 'bg-[#EAE2D2] text-[#5A6679]'
+            }`}>
+              {purchases.length}
+            </span>
           </button>
 
           <button
             onClick={() => setActiveTab('orders')}
-            className={`px-5 py-3.5 rounded-t-2xl flex items-center gap-2 font-bold transition-all whitespace-nowrap ${
+            className={`px-5 py-3 rounded-xl flex items-center gap-2.5 font-bold transition-all whitespace-nowrap cursor-pointer ${
               activeTab === 'orders'
-                ? 'bg-white text-[#B88732] border-t-2 border-x-2 border-[#D9B66F] shadow-lg'
-                : 'text-[#687386] hover:text-[#17345C]'
+                ? 'bg-[#0B1330] text-[#F5E7A3] shadow-md border border-[#D4AF37]/40'
+                : 'text-[#5A6679] hover:text-[#0B1330] hover:bg-white/70'
             }`}
           >
-            <ShoppingBag className="w-4 h-4 text-[#B88732]" />
-            <span>Order History ({clientOrders.length})</span>
+            <ShoppingBag className={`w-4 h-4 ${activeTab === 'orders' ? 'text-[#D4AF37]' : 'text-[#8C97A7]'}`} />
+            <span>Order History</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+              activeTab === 'orders' ? 'bg-[#D4AF37]/20 text-[#F5E7A3] border border-[#D4AF37]/50' : 'bg-[#EAE2D2] text-[#5A6679]'
+            }`}>
+              {clientOrders.length}
+            </span>
           </button>
 
           <button
             onClick={() => setActiveTab('wishlist')}
-            className={`px-5 py-3.5 rounded-t-2xl flex items-center gap-2 font-bold transition-all whitespace-nowrap ${
+            className={`px-5 py-3 rounded-xl flex items-center gap-2.5 font-bold transition-all whitespace-nowrap cursor-pointer ${
               activeTab === 'wishlist'
-                ? 'bg-white text-[#B88732] border-t-2 border-x-2 border-[#D9B66F] shadow-lg'
-                : 'text-[#687386] hover:text-[#17345C]'
+                ? 'bg-[#0B1330] text-[#F5E7A3] shadow-md border border-[#D4AF37]/40'
+                : 'text-[#5A6679] hover:text-[#0B1330] hover:bg-white/70'
             }`}
           >
-            <Heart className="w-4 h-4 text-rose-400" />
-            <span>Wishlist ({wishlistIds.length})</span>
+            <Heart className={`w-4 h-4 ${activeTab === 'wishlist' ? 'text-rose-400' : 'text-[#8C97A7]'}`} />
+            <span>Wishlist</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+              activeTab === 'wishlist' ? 'bg-[#D4AF37]/20 text-[#F5E7A3] border border-[#D4AF37]/50' : 'bg-[#EAE2D2] text-[#5A6679]'
+            }`}>
+              {wishlistIds.length}
+            </span>
           </button>
 
           <button
             onClick={() => setActiveTab('profile')}
-            className={`px-5 py-3.5 rounded-t-2xl flex items-center gap-2 font-bold transition-all whitespace-nowrap ${
+            className={`px-5 py-3 rounded-xl flex items-center gap-2.5 font-bold transition-all whitespace-nowrap cursor-pointer ${
               activeTab === 'profile'
-                ? 'bg-white text-[#B88732] border-t-2 border-x-2 border-[#D9B66F] shadow-lg'
-                : 'text-[#687386] hover:text-[#17345C]'
+                ? 'bg-[#0B1330] text-[#F5E7A3] shadow-md border border-[#D4AF37]/40'
+                : 'text-[#5A6679] hover:text-[#0B1330] hover:bg-white/70'
             }`}
           >
-            <User className="w-4 h-4 text-[#B88732]" />
+            <User className={`w-4 h-4 ${activeTab === 'profile' ? 'text-[#D4AF37]' : 'text-[#8C97A7]'}`} />
             <span>My Profile &amp; Security</span>
           </button>
         </div>
@@ -679,20 +748,20 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
         {activeTab === 'custom' && (
           <div className="space-y-12">
             {loadingCustom ? (
-              <div className="py-24 rounded-3xl bg-[#09112B] border border-[#E8D7B7] flex flex-col items-center justify-center gap-4 text-xs text-[#687386] shadow-2xl">
+              <div className="py-24 rounded-3xl bg-white border border-[#E8D7B7] flex flex-col items-center justify-center gap-4 text-xs text-[#687386] shadow-[0_10px_35px_rgba(184,135,50,0.06)]">
                 <Loader2 className="w-10 h-10 text-[#B88732] animate-spin" />
-                <span className="font-serif text-base text-[#B88732]">Loading Custom Atelier Orders...</span>
+                <span className="font-serif text-base text-[#0B1330] font-bold">Loading Custom Atelier Orders...</span>
               </div>
             ) : customRequests.length === 0 ? (
-              <div className="p-16 text-center rounded-3xl bg-[#09112B] border-2 border-dashed border-[#E8D7B7] space-y-6 shadow-2xl">
+              <div className="p-16 text-center rounded-3xl bg-white border-2 border-dashed border-[#E8D7B7] space-y-6 shadow-[0_10px_35px_rgba(184,135,50,0.06)]">
                 <Sparkles className="w-12 h-12 text-[#B88732] mx-auto" />
-                <h4 className="font-serif text-2xl text-[#17243B]">No Custom CAD Orders Active</h4>
-                <p className="text-xs text-[#687386] max-w-md mx-auto">
+                <h4 className="font-serif text-2xl font-bold text-[#0B1330]">No Custom CAD Orders Active</h4>
+                <p className="text-xs text-[#5A6679] max-w-md mx-auto">
                   Submit a custom design brief with reference sketches and metal choices to collaborate directly with our senior CAD artisans.
                 </p>
                 <button
                   onClick={() => onNavigate('custom-design')}
-                  className="btn-gold-luxury px-8 py-3.5 rounded-2xl text-xs font-extrabold uppercase tracking-widest inline-flex items-center gap-2"
+                  className="btn-gold-luxury px-8 py-3.5 rounded-2xl text-xs font-extrabold uppercase tracking-widest inline-flex items-center gap-2 shadow-lg"
                 >
                   <PlusCircle className="w-4 h-4 text-[#0B1330]" />
                   <span>Start Bespoke CAD Order</span>
@@ -741,24 +810,24 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                   <div className="space-y-6">
                     {/* LIVE NEGOTIATION ALERT BANNER */}
                     {negotiationAlertBanner && (
-                      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[#2B1B09] via-[#38230B] to-[#1F1407] border-2 border-[#D9B66F] shadow-[0_0_20px_rgba(212,175,55,0.3)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-[#D4AF37]/20 border border-[#D9B66F] flex items-center justify-center text-[#B88732] shrink-0">
-                            <BellRing className="w-5 h-5 text-[#B88732] animate-pulse" />
+                      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[#FFFDF7] via-[#FFF8EC] to-[#FFF4DE] border-2 border-[#D4AF37] shadow-[0_8px_25px_rgba(212,175,55,0.18)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3.5">
+                          <div className="w-11 h-11 rounded-2xl bg-[#0B1330] border border-[#D4AF37] flex items-center justify-center text-[#F5E7A3] shrink-0 shadow-sm">
+                            <BellRing className="w-5 h-5 text-[#F5E7A3] animate-pulse" />
                           </div>
                           <div>
-                            <div className="flex items-center gap-2">
-                              <span className="px-2 py-0.5 rounded bg-[#D4AF37] text-[#070D22] text-[10px] font-mono font-black uppercase">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="px-2.5 py-0.5 rounded-full bg-[#0B1330] text-[#F5E7A3] text-[10px] font-mono font-bold uppercase tracking-wider">
                                 LIVE NEGOTIATION UPDATE
                               </span>
-                              <span className="text-xs font-mono font-bold text-[#B88732]">
+                              <span className="text-xs font-mono font-bold text-[#0B1330]">
                                 {negotiationAlertBanner.title}
                               </span>
                             </div>
-                            <p className="text-xs text-[#17243B] mt-0.5">
+                            <p className="text-xs text-[#2A3547] mt-1 font-medium">
                               {negotiationAlertBanner.message}
                               {negotiationAlertBanner.offeredPrice && (
-                                <span className="text-[#B88732] font-bold ml-1 font-mono">
+                                <span className="text-[#B88732] font-black ml-1.5 font-mono text-sm">
                                   (Offered Price: {formatINR(negotiationAlertBanner.offeredPrice)})
                                 </span>
                               )}
@@ -775,14 +844,14 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                               setActiveStageTab('negotiation');
                               setNegotiationAlertBanner(null);
                             }}
-                            className="btn-gold-luxury px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider shadow cursor-pointer"
+                            className="btn-gold-luxury px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider shadow cursor-pointer hover:brightness-105"
                           >
                             Open Negotiation →
                           </button>
                           <button
                             type="button"
                             onClick={() => setNegotiationAlertBanner(null)}
-                            className="p-2 rounded-xl bg-black/40 text-slate-400 hover:text-[#17345C] transition-colors"
+                            className="p-2 rounded-xl bg-white/80 border border-[#E8D7B7] text-[#687386] hover:text-[#0B1330] transition-colors cursor-pointer"
                           >
                             <X className="w-4 h-4" />
                           </button>
@@ -792,21 +861,21 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                     {openedOrderId === null ? (
                       /* VIEW 1: ONLY ORDER BOXES GRID (No deep vertical scrolling) */
-                      <div className="p-6 rounded-3xl bg-[#09112B] border border-[#E8D7B7] shadow-2xl space-y-5">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#E8D7B7] pb-4">
+                      <div className="p-6 sm:p-8 rounded-3xl bg-white border border-[#E8D7B7] shadow-[0_15px_45px_rgba(184,135,50,0.06)] space-y-6">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#E8D7B7]/70 pb-5">
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="px-2.5 py-0.5 rounded-full bg-white border border-[#D9B66F]/50 text-[10px] font-mono font-bold text-[#B88732] uppercase tracking-wider">
+                              <span className="px-2.5 py-0.5 rounded-full bg-[#FFF8EC] border border-[#D4AF37]/50 text-[10px] font-mono font-bold text-[#9A6A1A] uppercase tracking-wider">
                                 ATELIER ORDER SELECTOR
                               </span>
-                              <span className="text-xs font-mono text-[#687386]">
-                                Total Orders: <strong className="text-white">{customRequests.length}</strong>
+                              <span className="text-xs font-mono text-[#5A6679]">
+                                Total Orders: <strong className="text-[#0B1330] font-bold">{customRequests.length}</strong>
                               </span>
                             </div>
-                            <h3 className="font-serif text-xl sm:text-2xl font-bold text-[#17243B] mt-1">
+                            <h3 className="font-serif text-xl sm:text-2xl font-bold text-[#0B1330] mt-1">
                               My Custom CAD Orders
                             </h3>
-                            <p className="text-xs text-[#687386]">
+                            <p className="text-xs text-[#5A6679]">
                               Click on any order box below to open its dedicated workspace, manage payments, chat with 3D modelers, and download master CAD packages.
                             </p>
                           </div>
@@ -815,15 +884,15 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                             <button
                               type="button"
                               onClick={handleEnableDesktopAlerts}
-                              className={`px-3 py-1.5 rounded-xl border text-[11px] font-mono font-bold flex items-center gap-1.5 transition-all ${
+                              className={`px-3.5 py-2 rounded-xl border text-[11px] font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                                 desktopAlertsEnabled
-                                  ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300'
-                                  : 'bg-white border-[#E8D7B7] text-[#B88732] hover:bg-[#1A2E68]'
+                                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-xs'
+                                  : 'bg-[#FCFAF7] border-[#E8D7B7] text-[#5A6679] hover:text-[#0B1330] hover:border-[#D4AF37]'
                               }`}
                             >
                               {desktopAlertsEnabled ? (
                                 <>
-                                  <CheckCheck className="w-3.5 h-3.5 text-emerald-400" />
+                                  <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
                                   <span>Ring &amp; Push Alerts Active</span>
                                 </>
                               ) : (
@@ -835,14 +904,14 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                             </button>
 
                             {customRequests.length > 2 && (
-                              <div className="relative min-w-[200px]">
-                                <Search className="w-3.5 h-3.5 text-[#687386] absolute left-3 top-1/2 -translate-y-1/2" />
+                              <div className="relative min-w-[220px]">
+                                <Search className="w-3.5 h-3.5 text-[#8C97A7] absolute left-3 top-1/2 -translate-y-1/2" />
                                 <input
                                   type="text"
                                   value={orderSearchTerm}
                                   onChange={(e) => setOrderSearchTerm(e.target.value)}
                                   placeholder="Search Order # or Keyword..."
-                                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#060B1E] border border-[#E8D7B7] text-xs text-[#17243B] placeholder:text-[#687386]/50 focus:outline-none focus:border-[#D9B66F]"
+                                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7] text-xs text-[#0B1330] placeholder:text-[#8C97A7] focus:outline-none focus:border-[#D4AF37] focus:bg-white"
                                 />
                               </div>
                             )}
@@ -850,7 +919,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                             <button
                               type="button"
                               onClick={() => onNavigate('custom-design')}
-                              className="btn-gold-luxury px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider inline-flex items-center gap-1.5 shadow"
+                              className="btn-gold-luxury px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider inline-flex items-center gap-1.5 shadow cursor-pointer hover:brightness-105"
                             >
                               <PlusCircle className="w-3.5 h-3.5 text-[#0B1330]" />
                               <span>New Order Brief</span>
@@ -859,7 +928,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                         </div>
 
                         {/* THE LITTLE BOXES (CARDS GRID) */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
                           {filteredRequests.map((item) => {
                             const itemOrder = item.order || clientOrders.find((o: any) => o.custom_request?.id === item.id || String(o.id) === String(item.order?.id));
                             const itemAssigned = itemOrder?.assigned_staff;
@@ -893,48 +962,48 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                     setActiveStageTab('all');
                                   }
                                 }}
-                                className="relative p-4 rounded-2xl cursor-pointer transition-all duration-300 flex flex-col justify-between gap-3 text-left group bg-[#060B1E]/95 hover:bg-[#0E1A3D] border border-[#E8D7B7] hover:border-[#D9B66F]/80 hover:shadow-[0_10px_25px_rgba(212,175,55,0.2)] hover:-translate-y-1"
+                                className="relative p-5 rounded-2xl cursor-pointer transition-all duration-300 flex flex-col justify-between gap-3.5 text-left group bg-[#FCFAF7] hover:bg-white border-2 border-[#E8D7B7]/80 hover:border-[#D4AF37] shadow-[0_4px_16px_rgba(0,0,0,0.03)] hover:shadow-[0_12px_32px_rgba(212,175,55,0.18)] hover:-translate-y-1"
                               >
                                 <div>
                                   {/* Header Row: ORDER # & STATUS */}
                                   <div className="flex items-start justify-between gap-2 mb-2">
                                     <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className="px-2.5 py-1 rounded-lg bg-[#D4AF37]/20 border border-[#D9B66F]/60 text-xs font-mono font-black text-[#B88732] tracking-wider shadow-sm">
+                                      <span className="px-2.5 py-1 rounded-lg bg-[#0B1330] text-[#F5E7A3] text-xs font-mono font-black tracking-wider shadow-sm">
                                         {itemOrder ? `ORDER #${itemOrder.id}` : `REQ #${item.id}`}
                                       </span>
                                       {itemOrder && (
-                                        <span className="text-[10px] font-mono text-[#687386] font-semibold">
+                                        <span className="text-[11px] font-mono text-[#5A6679] font-semibold">
                                           (REQ #{item.id})
                                         </span>
                                       )}
                                     </div>
 
-                                    <span className="text-[10px] font-mono text-[#B88732] group-hover:underline font-bold shrink-0 flex items-center gap-0.5">
+                                    <span className="text-[11px] font-mono text-[#B88732] group-hover:text-[#0B1330] font-bold shrink-0 flex items-center gap-0.5 transition-colors">
                                       Open →
                                     </span>
                                   </div>
 
                                   {/* Thumbnail & Title */}
-                                  <div className="flex items-center gap-2.5 my-2">
+                                  <div className="flex items-center gap-3 my-2.5">
                                     {item.reference_image ? (
                                       <img
                                         src={item.reference_image}
                                         alt={item.category_name}
-                                        className="w-12 h-12 rounded-xl object-cover border border-[#E8D7B7] bg-black/50 shrink-0"
+                                        className="w-13 h-13 rounded-xl object-cover border border-[#E8D7B7] bg-white shadow-xs shrink-0"
                                       />
                                     ) : (
-                                      <div className="w-12 h-12 rounded-xl bg-white border border-[#E8D7B7] flex items-center justify-center text-[#B88732] shrink-0">
-                                        <Gem className="w-5 h-5" />
+                                      <div className="w-13 h-13 rounded-xl bg-gradient-to-br from-[#FFF9EE] to-[#FFF3DC] border border-[#E8D7B7] flex items-center justify-center text-[#B88732] shadow-xs shrink-0">
+                                        <Gem className="w-6 h-6 text-[#B88732]" />
                                       </div>
                                     )}
                                     <div className="min-w-0 flex-1">
-                                      <h4 className="font-serif text-sm font-bold text-[#17243B] truncate group-hover:text-[#B88732] transition-colors">
+                                      <h4 className="font-serif text-sm font-bold text-[#0B1330] truncate group-hover:text-[#B88732] transition-colors">
                                         {item.category_name || 'Bespoke Custom Jewellery'}
                                       </h4>
-                                      <p className="text-[11px] font-mono text-[#687386] truncate">
+                                      <p className="text-[11px] font-mono text-[#5A6679] truncate font-medium">
                                         {metalLabel}
                                       </p>
-                                      <span className="text-[10px] font-mono text-slate-400 block">
+                                      <span className="text-[10px] font-mono text-[#8C97A7] block">
                                         {item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recent'}
                                       </span>
                                     </div>
@@ -944,15 +1013,15 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                   <div className="mt-1">
                                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider inline-flex items-center gap-1.5 w-full justify-start ${
                                       itemAssigned
-                                        ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-300'
+                                        ? 'bg-emerald-50 border border-emerald-300 text-emerald-800'
                                         : item.status === 'agreed' || (itemOrder && itemOrder.status)
-                                        ? 'bg-amber-500/15 border border-amber-500/40 text-amber-300'
+                                        ? 'bg-amber-50 border border-amber-300 text-amber-800'
                                         : item.status === 'quoted'
-                                        ? 'bg-blue-500/15 border border-blue-500/40 text-blue-300'
-                                        : 'bg-slate-800 border border-slate-700 text-slate-300'
+                                        ? 'bg-blue-50 border border-blue-300 text-blue-800'
+                                        : 'bg-slate-100 border border-slate-300 text-slate-700'
                                     }`}>
                                       <span className={`w-1.5 h-1.5 rounded-full ${
-                                        itemAssigned ? 'bg-emerald-400 animate-pulse' : 'bg-[#D4AF37]'
+                                        itemAssigned ? 'bg-emerald-600 animate-pulse' : 'bg-[#D4AF37]'
                                       }`} />
                                       <span className="truncate">
                                         {itemAssigned
@@ -968,35 +1037,35 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                                   {/* Active Negotiation Callout Pill if pending */}
                                   {hasNegotiationPending && (
-                                    <div className="mt-2 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/40 text-amber-300 text-[10px] font-mono flex items-center gap-1.5">
-                                      <BellRing className="w-3 h-3 text-amber-400 animate-pulse shrink-0" />
-                                      <span className="truncate font-semibold">Active Price Negotiation</span>
+                                    <div className="mt-2 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-[10px] font-mono flex items-center gap-1.5 font-bold">
+                                      <BellRing className="w-3 h-3 text-amber-600 animate-pulse shrink-0" />
+                                      <span className="truncate">Active Price Negotiation</span>
                                     </div>
                                   )}
                                 </div>
 
                                 {/* Financial & Action Row */}
-                                <div className="pt-2 border-t border-[#E8D7B7] space-y-2">
+                                <div className="pt-3 border-t border-[#E8D7B7]/70 space-y-2.5">
                                   <div className="flex items-center justify-between text-xs font-mono">
                                     <div>
-                                      <span className="text-[10px] text-[#687386] block leading-none">ORDER TOTAL</span>
-                                      <span className="text-xs font-bold text-[#17243B]">
+                                      <span className="text-[10px] text-[#687386] block leading-none font-semibold">ORDER TOTAL</span>
+                                      <span className="text-xs font-extrabold text-[#0B1330]">
                                         {itemTotal > 0 ? formatINR(itemTotal) : 'Estimating'}
                                       </span>
                                     </div>
                                     <div className="text-right">
-                                      <span className="text-[10px] text-[#687386] block leading-none">PAYMENT</span>
-                                      <span className={`text-[10px] font-bold ${itemFullyPaid ? 'text-emerald-400' : itemPaid > 0 ? 'text-amber-300' : 'text-slate-400'}`}>
+                                      <span className="text-[10px] text-[#687386] block leading-none font-semibold">PAYMENT</span>
+                                      <span className={`text-[11px] font-extrabold ${itemFullyPaid ? 'text-emerald-700' : itemPaid > 0 ? 'text-amber-700' : 'text-slate-500'}`}>
                                         {itemFullyPaid ? '100% Paid' : itemPaid > 0 ? `${itemPaidPct}% Paid` : 'Pending'}
                                       </span>
                                     </div>
                                   </div>
 
                                   {itemTotal > 0 && (
-                                    <div className="w-full bg-black/40 rounded-full h-1.5 overflow-hidden border border-white/5">
+                                    <div className="w-full bg-[#EAE2D2] rounded-full h-1.5 overflow-hidden border border-[#E8D7B7]/50">
                                       <div
                                         className={`h-full rounded-full transition-all duration-500 ${
-                                          itemFullyPaid ? 'bg-emerald-400' : 'bg-gradient-to-r from-amber-500 to-[#D4AF37]'
+                                          itemFullyPaid ? 'bg-emerald-500' : 'bg-gradient-to-r from-amber-500 to-[#D4AF37]'
                                         }`}
                                         style={{ width: `${itemPaidPct}%` }}
                                       />
@@ -1018,7 +1087,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                         setActiveStageTab('all');
                                       }
                                     }}
-                                    className="w-full mt-1 py-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] font-black text-[11px] uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-[0_0_12px_rgba(212,175,55,0.3)] hover:brightness-110 transition-all cursor-pointer"
+                                    className="w-full mt-1 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-[0_2px_10px_rgba(212,175,55,0.25)] hover:brightness-105 transition-all cursor-pointer"
                                   >
                                     <Eye className="w-3.5 h-3.5 text-[#070D22]" />
                                     <span>Open &amp; Manage Order</span>
@@ -1033,31 +1102,31 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                       /* VIEW 2: DEDICATED OPENED ORDER WORKSPACE (Zero Endless Scrolling) */
                       <div className="space-y-6">
                         {/* STICKY TOP ORDER BAR */}
-                        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[#12204D] via-[#0E1A3D] to-[#0A132C] border-2 border-[#D9B66F]/50 shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[#0B1330] via-[#12204D] to-[#0B1330] border-2 border-[#D4AF37]/60 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
                           <div className="flex items-center gap-3">
                             <button
                               type="button"
                               onClick={() => setOpenedOrderId(null)}
-                              className="px-4 py-2 rounded-xl bg-[#09112B] hover:bg-[#14265A] border border-[#D9B66F]/60 text-[#B88732] font-bold text-xs flex items-center gap-2 shadow transition-all cursor-pointer shrink-0"
+                              className="px-4 py-2 rounded-xl bg-[#0B1330]/80 hover:bg-[#1A2E68] border border-[#D4AF37]/70 text-[#F5E7A3] font-bold text-xs flex items-center gap-2 shadow transition-all cursor-pointer shrink-0"
                             >
-                              <ArrowLeft className="w-4 h-4 text-[#B88732]" />
+                              <ArrowLeft className="w-4 h-4 text-[#F5E7A3]" />
                               <span>← Back to All Orders Grid</span>
                             </button>
-                            <div className="border-l border-[#E8D7B7] pl-3">
+                            <div className="border-l border-white/20 pl-3">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="px-2.5 py-0.5 rounded-lg bg-[#D4AF37] text-[#070D22] text-xs font-mono font-black shadow">
                                   {order ? `ORDER #${order.id}` : `REQ #${req.id}`}
                                 </span>
                                 {order && (
-                                  <span className="text-xs font-mono font-bold text-[#B88732]">
+                                  <span className="text-xs font-mono font-bold text-[#F5E7A3]">
                                     (REQ #{req.id})
                                   </span>
                                 )}
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-white/10 text-slate-200">
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-white/15 text-slate-200">
                                   {assignedStaff ? 'CAD Production Active' : isOrderConfirmed ? 'Order Confirmed' : req.status === 'quoted' ? 'Official Quote' : 'In Review'}
                                 </span>
                               </div>
-                              <h3 className="font-serif text-lg sm:text-xl font-bold text-[#17243B] mt-0.5 truncate">
+                              <h3 className="font-serif text-lg sm:text-xl font-bold text-white mt-0.5 truncate">
                                 {req.category_name || 'Bespoke Custom Jewellery'}
                               </h3>
                             </div>
@@ -1065,15 +1134,15 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                           <div className="flex items-center gap-4 self-end md:self-auto">
                             <div className="text-right font-mono">
-                              <span className="text-[10px] text-[#687386] block uppercase leading-none">Order Balance</span>
-                              <span className="text-sm font-bold text-[#B88732]">
-                                {totalVal > 0 ? formatINR(totalVal) : 'Est'} • <span className={isFullyPaid ? 'text-emerald-400' : 'text-amber-300'}>{paidPct}% Paid</span>
+                              <span className="text-[10px] text-slate-300 block uppercase leading-none">Order Balance</span>
+                              <span className="text-sm font-bold text-[#F5E7A3]">
+                                {totalVal > 0 ? formatINR(totalVal) : 'Est'} • <span className={isFullyPaid ? 'text-emerald-300' : 'text-amber-300'}>{paidPct}% Paid</span>
                               </span>
                             </div>
                             <button
                               type="button"
                               onClick={() => setOpenedOrderId(null)}
-                              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-[#17345C] transition-colors"
+                              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-colors cursor-pointer"
                               title="Close this order view"
                             >
                               <X className="w-5 h-5" />
@@ -1086,10 +1155,10 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                           <button
                             type="button"
                             onClick={() => setActiveStageTab('all')}
-                            className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
+                            className={`px-4 py-2.5 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
                               activeStageTab === 'all'
-                                ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] shadow-[0_0_12px_rgba(212,175,55,0.35)]'
-                                : 'bg-[#09112B] border border-[#E8D7B7] text-[#687386] hover:text-[#17345C] hover:border-[#E8D7B7]'
+                                ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] shadow-[0_2px_10px_rgba(212,175,55,0.35)] font-black'
+                                : 'bg-white border border-[#E8D7B7] text-[#0B1330] hover:border-[#D4AF37] hover:text-[#B88732] shadow-xs'
                             }`}
                           >
                             <Layers className="w-3.5 h-3.5" />
@@ -1099,10 +1168,10 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                           <button
                             type="button"
                             onClick={() => setActiveStageTab('specs')}
-                            className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
+                            className={`px-4 py-2.5 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
                               activeStageTab === 'specs'
-                                ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] shadow-[0_0_12px_rgba(212,175,55,0.35)]'
-                                : 'bg-[#09112B] border border-[#E8D7B7] text-[#687386] hover:text-[#17345C] hover:border-[#E8D7B7]'
+                                ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] shadow-[0_2px_10px_rgba(212,175,55,0.35)] font-black'
+                                : 'bg-white border border-[#E8D7B7] text-[#0B1330] hover:border-[#D4AF37] hover:text-[#B88732] shadow-xs'
                             }`}
                           >
                             <Sliders className="w-3.5 h-3.5" />
@@ -1112,10 +1181,10 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                           <button
                             type="button"
                             onClick={() => setActiveStageTab('negotiation')}
-                            className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer relative ${
+                            className={`px-4 py-2.5 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer relative ${
                               activeStageTab === 'negotiation'
-                                ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] shadow-[0_0_12px_rgba(212,175,55,0.35)]'
-                                : 'bg-[#09112B] border border-[#E8D7B7] text-[#687386] hover:text-[#17345C] hover:border-[#E8D7B7]'
+                                ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] shadow-[0_2px_10px_rgba(212,175,55,0.35)] font-black'
+                                : 'bg-white border border-[#E8D7B7] text-[#0B1330] hover:border-[#D4AF37] hover:text-[#B88732] shadow-xs'
                             }`}
                           >
                             <MessageSquare className="w-3.5 h-3.5" />
@@ -1128,10 +1197,10 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                           <button
                             type="button"
                             onClick={() => setActiveStageTab('payments')}
-                            className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
+                            className={`px-4 py-2.5 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
                               activeStageTab === 'payments'
-                                ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] shadow-[0_0_12px_rgba(212,175,55,0.35)]'
-                                : 'bg-[#09112B] border border-[#E8D7B7] text-[#687386] hover:text-[#17345C] hover:border-[#E8D7B7]'
+                                ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] shadow-[0_2px_10px_rgba(212,175,55,0.35)] font-black'
+                                : 'bg-white border border-[#E8D7B7] text-[#0B1330] hover:border-[#D4AF37] hover:text-[#B88732] shadow-xs'
                             }`}
                           >
                             <CreditCard className="w-3.5 h-3.5" />
@@ -1144,10 +1213,10 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                           <button
                             type="button"
                             onClick={() => setActiveStageTab('preview')}
-                            className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
+                            className={`px-4 py-2.5 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
                               activeStageTab === 'preview'
-                                ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] shadow-[0_0_12px_rgba(212,175,55,0.35)]'
-                                : 'bg-[#09112B] border border-[#E8D7B7] text-[#687386] hover:text-[#17345C] hover:border-[#E8D7B7]'
+                                ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] shadow-[0_2px_10px_rgba(212,175,55,0.35)] font-black'
+                                : 'bg-white border border-[#E8D7B7] text-[#0B1330] hover:border-[#D4AF37] hover:text-[#B88732] shadow-xs'
                             }`}
                           >
                             <Eye className="w-3.5 h-3.5" />
@@ -1157,10 +1226,10 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                           <button
                             type="button"
                             onClick={() => setActiveStageTab('deliverables')}
-                            className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
+                            className={`px-4 py-2.5 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
                               activeStageTab === 'deliverables'
-                                ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] shadow-[0_0_12px_rgba(212,175,55,0.35)]'
-                                : 'bg-[#09112B] border border-[#E8D7B7] text-[#687386] hover:text-[#17345C] hover:border-[#E8D7B7]'
+                                ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] shadow-[0_2px_10px_rgba(212,175,55,0.35)] font-black'
+                                : 'bg-white border border-[#E8D7B7] text-[#0B1330] hover:border-[#D4AF37] hover:text-[#B88732] shadow-xs'
                             }`}
                           >
                             <Download className="w-3.5 h-3.5" />
@@ -1182,7 +1251,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                           </span>
                           
                           {/* Elegant Single Status Pill */}
-                          <span className="px-3.5 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider bg-white border border-[#D9B66F]/50 text-[#B88732] flex items-center gap-2 shadow-md">
+                          <span className="px-3.5 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider bg-white border border-[#D9B66F]/50 text-[#B88732] flex items-center gap-2 shadow-xs">
                             <span className="w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse" />
                             {assignedStaff
                               ? 'In Design • CAD Production Active'
@@ -1196,8 +1265,8 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                           </span>
 
                           {req.request_mode === 'quick' && (
-                            <span className="px-3 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider bg-amber-500/20 border border-amber-400/40 text-amber-300 flex items-center gap-1.5 shadow-sm">
-                              <Zap className="w-3.5 h-3.5 text-amber-400" />
+                            <span className="px-3 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider bg-amber-500/15 border border-amber-400/40 text-amber-700 flex items-center gap-1.5 shadow-xs">
+                              <Zap className="w-3.5 h-3.5 text-amber-500" />
                               Quick Request
                             </span>
                           )}
@@ -1210,13 +1279,13 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                           return (
                             <div className="space-y-2">
                               <div className="flex flex-wrap items-center gap-3">
-                                <h2 className="font-serif text-3xl font-extrabold text-[#17243B]">
+                                <h2 className="font-serif text-3xl font-extrabold text-[#0B1330]">
                                   {req.category_name || 'Bespoke Custom Jewellery'} {metalName ? `(${metalName})` : ''}
                                 </h2>
                                 <button
                                   type="button"
                                   onClick={() => setSpecsModalRequest(req)}
-                                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] hover:brightness-110 font-bold text-xs flex items-center gap-1.5 shadow-[0_0_12px_rgba(212,175,55,0.35)] transition-all cursor-pointer"
+                                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] hover:brightness-110 font-bold text-xs flex items-center gap-1.5 shadow-[0_2px_10px_rgba(212,175,55,0.25)] transition-all cursor-pointer"
                                 >
                                   <Sliders className="w-3.5 h-3.5 text-[#070D22]" />
                                   <span>View All My Selections &amp; Form Entries</span>
@@ -1226,27 +1295,27 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                               {/* Quick Specs Chips */}
                               <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono">
                                 {selMetal && (
-                                  <span className="px-2.5 py-0.5 rounded-lg bg-[#060B1E] border border-[#E8D7B7] text-slate-200">
-                                    Metal: <strong className="text-white">{selMetal.value_label}</strong>
+                                  <span className="px-2.5 py-0.5 rounded-lg bg-white border border-[#E8D7B7] text-[#0B1330] shadow-xs">
+                                    Metal: <strong className="text-[#0B1330] font-bold">{selMetal.value_label}</strong>
                                   </span>
                                 )}
                                 {selPurity && (
-                                  <span className="px-2.5 py-0.5 rounded-lg bg-[#060B1E] border border-[#E8D7B7] text-slate-200">
-                                    Purity: <strong className="text-amber-300">{selPurity.value_label}</strong>
+                                  <span className="px-2.5 py-0.5 rounded-lg bg-white border border-[#E8D7B7] text-[#0B1330] shadow-xs">
+                                    Purity: <strong className="text-[#9A6A1A] font-bold">{selPurity.value_label}</strong>
                                   </span>
                                 )}
                                 {req.ring_size && (
-                                  <span className="px-2.5 py-0.5 rounded-lg bg-[#060B1E] border border-[#E8D7B7] text-slate-200">
-                                    Size: <strong className="text-white">{req.ring_size} ({req.ring_size_standard?.toUpperCase() || 'IN/HK'})</strong>
+                                  <span className="px-2.5 py-0.5 rounded-lg bg-white border border-[#E8D7B7] text-[#0B1330] shadow-xs">
+                                    Size: <strong className="text-[#0B1330] font-bold">{req.ring_size} ({req.ring_size_standard?.toUpperCase() || 'IN/HK'})</strong>
                                   </span>
                                 )}
                                 {req.target_weight_grams && (
-                                  <span className="px-2.5 py-0.5 rounded-lg bg-[#060B1E] border border-[#E8D7B7] text-slate-200">
-                                    Weight: <strong className="text-white">{req.target_weight_grams}g</strong>
+                                  <span className="px-2.5 py-0.5 rounded-lg bg-white border border-[#E8D7B7] text-[#0B1330] shadow-xs">
+                                    Weight: <strong className="text-[#0B1330] font-bold">{req.target_weight_grams}g</strong>
                                   </span>
                                 )}
                                 {req.budget_range && (
-                                  <span className="px-2.5 py-0.5 rounded-lg bg-amber-950/60 border border-amber-500/30 text-amber-200">
+                                  <span className="px-2.5 py-0.5 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 shadow-xs font-semibold">
                                     {req.budget_range}
                                   </span>
                                 )}
@@ -1257,14 +1326,14 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                       </div>
 
                       {/* COMPACT PAYMENT PROGRESS BAR / QUOTE STATUS */}
-                      <div className="p-4 rounded-2xl bg-[#09112B] border border-[#E8D7B7] sm:w-80 space-y-2 shadow-lg">
+                      <div className="p-4 rounded-2xl bg-white border border-[#E8D7B7] sm:w-80 space-y-2 shadow-sm">
                         {isOrderConfirmed && totalVal > 0 ? (
                           <>
                             <div className="flex justify-between text-xs font-mono">
-                              <span className="text-[#687386]">Payment Progress</span>
+                              <span className="text-[#5A6679]">Payment Progress</span>
                               <span className="text-[#B88732] font-bold">{formatINR(paidVal)} of {formatINR(totalVal)} ({paidPct}%)</span>
                             </div>
-                            <div className="w-full h-2.5 rounded-full bg-[#060B1E] overflow-hidden p-0.5 border border-[#E8D7B7]">
+                            <div className="w-full h-2.5 rounded-full bg-[#EAE2D2] overflow-hidden p-0.5 border border-[#E8D7B7]/60">
                               <div
                                 className="h-full rounded-full bg-gradient-to-r from-[#1E4FA3] via-[#D4AF37] to-[#F5E7A3] transition-all duration-500"
                                 style={{ width: `${paidPct}%` }}
@@ -1274,7 +1343,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                         ) : (
                           <>
                             <div className="flex justify-between text-xs font-mono">
-                              <span className="text-[#687386]">Quote &amp; Order Status</span>
+                              <span className="text-[#5A6679]">Quote &amp; Order Status</span>
                               <span className="text-[#B88732] font-bold">
                                 {req.status === 'quoted'
                                   ? 'Official Quote Ready'
@@ -1283,7 +1352,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                   : 'Under Review'}
                               </span>
                             </div>
-                            <p className="text-[11px] text-[#687386]/80 leading-relaxed font-sans">
+                            <p className="text-[11px] text-[#5A6679] leading-relaxed font-sans">
                               {req.status === 'quoted'
                                 ? `Official price of ${formatINR(req.agreed_price || req.estimated_price_shown)} quoted. Order confirms upon agreement.`
                                 : req.status === 'negotiating'
@@ -1297,25 +1366,25 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                     {/* 2. THE ASSIGNED ATELIER PRODUCTION CARD */}
                     {assignedStaff ? (
-                      <div className="p-6 rounded-3xl bg-gradient-to-r from-[#09112B] via-[#0E1B42] to-[#09112B] border-2 border-[#E8D7B7] shadow-xl flex flex-col sm:flex-row items-center justify-between gap-6">
+                      <div className="p-6 rounded-3xl bg-gradient-to-r from-[#0B1330] via-[#12204D] to-[#0B1330] border-2 border-[#D4AF37]/50 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-6 text-white">
                         <div className="flex items-center gap-5">
-                          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-[#D9B66F] shadow-lg shrink-0 bg-gradient-to-br from-[#12204D] via-[#0D1B4C] to-[#070D22] flex items-center justify-center text-[#B88732]">
-                            <Sparkles className="w-8 h-8 text-[#B88732]" />
+                          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-[#D9B66F] shadow-lg shrink-0 bg-gradient-to-br from-[#12204D] via-[#0D1B4C] to-[#070D22] flex items-center justify-center text-[#F5E7A3]">
+                            <Sparkles className="w-8 h-8 text-[#F5E7A3]" />
                           </div>
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <h4 className="font-serif text-xl font-bold text-[#17243B]">
+                              <h4 className="font-serif text-xl font-bold text-white">
                                 Shiuli Master CAD Atelier
                               </h4>
                               <span className="px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/40 text-[10px] font-mono font-bold uppercase tracking-wider">
                                 CAD Production Active
                               </span>
                             </div>
-                            <p className="text-xs text-[#B88732] font-medium">
+                            <p className="text-xs text-[#F5E7A3] font-medium">
                               Dedicated Senior CAD Team &bull; Specializes in {req.category_name || 'Bespoke Jewelry'}
                             </p>
-                            <div className="flex items-center gap-3 text-xs text-[#687386] font-mono pt-1">
-                              <span className="flex items-center gap-1.5 text-[#B88732]">
+                            <div className="flex items-center gap-3 text-xs text-slate-300 font-mono pt-1">
+                              <span className="flex items-center gap-1.5 text-white">
                                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                                 Assigned &amp; Under Active 3D Sculpting
                               </span>
@@ -1336,21 +1405,21 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                         </a>
                       </div>
                     ) : (
-                      <div className="p-6 rounded-3xl bg-[#09112B] border-2 border-dashed border-[#E8D7B7] shadow-xl flex flex-col sm:flex-row items-center justify-between gap-6">
+                      <div className="p-6 rounded-3xl bg-white border-2 border-dashed border-[#E8D7B7] shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6">
                         <div className="flex items-center gap-5">
-                          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white border-2 border-[#D9B66F]/50 flex items-center justify-center text-[#B88732] shrink-0 shadow-lg">
+                          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[#FFF9EE] border-2 border-[#D9B66F]/50 flex items-center justify-center text-[#B88732] shrink-0 shadow-sm">
                             <Loader2 className="w-8 h-8 text-[#B88732] animate-spin" />
                           </div>
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <h4 className="font-serif text-xl font-bold text-[#17243B]">
+                              <h4 className="font-serif text-xl font-bold text-[#0B1330]">
                                 Matching Senior CAD Artisan...
                               </h4>
-                              <span className="px-2.5 py-0.5 rounded-full bg-amber-950/80 text-amber-300 border border-amber-500/40 text-[10px] font-mono font-bold uppercase tracking-wider">
+                              <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300 text-[10px] font-mono font-bold uppercase tracking-wider">
                                 Assignment In Progress
                               </span>
                             </div>
-                            <p className="text-xs text-[#687386] max-w-xl">
+                            <p className="text-xs text-[#5A6679] max-w-xl">
                               Our Master Atelier Goldsmiths are currently assigning a dedicated Senior CAD Specialist tailored to your {req.category_name || 'Bespoke Jewelry'} design requirements.
                             </p>
                           </div>
@@ -1360,7 +1429,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                           href={`https://wa.me/919574787098?text=Hello%20Shiuli%20CAD%20Studio%2C%20I%20am%20in%20touch%20regarding%20REQ%20%23${req.id}.`}
                           target="_blank"
                           rel="noreferrer"
-                          className="px-5 py-3 rounded-2xl bg-white border border-[#E8D7B7] text-[#B88732] text-xs font-bold uppercase tracking-wider flex items-center gap-2 hover:bg-[#1A2E60] transition-all shrink-0 shadow-md"
+                          className="px-5 py-3 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] text-[#0B1330] text-xs font-bold uppercase tracking-wider flex items-center gap-2 hover:border-[#D4AF37] hover:text-[#B88732] transition-all shrink-0 shadow-xs"
                         >
                           <Phone className="w-4 h-4 text-[#B88732]" />
                           <span>Support Desk Chat</span>
@@ -1374,36 +1443,35 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                       {/* NODE 1: REQUEST SUBMITTED */}
                       {(activeStageTab === 'all' || activeStageTab === 'specs') && (
                       <div className="relative group">
-                        <div className="absolute -left-[31px] sm:-left-[47px] top-0 w-6 h-6 rounded-full bg-[#D4AF37] border-4 border-[#070D22] shadow-[0_0_10px_rgba(212,175,55,0.8)] flex items-center justify-center">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-[#070D22]" />
+                        <div className="absolute -left-[31px] sm:-left-[47px] top-0 w-6 h-6 rounded-full bg-[#D4AF37] border-4 border-[#FAF8F5] shadow-[0_0_10px_rgba(212,175,55,0.8)] flex items-center justify-center">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-[#0B1330]" />
                         </div>
-
                         <div className="space-y-3">
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                            <h3 className="font-serif text-xl font-bold text-[#17243B]">
+                            <h3 className="font-serif text-xl font-bold text-[#0B1330]">
                               1. Bespoke Custom Request Submitted
                             </h3>
                             <div className="flex items-center gap-3">
                               <button
                                 type="button"
                                 onClick={() => setSpecsModalRequest(req)}
-                                className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] hover:brightness-110 font-bold text-xs flex items-center gap-2 shadow-[0_0_15px_rgba(212,175,55,0.4)] transition-all cursor-pointer"
+                                className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] hover:brightness-110 font-bold text-xs flex items-center gap-2 shadow-[0_2px_10px_rgba(212,175,55,0.3)] transition-all cursor-pointer"
                               >
                                 <Sliders className="w-4 h-4 text-[#070D22]" />
                                 <span>View All My Submitted Details &amp; Brief</span>
                               </button>
-                              <span className="text-xs font-mono text-[#687386]">
+                              <span className="text-xs font-mono text-[#5A6679]">
                                 {new Date(req.created_at).toLocaleDateString()}
                               </span>
                             </div>
                           </div>
 
                           {/* EXPANDABLE SPECIFICATIONS ACCORDION (OPEN BY DEFAULT) */}
-                          <div className="rounded-2xl bg-[#09112B] border border-[#E8D7B7] p-5 space-y-4 shadow-xl">
+                          <div className="rounded-2xl bg-white border border-[#E8D7B7] p-5 space-y-4 shadow-sm">
                             <div className="flex items-center justify-between">
                               <button
                                 onClick={() => setExpandedSpecs((prev) => ({ ...prev, [req.id]: prev[req.id] === false ? true : false }))}
-                                className="flex items-center gap-2 text-sm text-[#B88732] font-bold hover:underline cursor-pointer"
+                                className="flex items-center gap-2 text-sm text-[#0B1330] font-bold hover:text-[#B88732] cursor-pointer"
                               >
                                 <Gem className="w-4 h-4 text-[#B88732]" />
                                 {(() => {
@@ -1420,19 +1488,19 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                               <button
                                 type="button"
                                 onClick={() => setSpecsModalRequest(req)}
-                                className="px-3 py-1 rounded-lg bg-white border border-[#D9B66F]/50 text-[#B88732] hover:bg-[#1A2E60] font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow"
+                                className="px-3.5 py-1.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7] text-[#0B1330] hover:border-[#D4AF37] hover:text-[#B88732] font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
                               >
                                 <Sliders className="w-3.5 h-3.5 text-[#B88732]" /> Open Full Modal Spec Sheet
                               </button>
                             </div>
 
                             {expandedSpecs[req.id] !== false && (
-                              <div className="pt-3 border-t border-[#E8D7B7] space-y-4 text-xs">
+                              <div className="pt-3 border-t border-[#E8D7B7]/70 space-y-4 text-xs">
                                 {/* Parameters Matrix */}
                                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
-                                  <div className="p-3 rounded-xl bg-[#060B1E] border border-white/5 space-y-0.5">
-                                    <span className="text-[10px] font-mono text-[#B88732] uppercase font-bold">Category</span>
-                                    <p className="font-bold text-white">{req.category_name || 'Bespoke Piece'}</p>
+                                  <div className="p-3 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7]/80 space-y-0.5 shadow-xs">
+                                    <span className="text-[10px] font-mono text-[#9A6A1A] uppercase font-bold">Category</span>
+                                    <p className="font-bold text-[#0B1330]">{req.category_name || 'Bespoke Piece'}</p>
                                   </div>
 
                                   {/* Metal Alloy */}
@@ -1440,18 +1508,18 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                     const selMetal = req.selections?.find((s: any) => s.group_key === 'metal' || s.group_label?.toLowerCase().includes('metal'));
                                     const metalName = selMetal?.value_label || req.metal_alloy_name;
                                     return metalName ? (
-                                      <div className="p-3 rounded-xl bg-[#060B1E] border border-white/5 space-y-0.5">
-                                        <span className="text-[10px] font-mono text-[#B88732] uppercase font-bold">Metal Alloy</span>
-                                        <p className="font-bold text-white">{metalName}</p>
+                                      <div className="p-3 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7]/80 space-y-0.5 shadow-xs">
+                                        <span className="text-[10px] font-mono text-[#9A6A1A] uppercase font-bold">Metal Alloy</span>
+                                        <p className="font-bold text-[#0B1330]">{metalName}</p>
                                       </div>
                                     ) : null;
                                   })()}
 
                                   {/* Ring Sizing */}
                                   {req.ring_size && (
-                                    <div className="p-3 rounded-xl bg-[#060B1E] border border-white/5 space-y-0.5">
-                                      <span className="text-[10px] font-mono text-[#B88732] uppercase font-bold">Ring Sizing</span>
-                                      <p className="font-bold text-white">
+                                    <div className="p-3 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7]/80 space-y-0.5 shadow-xs">
+                                      <span className="text-[10px] font-mono text-[#9A6A1A] uppercase font-bold">Ring Sizing</span>
+                                      <p className="font-bold text-[#0B1330]">
                                         Size {req.ring_size} ({(req.ring_size_standard || '').toLowerCase() === 'in_hk' ? 'IN_HK' : (req.ring_size_standard?.toUpperCase() || 'IN_HK')})
                                       </p>
                                     </div>
@@ -1459,25 +1527,25 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                                   {/* Target Metal Weight */}
                                   {req.target_weight_grams && (
-                                    <div className="p-3 rounded-xl bg-[#060B1E] border border-white/5 space-y-0.5">
-                                      <span className="text-[10px] font-mono text-[#B88732] uppercase font-bold">Target Weight</span>
-                                      <p className="font-bold text-white">{req.target_weight_grams} grams</p>
+                                    <div className="p-3 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7]/80 space-y-0.5 shadow-xs">
+                                      <span className="text-[10px] font-mono text-[#9A6A1A] uppercase font-bold">Target Weight</span>
+                                      <p className="font-bold text-[#0B1330]">{req.target_weight_grams} grams</p>
                                     </div>
                                   )}
 
                                   {/* Complexity Tier */}
                                   {req.budget_range && (
-                                    <div className="p-3 rounded-xl bg-[#060B1E] border border-white/5 space-y-0.5">
-                                      <span className="text-[10px] font-mono text-[#B88732] uppercase font-bold">Production Tier</span>
-                                      <p className="font-bold text-[#B88732]">{req.budget_range}</p>
+                                    <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 space-y-0.5 shadow-xs">
+                                      <span className="text-[10px] font-mono text-amber-800 uppercase font-bold">Production Tier</span>
+                                      <p className="font-bold text-amber-950">{req.budget_range}</p>
                                     </div>
                                   )}
 
                                   {/* Target Completion Date */}
                                   {req.needed_by_date && (
-                                    <div className="p-3 rounded-xl bg-[#060B1E] border border-white/5 space-y-0.5">
-                                      <span className="text-[10px] font-mono text-[#B88732] uppercase font-bold">Target Completion</span>
-                                      <p className="font-bold text-[#B88732]">
+                                    <div className="p-3 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7]/80 space-y-0.5 shadow-xs">
+                                      <span className="text-[10px] font-mono text-[#9A6A1A] uppercase font-bold">Target Completion</span>
+                                      <p className="font-bold text-[#0B1330]">
                                         {new Date(req.needed_by_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                       </p>
                                     </div>
@@ -1485,9 +1553,9 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                                   {/* Aesthetic Style */}
                                   {req.aesthetic_style_name && (
-                                    <div className="p-3 rounded-xl bg-[#060B1E] border border-white/5 space-y-0.5">
-                                      <span className="text-[10px] font-mono text-[#B88732] uppercase font-bold">Aesthetic Style</span>
-                                      <p className="font-bold text-white">{req.aesthetic_style_name}</p>
+                                    <div className="p-3 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7]/80 space-y-0.5 shadow-xs">
+                                      <span className="text-[10px] font-mono text-[#9A6A1A] uppercase font-bold">Aesthetic Style</span>
+                                      <p className="font-bold text-[#0B1330]">{req.aesthetic_style_name}</p>
                                     </div>
                                   )}
                                 </div>
@@ -1495,16 +1563,16 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                 {/* Dynamic Option Selections from Configurator */}
                                 {req.selections && req.selections.length > 0 && (
                                   <div className="space-y-2">
-                                    <span className="text-[10px] font-mono text-[#B88732] uppercase font-bold flex items-center gap-1">
+                                    <span className="text-[10px] font-mono text-[#9A6A1A] uppercase font-bold flex items-center gap-1">
                                       <Layers className="w-3.5 h-3.5 text-[#B88732]" /> Configured Options &amp; Selections
                                     </span>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                                       {req.selections.map((sel: any, idx: number) => (
-                                        <div key={idx} className="p-2.5 rounded-xl bg-[#060B1E] border border-white/5 flex items-center justify-between">
-                                          <span className="text-[#687386] text-[11px] truncate">{sel.group_label}:</span>
-                                          <div className="flex items-center gap-1 font-bold text-white text-xs">
+                                        <div key={idx} className="p-2.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7]/80 flex items-center justify-between shadow-xs">
+                                          <span className="text-[#5A6679] text-[11px] truncate">{sel.group_label}:</span>
+                                          <div className="flex items-center gap-1 font-bold text-[#0B1330] text-xs">
                                             {sel.swatch_color && (
-                                              <span className="w-2.5 h-2.5 rounded-full border border-white/30 shrink-0" style={{ backgroundColor: sel.swatch_color }} />
+                                              <span className="w-2.5 h-2.5 rounded-full border border-black/20 shrink-0" style={{ backgroundColor: sel.swatch_color }} />
                                             )}
                                             <span className="truncate">{sel.value_label || sel.other_text}</span>
                                           </div>
@@ -1516,35 +1584,35 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                                 {/* Stones Breakdown */}
                                 <div className="space-y-2">
-                                  <span className="text-[10px] font-mono text-[#B88732] uppercase font-bold flex items-center gap-1.5">
+                                  <span className="text-[10px] font-mono text-[#9A6A1A] uppercase font-bold flex items-center gap-1.5">
                                     <Gem className="w-3.5 h-3.5 text-[#B88732]" /> Gemstone &amp; Diamond Specifications
                                   </span>
                                   {req.is_metal_only ? (
-                                    <div className="p-3 rounded-xl bg-[#060B1E] border border-white/5 text-slate-300">
+                                    <div className="p-3 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7] text-[#5A6679]">
                                       Solid Metal Design &mdash; No diamonds or gemstones specified.
                                     </div>
                                   ) : req.stones && req.stones.length > 0 ? (
                                     <div className="space-y-1.5">
                                       {req.stones.map((st: any, idx: number) => (
-                                        <div key={idx} className="p-3 rounded-xl bg-[#060B1E] border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                                        <div key={idx} className="p-3 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7]/80 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 shadow-xs">
                                           <div className="flex items-center gap-2">
-                                            <span className="font-bold text-[#17243B]">{st.stone_type} ({st.shape || 'Standard'})</span>
+                                            <span className="font-bold text-[#0B1330]">{st.stone_type} ({st.shape || 'Standard'})</span>
                                             {st.is_center_stone && (
-                                              <span className="px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/40 font-mono text-[9px] font-bold uppercase">
+                                              <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 font-mono text-[9px] font-bold uppercase">
                                                 Center Stone
                                               </span>
                                             )}
                                           </div>
-                                          <div className="flex items-center gap-2 text-[#687386] font-mono text-[11px] flex-wrap">
-                                            <span>Count: <strong className="text-white">{st.quantity || 1}x</strong></span>
+                                          <div className="flex items-center gap-2 text-[#5A6679] font-mono text-[11px] flex-wrap">
+                                            <span>Count: <strong className="text-[#0B1330] font-bold">{st.quantity || 1}x</strong></span>
                                             <span>•</span>
-                                            <span>Size: <strong className="text-[#B88732]">{st.size_value ? `${st.size_value} ${st.size_unit || 'ct'}` : '--'}</strong></span>
+                                            <span>Size: <strong className="text-[#B88732] font-bold">{st.size_value ? `${st.size_value} ${st.size_unit || 'ct'}` : '--'}</strong></span>
                                             <span>•</span>
-                                            <span>Setting: <strong className="text-white">{st.setting_style || 'Prong'}</strong></span>
+                                            <span>Setting: <strong className="text-[#0B1330] font-bold">{st.setting_style || 'Prong'}</strong></span>
                                             {[st.clarity, st.color].filter(Boolean).length > 0 && (
                                               <>
                                                 <span>•</span>
-                                                <span>Grade: <strong className="text-white">{[st.clarity, st.color].filter(Boolean).join(' • ')}</strong></span>
+                                                <span>Grade: <strong className="text-[#0B1330] font-bold">{[st.clarity, st.color].filter(Boolean).join(' • ')}</strong></span>
                                               </>
                                             )}
                                           </div>
@@ -1554,14 +1622,14 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                   ) : req.gemstones && req.gemstones.length > 0 ? (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                       {req.gemstones.map((g: any, idx: number) => (
-                                        <div key={idx} className="p-2.5 rounded-xl bg-[#060B1E] border border-white/5 flex justify-between">
-                                          <span className="font-bold text-white">{g.quantity}x {g.stone_type} ({g.cut_type})</span>
-                                          <span className="font-mono text-[#B88732]">{g.carat_size || 'Spec'}</span>
+                                        <div key={idx} className="p-2.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7]/80 flex justify-between shadow-xs">
+                                          <span className="font-bold text-[#0B1330]">{g.quantity}x {g.stone_type} ({g.cut_type})</span>
+                                          <span className="font-mono text-[#B88732] font-bold">{g.carat_size || 'Spec'}</span>
                                         </div>
                                       ))}
                                     </div>
                                   ) : (
-                                    <div className="p-3 rounded-xl bg-[#060B1E] border border-white/5 text-slate-300">
+                                    <div className="p-3 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7] text-[#5A6679]">
                                       {req.gemstone_preference_open ? 'Client selected: Let Designer Decide optimal stone layout' : 'Plain metal piece &mdash; No gemstone specifications added.'}
                                     </div>
                                   )}
@@ -1571,16 +1639,16 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                 {(req.engraving_text || req.has_logo) && (
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     {req.engraving_text && (
-                                      <div className="p-3 rounded-xl bg-[#060B1E] border border-white/5 space-y-1">
-                                        <span className="text-[10px] font-mono text-[#B88732] uppercase font-bold">Laser Engraving</span>
-                                        <p className="font-serif italic text-[#B88732] text-sm">"{req.engraving_text}"</p>
-                                        <p className="text-[10px] text-[#687386] font-mono">Font: {req.engraving_font || 'Script'} • Placement: {req.engraving_placement || 'Inside Shank'}</p>
+                                      <div className="p-3 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7]/80 space-y-1 shadow-xs">
+                                        <span className="text-[10px] font-mono text-[#9A6A1A] uppercase font-bold">Laser Engraving</span>
+                                        <p className="font-serif italic text-[#B88732] font-bold text-sm">"{req.engraving_text}"</p>
+                                        <p className="text-[10px] text-[#5A6679] font-mono">Font: {req.engraving_font || 'Script'} • Placement: {req.engraving_placement || 'Inside Shank'}</p>
                                       </div>
                                     )}
                                     {req.has_logo && (
-                                      <div className="p-3 rounded-xl bg-[#060B1E] border border-white/5 space-y-1">
-                                        <span className="text-[10px] font-mono text-[#B88732] uppercase font-bold">Brand Logo Hallmark</span>
-                                        <p className="text-emerald-400 font-bold">✓ Custom Hallmark Vector Stamping Requested</p>
+                                      <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-300 space-y-1 shadow-xs">
+                                        <span className="text-[10px] font-mono text-emerald-800 uppercase font-bold">Brand Logo Hallmark</span>
+                                        <p className="text-emerald-900 font-bold">✓ Custom Hallmark Vector Stamping Requested</p>
                                       </div>
                                     )}
                                   </div>
@@ -1588,11 +1656,11 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                                 {/* Written Brief & Special Notes */}
                                 <div className="space-y-1.5">
-                                  <span className="text-[10px] font-mono text-[#B88732] uppercase font-bold">Client Design Brief &amp; Special Instructions</span>
-                                  <div className="p-3.5 rounded-xl bg-[#060B1E] border border-white/5 text-xs text-slate-300 leading-relaxed space-y-2">
+                                  <span className="text-[10px] font-mono text-[#9A6A1A] uppercase font-bold">Client Design Brief &amp; Special Instructions</span>
+                                  <div className="p-3.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7]/80 text-xs text-[#2A3547] leading-relaxed space-y-2 shadow-xs">
                                     <p>{req.description || 'No additional written brief entered.'}</p>
                                     {req.special_instructions && req.special_instructions !== req.description && (
-                                      <p className="pt-2 border-t border-white/5 text-amber-300/90 font-mono text-[11px]">
+                                      <p className="pt-2 border-t border-[#E8D7B7]/60 text-amber-800 font-mono text-[11px] font-semibold">
                                         {req.special_instructions}
                                       </p>
                                     )}
@@ -1602,7 +1670,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                 {/* Studio Catalog References */}
                                 {req.catalog_references && req.catalog_references.length > 0 && (
                                   <div className="space-y-1.5">
-                                    <span className="text-[10px] font-mono text-[#B88732] uppercase font-bold flex items-center gap-1">
+                                    <span className="text-[10px] font-mono text-[#9A6A1A] uppercase font-bold flex items-center gap-1">
                                       <Sparkles className="w-3 h-3 text-[#B88732]" /> Selected Studio Catalog References ({req.catalog_references.length})
                                     </span>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1610,17 +1678,17 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                         <div
                                           key={cIdx}
                                           onClick={() => cRef.image && setSelectedSketchUrl(cRef.image)}
-                                          className="p-2.5 rounded-xl bg-[#060B1E] border border-[#E8D7B7] hover:border-[#D9B66F] flex items-center gap-3 cursor-pointer transition-all hover:bg-[#09112B]"
+                                          className="p-2.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7] hover:border-[#D4AF37] flex items-center gap-3 cursor-pointer transition-all hover:bg-white shadow-xs"
                                         >
                                           {cRef.image ? (
                                             <img src={cRef.image} alt={cRef.title} className="w-12 h-12 rounded-lg object-cover border border-[#E8D7B7] shrink-0" />
                                           ) : (
-                                            <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center text-[10px] text-[#687386] shrink-0 font-mono">CAD</div>
+                                            <div className="w-12 h-12 rounded-lg bg-[#EAE2D2] flex items-center justify-center text-[10px] text-[#5A6679] shrink-0 font-mono">CAD</div>
                                           )}
                                           <div className="min-w-0 flex-1">
                                             <span className="text-[10px] font-mono text-[#B88732] block font-bold">{cRef.sku || `SKU-${cRef.id}`}</span>
-                                            <p className="text-xs font-semibold text-[#17243B] truncate">{cRef.title}</p>
-                                            <span className="text-[9px] text-[#687386] block">Click to enlarge image</span>
+                                            <p className="text-xs font-bold text-[#0B1330] truncate">{cRef.title}</p>
+                                            <span className="text-[9px] text-[#8C97A7] block">Click to enlarge image</span>
                                           </div>
                                         </div>
                                       ))}
@@ -1631,7 +1699,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                 {/* Sketches */}
                                 {req.sketches && req.sketches.length > 0 && (
                                   <div className="space-y-1.5">
-                                    <span className="text-[10px] font-mono text-[#B88732] uppercase font-bold">Uploaded Reference Sketches ({req.sketches.length})</span>
+                                    <span className="text-[10px] font-mono text-[#9A6A1A] uppercase font-bold">Uploaded Reference Sketches ({req.sketches.length})</span>
                                     <div className="flex flex-wrap gap-2">
                                       {req.sketches.map((sk: any) => (
                                         <img
@@ -1639,7 +1707,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                           src={sk.image_url || sk.image}
                                           alt="Sketch"
                                           onClick={() => setSelectedSketchUrl(sk.image_url || sk.image)}
-                                          className="w-16 h-16 rounded-xl object-cover border border-[#E8D7B7] hover:border-[#D9B66F] cursor-pointer"
+                                          className="w-16 h-16 rounded-xl object-cover border border-[#E8D7B7] hover:border-[#D4AF37] cursor-pointer shadow-xs transition-all hover:scale-105"
                                         />
                                       ))}
                                     </div>
@@ -1649,7 +1717,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                 {/* Uploaded Reference Photo (from Quick Request or direct upload) */}
                                 {req.reference_image && (!req.sketches || !req.sketches.some((s: any) => (s.image_url || s.image) === req.reference_image)) && (
                                   <div className="space-y-1.5">
-                                    <span className="text-[10px] font-mono text-[#B88732] uppercase font-bold flex items-center gap-1.5">
+                                    <span className="text-[10px] font-mono text-[#9A6A1A] uppercase font-bold flex items-center gap-1.5">
                                       <ImageIcon className="w-3.5 h-3.5 text-[#B88732]" /> Uploaded Reference / Inspiration Photo
                                     </span>
                                     <div className="flex gap-2">
@@ -1657,7 +1725,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                         src={req.reference_image}
                                         alt="Reference Photo"
                                         onClick={() => setSelectedSketchUrl(req.reference_image)}
-                                        className="w-20 h-20 rounded-xl object-cover border border-[#D9B66F]/50 hover:border-[#D9B66F] cursor-pointer shadow-md transition-all hover:scale-105"
+                                        className="w-20 h-20 rounded-xl object-cover border-2 border-[#E8D7B7] hover:border-[#D4AF37] cursor-pointer shadow-md transition-all hover:scale-105"
                                       />
                                     </div>
                                   </div>
@@ -1665,12 +1733,12 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                                 {/* Voice Note Requisition Player */}
                                 {(req.voice_recording_url || req.voice_recording) && (
-                                  <div className="p-3.5 rounded-xl bg-[#060B1E] border border-[#D9B66F]/35 space-y-2">
-                                    <span className="text-[10px] font-mono text-[#B88732] uppercase font-bold flex items-center gap-1.5">
+                                  <div className="p-3.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-2 shadow-xs">
+                                    <span className="text-[10px] font-mono text-[#9A6A1A] uppercase font-bold flex items-center gap-1.5">
                                       <Mic className="w-3.5 h-3.5 text-[#B88732]" /> Voice Note Requisition Attached
                                     </span>
                                     <div className="flex items-center gap-3">
-                                      <div className="w-8 h-8 rounded-full bg-[#D4AF37]/20 border border-[#E8D7B7] flex items-center justify-center shrink-0">
+                                      <div className="w-8 h-8 rounded-full bg-[#FFF8EC] border border-[#E8D7B7] flex items-center justify-center shrink-0">
                                         <Volume2 className="w-4 h-4 text-[#B88732]" />
                                       </div>
                                       <audio
@@ -1694,7 +1762,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                         <div className={`absolute -left-[31px] sm:-left-[47px] top-0 w-6 h-6 rounded-full border-4 border-[#070D22] flex items-center justify-center ${
                           req.status === 'quoted' || req.status === 'negotiating' || req.status === 'agreed' || order
                             ? 'bg-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.8)]'
-                            : 'bg-[#060B1E] border-slate-700'
+                            : 'bg-white border-slate-300'
                         }`}>
                           <Sparkles className="w-3.5 h-3.5 text-[#070D22]" />
                         </div>
@@ -1717,17 +1785,17 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                             <div className="space-y-4">
                               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                 <div className="flex items-center gap-3">
-                                  <h3 className="font-serif text-xl font-bold text-[#17243B]">
+                                  <h3 className="font-serif text-xl font-bold text-[#0B1330]">
                                     2. Official Senior Engineer Quote &amp; Negotiation
                                   </h3>
-                                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider font-mono ${
+                                  <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider font-mono ${
                                     req.status === 'agreed' || req.status === 'in_progress' || order
-                                      ? 'bg-[#1F9D66] text-white shadow-[0_0_8px_rgba(31,157,102,0.6)]'
+                                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
                                       : isLatestOfferFromClient
-                                      ? 'bg-[#E8A93B] text-[#070D22]'
+                                      ? 'bg-amber-50 text-amber-800 border border-amber-300'
                                       : req.status === 'quoted' || isLatestOfferFromAdmin
-                                      ? 'bg-[#D4AF37] text-[#070D22]'
-                                      : 'bg-[#6B7280] text-white'
+                                      ? 'bg-blue-50 text-blue-800 border border-blue-300'
+                                      : 'bg-slate-100 text-slate-700 border border-slate-300'
                                   }`}>
                                     {req.status === 'agreed' || req.status === 'in_progress' || order
                                       ? 'ACCEPTED & AGREED'
@@ -1742,7 +1810,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                   <span className="font-serif text-2xl font-bold text-[#B88732] block">
                                     {formatINR(currentOfferedPrice)}
                                   </span>
-                                  <span className="text-[10px] font-mono text-[#687386]">
+                                  <span className="text-[10px] font-mono text-[#5A6679]">
                                     {isOrderConfirmed
                                       ? 'Agreed Contract Price'
                                       : isLatestOfferFromClient
@@ -1754,7 +1822,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                               {/* REAL CHAT BUBBLES THREAD LOG */}
                               {req.messages && req.messages.length > 0 && (
-                                <div className="space-y-3 p-4 rounded-2xl bg-[#09112B] border border-[#E8D7B7] max-h-72 overflow-y-auto custom-scrollbar">
+                                <div className="space-y-3 p-4 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] max-h-72 overflow-y-auto custom-scrollbar shadow-inner">
                                   {req.messages.map((msg: any) => {
                                     const isAdmin = msg.sender_type === 'admin';
                                     return (
@@ -1763,26 +1831,26 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                         className={`flex gap-3 ${isAdmin ? 'justify-start' : 'justify-end'}`}
                                       >
                                         {isAdmin && (
-                                          <div className="w-8 h-8 rounded-full bg-[#D4AF37]/20 border border-[#D9B66F] flex items-center justify-center text-[#B88732] text-xs font-serif font-bold shrink-0">
+                                          <div className="w-8 h-8 rounded-full bg-[#FFF8EC] border border-[#D4AF37] flex items-center justify-center text-[#9A6A1A] text-xs font-serif font-bold shrink-0 shadow-xs">
                                             CAD
                                           </div>
                                         )}
 
                                         <div
-                                          className={`p-4 rounded-2xl max-w-md text-xs space-y-1.5 shadow-md ${
+                                          className={`p-4 rounded-2xl max-w-md text-xs space-y-1.5 shadow-sm ${
                                             isAdmin
-                                              ? 'bg-white border border-[#E8D7B7] text-[#17243B] rounded-tl-none'
-                                              : 'bg-[#1A2E60] border border-[#E8D7B7] text-[#17243B] rounded-tr-none'
+                                              ? 'bg-white border border-[#E8D7B7] text-[#0B1330] rounded-tl-none'
+                                              : 'bg-[#0B1330] border border-[#D4AF37]/50 text-white rounded-tr-none'
                                           }`}
                                         >
-                                          <div className="flex justify-between items-center text-[10px] text-[#687386] pb-1 border-b border-[#E8D7B7]">
+                                          <div className={`flex justify-between items-center text-[10px] pb-1 border-b ${isAdmin ? 'text-[#687386] border-[#E8D7B7]/60' : 'text-slate-300 border-white/10'}`}>
                                             <span className="font-bold">{isAdmin ? 'Senior CAD Engineer (Admin)' : 'You'}</span>
                                             <span className="font-mono">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                           </div>
-                                          <p>{msg.message}</p>
+                                          <p className={isAdmin ? 'text-[#2A3547]' : 'text-slate-100'}>{msg.message}</p>
                                           {msg.offered_price && (
-                                            <div className="mt-2 p-2 rounded-xl bg-[#FFFDF9] border border-[#D9B66F]/50 flex items-center justify-between text-xs">
-                                              <span className="text-[10px] text-[#687386] uppercase">Official Price Offer:</span>
+                                            <div className={`mt-2 p-2 rounded-xl border flex items-center justify-between text-xs ${isAdmin ? 'bg-[#FFF9EE] border-[#E8D7B7] text-[#0B1330]' : 'bg-white/10 border-[#D4AF37]/40 text-[#F5E7A3]'}`}>
+                                              <span className="text-[10px] uppercase font-mono">Official Price Offer:</span>
                                               <span className="font-mono font-bold text-[#B88732]">{formatINR(msg.offered_price)}</span>
                                             </div>
                                           )}
@@ -1795,19 +1863,19 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                               {/* STATUS AGREED BANNER */}
                               {(req.status === 'agreed' || req.status === 'in_progress' || order) && (
-                                <div className="p-4 rounded-2xl bg-[#09261A] border border-[#1F9D66]/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg text-xs mt-3">
+                                <div className="p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs text-xs mt-3">
                                   <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-full bg-[#1F9D66]/20 border border-[#1F9D66] flex items-center justify-center text-[#26D07C] shrink-0">
+                                    <div className="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-700 shrink-0">
                                       <CheckCircle2 className="w-5 h-5" />
                                     </div>
                                     <div>
-                                      <span className="font-bold text-[#17243B] text-sm block">Quote Accepted &amp; Status AGREED!</span>
-                                      <span className="text-[#A2E8C4] text-[11px]">
+                                      <span className="font-bold text-emerald-950 text-sm block">Quote Accepted &amp; Status AGREED!</span>
+                                      <span className="text-emerald-800 text-[11px]">
                                         Agreed Final Price: <strong>{formatINR(req.agreed_price || req.estimated_price_shown)}</strong>. Payment schedule is active below.
                                       </span>
                                     </div>
                                   </div>
-                                  <div className="px-3.5 py-1.5 rounded-xl bg-[#1F9D66] text-white text-[10px] font-extrabold uppercase tracking-wider font-mono flex items-center gap-1.5 shadow shrink-0">
+                                  <div className="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white text-[10px] font-extrabold uppercase tracking-wider font-mono flex items-center gap-1.5 shadow shrink-0">
                                     <CheckCircle2 className="w-3.5 h-3.5" />
                                     <span>ACCEPTED</span>
                                   </div>
@@ -1819,21 +1887,21 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                 <div className="space-y-4 pt-2">
                                   {/* If client made the latest counter-offer: Client is waiting for Admin. Client CANNOT accept their own offer! */}
                                   {isLatestOfferFromClient ? (
-                                    <div className="p-4 rounded-2xl bg-[#08153A] border border-[#E8D7B7] flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs shadow-lg">
+                                    <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs shadow-xs">
                                       <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-amber-300 shrink-0">
-                                          <Clock className="w-5 h-5 text-amber-300 animate-pulse" />
+                                        <div className="w-10 h-10 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shrink-0">
+                                          <Clock className="w-5 h-5 text-amber-600 animate-pulse" />
                                         </div>
                                         <div className="space-y-0.5">
                                           <div className="flex items-center gap-2">
-                                            <span className="font-bold text-[#B88732] text-sm">
+                                            <span className="font-bold text-amber-950 text-sm">
                                               Your Counter-Offer of {formatINR(currentOfferedPrice)} is with SuperAdmin
                                             </span>
-                                            <span className="px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-500/40 text-[9px] font-mono font-bold uppercase">
+                                            <span className="px-2 py-0.5 rounded bg-amber-200 text-amber-900 border border-amber-300 text-[9px] font-mono font-bold uppercase">
                                               Pending Admin Decision
                                             </span>
                                           </div>
-                                          <p className="text-[#687386] text-[11px] leading-relaxed">
+                                          <p className="text-amber-800 text-[11px] leading-relaxed">
                                             You offered {formatINR(currentOfferedPrice)}. Waiting for the Studio Admin to review and accept your offer or reply with revised terms. You cannot accept your own counter-offer.
                                           </p>
                                         </div>
@@ -1841,7 +1909,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                       <button
                                         type="button"
                                         onClick={() => setShowCounterForm((prev) => ({ ...prev, [req.id]: !prev[req.id] }))}
-                                        className="px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider border border-[#D9B66F]/50 text-[#B88732] hover:bg-[#D4AF37]/10 transition-all shrink-0 cursor-pointer"
+                                        className="px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider border border-[#E8D7B7] bg-white text-[#0B1330] hover:border-[#D4AF37] hover:text-[#B88732] transition-all shrink-0 cursor-pointer shadow-xs"
                                       >
                                         {showCounterForm[req.id] ? 'Hide Form' : 'Adjust Counter Price'}
                                       </button>
@@ -1853,7 +1921,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                       <button
                                         onClick={() => handleAcceptQuote(req.id)}
                                         disabled={isSubmitting[req.id]}
-                                        className="btn-gold-luxury px-8 py-3.5 rounded-2xl text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 shadow-xl cursor-pointer"
+                                        className="btn-gold-luxury px-8 py-3.5 rounded-2xl text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 shadow-lg cursor-pointer hover:brightness-105"
                                       >
                                         {isSubmitting[req.id] ? (
                                           <Loader2 className="w-4 h-4 text-[#0B1330] animate-spin" />
@@ -1867,7 +1935,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                       <button
                                         type="button"
                                         onClick={() => setShowCounterForm((prev) => ({ ...prev, [req.id]: !prev[req.id] }))}
-                                        className="px-6 py-3.5 rounded-2xl text-xs font-extrabold uppercase tracking-wider flex items-center gap-2 border border-[#D9B66F]/50 text-[#B88732] hover:bg-[#D4AF37]/10 transition-all shadow-md cursor-pointer"
+                                        className="px-6 py-3.5 rounded-2xl text-xs font-extrabold uppercase tracking-wider flex items-center gap-2 border border-[#E8D7B7] bg-white text-[#0B1330] hover:border-[#D4AF37] hover:text-[#B88732] transition-all shadow-xs cursor-pointer"
                                       >
                                         <MessageSquare className="w-4 h-4 text-[#B88732]" />
                                         <span>{showCounterForm[req.id] ? 'Hide Counter Form' : 'Not Satisfied? Propose Counter Price'}</span>
@@ -1879,19 +1947,19 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                   {(showCounterForm[req.id] || (req.status === 'negotiating' && !isLatestOfferFromClient && !isLatestOfferFromAdmin)) && (
                                     <form
                                       onSubmit={(e) => handleSendCounterOffer(e, req.id)}
-                                      className="p-4 rounded-2xl bg-[#081233] border border-[#E8D7B7] space-y-3"
+                                      className="p-5 rounded-2xl bg-white border border-[#E8D7B7] space-y-4 shadow-sm"
                                     >
-                                      <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-2">
-                                        <span className="text-xs font-bold font-serif text-[#17243B] uppercase tracking-wider flex items-center gap-2">
+                                      <div className="flex items-center justify-between border-b border-[#E8D7B7]/70 pb-2.5">
+                                        <span className="text-xs font-bold font-serif text-[#0B1330] uppercase tracking-wider flex items-center gap-2">
                                           <Send className="w-3.5 h-3.5 text-[#B88732]" />
                                           Send Price Request / Counter-Offer to SuperAdmin
                                         </span>
-                                        <span className="text-[10px] text-[#687386] font-mono">Multi-Round Negotiation Active</span>
+                                        <span className="text-[10px] text-[#5A6679] font-mono">Multi-Round Negotiation Active</span>
                                       </div>
 
-                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                                         <div className="sm:col-span-1">
-                                          <label className="block text-[10px] font-mono text-[#687386] uppercase mb-1">
+                                          <label className="block text-[10px] font-mono text-[#5A6679] uppercase font-bold mb-1">
                                             Your Target Price (₹)
                                           </label>
                                           <input
@@ -1899,11 +1967,11 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                             value={counterPriceInput[req.id] || ''}
                                             onChange={(e) => setCounterPriceInput({ ...counterPriceInput, [req.id]: e.target.value })}
                                             placeholder="e.g. 18000"
-                                            className="w-full px-3 py-2 rounded-xl bg-[#060B1E] border border-[#E8D7B7] text-xs font-mono font-bold text-[#17243B] focus:outline-none focus:border-[#D9B66F]"
+                                            className="w-full px-3.5 py-2.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7] text-xs font-mono font-bold text-[#0B1330] focus:outline-none focus:border-[#D4AF37] focus:bg-white"
                                           />
                                         </div>
                                         <div className="sm:col-span-2">
-                                          <label className="block text-[10px] font-mono text-[#687386] uppercase mb-1">
+                                          <label className="block text-[10px] font-mono text-[#5A6679] uppercase font-bold mb-1">
                                             Note for SuperAdmin (Optional)
                                           </label>
                                           <input
@@ -1911,7 +1979,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                             value={counterMessageInput[req.id] || ''}
                                             onChange={(e) => setCounterMessageInput({ ...counterMessageInput, [req.id]: e.target.value })}
                                             placeholder="e.g. Can we adjust within this budget for 18K Yellow Gold?"
-                                            className="w-full px-3 py-2 rounded-xl bg-[#060B1E] border border-[#E8D7B7] text-xs text-[#17243B] focus:outline-none focus:border-[#D9B66F]"
+                                            className="w-full px-3.5 py-2.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7] text-xs text-[#0B1330] focus:outline-none focus:border-[#D4AF37] focus:bg-white"
                                           />
                                         </div>
                                       </div>
@@ -1920,7 +1988,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                         <button
                                           type="submit"
                                           disabled={isSubmitting[req.id]}
-                                          className="btn-gold-luxury px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
+                                          className="btn-gold-luxury px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md cursor-pointer hover:brightness-105"
                                         >
                                           {isSubmitting[req.id] ? (
                                             <Loader2 className="w-4 h-4 text-[#0B1330] animate-spin" />
@@ -1945,36 +2013,36 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                       {/* NODE 3: MULTI-STAGE PAYMENT SCHEDULE TABLE */}
                       {(activeStageTab === 'all' || activeStageTab === 'payments') && (
                       <div className="relative group">
-                        <div className={`absolute -left-[31px] sm:-left-[47px] top-0 w-6 h-6 rounded-full border-4 border-[#070D22] flex items-center justify-center ${
+                        <div className={`absolute -left-[31px] sm:-left-[47px] top-0 w-6 h-6 rounded-full border-4 border-[#FAF8F5] flex items-center justify-center ${
                           paidVal > 0
                             ? 'bg-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.8)]'
                             : isOrderConfirmed
-                            ? 'bg-white border-[#D9B66F]/60 text-[#B88732]'
-                            : 'bg-[#060B1E] border-slate-700'
+                            ? 'bg-[#0B1330] text-[#F5E7A3]'
+                            : 'bg-white border-2 border-[#E8D7B7] text-[#5A6679]'
                         }`}>
-                          <CreditCard className="w-3.5 h-3.5 text-[#070D22]" />
+                          <CreditCard className="w-3.5 h-3.5" />
                         </div>
 
                         <div className="space-y-4">
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                            <h3 className="font-serif text-xl font-bold text-[#17243B] flex items-center gap-2.5 flex-wrap">
+                            <h3 className="font-serif text-xl font-bold text-[#0B1330] flex items-center gap-2.5 flex-wrap">
                               <span>3. Order Payment Options</span>
-                              <span className="text-xs font-mono font-normal text-[#B88732] px-2.5 py-0.5 rounded-full bg-white border border-[#E8D7B7]">
+                              <span className="text-xs font-mono font-medium text-[#B88732] px-3 py-1 rounded-full bg-white border border-[#E8D7B7] shadow-sm">
                                 Part Payment (10/30/60 Split) OR Pay Full Amount
                               </span>
                             </h3>
                             {!isOrderConfirmed ? (
-                              <span className="px-2.5 py-1 rounded-full bg-slate-900 border border-slate-700 text-slate-400 text-[10px] font-mono font-bold uppercase tracking-wider inline-flex items-center gap-1.5 w-fit">
-                                <Lock className="w-3 h-3 text-[#B88732]" />
+                              <span className="px-3 py-1 rounded-full bg-slate-100 border border-slate-300 text-slate-600 text-[11px] font-mono font-bold uppercase tracking-wider inline-flex items-center gap-1.5 w-fit">
+                                <Lock className="w-3.5 h-3.5 text-slate-500" />
                                 Locked &bull; Awaiting Order Confirmation
                               </span>
                             ) : isFullyPaid ? (
-                              <span className="px-3 py-1 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/50 text-[11px] font-mono font-bold inline-flex items-center gap-1.5 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                              <span className="px-3.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-300 text-[11px] font-mono font-bold inline-flex items-center gap-1.5 shadow-sm">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                                 ORDER 100% PAID IN FULL
                               </span>
                             ) : (
-                              <span className="px-3 py-1 rounded-full bg-white text-[#B88732] border border-[#D9B66F]/50 text-[11px] font-mono font-bold inline-flex items-center gap-1.5">
+                              <span className="px-3.5 py-1 rounded-full bg-amber-50 text-[#B88732] border border-[#E8D7B7] text-[11px] font-mono font-bold inline-flex items-center gap-1.5 shadow-sm">
                                 <CreditCard className="w-3.5 h-3.5 text-[#B88732]" />
                                 Balance Due: {formatINR(unpaidVal)}
                               </span>
@@ -1983,14 +2051,14 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                           {/* Locked Notice if Order Not Confirmed Yet */}
                           {!isOrderConfirmed && (
-                            <div className="p-4 rounded-2xl bg-[#09112B] border border-[#E8D7B7] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs shadow-md">
-                              <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-full bg-white border border-[#E8D7B7] flex items-center justify-center text-[#B88732] shrink-0">
+                            <div className="p-5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs shadow-sm">
+                              <div className="flex items-center gap-3.5">
+                                <div className="w-10 h-10 rounded-2xl bg-white border border-[#E8D7B7] flex items-center justify-center text-[#B88732] shrink-0 shadow-sm">
                                   <Lock className="w-4 h-4" />
                                 </div>
                                 <div className="space-y-0.5">
-                                  <span className="font-bold text-[#17243B] text-sm block">Payment Option Locked</span>
-                                  <span className="text-[#687386] text-[11px] block">
+                                  <span className="font-serif font-bold text-[#0B1330] text-sm block">Payment Option Locked</span>
+                                  <span className="text-[#5A6679] text-xs block leading-relaxed">
                                     {(() => {
                                       const latestOfferMsg = req.messages && req.messages.length > 0
                                         ? [...req.messages].reverse().find((m: any) => m.offered_price !== undefined && m.offered_price !== null && m.offered_price !== '')
@@ -2031,12 +2099,12 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                     <button
                                       onClick={() => handleAcceptQuote(req.id)}
                                       disabled={isSubmitting[req.id]}
-                                      className="btn-gold-luxury px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider shrink-0 shadow-md cursor-pointer flex items-center gap-1.5"
+                                      className="btn-gold-luxury px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider shrink-0 shadow-md cursor-pointer flex items-center gap-1.5"
                                     >
                                       {isSubmitting[req.id] ? (
-                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#0B1330]" />
                                       ) : (
-                                        <CheckCircle2 className="w-3.5 h-3.5" />
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-[#0B1330]" />
                                       )}
                                       <span>Accept Admin Quote ({formatINR(currentOfferedPrice)})</span>
                                     </button>
@@ -2049,21 +2117,21 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                           {/* 100% PAID SUCCESS BANNER */}
                           {isFullyPaid && (
-                            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-950/90 via-[#09112B] to-emerald-950/90 border-2 border-emerald-500/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
+                            <div className="p-5 rounded-2xl bg-gradient-to-r from-emerald-50 via-white to-emerald-50 border-2 border-emerald-400/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-[0_8px_25px_rgba(16,185,129,0.12)]">
                               <div className="flex items-center gap-3.5">
-                                <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-400/50 flex items-center justify-center text-emerald-400 shrink-0">
-                                  <CheckCircle2 className="w-5 h-5" />
+                                <div className="w-11 h-11 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-md">
+                                  <CheckCircle2 className="w-6 h-6" />
                                 </div>
                                 <div className="space-y-0.5">
-                                  <h4 className="font-serif font-bold text-emerald-300 text-sm flex items-center gap-2">
+                                  <h4 className="font-serif font-bold text-emerald-900 text-base flex items-center gap-2">
                                     <span>Order Completely Paid in Full ({formatINR(paidVal)})</span>
                                   </h4>
-                                  <p className="text-xs text-[#687386]">
+                                  <p className="text-xs text-emerald-700">
                                     All payment stages are cleared. 3D inspection preview and final CAD deliverables are unlocked.
                                   </p>
                                 </div>
                               </div>
-                              <span className="px-3 py-1.5 rounded-xl bg-emerald-900/60 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-bold shrink-0">
+                              <span className="px-3.5 py-1.5 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-800 text-xs font-mono font-bold shrink-0">
                                 Zero Balance Remaining
                               </span>
                             </div>
@@ -2071,72 +2139,72 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                           {/* DUAL PAYMENT CHOICE CARDS (PAY FULL VS PART-PAYMENT) */}
                           {isOrderConfirmed && !isFullyPaid && unpaidVal > 0 && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                               {/* CARD A: PAY FULL AMOUNT */}
-                              <div className="relative p-5 rounded-2xl bg-gradient-to-br from-[#12204D] via-[#0E1A3D] to-[#081026] border-2 border-[#D9B66F] shadow-[0_8px_30px_rgba(212,175,55,0.25)] flex flex-col justify-between gap-4 overflow-hidden">
-                                <div className="absolute top-0 right-0 px-3 py-1 rounded-bl-xl bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] text-[10px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1">
-                                  <Zap className="w-3 h-3 text-[#070D22] fill-current" />
+                              <div className="relative p-6 rounded-3xl bg-gradient-to-br from-[#0B1330] via-[#111C44] to-[#0B1330] border-2 border-[#D4AF37] shadow-[0_12px_35px_rgba(212,175,55,0.22)] flex flex-col justify-between gap-4 text-white overflow-hidden">
+                                <div className="absolute top-0 right-0 px-3.5 py-1.5 rounded-bl-2xl bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#0B1330] text-[10px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1">
+                                  <Zap className="w-3 h-3 text-[#0B1330] fill-current" />
                                   <span>Fast-Track &bull; Recommended</span>
                                 </div>
 
                                 <div className="space-y-2 pr-12">
                                   <div className="flex items-center gap-2">
-                                    <div className="w-7 h-7 rounded-lg bg-[#D4AF37]/20 border border-[#D9B66F]/50 flex items-center justify-center text-[#B88732]">
+                                    <div className="w-7 h-7 rounded-lg bg-white/10 border border-[#D4AF37]/50 flex items-center justify-center text-[#F5E7A3]">
                                       <Sparkles className="w-4 h-4" />
                                     </div>
-                                    <span className="text-xs font-mono font-bold text-[#B88732] uppercase tracking-wide">
+                                    <span className="text-xs font-mono font-bold text-[#F5E7A3] uppercase tracking-wide">
                                       Option A: Pay Full Amount
                                     </span>
                                   </div>
-                                  <h4 className="font-serif text-lg font-bold text-[#17243B]">
+                                  <h4 className="font-serif text-xl font-bold text-white">
                                     {paidVal > 0 ? 'Clear Remaining Balance in Full' : 'Pay 100% Upfront in One Transaction'}
                                   </h4>
-                                  <p className="text-xs text-[#687386] leading-relaxed">
+                                  <p className="text-xs text-slate-300 leading-relaxed">
                                     {paidVal > 0
                                       ? `You have paid ${formatINR(paidVal)} so far. Settle the remaining balance (${formatINR(unpaidVal)}) now to complete your order without stage interruptions.`
                                       : `Settle the full ${formatINR(unpaidVal)} upfront. Automatically unlocks all 3D inspection previews and final CAD file deliverables upon completion.`}
                                   </p>
                                 </div>
 
-                                <div className="pt-3 border-t border-[#E8D7B7] flex flex-wrap items-center justify-between gap-3">
+                                <div className="pt-4 border-t border-white/15 flex flex-wrap items-center justify-between gap-3">
                                   <div>
-                                    <span className="text-[10px] font-mono text-[#687386] uppercase block">
+                                    <span className="text-[10px] font-mono text-slate-300 uppercase block">
                                       {paidVal > 0 ? 'Remaining Balance' : 'Total Order Valuation'}
                                     </span>
-                                    <span className="font-serif text-xl font-extrabold text-[#B88732]">
+                                    <span className="font-serif text-2xl font-extrabold text-[#F5E7A3]">
                                       {formatINR(unpaidVal)}
                                     </span>
                                   </div>
                                   <button
                                     onClick={() => handlePayFullOrder(order, unpaidVal)}
-                                    className="btn-gold-luxury px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-[0_0_20px_rgba(212,175,55,0.4)] cursor-pointer hover:scale-[1.02] transition-all"
+                                    className="btn-gold-luxury px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-[0_4px_20px_rgba(212,175,55,0.4)] cursor-pointer hover:scale-[1.02] transition-all"
                                   >
-                                    <CreditCard className="w-4 h-4 text-[#070D22]" />
+                                    <CreditCard className="w-4 h-4 text-[#0B1330]" />
                                     <span>Pay Full Amount ({formatINR(unpaidVal)})</span>
                                   </button>
                                 </div>
                               </div>
 
                               {/* CARD B: PART PAYMENT MILESTONE SPLIT */}
-                              <div className="p-5 rounded-2xl bg-[#09112B] border border-[#E8D7B7] flex flex-col justify-between gap-4">
+                              <div className="p-6 rounded-3xl bg-white border-2 border-[#E8D7B7] hover:border-[#D4AF37]/70 shadow-[0_8px_25px_rgba(184,135,50,0.05)] flex flex-col justify-between gap-4 transition-all">
                                 <div className="space-y-2">
                                   <div className="flex items-center gap-2">
-                                    <div className="w-7 h-7 rounded-lg bg-white/5 border border-[#E8D7B7] flex items-center justify-center text-[#687386]">
-                                      <Layers className="w-4 h-4 text-[#B88732]" />
+                                    <div className="w-7 h-7 rounded-lg bg-[#FCFAF7] border border-[#E8D7B7] flex items-center justify-center text-[#B88732]">
+                                      <Layers className="w-4 h-4" />
                                     </div>
-                                    <span className="text-xs font-mono font-bold text-[#687386] uppercase tracking-wide">
+                                    <span className="text-xs font-mono font-bold text-[#B88732] uppercase tracking-wide">
                                       Option B: Part-Payment Milestones
                                     </span>
                                   </div>
-                                  <h4 className="font-serif text-lg font-bold text-[#17243B]">
+                                  <h4 className="font-serif text-xl font-bold text-[#0B1330]">
                                     Pay Step-by-Step Across CAD Milestones
                                   </h4>
-                                  <p className="text-xs text-[#687386] leading-relaxed">
-                                    Split payments across 3 transparent stages: <strong>10%</strong> Booking Confirmation to start CAD, <strong>30%</strong> after 3D Preview approval, and <strong>60%</strong> prior to final CAD delivery.
+                                  <p className="text-xs text-[#5A6679] leading-relaxed">
+                                    Split payments across 3 transparent stages: <strong className="text-[#0B1330]">10%</strong> Booking Confirmation to start CAD, <strong className="text-[#0B1330]">30%</strong> after 3D Preview approval, and <strong className="text-[#0B1330]">60%</strong> prior to final CAD delivery.
                                   </p>
                                 </div>
 
-                                <div className="pt-3 border-t border-[#E8D7B7] flex items-center justify-between text-xs font-mono text-[#687386]">
+                                <div className="pt-4 border-t border-[#E8D7B7] flex items-center justify-between text-xs font-mono text-[#5A6679]">
                                   <span>Schedule: 10% &bull; 30% &bull; 60%</span>
                                   <span className="text-[#B88732] font-semibold flex items-center gap-1">
                                     Use Stage Table Below &darr;
@@ -2147,57 +2215,57 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                           )}
 
                           {/* PAYMENT STAGES TABLE */}
-                          <div className="rounded-2xl bg-[#09112B] border border-[#E8D7B7] overflow-hidden shadow-xl">
-                            <table className="w-full text-left text-xs text-[#687386]">
-                              <thead className="bg-[#FFFDF9] text-[#17243B] font-serif border-b border-[#E8D7B7] uppercase text-[10px] tracking-wider">
+                          <div className="rounded-3xl bg-white border border-[#E8D7B7] overflow-hidden shadow-[0_12px_35px_rgba(184,135,50,0.06)]">
+                            <table className="w-full text-left text-xs text-[#5A6679]">
+                              <thead className="bg-[#FCFAF7] text-[#0B1330] font-serif border-b border-[#E8D7B7] uppercase text-[10px] tracking-wider">
                                 <tr>
-                                  <th className="p-4">Stage Name</th>
-                                  <th className="p-4">% Split</th>
-                                  <th className="p-4">Amount (INR)</th>
-                                  <th className="p-4">Trigger Condition</th>
-                                  <th className="p-4 text-right">Payment Status</th>
+                                  <th className="p-4 font-bold">Stage Name</th>
+                                  <th className="p-4 font-bold">% Split</th>
+                                  <th className="p-4 font-bold">Amount (INR)</th>
+                                  <th className="p-4 font-bold">Trigger Condition</th>
+                                  <th className="p-4 text-right font-bold">Payment Status</th>
                                 </tr>
                               </thead>
-                              <tbody className="divide-y divide-white/5">
+                              <tbody className="divide-y divide-[#E8D7B7]/40">
                                 {!isOrderConfirmed ? (
                                   <>
-                                    <tr className="hover:bg-white/5 transition-colors">
-                                      <td className="p-4 font-bold text-[#17243B]">Stage 1: Booking Confirmation</td>
-                                      <td className="p-4 font-mono">10.00%</td>
+                                    <tr className="hover:bg-[#FFFDF9] transition-colors">
+                                      <td className="p-4 font-bold text-[#0B1330]">Stage 1: Booking Confirmation</td>
+                                      <td className="p-4 font-mono font-medium text-[#0B1330]">10.00%</td>
                                       <td className="p-4 font-serif text-sm font-bold text-[#B88732]">
                                         {hasOfficialQuote ? formatINR(totalVal * 0.1) : 'Quote Pending'}
                                       </td>
-                                      <td className="p-4 text-[11px] text-[#687386]">Due Immediately upon Order Confirmation</td>
+                                      <td className="p-4 text-xs text-[#5A6679]">Due Immediately upon Order Confirmation</td>
                                       <td className="p-4 text-right">
-                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/90 text-slate-400 border border-slate-700 text-[10px] font-mono font-semibold">
-                                          <Lock className="w-3 h-3 text-[#B88732]/70" />
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-slate-500 border border-slate-300 text-[10px] font-mono font-semibold">
+                                          <Lock className="w-3 h-3 text-slate-400" />
                                           LOCKED (Pending Confirmation)
                                         </span>
                                       </td>
                                     </tr>
-                                    <tr className="hover:bg-white/5 transition-colors">
-                                      <td className="p-4 font-bold text-[#17243B]">Stage 2: Design Approval Milestone</td>
-                                      <td className="p-4 font-mono">30.00%</td>
+                                    <tr className="hover:bg-[#FFFDF9] transition-colors">
+                                      <td className="p-4 font-bold text-[#0B1330]">Stage 2: Design Approval Milestone</td>
+                                      <td className="p-4 font-mono font-medium text-[#0B1330]">30.00%</td>
                                       <td className="p-4 font-serif text-sm font-bold text-[#B88732]">
                                         {hasOfficialQuote ? formatINR(totalVal * 0.3) : 'Quote Pending'}
                                       </td>
-                                      <td className="p-4 text-[11px] text-[#687386]">Due on Client 3D Preview Approval</td>
+                                      <td className="p-4 text-xs text-[#5A6679]">Due on Client 3D Preview Approval</td>
                                       <td className="p-4 text-right">
-                                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-900 text-slate-400 border border-slate-700 text-[10px] font-mono">
+                                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-300 text-[10px] font-mono">
                                           <Lock className="w-3 h-3" />
                                           LOCKED
                                         </span>
                                       </td>
                                     </tr>
-                                    <tr className="hover:bg-white/5 transition-colors">
-                                      <td className="p-4 font-bold text-[#17243B]">Stage 3: Final CAD Delivery</td>
-                                      <td className="p-4 font-mono">60.00%</td>
+                                    <tr className="hover:bg-[#FFFDF9] transition-colors">
+                                      <td className="p-4 font-bold text-[#0B1330]">Stage 3: Final CAD Delivery</td>
+                                      <td className="p-4 font-mono font-medium text-[#0B1330]">60.00%</td>
                                       <td className="p-4 font-serif text-sm font-bold text-[#B88732]">
                                         {hasOfficialQuote ? formatINR(totalVal * 0.6) : 'Quote Pending'}
                                       </td>
-                                      <td className="p-4 text-[11px] text-[#687386]">Due Before Final File Release</td>
+                                      <td className="p-4 text-xs text-[#5A6679]">Due Before Final File Release</td>
                                       <td className="p-4 text-right">
-                                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-900 text-slate-400 border border-slate-700 text-[10px] font-mono">
+                                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-300 text-[10px] font-mono">
                                           <Lock className="w-3 h-3" />
                                           LOCKED
                                         </span>
@@ -2206,11 +2274,11 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                   </>
                                 ) : order?.payment_stages && order.payment_stages.length > 0 ? (
                                   order.payment_stages.map((st: any) => (
-                                    <tr key={st.id} className="hover:bg-white/5 transition-colors">
-                                      <td className="p-4 font-bold text-[#17243B]">{st.label}</td>
-                                      <td className="p-4 font-mono">{st.percentage}%</td>
+                                    <tr key={st.id} className="hover:bg-[#FFFDF9] transition-colors">
+                                      <td className="p-4 font-bold text-[#0B1330]">{st.label}</td>
+                                      <td className="p-4 font-mono font-medium text-[#0B1330]">{st.percentage}%</td>
                                       <td className="p-4 font-serif text-sm font-bold text-[#B88732]">{formatINR(st.amount)}</td>
-                                      <td className="p-4 text-[11px] text-[#687386]">
+                                      <td className="p-4 text-xs text-[#5A6679]">
                                         {st.trigger_type === 'immediate'
                                           ? 'Due Immediately to Start CAD'
                                           : st.trigger_type === 'on_design_approval'
@@ -2219,8 +2287,8 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                       </td>
                                       <td className="p-4 text-right">
                                         {st.status === 'paid' ? (
-                                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/40 text-[10px] font-mono font-bold">
-                                            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-300 text-[10px] font-mono font-bold">
+                                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                                             PAID
                                           </span>
                                         ) : st.status === 'due' ? (
@@ -2231,7 +2299,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                             Pay Stage ({formatINR(st.amount)})
                                           </button>
                                         ) : (
-                                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-900 text-slate-400 border border-slate-700 text-[10px] font-mono">
+                                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-300 text-[10px] font-mono">
                                             <Lock className="w-3 h-3" />
                                             LOCKED
                                           </span>
@@ -2241,11 +2309,11 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                   ))
                                 ) : (
                                   <>
-                                    <tr className="hover:bg-white/5 transition-colors">
-                                      <td className="p-4 font-bold text-[#17243B]">Stage 1: Booking Confirmation</td>
-                                      <td className="p-4 font-mono">10.00%</td>
+                                    <tr className="hover:bg-[#FFFDF9] transition-colors">
+                                      <td className="p-4 font-bold text-[#0B1330]">Stage 1: Booking Confirmation</td>
+                                      <td className="p-4 font-mono font-medium text-[#0B1330]">10.00%</td>
                                       <td className="p-4 font-serif text-sm font-bold text-[#B88732]">{formatINR(totalVal * 0.1)}</td>
-                                      <td className="p-4 text-[11px] text-[#687386]">Due Immediately to Start CAD</td>
+                                      <td className="p-4 text-xs text-[#5A6679]">Due Immediately to Start CAD</td>
                                       <td className="p-4 text-right">
                                         <button
                                           onClick={() => handlePayStage({ id: 1, stage_name: 'Stage 1: Booking Confirmation', amount: totalVal * 0.1, percentage: 10 }, order?.id)}
@@ -2255,25 +2323,25 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                         </button>
                                       </td>
                                     </tr>
-                                    <tr className="hover:bg-white/5 transition-colors">
-                                      <td className="p-4 font-bold text-[#17243B]">Stage 2: Design Approval Milestone</td>
-                                      <td className="p-4 font-mono">30.00%</td>
+                                    <tr className="hover:bg-[#FFFDF9] transition-colors">
+                                      <td className="p-4 font-bold text-[#0B1330]">Stage 2: Design Approval Milestone</td>
+                                      <td className="p-4 font-mono font-medium text-[#0B1330]">30.00%</td>
                                       <td className="p-4 font-serif text-sm font-bold text-[#B88732]">{formatINR(totalVal * 0.3)}</td>
-                                      <td className="p-4 text-[11px] text-[#687386]">Due on Client 3D Preview Approval</td>
+                                      <td className="p-4 text-xs text-[#5A6679]">Due on Client 3D Preview Approval</td>
                                       <td className="p-4 text-right">
-                                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-900 text-slate-400 border border-slate-700 text-[10px] font-mono">
+                                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-300 text-[10px] font-mono">
                                           <Lock className="w-3 h-3" />
                                           LOCKED
                                         </span>
                                       </td>
                                     </tr>
-                                    <tr className="hover:bg-white/5 transition-colors">
-                                      <td className="p-4 font-bold text-[#17243B]">Stage 3: Final CAD Delivery</td>
-                                      <td className="p-4 font-mono">60.00%</td>
+                                    <tr className="hover:bg-[#FFFDF9] transition-colors">
+                                      <td className="p-4 font-bold text-[#0B1330]">Stage 3: Final CAD Delivery</td>
+                                      <td className="p-4 font-mono font-medium text-[#0B1330]">60.00%</td>
                                       <td className="p-4 font-serif text-sm font-bold text-[#B88732]">{formatINR(totalVal * 0.6)}</td>
-                                      <td className="p-4 text-[11px] text-[#687386]">Due Before Final File Release</td>
+                                      <td className="p-4 text-xs text-[#5A6679]">Due Before Final File Release</td>
                                       <td className="p-4 text-right">
-                                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-900 text-slate-400 border border-slate-700 text-[10px] font-mono">
+                                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-300 text-[10px] font-mono">
                                           <Lock className="w-3 h-3" />
                                           LOCKED
                                         </span>
@@ -2283,26 +2351,26 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                 )}
                               </tbody>
                               {isOrderConfirmed && totalVal > 0 && (
-                                <tfoot className="bg-[#FFFDF9]/80 border-t border-[#E8D7B7]">
+                                <tfoot className="bg-[#FCFAF7] border-t border-[#E8D7B7]">
                                   <tr>
-                                    <td colSpan={2} className="p-4 font-serif font-bold text-[#17243B] text-xs">
+                                    <td colSpan={2} className="p-4 font-serif font-bold text-[#0B1330] text-xs">
                                       Total Order Summary:
                                     </td>
                                     <td className="p-4 font-serif font-bold text-[#B88732] text-sm">
                                       {formatINR(totalVal)}
                                     </td>
-                                    <td className="p-4 text-xs font-mono text-[#687386]">
-                                      Paid: <strong className="text-emerald-400">{formatINR(paidVal)}</strong> | Remaining: <strong className="text-amber-300">{formatINR(unpaidVal)}</strong>
+                                    <td className="p-4 text-xs font-mono text-[#5A6679]">
+                                      Paid: <strong className="text-emerald-600">{formatINR(paidVal)}</strong> | Remaining: <strong className="text-[#B88732]">{formatINR(unpaidVal)}</strong>
                                     </td>
                                     <td className="p-4 text-right">
                                       {isFullyPaid ? (
-                                        <span className="text-xs font-mono font-bold text-emerald-400 flex items-center justify-end gap-1">
+                                        <span className="text-xs font-mono font-bold text-emerald-600 flex items-center justify-end gap-1">
                                           <CheckCircle2 className="w-3.5 h-3.5" /> 100% Fully Settled
                                         </span>
                                       ) : unpaidVal > 0 ? (
                                         <button
                                           onClick={() => handlePayFullOrder(order, unpaidVal)}
-                                          className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-[#1A2E60] border border-[#D9B66F]/50 text-[#B88732] text-[11px] font-bold uppercase tracking-wider cursor-pointer shadow transition-all"
+                                          className="btn-gold-luxury px-3.5 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider cursor-pointer shadow transition-all"
                                         >
                                           Pay Full Balance ({formatINR(unpaidVal)})
                                         </button>
@@ -2320,51 +2388,51 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                       {/* NODE 4: DESIGN PREVIEW & APPROVAL */}
                       {(activeStageTab === 'all' || activeStageTab === 'preview') && (
                       <div className="relative group">
-                        <div className={`absolute -left-[31px] sm:-left-[47px] top-0 w-6 h-6 rounded-full border-4 border-[#070D22] flex items-center justify-center ${
+                        <div className={`absolute -left-[31px] sm:-left-[47px] top-0 w-6 h-6 rounded-full border-4 border-[#FAF8F5] flex items-center justify-center ${
                           order?.preview_image || order?.milestones?.some((m: any) => m.stage.includes('Approved'))
                             ? 'bg-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.8)]'
-                            : 'bg-[#060B1E] border-slate-700'
+                            : 'bg-white border-2 border-[#E8D7B7] text-[#5A6679]'
                         }`}>
-                          <Eye className="w-3.5 h-3.5 text-[#070D22]" />
+                          <Eye className="w-3.5 h-3.5" />
                         </div>
 
                         <div className="space-y-4">
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                            <h3 className="font-serif text-xl font-bold text-[#17243B]">
+                            <h3 className="font-serif text-xl font-bold text-[#0B1330]">
                               4. In-Progress 3D CAD Preview Review
                             </h3>
                             {order?.milestones?.some((m: any) => m.stage.includes('Approved')) && (
-                              <span className="px-3 py-1 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/40 text-[10px] font-mono font-bold flex items-center gap-1">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                              <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-300 text-[10px] font-mono font-bold flex items-center gap-1 shadow-sm">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                                 3D PREVIEW APPROVED BY YOU
                               </span>
                             )}
                           </div>
 
                           {order?.preview_image ? (
-                            <div className="rounded-2xl bg-[#09112B] border border-[#E8D7B7] p-5 space-y-4 shadow-xl">
+                            <div className="rounded-3xl bg-white border border-[#E8D7B7] p-6 space-y-5 shadow-[0_12px_35px_rgba(184,135,50,0.06)]">
                               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                 <div>
                                   <div className="flex items-center gap-2">
-                                    <span className="text-xs font-serif font-bold text-[#B88732] block">
+                                    <span className="text-sm font-serif font-bold text-[#0B1330] block">
                                       Protected 360° Raytraced Master Preview
                                     </span>
                                     {order?.status === 'revision_requested' ? (
-                                      <span className="px-2.5 py-0.5 rounded-full bg-amber-950 text-amber-300 border border-amber-500/40 text-[9px] font-mono font-bold flex items-center gap-1.5 shadow-sm">
-                                        <RefreshCw className="w-2.5 h-2.5 animate-spin text-amber-400" />
+                                      <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300 text-[10px] font-mono font-bold flex items-center gap-1.5 shadow-sm">
+                                        <RefreshCw className="w-2.5 h-2.5 animate-spin text-amber-600" />
                                         Revision v{order.current_version || 1} In Progress
                                       </span>
                                     ) : order?.status === 'preview_ready' || order?.quality_approved ? (
-                                      <span className="px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/40 text-[9px] font-mono font-bold">
+                                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 text-[10px] font-mono font-bold">
                                         QC Verified &amp; Ready
                                       </span>
                                     ) : (
-                                      <span className="px-2 py-0.5 rounded-full bg-amber-950 text-amber-300 border border-amber-500/40 text-[9px] font-mono font-bold">
+                                      <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300 text-[10px] font-mono font-bold">
                                         QC Inspection Underway
                                       </span>
                                     )}
                                   </div>
-                                  <span className="text-[11px] text-[#687386]">
+                                  <span className="text-xs text-[#5A6679]">
                                     Inspect proportion, prong layout &amp; stone seats before approving for final file generation.
                                   </span>
                                 </div>
@@ -2374,12 +2442,12 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                       setLightboxZoom(1);
                                       setPreviewLightboxOrder(order);
                                     }}
-                                    className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-[#1A2E60] text-[#B88732] border border-[#D9B66F]/50 text-xs font-mono font-bold flex items-center gap-1.5 cursor-pointer shadow-md transition-all hover:scale-105"
+                                    className="px-4 py-2 rounded-xl bg-white hover:bg-[#FCFAF7] text-[#0B1330] border border-[#E8D7B7] hover:border-[#D4AF37] text-xs font-mono font-bold flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
                                   >
                                     <Maximize2 className="w-3.5 h-3.5 text-[#B88732]" />
                                     <span>Open Full Screen</span>
                                   </button>
-                                  <span className="px-2.5 py-0.5 rounded bg-white text-[#B88732] border border-[#E8D7B7] text-[10px] font-mono">
+                                  <span className="px-2.5 py-1 rounded-xl bg-[#FCFAF7] text-[#B88732] border border-[#E8D7B7] text-[10px] font-mono font-bold">
                                     PROTECTED PREVIEW
                                   </span>
                                 </div>
@@ -2387,18 +2455,18 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                               {/* Active Revision Requested Alert Banner */}
                               {order?.status === 'revision_requested' && (
-                                <div className="p-4 rounded-xl bg-gradient-to-r from-amber-950/70 via-amber-900/40 to-[#09112B] border border-amber-500/50 flex items-start gap-3 text-amber-200 text-xs shadow-lg animate-in fade-in duration-200">
-                                  <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
-                                    <RefreshCw className="w-4 h-4 text-amber-300 animate-spin" />
+                                <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-300 flex items-start gap-3.5 text-amber-900 text-xs shadow-sm">
+                                  <div className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center shrink-0 mt-0.5">
+                                    <RefreshCw className="w-4 h-4 text-amber-700 animate-spin" />
                                   </div>
                                   <div className="space-y-1">
-                                    <div className="font-bold text-amber-200 font-serif flex items-center gap-2">
+                                    <div className="font-bold text-amber-900 font-serif flex items-center gap-2">
                                       <span>Changes Requested — Studio Reviewing</span>
-                                      <span className="px-2 py-0.5 rounded-full bg-amber-500/25 text-amber-200 border border-amber-500/40 text-[10px] font-mono">
+                                      <span className="px-2 py-0.5 rounded-full bg-amber-200/80 text-amber-900 border border-amber-300 text-[10px] font-mono">
                                         Iterating deliverable v{order.current_version || 1}
                                       </span>
                                     </div>
-                                    <p className="text-amber-200/80 leading-relaxed text-[11px]">
+                                    <p className="text-amber-800 leading-relaxed text-[11px]">
                                       Our CAD artisans are actively applying your requested revisions. Once the updated tolerances pass our internal Quality Control, your refreshed 3D preview will be available here automatically.
                                     </p>
                                   </div>
@@ -2413,7 +2481,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                 }}
                                 onContextMenu={(e) => e.preventDefault()}
                                 onDragStart={(e) => e.preventDefault()}
-                                className="relative w-full h-[340px] sm:h-[420px] rounded-2xl overflow-hidden border-2 border-[#E8D7B7] bg-gradient-to-b from-[#070D22] via-[#040816] to-[#02050e] select-none group cursor-pointer shadow-2xl flex items-center justify-center transition-all hover:border-[#D9B66F] hover:shadow-[0_0_25px_rgba(212,175,55,0.25)]"
+                                className="relative w-full h-[340px] sm:h-[420px] rounded-2xl overflow-hidden border-2 border-[#E8D7B7] bg-gradient-to-b from-[#070D22] via-[#040816] to-[#02050e] select-none group cursor-pointer shadow-xl flex items-center justify-center transition-all hover:border-[#D4AF37] hover:shadow-[0_0_25px_rgba(212,175,55,0.25)]"
                                 title="Click to Open Full View"
                               >
                                 {/* CAD Viewport Subtle Grid Pattern */}
@@ -2437,8 +2505,8 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                                 {/* Elegant Hover Overlay */}
                                 <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
-                                  <div className="px-6 py-3 rounded-2xl bg-[#09112B]/95 border-2 border-[#D9B66F] text-[#17243B] text-sm font-bold font-serif flex items-center gap-2.5 shadow-2xl transform group-hover:scale-105 transition-transform">
-                                    <Maximize2 className="w-4 h-4 text-[#B88732]" />
+                                  <div className="px-6 py-3 rounded-2xl bg-[#0B1330]/95 border-2 border-[#D4AF37] text-[#F5E7A3] text-sm font-bold font-serif flex items-center gap-2.5 shadow-2xl transform group-hover:scale-105 transition-transform">
+                                    <Maximize2 className="w-4 h-4 text-[#D4AF37]" />
                                     <span>Click to Open Full Screen View</span>
                                   </div>
                                 </div>
@@ -2449,25 +2517,25 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                   <span>360° Inspection Render</span>
                                 </div>
 
-                                <div className="absolute bottom-3 left-3 px-3 py-1 rounded-xl bg-black/85 backdrop-blur border border-[#E8D7B7] text-[10px] font-mono text-[#B88732] pointer-events-none">
+                                <div className="absolute bottom-3 left-3 px-3 py-1 rounded-xl bg-black/85 backdrop-blur border border-[#E8D7B7] text-[10px] font-mono text-[#F5E7A3] pointer-events-none">
                                   🔒 Protected Atelier Render &bull; Click anywhere to enlarge
                                 </div>
 
-                                <div className="absolute bottom-3 right-3 px-3.5 py-1.5 rounded-xl bg-white/95 backdrop-blur border border-[#D9B66F]/60 text-[11px] font-mono font-bold text-[#B88732] flex items-center gap-1.5 shadow-lg group-hover:bg-[#1A2E60] transition-colors">
-                                  <Maximize2 className="w-3.5 h-3.5 text-[#B88732]" />
+                                <div className="absolute bottom-3 right-3 px-3.5 py-1.5 rounded-xl bg-[#0B1330]/90 backdrop-blur border border-[#D4AF37]/60 text-[11px] font-mono font-bold text-[#F5E7A3] flex items-center gap-1.5 shadow-lg group-hover:bg-[#111C44] transition-colors">
+                                  <Maximize2 className="w-3.5 h-3.5 text-[#D4AF37]" />
                                   <span>Click to Open Full</span>
                                 </div>
                               </div>
 
                               {/* ACTIONS FOR PREVIEW */}
                               <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                                <div className="text-xs text-[#687386]">
+                                <div className="text-xs text-[#5A6679]">
                                   Satisfied with this 3D preview? Approve below to unlock the final delivery payment stage.
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <button
                                     onClick={() => setPreviewLightboxOrder(order)}
-                                    className="px-4 py-2.5 rounded-xl bg-[#09112B] hover:bg-white border border-[#E8D7B7] text-[#17243B] text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                                    className="px-4 py-2.5 rounded-xl bg-[#FCFAF7] hover:bg-white border border-[#E8D7B7] text-[#0B1330] text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm hover:border-[#D4AF37]"
                                   >
                                     <Eye className="w-4 h-4 text-[#B88732]" />
                                     <span>Inspect 3D Preview</span>
@@ -2475,7 +2543,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                                   <button
                                     onClick={() => setRevisionModalOrder(order)}
-                                    className="px-4 py-2.5 rounded-xl bg-white border border-[#D9B66F]/50 text-[#17243B] hover:bg-[#1A2E60] text-xs font-bold flex items-center gap-1.5 transition-all shadow-md cursor-pointer hover:border-[#D9B66F]"
+                                    className="px-4 py-2.5 rounded-xl bg-white border border-[#E8D7B7] text-[#0B1330] hover:bg-[#FCFAF7] text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer hover:border-[#D4AF37]"
                                   >
                                     <MessageSquare className="w-4 h-4 text-[#B88732]" />
                                     <span>Comment / Request Changes</span>
@@ -2495,32 +2563,32 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                               {/* REVISION HISTORY LOG */}
                               {order?.revision_requests && order.revision_requests.length > 0 && (
-                                <div className="mt-4 p-4 rounded-xl bg-[#FFFDF9] border border-[#E8D7B7] space-y-3">
-                                  <div className="flex items-center justify-between text-xs font-semibold text-[#B88732]">
+                                <div className="mt-4 p-5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-3">
+                                  <div className="flex items-center justify-between text-xs font-semibold text-[#0B1330]">
                                     <span className="flex items-center gap-2">
                                       <Clock className="w-3.5 h-3.5 text-[#B88732]" />
                                       Revision Feedback History ({order.revision_requests.length})
                                     </span>
-                                    <span className="text-[10px] font-mono text-[#687386]">
+                                    <span className="text-[10px] font-mono text-[#5A6679]">
                                       Current deliverable v{order.current_version || 1}
                                     </span>
                                   </div>
-                                  <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                                  <div className="space-y-2.5 max-h-52 overflow-y-auto pr-1">
                                     {order.revision_requests.map((rev: any, idx: number) => (
-                                      <div key={rev.id || idx} className="p-3 rounded-lg bg-[#09112B] border border-white/5 text-xs space-y-2">
+                                      <div key={rev.id || idx} className="p-3.5 rounded-xl bg-white border border-[#E8D7B7] text-xs space-y-2 shadow-sm">
                                         <div className="flex items-center justify-between text-[11px]">
-                                          <span className="font-semibold text-white">
+                                          <span className="font-bold text-[#0B1330]">
                                             Revision #{rev.revision_number} &bull; deliverable v{rev.deliverable_version}
                                           </span>
-                                          <span className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase ${
-                                            rev.status === 'addressed' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40' :
-                                            rev.status === 'in_progress' ? 'bg-blue-950 text-blue-300 border border-blue-500/40' :
-                                            'bg-amber-950 text-amber-300 border border-amber-500/40'
+                                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono uppercase ${
+                                            rev.status === 'addressed' ? 'bg-emerald-50 text-emerald-800 border border-emerald-300' :
+                                            rev.status === 'in_progress' ? 'bg-blue-50 text-blue-800 border border-blue-300' :
+                                            'bg-amber-50 text-amber-800 border border-amber-300'
                                           }`}>
                                             {rev.status === 'addressed' ? 'Resolved in new preview' : rev.status === 'in_progress' ? 'Sculpting in CAD' : 'Under Review'}
                                           </span>
                                         </div>
-                                        <p className="text-[#687386] text-[11px] leading-relaxed italic">
+                                        <p className="text-[#5A6679] text-[11px] leading-relaxed italic">
                                           "{rev.comment}"
                                         </p>
                                         {(rev.voice_note || rev.reference_image) && (
@@ -2551,13 +2619,13 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                               )}
                             </div>
                           ) : (
-                            <div className="p-5 rounded-2xl bg-[#09112B] border border-[#E8D7B7] text-xs text-[#687386] space-y-1">
-                              <span className="font-semibold text-[#B88732] block">
+                            <div className="p-6 rounded-3xl bg-white border border-[#E8D7B7] text-xs text-[#5A6679] space-y-1.5 shadow-[0_10px_30px_rgba(184,135,50,0.05)]">
+                              <span className="font-serif font-bold text-[#0B1330] text-sm block">
                                 {assignedStaff
                                   ? 'Our Master CAD team is actively sculpting your CAD model in Rhino 8.'
                                   : 'Matching senior CAD team...'}
                               </span>
-                              <p>
+                              <p className="leading-relaxed">
                                 360° raytraced previews and dimensional inspection views will unlock here as soon as our Quality Control team verifies the tolerances.
                               </p>
                             </div>
@@ -2565,45 +2633,44 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                         </div>
                       </div>
                       )}
-
                       {/* NODE 5: DELIVERABLES & FINAL SOURCE FILES */}
                       {(activeStageTab === 'all' || activeStageTab === 'deliverables') && (
                       <div className="relative group">
-                        <div className={`absolute -left-[31px] sm:-left-[47px] top-0 w-6 h-6 rounded-full border-4 border-[#070D22] flex items-center justify-center ${
+                        <div className={`absolute -left-[31px] sm:-left-[47px] top-0 w-6 h-6 rounded-full border-4 border-[#FAF8F5] flex items-center justify-center ${
                           isFullyPaid && (order?.download_enabled_by_admin || order?.can_download)
-                            ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]'
-                            : 'bg-[#060B1E] border-slate-700'
+                            ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)] text-white'
+                            : 'bg-white border-2 border-[#E8D7B7] text-[#5A6679]'
                         }`}>
-                          <Download className="w-3.5 h-3.5 text-[#070D22]" />
+                          <Download className="w-3.5 h-3.5" />
                         </div>
 
                         <div className="space-y-3">
-                          <h3 className="font-serif text-xl font-bold text-[#17243B]">
+                          <h3 className="font-serif text-xl font-bold text-[#0B1330]">
                             5. Final Watertight Deliverables (.3DM, .STL &amp; Master Production Pack)
                           </h3>
 
                           {order ? (
                             isFullyPaid && (order.download_enabled_by_admin || order.can_download) ? (
-                              <div className="p-6 rounded-2xl bg-gradient-to-r from-[#09261A] via-[#0E3827] to-[#09261A] border-2 border-emerald-500/60 space-y-4 shadow-2xl">
+                              <div className="p-6 rounded-3xl bg-gradient-to-r from-[#09261A] via-[#0E3827] to-[#09261A] border-2 border-emerald-500/80 space-y-4 shadow-xl text-white">
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                   <div>
                                     <div className="flex items-center gap-2">
-                                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-500 text-[#070D22] text-[10px] font-mono font-bold uppercase tracking-wider">
+                                      <span className="px-3 py-1 rounded-full bg-emerald-500 text-[#0B1330] text-[10px] font-mono font-bold uppercase tracking-wider">
                                         DOWNLOAD AUTHORIZED BY ADMIN
                                       </span>
                                       <span className="text-emerald-300 text-xs font-mono font-bold">100% Paid</span>
                                     </div>
-                                    <h4 className="font-serif text-lg font-bold text-[#17243B] mt-1">
+                                    <h4 className="font-serif text-lg font-bold text-white mt-1">
                                       Your Watertight CAD Package is Ready for Download
                                     </h4>
-                                    <p className="text-xs text-[#A2E8C4] max-w-xl">
+                                    <p className="text-xs text-emerald-200/90 max-w-xl">
                                       Click below to receive a secure 6-digit verification code on your registered email. Once verified, a single-use download link will be dispatched directly to your inbox.
                                     </p>
                                   </div>
 
                                   <button
                                     onClick={() => handleRequestOrderDownload(order.id, req.category_name || 'Bespoke CAD Package')}
-                                    className="btn-gold-luxury px-8 py-4 rounded-2xl text-xs font-extrabold uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl shrink-0"
+                                    className="btn-gold-luxury px-8 py-4 rounded-2xl text-xs font-extrabold uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl shrink-0 cursor-pointer"
                                   >
                                     <Download className="w-4 h-4 text-[#0B1330]" />
                                     <span>Download CAD Package</span>
@@ -2612,16 +2679,16 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                                 {/* Packaged Deliverables Showcase */}
                                 {order.deliverables && order.deliverables.length > 0 && (
-                                  <div className="p-4 rounded-xl bg-black/40 border border-emerald-500/30 space-y-2.5">
+                                  <div className="p-4 rounded-2xl bg-black/40 border border-emerald-500/40 space-y-2.5">
                                     <div className="text-[11px] font-mono text-emerald-300 font-bold flex items-center gap-1.5">
                                       <Package className="w-3.5 h-3.5 text-emerald-400" />
                                       <span>Packaged Production Deliverables Ready in this Order ({order.deliverables.length}):</span>
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                                       {order.deliverables.map((del: any) => (
-                                        <div key={del.id} className="p-2.5 rounded-lg bg-[#FFFDF9] border border-emerald-500/20 flex items-center justify-between gap-2 shadow-inner">
+                                        <div key={del.id} className="p-3 rounded-xl bg-white/10 border border-emerald-500/30 flex items-center justify-between gap-2 shadow-inner">
                                           <div className="flex items-center gap-2 min-w-0">
-                                            <span className="px-2 py-0.5 rounded bg-[#D4AF37]/20 border border-[#E8D7B7] text-[10px] font-mono font-bold text-[#B88732] uppercase">
+                                            <span className="px-2 py-0.5 rounded bg-[#D4AF37] text-[#0B1330] text-[10px] font-mono font-bold uppercase">
                                               {del.file_type}
                                             </span>
                                             <span className="text-xs text-white font-medium truncate">
@@ -2639,36 +2706,36 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                   </div>
                                 )}
 
-                                <div className="text-[10px] font-mono text-emerald-200/70 border-t border-emerald-500/20 pt-2">
+                                <div className="text-[10px] font-mono text-emerald-200/80 border-t border-emerald-500/30 pt-2">
                                   🛡️ Single-Use Security Protocol: After entering OTP, download link will be sent to your email and this button will self-lock.
                                 </div>
                               </div>
                             ) : isFullyPaid && !order.download_enabled_by_admin ? (
-                              <div className="p-5 rounded-2xl bg-[#09112B] border border-emerald-500/30 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg">
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2 text-emerald-300 font-bold">
-                                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                              <div className="p-6 rounded-3xl bg-white border border-[#E8D7B7] text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+                                <div className="space-y-1.5">
+                                  <div className="flex items-center gap-2 text-emerald-700 font-bold">
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                                     <span>100% Milestone Payments Complete</span>
                                   </div>
-                                  <p className="text-[#687386] text-xs">
+                                  <p className="text-[#5A6679] text-xs leading-relaxed max-w-xl">
                                     Your single-use download link has already been dispatched, or download authorization is currently awaiting Studio Admin toggle. If you need to re-download your files, please click below.
                                   </p>
 
                                   {/* Packaged Deliverables Preview */}
                                   {order.deliverables && order.deliverables.length > 0 && (
-                                    <div className="p-3.5 rounded-xl bg-black/40 border border-emerald-500/20 space-y-2 mt-2">
+                                    <div className="p-4 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-2 mt-2">
                                       <div className="text-[11px] font-mono text-[#B88732] font-bold flex items-center gap-1.5">
                                         <Package className="w-3.5 h-3.5 text-[#B88732]" />
                                         <span>Master Deliverable Files Uploaded by Atelier Modeller ({order.deliverables.length}):</span>
                                       </div>
                                       <div className="flex flex-wrap gap-2">
                                         {order.deliverables.map((del: any) => (
-                                          <div key={del.id} className="px-3 py-1.5 rounded-lg bg-[#FFFDF9] border border-[#E8D7B7] flex items-center gap-2 text-xs font-mono">
-                                            <span className="px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 font-bold text-[10px] uppercase">
+                                          <div key={del.id} className="px-3 py-1.5 rounded-xl bg-white border border-[#E8D7B7] flex items-center gap-2 text-xs font-mono text-[#0B1330] shadow-sm">
+                                            <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-bold text-[10px] uppercase">
                                               {del.file_type}
                                             </span>
-                                            <span className="text-white/90">{del.filename}</span>
-                                            {del.file_size && <span className="text-emerald-400 text-[10px]">({del.file_size})</span>}
+                                            <span>{del.filename}</span>
+                                            {del.file_size && <span className="text-emerald-600 text-[10px] font-bold">({del.file_size})</span>}
                                           </div>
                                         ))}
                                       </div>
@@ -2680,22 +2747,22 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                   href={`https://wa.me/919574787098?text=Hello%20Admin%2C%20my%20Order%20%23${order.id}%20payment%20is%20100%25%20complete.%20Kindly%20authorize%20my%20CAD%20download%20button.`}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="px-5 py-2.5 rounded-xl bg-white border border-[#E8D7B7] text-[#B88732] text-xs font-bold uppercase tracking-wider hover:bg-[#1A2E60] transition-colors shrink-0 shadow"
+                                  className="px-5 py-2.5 rounded-xl bg-white border border-[#E8D7B7] hover:border-[#D4AF37] text-[#B88732] text-xs font-bold uppercase tracking-wider hover:bg-[#FCFAF7] transition-colors shrink-0 shadow-sm"
                                 >
                                   Request Download Access
                                 </a>
                               </div>
                             ) : (
-                              <div className="p-4 rounded-2xl bg-[#09112B] border border-[#E8D7B7] text-xs text-[#687386] flex items-center gap-2">
-                                <Lock className="w-4 h-4 text-amber-400 shrink-0" />
+                              <div className="p-5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] text-xs text-[#5A6679] flex items-center gap-2.5 shadow-sm">
+                                <Lock className="w-4 h-4 text-[#B88732] shrink-0" />
                                 <span>
                                   Final source deliverables (.3DM Native &amp; .STL Mesh) unlock automatically once all 3 payment milestone stages are 100% complete and authorized by Studio Administration.
                                 </span>
                               </div>
                             )
                           ) : (
-                            <div className="p-4 rounded-2xl bg-[#09112B] border border-[#E8D7B7] text-xs text-[#687386] flex items-center gap-2">
-                              <Lock className="w-4 h-4 text-amber-400 shrink-0" />
+                            <div className="p-5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] text-xs text-[#5A6679] flex items-center gap-2.5 shadow-sm">
+                              <Lock className="w-4 h-4 text-[#B88732] shrink-0" />
                               <span>Deliverables unlock upon order confirmation and payment completion.</span>
                             </div>
                           )}
@@ -2710,12 +2777,12 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                       <button
                         type="button"
                         onClick={() => setOpenedOrderId(null)}
-                        className="px-4 py-2 rounded-xl bg-white border border-[#D9B66F]/50 text-[#B88732] hover:text-[#17345C] font-bold text-xs flex items-center gap-2 transition-all cursor-pointer"
+                        className="px-4 py-2.5 rounded-xl bg-white hover:bg-[#FCFAF7] border border-[#E8D7B7] hover:border-[#D4AF37] text-[#0B1330] font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-sm"
                       >
                         <ArrowLeft className="w-4 h-4 text-[#B88732]" />
                         <span>← Back to All Orders Grid</span>
                       </button>
-                      <span className="text-xs font-mono text-[#687386]">
+                      <span className="text-xs font-mono text-[#5A6679]">
                         {order ? `ORDER #${order.id}` : `REQ #${req.id}`} • {req.category_name}
                       </span>
                     </div>
@@ -2732,20 +2799,20 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
         {activeTab === 'downloads' && (
           <div className="space-y-6">
             {loadingPurchases ? (
-              <div className="py-20 text-center rounded-3xl bg-[#09112B] border border-[#E8D7B7] flex flex-col items-center justify-center gap-3">
+              <div className="py-20 text-center rounded-3xl bg-white border border-[#E8D7B7] flex flex-col items-center justify-center gap-3 shadow-[0_10px_35px_rgba(184,135,50,0.06)]">
                 <Loader2 className="w-8 h-8 text-[#B88732] animate-spin" />
-                <span className="text-sm font-serif text-[#B88732]">Loading Purchases &amp; Vault...</span>
+                <span className="text-sm font-serif font-bold text-[#0B1330]">Loading Purchases &amp; Vault...</span>
               </div>
             ) : purchases.length === 0 ? (
-              <div className="p-16 text-center rounded-3xl bg-[#09112B] border-2 border-dashed border-[#E8D7B7] space-y-4">
+              <div className="p-16 text-center rounded-3xl bg-white border-2 border-dashed border-[#E8D7B7] space-y-4 shadow-[0_10px_35px_rgba(184,135,50,0.06)]">
                 <ShieldCheck className="w-12 h-12 text-[#B88732] mx-auto" />
-                <h4 className="font-serif text-xl font-bold text-[#17243B]">No Ready-Made CAD Purchases Yet</h4>
-                <p className="text-xs text-[#687386] max-w-md mx-auto">
+                <h4 className="font-serif text-xl font-bold text-[#0B1330]">No Ready-Made CAD Purchases Yet</h4>
+                <p className="text-xs text-[#5A6679] max-w-md mx-auto leading-relaxed">
                   Browse our ready-made jewellery CAD collections to purchase high-precision 3DM &amp; STL master models.
                 </p>
                 <button
                   onClick={() => onNavigate('collections')}
-                  className="btn-gold-luxury px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider inline-flex items-center gap-2"
+                  className="btn-gold-luxury px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider inline-flex items-center gap-2 cursor-pointer shadow-md"
                 >
                   <ShoppingBag className="w-4 h-4 text-[#0B1330]" />
                   <span>Browse CAD Collections</span>
@@ -2756,38 +2823,38 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                 {purchases.map((p) => {
                   const isCapReached = p.redelivery_count >= 3;
                   return (
-                    <div key={p.id} className="p-6 rounded-3xl bg-[#09112B] border border-[#E8D7B7] space-y-5 shadow-xl relative overflow-hidden">
+                    <div key={p.id} className="p-6 rounded-3xl bg-white border border-[#E8D7B7] hover:border-[#D4AF37] space-y-5 shadow-[0_10px_35px_rgba(184,135,50,0.06)] hover:shadow-[0_12px_35px_rgba(212,175,55,0.15)] relative overflow-hidden transition-all">
                       <div className="flex justify-between items-start">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-[10px] font-mono text-[#B88732]">PURCHASE #{p.id}</span>
+                            <span className="text-[10px] font-mono text-[#B88732] font-bold">PURCHASE #{p.id}</span>
                             {p.status === 'pending' ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 inline-flex items-center gap-1">
-                                <Clock className="w-2.5 h-2.5 animate-pulse" />
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-300 inline-flex items-center gap-1">
+                                <Clock className="w-2.5 h-2.5 animate-pulse text-amber-600" />
                                 Awaiting Admin Verification
                               </span>
                             ) : p.status === 'paid' ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 inline-flex items-center gap-1">
-                                <CheckCircle2 className="w-2.5 h-2.5" />
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1">
+                                <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
                                 Payment Verified & Enabled
                               </span>
                             ) : (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-300">
                                 {p.status}
                               </span>
                             )}
                           </div>
-                          <h4 className="font-serif text-lg font-bold text-[#17243B]">{p.product_title}</h4>
+                          <h4 className="font-serif text-lg font-bold text-[#0B1330]">{p.product_title}</h4>
                           <span className="text-xs text-[#B88732] font-semibold">{p.license_type_display}</span>
                         </div>
-                        <span className="font-serif text-lg font-bold text-[#B88732]">
+                        <span className="font-serif text-xl font-bold text-[#B88732]">
                           {formatINR(p.price_paid)}
                         </span>
                       </div>
 
                       {p.payment_method && (
-                        <div className="p-2.5 rounded-xl bg-amber-500/5 border border-amber-500/20 text-[11px] font-mono flex items-center justify-between text-[#687386]">
-                          <span>Method: <strong className="text-amber-300 uppercase">{p.payment_method === 'cash_check' ? 'Cash / Check' : 'UPI / QR'}</strong></span>
+                        <div className="p-2.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7] text-[11px] font-mono flex items-center justify-between text-[#5A6679]">
+                          <span>Method: <strong className="text-[#0B1330] uppercase">{p.payment_method === 'cash_check' ? 'Cash / Check' : 'UPI / QR'}</strong></span>
                           {p.created_at && <span>{new Date(p.created_at).toLocaleDateString()}</span>}
                         </div>
                       )}
@@ -2795,36 +2862,36 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                       {p.status === 'pending' ? (
                         <>
                           {/* Step Indicator Bar for Pending Payment */}
-                          <div className="p-3 rounded-2xl bg-[#FFFDF9] border border-[#E8D7B7] space-y-2">
-                            <div className="text-[11px] font-mono text-[#687386] flex justify-between">
+                          <div className="p-3.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-2">
+                            <div className="text-[11px] font-mono text-[#5A6679] flex justify-between">
                               <span>Verification Trail</span>
-                              <span className="text-amber-400 font-bold">
+                              <span className="text-amber-700 font-bold">
                                 Awaiting Atelier Approval
                               </span>
                             </div>
 
                             <div className="grid grid-cols-3 gap-1.5 text-center text-[10px] font-mono">
-                              <div className="p-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-semibold flex items-center justify-center gap-1">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                              <div className="p-1.5 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-800 font-semibold flex items-center justify-center gap-1">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                                 <span>1. Proof Sent</span>
                               </div>
-                              <div className="p-1.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 font-semibold flex items-center justify-center gap-1">
-                                <Clock className="w-3 h-3 animate-spin" />
+                              <div className="p-1.5 rounded-lg bg-amber-50 border border-amber-300 text-amber-800 font-semibold flex items-center justify-center gap-1">
+                                <Clock className="w-3 h-3 animate-spin text-amber-600" />
                                 <span>2. Verifying</span>
                               </div>
-                              <div className="p-1.5 rounded-lg bg-zinc-800 border-zinc-700 text-zinc-500 flex items-center justify-center gap-1 font-semibold">
+                              <div className="p-1.5 rounded-lg bg-slate-100 border border-slate-300 text-slate-400 flex items-center justify-center gap-1 font-semibold">
                                 <Lock className="w-3 h-3" />
                                 <span>3. Download</span>
                               </div>
                             </div>
                           </div>
 
-                          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-200/90 space-y-1">
-                            <div className="flex items-center gap-1.5 font-bold text-amber-300">
-                              <Clock className="w-3.5 h-3.5" />
+                          <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1">
+                            <div className="flex items-center gap-1.5 font-bold text-amber-800">
+                              <Clock className="w-3.5 h-3.5 text-amber-700" />
                               <span>Atelier Payment Verification in Progress</span>
                             </div>
-                            <p className="text-[11px] text-[#687386] leading-relaxed">
+                            <p className="text-[11px] text-[#5A6679] leading-relaxed">
                               Your payment receipt and verification details have been received by Studio Administration. Once verified, download access will be unlocked immediately.
                             </p>
                           </div>
@@ -2832,9 +2899,9 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                           <div className="pt-2 border-t border-[#E8D7B7]">
                             <button
                               disabled
-                              className="w-full py-3 rounded-xl bg-zinc-800/80 border border-zinc-700/60 text-zinc-400 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-not-allowed"
+                              className="w-full py-3 rounded-xl bg-slate-100 border border-slate-300 text-slate-500 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-not-allowed"
                             >
-                              <Lock className="w-4 h-4 text-amber-400" />
+                              <Lock className="w-4 h-4 text-slate-400" />
                               <span>Download Locked — Awaiting Admin Approval</span>
                             </button>
                           </div>
@@ -2842,31 +2909,31 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                       ) : (
                         <>
                           {/* Step Indicator Bar: Paid -> Verified -> Downloaded */}
-                          <div className="p-3 rounded-2xl bg-[#FFFDF9] border border-[#E8D7B7] space-y-2">
-                            <div className="text-[11px] font-mono text-[#687386] flex justify-between">
+                          <div className="p-3.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-2">
+                            <div className="text-[11px] font-mono text-[#5A6679] flex justify-between">
                               <span>Delivery Trail</span>
-                              <span className="text-emerald-400 font-bold">
+                              <span className="text-emerald-700 font-bold">
                                 {p.is_downloaded ? 'Downloaded' : p.is_otp_verified ? 'OTP Verified' : 'Download Enabled'}
                               </span>
                             </div>
 
                             <div className="grid grid-cols-3 gap-1.5 text-center text-[10px] font-mono">
-                              <div className="p-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-semibold flex items-center justify-center gap-1">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                              <div className="p-1.5 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-800 font-semibold flex items-center justify-center gap-1">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                                 <span>1. Approved</span>
                               </div>
                               <div className={`p-1.5 rounded-lg border flex items-center justify-center gap-1 font-semibold ${
                                 p.is_otp_verified || p.is_downloaded
-                                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-                                  : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                                  : 'bg-amber-50 border-amber-300 text-amber-800'
                               }`}>
                                 <ShieldCheck className="w-3 h-3" />
                                 <span>2. Verified</span>
                               </div>
                               <div className={`p-1.5 rounded-lg border flex items-center justify-center gap-1 font-semibold ${
                                 p.is_downloaded
-                                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-                                  : 'bg-zinc-800 border-zinc-700 text-zinc-500'
+                                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                                  : 'bg-slate-100 border-slate-300 text-slate-400'
                               }`}>
                                 <Download className="w-3 h-3" />
                                 <span>3. Downloaded</span>
@@ -2874,7 +2941,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                             </div>
 
                             {p.downloaded_at && (
-                              <div className="text-[10px] text-zinc-400 font-mono text-right pt-1">
+                              <div className="text-[10px] text-slate-500 font-mono text-right pt-1">
                                 Downloaded on {new Date(p.downloaded_at).toLocaleDateString()} at {new Date(p.downloaded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </div>
                             )}
@@ -2885,9 +2952,9 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                             <button
                               onClick={() => handleRequestRedelivery(p.id, p.product_title)}
                               disabled={isCapReached || resendingPurchaseId === p.id}
-                              className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                              className="btn-gold-luxury w-full py-3 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-md disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all"
                             >
-                              <Send className={`w-4 h-4 ${resendingPurchaseId === p.id ? 'animate-spin' : ''}`} />
+                              <Send className={`w-4 h-4 text-[#0B1330] ${resendingPurchaseId === p.id ? 'animate-spin' : ''}`} />
                               <span>
                                 {resendingPurchaseId === p.id
                                   ? 'Sending Secure OTP...'
@@ -2897,14 +2964,14 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                               </span>
                             </button>
 
-                            <div className="text-[11px] text-[#687386] text-center font-mono">
+                            <div className="text-[11px] text-[#5A6679] text-center font-mono">
                               {isCapReached ? (
-                                <span className="text-rose-400 font-bold block bg-rose-500/10 p-2 rounded-lg border border-rose-500/20">
+                                <span className="text-rose-700 font-bold block bg-rose-50 p-2 rounded-lg border border-rose-300">
                                   Maximum limit of 3 download re-deliveries reached for this purchase. Need help? Contact Support.
                                 </span>
                               ) : (
                                 <span>
-                                  Re-delivery used: <strong className="text-amber-300">{p.redelivery_count}</strong> of 3 max allowed.
+                                  Re-delivery used: <strong className="text-[#B88732]">{p.redelivery_count}</strong> of 3 max allowed.
                                 </span>
                               )}
                             </div>
@@ -2924,28 +2991,28 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
         {activeTab === 'orders' && (
           <div>
             {loadingOrders ? (
-              <div className="py-20 text-center rounded-3xl bg-[#09112B] border border-[#E8D7B7] flex flex-col items-center justify-center gap-3">
+              <div className="py-20 text-center rounded-3xl bg-white border border-[#E8D7B7] flex flex-col items-center justify-center gap-3 shadow-[0_10px_35px_rgba(184,135,50,0.06)]">
                 <Loader2 className="w-8 h-8 text-[#B88732] animate-spin" />
-                <span className="text-sm font-serif text-[#B88732]">Loading Orders...</span>
+                <span className="text-sm font-serif font-bold text-[#0B1330]">Loading Orders...</span>
               </div>
             ) : clientOrders.length === 0 ? (
-              <div className="p-16 text-center rounded-3xl bg-[#09112B] border-2 border-dashed border-[#E8D7B7] space-y-4 shadow-2xl">
+              <div className="p-16 text-center rounded-3xl bg-white border-2 border-dashed border-[#E8D7B7] space-y-4 shadow-[0_10px_35px_rgba(184,135,50,0.06)]">
                 <ShoppingBag className="w-12 h-12 text-[#B88732] mx-auto" />
-                <h4 className="font-serif text-xl font-bold text-[#17243B]">No Orders Placed Yet</h4>
-                <p className="text-xs text-[#687386] max-w-md mx-auto">
+                <h4 className="font-serif text-xl font-bold text-[#0B1330]">No Orders Placed Yet</h4>
+                <p className="text-xs text-[#5A6679] max-w-md mx-auto leading-relaxed">
                   You currently have no active or completed orders. Commission a custom CAD piece or browse our ready-to-cast collections.
                 </p>
                 <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
                   <button
                     onClick={() => onNavigate('custom-design')}
-                    className="btn-gold-luxury px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider inline-flex items-center gap-2"
+                    className="btn-gold-luxury px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider inline-flex items-center gap-2 cursor-pointer shadow-md"
                   >
                     <Sparkles className="w-4 h-4 text-[#0B1330]" />
                     <span>Start Custom Brief</span>
                   </button>
                   <button
                     onClick={() => onNavigate('collections')}
-                    className="px-6 py-2.5 rounded-xl border border-[#E8D7B7] text-[#B88732] text-xs font-bold uppercase hover:bg-[#D4AF37]/10 transition-all inline-flex items-center gap-2"
+                    className="px-6 py-2.5 rounded-xl border border-[#E8D7B7] text-[#0B1330] hover:border-[#D4AF37] hover:bg-[#FCFAF7] text-xs font-bold uppercase transition-all inline-flex items-center gap-2 cursor-pointer shadow-sm"
                   >
                     <ShoppingBag className="w-4 h-4 text-[#B88732]" />
                     <span>Browse Collections</span>
@@ -2953,36 +3020,36 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                 </div>
               </div>
             ) : (
-              <div className="rounded-3xl bg-[#09112B] border border-[#E8D7B7] overflow-hidden shadow-2xl">
-                <table className="w-full text-left text-xs text-[#687386]">
-                  <thead className="bg-[#FFFDF9] text-[#17243B] font-serif border-b border-[#E8D7B7] uppercase text-[10px] tracking-wider">
+              <div className="rounded-3xl bg-white border border-[#E8D7B7] overflow-hidden shadow-[0_12px_35px_rgba(184,135,50,0.06)]">
+                <table className="w-full text-left text-xs text-[#5A6679]">
+                  <thead className="bg-[#FCFAF7] text-[#0B1330] font-serif border-b border-[#E8D7B7] uppercase text-[10px] tracking-wider">
                     <tr>
-                      <th className="p-4">Order ID</th>
-                      <th className="p-4">Order Type</th>
-                      <th className="p-4">Created Date</th>
-                      <th className="p-4">Status</th>
-                      <th className="p-4">Total Amount</th>
-                      <th className="p-4 text-right">Actions</th>
+                      <th className="p-4 font-bold">Order ID</th>
+                      <th className="p-4 font-bold">Order Type</th>
+                      <th className="p-4 font-bold">Created Date</th>
+                      <th className="p-4 font-bold">Status</th>
+                      <th className="p-4 font-bold">Total Amount</th>
+                      <th className="p-4 text-right font-bold">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5">
+                  <tbody className="divide-y divide-[#E8D7B7]/40">
                     {clientOrders.map((ord: any) => (
-                      <tr key={ord.id} className="hover:bg-white/5 transition-colors">
+                      <tr key={ord.id} className="hover:bg-[#FFFDF9] transition-colors">
                         <td className="p-4 font-mono font-bold text-[#B88732]">
                           ORD #{ord.id}
                         </td>
-                        <td className="p-4 capitalize text-[#17243B]">
+                        <td className="p-4 capitalize text-[#0B1330] font-medium">
                           {ord.order_type === 'custom' ? 'Bespoke Custom CAD' : ord.order_type || 'CAD Model'}
                         </td>
                         <td className="p-4 font-mono">
                           {ord.created_at ? new Date(ord.created_at).toLocaleDateString() : 'Recent'}
                         </td>
                         <td className="p-4">
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase bg-white border border-[#E8D7B7] text-[#B88732]">
+                          <span className="px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase bg-[#FCFAF7] border border-[#E8D7B7] text-[#0B1330]">
                             {ord.status?.replace(/_/g, ' ') || 'In Progress'}
                           </span>
                         </td>
-                        <td className="p-4 font-serif text-sm font-bold text-[#17243B]">
+                        <td className="p-4 font-serif text-sm font-bold text-[#0B1330]">
                           {formatINR(ord.total_price)}
                         </td>
                         <td className="p-4 text-right">
@@ -2998,7 +3065,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                               }
                               setActiveTab('custom');
                             }}
-                            className="px-3 py-1.5 rounded-xl border border-[#E8D7B7] text-[#B88732] text-xs hover:bg-[#D4AF37]/20 transition-colors inline-flex items-center gap-1"
+                            className="px-3 py-1.5 rounded-xl border border-[#E8D7B7] hover:border-[#D4AF37] text-[#0B1330] hover:bg-[#0B1330] hover:text-[#F5E7A3] text-xs font-semibold transition-all inline-flex items-center gap-1 cursor-pointer shadow-sm"
                           >
                             <Eye className="w-3.5 h-3.5 text-[#B88732]" />
                             <span>View Custom Journey</span>
@@ -3017,15 +3084,17 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
         {activeTab === 'wishlist' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {wishlistedProducts.map((prod) => (
-              <div key={prod.id} className="p-4 rounded-3xl bg-[#09112B] border border-[#E8D7B7] space-y-3 flex flex-col justify-between">
-                <div className="space-y-2">
-                  <img src={prod.primaryImage} alt={prod.title} className="w-full aspect-square rounded-2xl object-contain p-2 bg-[#060D24]" />
-                  <h4 className="font-serif font-bold text-[#17243B] text-sm leading-snug">{prod.title}</h4>
-                  <div className="font-serif text-base text-[#B88732] font-bold">
+              <div key={prod.id} className="p-5 rounded-3xl bg-white border border-[#E8D7B7] hover:border-[#D4AF37] hover:shadow-[0_12px_35px_rgba(212,175,55,0.14)] space-y-3.5 flex flex-col justify-between shadow-[0_10px_35px_rgba(184,135,50,0.06)] transition-all">
+                <div className="space-y-2.5">
+                  <div className="w-full aspect-square rounded-2xl p-3 bg-[#FCFAF7] border border-[#E8D7B7]/60 flex items-center justify-center">
+                    <img src={prod.primaryImage} alt={prod.title} className="max-w-full max-h-full object-contain filter drop-shadow-md" />
+                  </div>
+                  <h4 className="font-serif font-bold text-[#0B1330] text-sm leading-snug">{prod.title}</h4>
+                  <div className="font-serif text-lg text-[#B88732] font-bold">
                     ₹{Math.round(prod.price * 84).toLocaleString('en-IN')}
                   </div>
                 </div>
-                <button onClick={() => onAddToCart(prod, 'standard')} className="btn-gold-luxury w-full py-2.5 rounded-xl text-xs font-bold uppercase flex items-center justify-center gap-1.5 shadow-md">
+                <button onClick={() => onAddToCart(prod, 'standard')} className="btn-gold-luxury w-full py-2.5 rounded-xl text-xs font-bold uppercase flex items-center justify-center gap-1.5 shadow-md cursor-pointer">
                   <ShoppingBag className="w-3.5 h-3.5 text-[#0B1330]" />
                   <span>Add to Bag</span>
                 </button>
@@ -3041,15 +3110,15 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
       {/* SKETCH PREVIEW LIGHTBOX MODAL */}
       {selectedSketchUrl && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4" onClick={() => setSelectedSketchUrl(null)}>
-          <div className="relative max-w-3xl w-full bg-[#09112B] border-2 border-[#D9B66F] rounded-3xl p-4 space-y-4" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-3">
-              <span className="font-serif font-bold text-lg text-[#B88732]">Reference Sketch Preview</span>
-              <button onClick={() => setSelectedSketchUrl(null)} className="p-2 text-slate-400 hover:text-[#17345C]">
-                <X className="w-6 h-6" />
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4" onClick={() => setSelectedSketchUrl(null)}>
+          <div className="relative max-w-3xl w-full bg-white border border-[#E8D7B7] rounded-3xl p-6 space-y-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-[#E8D7B7]/60 pb-3">
+              <span className="font-serif font-bold text-lg text-[#0B1330]">Reference Sketch Preview</span>
+              <button onClick={() => setSelectedSketchUrl(null)} className="p-2 text-slate-400 hover:text-[#0B1330] hover:bg-[#FAF8F5] rounded-xl transition-colors">
+                <X className="w-5 h-5" />
               </button>
             </div>
-            <img src={selectedSketchUrl} alt="Enlarged" className="max-h-[70vh] w-auto mx-auto object-contain rounded-2xl" />
+            <img src={selectedSketchUrl} alt="Enlarged" className="max-h-[70vh] w-auto mx-auto object-contain rounded-2xl bg-[#FCFAF7] p-2 border border-[#E8D7B7]/50" />
           </div>
         </div>
       )}
@@ -3068,14 +3137,14 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#E8D7B7] pb-4 text-white gap-3">
             <div className="flex items-center gap-3">
-              <span className="px-3 py-1 rounded-md bg-[#D4AF37] text-[#070D22] font-mono font-bold text-xs uppercase">
+              <span className="px-3 py-1 rounded-md bg-[#D4AF37] text-[#0B1330] font-mono font-bold text-xs uppercase">
                 ORDER #{previewLightboxOrder.id} • 3D CAD INSPECTION
               </span>
               <div>
-                <h2 className="font-serif text-lg sm:text-xl font-bold text-[#17243B]">
+                <h2 className="font-serif text-lg sm:text-xl font-bold text-white">
                   Protected 360° Master CAD Render
                 </h2>
-                <span className="text-xs text-[#687386]">
+                <span className="text-xs text-slate-300">
                   Inspect every prong, surface contour, and setting seat before final approval.
                 </span>
               </div>
@@ -3094,7 +3163,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                 >
                   <ZoomOut className="w-4 h-4" />
                 </button>
-                <span className="min-w-[45px] text-center text-[#B88732] font-bold">
+                <span className="min-w-[45px] text-center text-[#F5E7A3] font-bold">
                   {Math.round(lightboxZoom * 100)}%
                 </span>
                 <button
@@ -3109,7 +3178,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                 <button
                   type="button"
                   onClick={() => setLightboxZoom(1)}
-                  className="p-1 ml-1 rounded hover:bg-white/10 text-slate-300 hover:text-[#17345C] cursor-pointer"
+                  className="p-1 ml-1 rounded hover:bg-white/10 text-slate-300 hover:text-white cursor-pointer"
                   title="Reset Zoom (100%)"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
@@ -3150,7 +3219,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                 title={lightboxZoom > 1 ? 'Click to zoom out (100%)' : 'Click image to zoom in (175%)'}
               />
 
-              <div className="absolute bottom-3 left-3 px-3.5 py-1.5 rounded-xl bg-black/80 backdrop-blur-md border border-[#E8D7B7] text-[11px] font-mono text-[#B88732] flex items-center gap-2 pointer-events-none">
+              <div className="absolute bottom-3 left-3 px-3.5 py-1.5 rounded-xl bg-black/80 backdrop-blur-md border border-[#E8D7B7] text-[11px] font-mono text-[#F5E7A3] flex items-center gap-2 pointer-events-none">
                 <span>🔒 Protected Atelier Render</span>
                 <span className="text-slate-400">&bull;</span>
                 <span className="text-slate-300">Confidential Studio Preview</span>
@@ -3159,8 +3228,8 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
           </div>
 
           {/* Footer Controls */}
-          <div className="border-t border-[#E8D7B7] pt-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-white">
-            <div className="text-xs text-[#687386]">
+          <div className="border-t border-white/15 pt-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-white">
+            <div className="text-xs text-slate-300">
               Use zoom buttons above to inspect micro-tolerances. Press <kbd className="px-2 py-0.5 rounded bg-white/10 font-mono text-[10px] text-white">Esc</kbd> to exit.
             </div>
 
@@ -3173,9 +3242,9 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                   setLightboxZoom(1);
                   setRevisionModalOrder(targetOrder);
                 }}
-                className="px-5 py-2.5 rounded-xl bg-white border border-[#D9B66F]/50 text-[#17243B] hover:bg-[#1A2E60] text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-md hover:border-[#D9B66F]"
+                className="px-5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-white/20 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-md"
               >
-                <MessageSquare className="w-4 h-4 text-[#B88732]" />
+                <MessageSquare className="w-4 h-4 text-[#F5E7A3]" />
                 <span>Request Revision</span>
               </button>
 
@@ -3239,37 +3308,37 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
       {/* BESPOKE CAD SPECIFICATION RECORD MODAL */}
       {specsModalRequest && (
         <div 
-          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
           onClick={() => setSpecsModalRequest(null)}
         >
           <div 
-            className="relative w-full max-w-4xl bg-[#09112B] border-2 border-[#D9B66F]/60 rounded-3xl p-6 sm:p-8 space-y-6 shadow-[0_25px_80px_rgba(0,0,0,0.9)] max-h-[92vh] overflow-y-auto custom-scrollbar"
+            className="relative w-full max-w-4xl bg-white border-2 border-[#D4AF37] rounded-3xl p-6 sm:p-8 space-y-6 shadow-[0_25px_80px_rgba(0,0,0,0.5)] max-h-[92vh] overflow-y-auto custom-scrollbar"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#E8D7B7] gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-2.5 py-0.5 rounded-full bg-[#D4AF37] text-[#0B1330] font-mono font-extrabold text-xs">
+                  <span className="px-3 py-1 rounded-full bg-[#0B1330] text-[#F5E7A3] font-mono font-bold text-xs border border-[#D4AF37]/40 shadow-sm">
                     REQ #{specsModalRequest.id}
                   </span>
-                  <span className="text-xs font-mono text-[#687386]">
+                  <span className="text-xs font-mono text-[#5A6679]">
                     Submitted on {new Date(specsModalRequest.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </span>
                   {specsModalRequest.submission_intent === 'place_order' ? (
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold">
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 text-[10px] font-bold">
                       Direct CAD Order
                     </span>
                   ) : (
-                    <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40 text-[10px] font-bold">
+                    <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-300 text-[10px] font-bold">
                       Free Quote Request
                     </span>
                   )}
                 </div>
-                <h3 className="font-serif text-2xl font-bold text-[#17243B]">
+                <h3 className="font-serif text-2xl font-bold text-[#0B1330]">
                   Bespoke CAD Specification Sheet &amp; Artisan Brief
                 </h3>
-                <p className="text-xs text-[#687386]">
+                <p className="text-xs text-[#5A6679]">
                   Complete technical configuration entered by client for 3D modeling and castability engineering.
                 </p>
               </div>
@@ -3278,7 +3347,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-[#17243B] text-xs font-mono font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-xl bg-[#FCFAF7] hover:bg-white text-[#0B1330] border border-[#E8D7B7] text-xs font-mono font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
                 >
                   <Printer className="w-3.5 h-3.5 text-[#B88732]" />
                   <span>Print</span>
@@ -3286,7 +3355,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                 <button
                   type="button"
                   onClick={() => setSpecsModalRequest(null)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-[#17345C] hover:bg-white/10 transition-colors cursor-pointer"
+                  className="p-2 rounded-xl text-slate-400 hover:text-[#0B1330] hover:bg-[#FCFAF7] transition-colors cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -3294,21 +3363,21 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
             </div>
 
             {/* Client Identity Details */}
-            <div className="p-4 rounded-2xl bg-[#121F4D]/50 border border-[#E8D7B7] grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div className="p-4 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
               <div>
-                <span className="text-[10px] font-mono text-[#687386] uppercase block">Client Name</span>
-                <strong className="text-[#17243B]">{specsModalRequest.contact_name || specsModalRequest.client_name || 'Client'}</strong>
+                <span className="text-[10px] font-mono text-[#5A6679] uppercase block font-semibold">Client Name</span>
+                <strong className="text-[#0B1330] text-sm">{specsModalRequest.contact_name || specsModalRequest.client_name || 'Client'}</strong>
               </div>
               {specsModalRequest.contact_email && (
                 <div>
-                  <span className="text-[10px] font-mono text-[#687386] uppercase block">Email Address</span>
-                  <strong className="text-[#17243B]">{specsModalRequest.contact_email}</strong>
+                  <span className="text-[10px] font-mono text-[#5A6679] uppercase block font-semibold">Email Address</span>
+                  <strong className="text-[#0B1330]">{specsModalRequest.contact_email}</strong>
                 </div>
               )}
               {specsModalRequest.contact_phone && (
                 <div>
-                  <span className="text-[10px] font-mono text-[#687386] uppercase block">Contact Phone</span>
-                  <strong className="text-[#17243B]">{specsModalRequest.contact_phone}</strong>
+                  <span className="text-[10px] font-mono text-[#5A6679] uppercase block font-semibold">Contact Phone</span>
+                  <strong className="text-[#0B1330]">{specsModalRequest.contact_phone}</strong>
                 </div>
               )}
             </div>
@@ -3319,9 +3388,9 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                 <Sliders className="w-4 h-4" /> Core Jewellery Architecture
               </span>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 text-xs">
-                <div className="p-3.5 rounded-2xl bg-[#FFFDF9] border border-white/5 space-y-1">
-                  <span className="text-[10px] font-mono text-[#687386] uppercase">Category</span>
-                  <p className="font-bold text-[#17243B] capitalize">{specsModalRequest.category_name || 'Bespoke'}</p>
+                <div className="p-3.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-1 shadow-sm">
+                  <span className="text-[10px] font-mono text-[#5A6679] uppercase">Category</span>
+                  <p className="font-bold text-[#0B1330] capitalize">{specsModalRequest.category_name || 'Bespoke'}</p>
                 </div>
 
                 {/* Metal Alloy */}
@@ -3329,18 +3398,18 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                   const selMetal = specsModalRequest.selections?.find((s: any) => s.group_key === 'metal' || s.group_label?.toLowerCase().includes('metal'));
                   const metalName = selMetal?.value_label || specsModalRequest.metal_alloy_name;
                   return metalName ? (
-                    <div className="p-3.5 rounded-2xl bg-[#FFFDF9] border border-white/5 space-y-1">
-                      <span className="text-[10px] font-mono text-[#687386] uppercase">Metal Alloy</span>
-                      <p className="font-bold text-[#17243B]">{metalName}</p>
+                    <div className="p-3.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-1 shadow-sm">
+                      <span className="text-[10px] font-mono text-[#5A6679] uppercase">Metal Alloy</span>
+                      <p className="font-bold text-[#0B1330]">{metalName}</p>
                     </div>
                   ) : null;
                 })()}
 
                 {/* Ring Sizing */}
                 {specsModalRequest.ring_size && (
-                  <div className="p-3.5 rounded-2xl bg-[#FFFDF9] border border-white/5 space-y-1">
-                    <span className="text-[10px] font-mono text-[#687386] uppercase">Ring Sizing</span>
-                    <p className="font-bold text-[#17243B]">
+                  <div className="p-3.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-1 shadow-sm">
+                    <span className="text-[10px] font-mono text-[#5A6679] uppercase">Ring Sizing</span>
+                    <p className="font-bold text-[#0B1330]">
                       Size {specsModalRequest.ring_size} ({(specsModalRequest.ring_size_standard || '').toLowerCase() === 'in_hk' ? 'IN_HK' : (specsModalRequest.ring_size_standard?.toUpperCase() || 'IN_HK')})
                     </p>
                   </div>
@@ -3348,24 +3417,24 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                 {/* Target Weight */}
                 {specsModalRequest.target_weight_grams && (
-                  <div className="p-3.5 rounded-2xl bg-[#FFFDF9] border border-white/5 space-y-1">
-                    <span className="text-[10px] font-mono text-[#687386] uppercase">Target Weight</span>
-                    <p className="font-bold text-[#17243B]">{specsModalRequest.target_weight_grams} grams</p>
+                  <div className="p-3.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-1 shadow-sm">
+                    <span className="text-[10px] font-mono text-[#5A6679] uppercase">Target Weight</span>
+                    <p className="font-bold text-[#0B1330]">{specsModalRequest.target_weight_grams} grams</p>
                   </div>
                 )}
 
                 {/* Production Complexity Tier */}
                 {specsModalRequest.budget_range && (
-                  <div className="p-3.5 rounded-2xl bg-[#FFFDF9] border border-white/5 space-y-1">
-                    <span className="text-[10px] font-mono text-[#687386] uppercase">Complexity Tier</span>
+                  <div className="p-3.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-1 shadow-sm">
+                    <span className="text-[10px] font-mono text-[#5A6679] uppercase">Complexity Tier</span>
                     <p className="font-bold text-[#B88732]">{specsModalRequest.budget_range}</p>
                   </div>
                 )}
 
                 {/* Target Completion Date */}
                 {specsModalRequest.needed_by_date && (
-                  <div className="p-3.5 rounded-2xl bg-[#FFFDF9] border border-white/5 space-y-1">
-                    <span className="text-[10px] font-mono text-[#687386] uppercase">Target Completion</span>
+                  <div className="p-3.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-1 shadow-sm">
+                    <span className="text-[10px] font-mono text-[#5A6679] uppercase">Target Completion</span>
                     <p className="font-bold text-[#B88732]">
                       {new Date(specsModalRequest.needed_by_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </p>
@@ -3374,17 +3443,17 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                 {/* Aesthetic Style */}
                 {specsModalRequest.aesthetic_style_name && (
-                  <div className="p-3.5 rounded-2xl bg-[#FFFDF9] border border-white/5 space-y-1">
-                    <span className="text-[10px] font-mono text-[#687386] uppercase">Design Style</span>
-                    <p className="font-bold text-[#17243B]">{specsModalRequest.aesthetic_style_name}</p>
+                  <div className="p-3.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-1 shadow-sm">
+                    <span className="text-[10px] font-mono text-[#5A6679] uppercase">Design Style</span>
+                    <p className="font-bold text-[#0B1330]">{specsModalRequest.aesthetic_style_name}</p>
                   </div>
                 )}
 
                 {/* Dimensions */}
                 {(specsModalRequest.height_mm || specsModalRequest.width_mm) && (
-                  <div className="p-3.5 rounded-2xl bg-[#FFFDF9] border border-white/5 space-y-1">
-                    <span className="text-[10px] font-mono text-[#687386] uppercase">Target Dimensions</span>
-                    <p className="font-bold text-[#17243B]">
+                  <div className="p-3.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-1 shadow-sm">
+                    <span className="text-[10px] font-mono text-[#5A6679] uppercase">Target Dimensions</span>
+                    <p className="font-bold text-[#0B1330]">
                       {specsModalRequest.height_mm ? `H: ${specsModalRequest.height_mm}mm ` : ''}
                       {specsModalRequest.width_mm ? `W: ${specsModalRequest.width_mm}mm` : ''}
                     </p>
@@ -3393,21 +3462,21 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                 {/* Chain / Backing / Bracelet */}
                 {specsModalRequest.chain_length && (
-                  <div className="p-3.5 rounded-2xl bg-[#FFFDF9] border border-white/5 space-y-1">
-                    <span className="text-[10px] font-mono text-[#687386] uppercase">Chain Preference</span>
-                    <p className="font-bold text-[#17243B]">{specsModalRequest.chain_length}</p>
+                  <div className="p-3.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-1 shadow-sm">
+                    <span className="text-[10px] font-mono text-[#5A6679] uppercase">Chain Preference</span>
+                    <p className="font-bold text-[#0B1330]">{specsModalRequest.chain_length}</p>
                   </div>
                 )}
                 {specsModalRequest.earring_backing && (
-                  <div className="p-3.5 rounded-2xl bg-[#FFFDF9] border border-white/5 space-y-1">
-                    <span className="text-[10px] font-mono text-[#687386] uppercase">Earring Backing</span>
-                    <p className="font-bold text-[#17243B]">{specsModalRequest.earring_backing}</p>
+                  <div className="p-3.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-1 shadow-sm">
+                    <span className="text-[10px] font-mono text-[#5A6679] uppercase">Earring Backing</span>
+                    <p className="font-bold text-[#0B1330]">{specsModalRequest.earring_backing}</p>
                   </div>
                 )}
                 {specsModalRequest.bracelet_style && (
-                  <div className="p-3.5 rounded-2xl bg-[#FFFDF9] border border-white/5 space-y-1">
-                    <span className="text-[10px] font-mono text-[#687386] uppercase">Bracelet Style</span>
-                    <p className="font-bold text-[#17243B]">{specsModalRequest.bracelet_style}</p>
+                  <div className="p-3.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-1 shadow-sm">
+                    <span className="text-[10px] font-mono text-[#5A6679] uppercase">Bracelet Style</span>
+                    <p className="font-bold text-[#0B1330]">{specsModalRequest.bracelet_style}</p>
                   </div>
                 )}
               </div>
@@ -3419,13 +3488,13 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                 <span className="text-xs font-mono uppercase tracking-wider text-[#B88732] font-bold flex items-center gap-1.5">
                   <Layers className="w-4 h-4" /> Atelier Component Selections
                 </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs">
                   {specsModalRequest.selections.map((sel: any, idx: number) => (
-                    <div key={idx} className="p-3 rounded-2xl bg-[#FFFDF9] border border-white/5 flex items-center justify-between">
-                      <span className="text-[#687386] text-[11px]">{sel.group_label}:</span>
-                      <div className="flex items-center gap-1.5 font-bold text-[#17243B]">
+                    <div key={idx} className="p-3 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] flex items-center justify-between shadow-sm">
+                      <span className="text-[#5A6679] text-[11px]">{sel.group_label}:</span>
+                      <div className="flex items-center gap-1.5 font-bold text-[#0B1330]">
                         {sel.swatch_color && (
-                          <span className="w-3 h-3 rounded-full border border-white/30 shrink-0" style={{ backgroundColor: sel.swatch_color }} />
+                          <span className="w-3.5 h-3.5 rounded-full border border-[#E8D7B7] shrink-0 shadow-sm" style={{ backgroundColor: sel.swatch_color }} />
                         )}
                         <span>{sel.value_label || sel.other_text}</span>
                       </div>
@@ -3441,39 +3510,39 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                 <Gem className="w-4 h-4" /> Gemstones &amp; Diamond Setting Plan
               </span>
               {specsModalRequest.is_metal_only ? (
-                <div className="p-4 rounded-2xl bg-[#FFFDF9] border border-white/5 text-xs text-slate-300">
+                <div className="p-4 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] text-xs text-[#5A6679]">
                   Solid Metal Design &mdash; No diamond seats, prongs, or stone settings required.
                 </div>
               ) : specsModalRequest.stones && specsModalRequest.stones.length > 0 ? (
-                <div className="overflow-x-auto rounded-2xl border border-[#E8D7B7] bg-[#FFFDF9]">
+                <div className="overflow-x-auto rounded-2xl border border-[#E8D7B7] bg-white shadow-sm">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-white/5 text-[10px] uppercase font-mono text-[#687386] border-b border-[#E8D7B7]">
+                    <thead className="bg-[#FCFAF7] text-[10px] uppercase font-mono text-[#5A6679] border-b border-[#E8D7B7]">
                       <tr>
-                        <th className="p-3">Stone Type</th>
-                        <th className="p-3">Shape</th>
-                        <th className="p-3">Setting Style</th>
-                        <th className="p-3">Quantity</th>
-                        <th className="p-3">Size / Carat</th>
-                        <th className="p-3">Clarity / Color</th>
-                        <th className="p-3">Role</th>
+                        <th className="p-3 font-bold">Stone Type</th>
+                        <th className="p-3 font-bold">Shape</th>
+                        <th className="p-3 font-bold">Setting Style</th>
+                        <th className="p-3 font-bold">Quantity</th>
+                        <th className="p-3 font-bold">Size / Carat</th>
+                        <th className="p-3 font-bold">Clarity / Color</th>
+                        <th className="p-3 font-bold">Role</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5 font-mono">
+                    <tbody className="divide-y divide-[#E8D7B7]/40 font-mono">
                       {specsModalRequest.stones.map((st: any, idx: number) => (
-                        <tr key={idx} className="hover:bg-white/5">
-                          <td className="p-3 font-bold text-white">{st.stone_type}</td>
-                          <td className="p-3 text-[#17243B]">{st.shape || 'Standard'}</td>
-                          <td className="p-3 text-[#17243B]">{st.setting_style || 'Prong'}</td>
+                        <tr key={idx} className="hover:bg-[#FCFAF7]">
+                          <td className="p-3 font-bold text-[#0B1330]">{st.stone_type}</td>
+                          <td className="p-3 text-[#5A6679]">{st.shape || 'Standard'}</td>
+                          <td className="p-3 text-[#5A6679]">{st.setting_style || 'Prong'}</td>
                           <td className="p-3 font-bold text-[#B88732]">{st.quantity || 1}x</td>
                           <td className="p-3 text-[#B88732]">{st.size_value ? `${st.size_value} ${st.size_unit || 'ct'}` : '--'}</td>
-                          <td className="p-3 text-[#687386]">{[st.clarity, st.color].filter(Boolean).join(' • ') || 'Standard'}</td>
+                          <td className="p-3 text-[#5A6679]">{[st.clarity, st.color].filter(Boolean).join(' • ') || 'Standard'}</td>
                           <td className="p-3">
                             {st.is_center_stone ? (
-                              <span className="px-2 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/40 text-[9px] font-bold uppercase">
+                              <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 text-[9px] font-bold uppercase">
                                 Center Stone
                               </span>
                             ) : (
-                              <span className="text-slate-400 text-[10px]">Accent / Pavé</span>
+                              <span className="text-[#5A6679] text-[10px]">Accent / Pavé</span>
                             )}
                           </td>
                         </tr>
@@ -3482,16 +3551,16 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                   </table>
                 </div>
               ) : specsModalRequest.gemstones && specsModalRequest.gemstones.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
                   {specsModalRequest.gemstones.map((gem: any, idx: number) => (
-                    <div key={idx} className="p-3 rounded-2xl bg-[#FFFDF9] border border-white/5 flex justify-between">
-                      <span className="font-bold text-white">{gem.quantity}x {gem.stone_type} ({gem.cut_type})</span>
-                      <span className="font-mono text-[#B88732]">{gem.carat_size || 'Spec'}</span>
+                    <div key={idx} className="p-3.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] flex justify-between shadow-sm">
+                      <span className="font-bold text-[#0B1330]">{gem.quantity}x {gem.stone_type} ({gem.cut_type})</span>
+                      <span className="font-mono text-[#B88732] font-bold">{gem.carat_size || 'Spec'}</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="p-4 rounded-2xl bg-[#FFFDF9] border border-white/5 text-xs text-slate-300">
+                <div className="p-4 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] text-xs text-[#5A6679]">
                   {specsModalRequest.gemstone_preference_open ? 'Client selected: Let Designer Decide optimal stone layout' : 'Plain metal piece &mdash; No gemstone specifications declared.'}
                 </div>
               )}
@@ -3501,21 +3570,21 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
             {(specsModalRequest.engraving_text || specsModalRequest.has_logo || specsModalRequest.client_consent_to_feature) && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                 {specsModalRequest.engraving_text && (
-                  <div className="p-3.5 rounded-2xl bg-[#FFFDF9] border border-white/5 space-y-1">
+                  <div className="p-3.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-1 shadow-sm">
                     <span className="text-[10px] font-mono text-[#B88732] uppercase font-bold">Laser Engraving</span>
                     <p className="font-serif italic text-[#B88732] text-sm">"{specsModalRequest.engraving_text}"</p>
-                    <p className="text-[10px] text-[#687386] font-mono">Font: {specsModalRequest.engraving_font || 'Script'} • Placement: {specsModalRequest.engraving_placement || 'Inside Shank'}</p>
+                    <p className="text-[10px] text-[#5A6679] font-mono">Font: {specsModalRequest.engraving_font || 'Script'} • Placement: {specsModalRequest.engraving_placement || 'Inside Shank'}</p>
                   </div>
                 )}
                 {specsModalRequest.has_logo && (
-                  <div className="p-3.5 rounded-2xl bg-[#FFFDF9] border border-white/5 space-y-1">
+                  <div className="p-3.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-1 shadow-sm">
                     <span className="text-[10px] font-mono text-[#B88732] uppercase font-bold">Brand Logo Hallmark</span>
-                    <p className="text-emerald-400 font-bold">✓ Vector Hallmark Stamping Requested</p>
+                    <p className="text-emerald-700 font-bold">✓ Vector Hallmark Stamping Requested</p>
                   </div>
                 )}
-                <div className="p-3.5 rounded-2xl bg-[#FFFDF9] border border-white/5 space-y-1">
+                <div className="p-3.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-1 shadow-sm">
                   <span className="text-[10px] font-mono text-[#B88732] uppercase font-bold">Portfolio Showcase</span>
-                  <p className={specsModalRequest.client_consent_to_feature ? 'text-emerald-400 font-bold' : 'text-slate-400'}>
+                  <p className={specsModalRequest.client_consent_to_feature ? 'text-emerald-700 font-bold' : 'text-slate-500'}>
                     {specsModalRequest.client_consent_to_feature ? '✓ Consent Granted for Portfolio' : 'Private Model — Do Not Feature'}
                   </p>
                 </div>
@@ -3527,11 +3596,11 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
               <span className="text-xs font-mono uppercase tracking-wider text-[#B88732] font-bold flex items-center gap-1.5">
                 <FileText className="w-4 h-4" /> Client Design Brief &amp; Special Instructions
               </span>
-              <div className="p-4 rounded-2xl bg-[#FFFDF9] border border-white/5 text-xs text-slate-300 leading-relaxed space-y-2">
+              <div className="p-4 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] text-xs text-[#0B1330] leading-relaxed space-y-2 shadow-sm">
                 <p>{specsModalRequest.description || 'Watertight 3D CAD design request.'}</p>
                 {specsModalRequest.special_instructions && specsModalRequest.special_instructions !== specsModalRequest.description && (
-                  <div className="pt-2 border-t border-[#E8D7B7] text-amber-300/90 font-mono text-xs">
-                    <strong className="text-amber-200">Special Instructions / Catalog Ref:</strong> {specsModalRequest.special_instructions}
+                  <div className="pt-2 border-t border-[#E8D7B7] text-[#B88732] font-mono text-xs">
+                    <strong>Special Instructions / Catalog Ref:</strong> {specsModalRequest.special_instructions}
                   </div>
                 )}
               </div>
@@ -3548,17 +3617,17 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                     <div
                       key={cIdx}
                       onClick={() => cRef.image && setSelectedSketchUrl(cRef.image)}
-                      className="p-3 rounded-2xl bg-[#FFFDF9] border border-[#E8D7B7] hover:border-[#D9B66F] flex items-center gap-3 cursor-pointer transition-all hover:bg-[#0c1436]"
+                      className="p-3.5 rounded-2xl bg-white border border-[#E8D7B7] hover:border-[#D4AF37] flex items-center gap-3 cursor-pointer transition-all hover:bg-[#FCFAF7] shadow-sm"
                     >
                       {cRef.image ? (
                         <img src={cRef.image} alt={cRef.title} className="w-12 h-12 rounded-xl object-cover border border-[#E8D7B7] shrink-0" />
                       ) : (
-                        <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center text-[10px] text-[#687386] shrink-0 font-mono">CAD</div>
+                        <div className="w-12 h-12 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7] flex items-center justify-center text-[10px] text-[#5A6679] shrink-0 font-mono">CAD</div>
                       )}
                       <div className="min-w-0 flex-1">
                         <span className="text-[10px] font-mono text-[#B88732] block font-bold">{cRef.sku || `SKU-${cRef.id}`}</span>
-                        <p className="text-xs font-semibold text-[#17243B] truncate">{cRef.title}</p>
-                        <span className="text-[9px] text-[#687386] block">Click to enlarge image</span>
+                        <p className="text-xs font-semibold text-[#0B1330] truncate">{cRef.title}</p>
+                        <span className="text-[10px] text-[#5A6679] block">Click to enlarge image</span>
                       </div>
                     </div>
                   ))}
@@ -3572,14 +3641,14 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                 <span className="text-xs font-mono uppercase tracking-wider text-[#B88732] font-bold">
                   Attached Reference Sketches ({specsModalRequest.sketches.length})
                 </span>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2.5">
                   {specsModalRequest.sketches.map((sk: any) => (
                     <img
                       key={sk.id}
                       src={sk.image_url || sk.image}
                       alt="Sketch"
                       onClick={() => setSelectedSketchUrl(sk.image_url || sk.image)}
-                      className="w-20 h-20 rounded-2xl object-cover border border-[#E8D7B7] hover:border-[#D9B66F] cursor-pointer"
+                      className="w-20 h-20 rounded-2xl object-cover border-2 border-[#E8D7B7] hover:border-[#D4AF37] cursor-pointer shadow-sm transition-all hover:scale-105"
                     />
                   ))}
                 </div>
@@ -3597,7 +3666,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                     src={specsModalRequest.reference_image}
                     alt="Reference Photo"
                     onClick={() => setSelectedSketchUrl(specsModalRequest.reference_image)}
-                    className="w-24 h-24 rounded-2xl object-cover border border-[#D9B66F]/50 hover:border-[#D9B66F] cursor-pointer shadow-md transition-all hover:scale-105"
+                    className="w-24 h-24 rounded-2xl object-cover border-2 border-[#E8D7B7] hover:border-[#D4AF37] cursor-pointer shadow-sm transition-all hover:scale-105"
                   />
                 </div>
               </div>
@@ -3605,13 +3674,13 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
             {/* Voice Note Requisition Player */}
             {(specsModalRequest.voice_recording_url || specsModalRequest.voice_recording) && (
-              <div className="p-4 rounded-2xl bg-[#FFFDF9] border border-[#D9B66F]/35 space-y-2">
+              <div className="p-4 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-2 shadow-sm">
                 <span className="text-xs font-mono uppercase tracking-wider text-[#B88732] font-bold flex items-center gap-1.5">
                   <Mic className="w-3.5 h-3.5 text-[#B88732]" /> Voice Note Requisition Attached
                 </span>
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#D4AF37]/20 border border-[#E8D7B7] flex items-center justify-center shrink-0">
-                    <Volume2 className="w-4 h-4 text-[#B88732]" />
+                  <div className="w-9 h-9 rounded-2xl bg-white border border-[#E8D7B7] flex items-center justify-center shrink-0 text-[#B88732] shadow-sm">
+                    <Volume2 className="w-4 h-4" />
                   </div>
                   <audio
                     controls
@@ -3626,7 +3695,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
               <button
                 type="button"
                 onClick={() => setSpecsModalRequest(null)}
-                className="px-6 py-2.5 bg-[#121F4D] hover:bg-[#1A2D6D] border border-[#D9B66F]/50 text-[#17243B] font-bold text-xs rounded-xl transition-all cursor-pointer"
+                className="btn-gold-luxury px-6 py-2.5 font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all uppercase tracking-wider"
               >
                 Close Specification Sheet
               </button>

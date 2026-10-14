@@ -281,47 +281,49 @@ export const UserProfileModule: React.FC = () => {
   return (
     <div className="space-y-8">
       {/* CARD 1: PERSONAL INFORMATION & PHOTO */}
-      <RevealOnScroll className="rounded-3xl bg-[#0B1330]/90 border border-[#D4AF37]/30 p-6 sm:p-8 shadow-[0_15px_40px_rgba(0,0,0,0.5)]">
-        <div className="flex items-center justify-between border-b border-[#D4AF37]/20 pb-5 mb-6">
+      <RevealOnScroll className="rounded-3xl bg-white border border-[#E8D7B7] p-6 sm:p-8 shadow-[0_12px_35px_rgba(184,135,50,0.06)]">
+        <div className="flex items-center justify-between border-b border-[#E8D7B7]/60 pb-5 mb-6">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-[#D4AF37]/15 border border-[#D4AF37]/40 text-[#F5E7A3]">
-              <User className="w-5 h-5 text-[#D4AF37]" />
+            <div className="p-2.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7] text-[#B88732] shadow-xs">
+              <User className="w-5 h-5 text-[#B88732]" />
             </div>
             <div>
-              <h2 className="font-serif text-xl font-bold text-[#FAF8F3]">My Profile Details</h2>
-              <p className="text-xs text-[#C9C2A6]">Update your personal information and avatar photo</p>
+              <h2 className="font-serif text-xl font-bold text-[#0B1330]">My Profile Details</h2>
+              <p className="text-xs text-[#5A6679]">Update your personal information and avatar photo</p>
             </div>
           </div>
-          <span className="px-3 py-1 rounded-full bg-[#12204D] border border-[#D4AF37]/40 text-[11px] font-mono text-[#F5E7A3] uppercase tracking-wider">
+          <span className="px-3 py-1 rounded-full bg-[#FCFAF7] border border-[#E8D7B7] text-[11px] font-mono font-bold text-[#0B1330] uppercase tracking-wider">
             {user?.role?.toUpperCase() || 'CLIENT'}
           </span>
         </div>
 
         {infoMessage && (
           <div className={`p-4 rounded-2xl mb-6 text-xs flex items-center gap-3 ${
-            infoMessage.type === 'success' ? 'bg-emerald-950/80 border border-emerald-500/50 text-emerald-300' : 'bg-rose-950/80 border border-rose-500/50 text-rose-300'
+            infoMessage.type === 'success' 
+              ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' 
+              : 'bg-rose-50 border border-rose-200 text-rose-800'
           }`}>
             {infoMessage.type === 'success' ? <CheckCircle2 className="w-5 h-5 flex-shrink-0" /> : <AlertCircle className="w-5 h-5 flex-shrink-0" />}
-            <span>{infoMessage.text}</span>
+            <span className="font-medium">{infoMessage.text}</span>
           </div>
         )}
 
         <form onSubmit={handleSavePersonalInfo} className="space-y-6">
           {/* PHOTO UPLOAD SECTION */}
-          <div className="flex flex-col sm:flex-row items-center gap-6 p-4 rounded-2xl bg-[#070D22]/60 border border-[#D4AF37]/20">
+          <div className="flex flex-col sm:flex-row items-center gap-6 p-5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7]">
             <div className="relative group">
-              <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-[#1E4FA3] via-[#D4AF37] to-[#F5E7A3] p-[3px] shadow-[0_0_20px_rgba(212,175,55,0.3)] overflow-hidden">
+              <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-[#D4AF37] via-[#F5E7A3] to-[#B88732] p-[3px] shadow-[0_6px_20px_rgba(184,135,50,0.18)] overflow-hidden">
                 {photoPreview ? (
                   <img src={photoPreview} alt="Profile" className="w-full h-full rounded-full object-cover" />
                 ) : (
-                  <div className="w-full h-full rounded-full bg-[#0B1330] flex items-center justify-center text-[#D4AF37]">
+                  <div className="w-full h-full rounded-full bg-white flex items-center justify-center text-[#B88732]">
                     <User className="w-10 h-10" />
                   </div>
                 )}
               </div>
               <label 
                 htmlFor="photo-upload-input" 
-                className="absolute bottom-0 right-0 p-2 rounded-full bg-[#D4AF37] text-[#070D22] cursor-pointer shadow-lg hover:scale-110 transition-transform"
+                className="absolute bottom-0 right-0 p-2 rounded-full bg-[#0B1330] text-[#F5E7A3] border border-[#D4AF37]/50 cursor-pointer shadow-md hover:scale-110 transition-transform"
                 title="Upload Profile Photo"
               >
                 <Camera className="w-4 h-4" />
@@ -336,16 +338,16 @@ export const UserProfileModule: React.FC = () => {
             </div>
 
             <div className="space-y-2 text-center sm:text-left flex-1">
-              <h3 className="text-sm font-semibold text-[#FAF8F3]">Profile Picture</h3>
-              <p className="text-xs text-[#C9C2A6]">
+              <h3 className="text-sm font-bold text-[#0B1330]">Profile Picture</h3>
+              <p className="text-xs text-[#5A6679]">
                 Upload a JPG, PNG or WEBP image (max 5MB). Photo updates automatically across your account workspace.
               </p>
               <div className="flex flex-wrap items-center gap-3 pt-1">
                 <label 
                   htmlFor="photo-upload-input" 
-                  className="px-4 py-2 rounded-xl bg-[#12204D] border border-[#D4AF37]/40 text-xs font-semibold text-[#F5E7A3] hover:bg-[#1A2E6E] cursor-pointer transition-colors inline-flex items-center gap-2"
+                  className="px-4 py-2 rounded-xl bg-white border border-[#E8D7B7] text-xs font-bold text-[#0B1330] hover:bg-[#FAF8F5] hover:border-[#D4AF37] cursor-pointer transition-colors inline-flex items-center gap-2 shadow-xs"
                 >
-                  <Camera className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  <Camera className="w-3.5 h-3.5 text-[#B88732]" />
                   <span>Choose Photo</span>
                 </label>
                 {photoPreview && (
@@ -353,7 +355,7 @@ export const UserProfileModule: React.FC = () => {
                     type="button"
                     onClick={handleRemovePhoto}
                     disabled={savingInfo}
-                    className="px-4 py-2 rounded-xl bg-rose-950/40 border border-rose-500/40 text-xs font-semibold text-rose-300 hover:bg-rose-900/50 transition-colors flex items-center gap-1.5"
+                    className="px-4 py-2 rounded-xl bg-rose-50 border border-rose-200 text-xs font-bold text-rose-700 hover:bg-rose-100 transition-colors flex items-center gap-1.5 shadow-xs"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Remove</span>
@@ -366,7 +368,7 @@ export const UserProfileModule: React.FC = () => {
           {/* FORM FIELDS GRID */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
-              <label className="block text-xs font-semibold text-[#C9C2A6] uppercase tracking-wider mb-2">
+              <label className="block text-xs font-bold text-[#5A6679] uppercase tracking-wider mb-2">
                 First Name
               </label>
               <input
@@ -374,12 +376,12 @@ export const UserProfileModule: React.FC = () => {
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 placeholder="e.g. Rutvika"
-                className="w-full px-4 py-3 rounded-2xl bg-[#070D22] border border-[#D4AF37]/30 text-sm text-[#FAF8F3] focus:border-[#D4AF37] focus:outline-none transition-colors"
+                className="w-full px-4 py-3 rounded-2xl bg-white border border-[#E8D7B7] text-sm text-[#0B1330] placeholder:text-slate-400 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 focus:outline-none transition-all shadow-xs"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#C9C2A6] uppercase tracking-wider mb-2">
+              <label className="block text-xs font-bold text-[#5A6679] uppercase tracking-wider mb-2">
                 Last Name
               </label>
               <input
@@ -387,38 +389,38 @@ export const UserProfileModule: React.FC = () => {
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder="e.g. Sahir"
-                className="w-full px-4 py-3 rounded-2xl bg-[#070D22] border border-[#D4AF37]/30 text-sm text-[#FAF8F3] focus:border-[#D4AF37] focus:outline-none transition-colors"
+                className="w-full px-4 py-3 rounded-2xl bg-white border border-[#E8D7B7] text-sm text-[#0B1330] placeholder:text-slate-400 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 focus:outline-none transition-all shadow-xs"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#C9C2A6] uppercase tracking-wider mb-2">
+              <label className="block text-xs font-bold text-[#5A6679] uppercase tracking-wider mb-2">
                 Username
               </label>
               <div className="relative">
-                <User className="w-4 h-4 text-[#D4AF37] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <User className="w-4 h-4 text-[#B88732] absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="e.g. rutvika_atelier"
-                  className="w-full pl-10 pr-4 py-3 rounded-2xl bg-[#070D22] border border-[#D4AF37]/30 text-sm text-[#FAF8F3] focus:border-[#D4AF37] focus:outline-none transition-colors"
+                  className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white border border-[#E8D7B7] text-sm text-[#0B1330] placeholder:text-slate-400 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 focus:outline-none transition-all shadow-xs"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#C9C2A6] uppercase tracking-wider mb-2">
+              <label className="block text-xs font-bold text-[#5A6679] uppercase tracking-wider mb-2">
                 Phone Number
               </label>
               <div className="relative">
-                <Phone className="w-4 h-4 text-[#D4AF37] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Phone className="w-4 h-4 text-[#B88732] absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   placeholder="e.g. +91 95747 87098"
-                  className="w-full pl-10 pr-4 py-3 rounded-2xl bg-[#070D22] border border-[#D4AF37]/30 text-sm text-[#FAF8F3] focus:border-[#D4AF37] focus:outline-none transition-colors"
+                  className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white border border-[#E8D7B7] text-sm text-[#0B1330] placeholder:text-slate-400 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 focus:outline-none transition-all shadow-xs"
                 />
               </div>
             </div>
@@ -428,7 +430,7 @@ export const UserProfileModule: React.FC = () => {
             <button
               type="submit"
               disabled={savingInfo}
-              className="btn-gold-luxury px-6 py-3 rounded-2xl text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 shadow-[0_0_20px_rgba(212,175,55,0.4)] disabled:opacity-50"
+              className="btn-gold-luxury px-6 py-3 rounded-2xl text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 shadow-[0_8px_20px_rgba(184,135,50,0.25)] text-[#0B1330] hover:brightness-105 active:scale-[0.99] transition-all disabled:opacity-50"
             >
               {savingInfo ? (
                 <>
@@ -447,46 +449,48 @@ export const UserProfileModule: React.FC = () => {
       </RevealOnScroll>
 
       {/* CARD 2: CHANGE EMAIL ADDRESS (OTP SECURED) */}
-      <RevealOnScroll className="rounded-3xl bg-[#0B1330]/90 border border-[#D4AF37]/30 p-6 sm:p-8 shadow-[0_15px_40px_rgba(0,0,0,0.5)]">
-        <div className="flex items-center gap-3 border-b border-[#D4AF37]/20 pb-5 mb-6">
-          <div className="p-2.5 rounded-xl bg-[#D4AF37]/15 border border-[#D4AF37]/40 text-[#F5E7A3]">
-            <Mail className="w-5 h-5 text-[#D4AF37]" />
+      <RevealOnScroll className="rounded-3xl bg-white border border-[#E8D7B7] p-6 sm:p-8 shadow-[0_12px_35px_rgba(184,135,50,0.06)]">
+        <div className="flex items-center gap-3 border-b border-[#E8D7B7]/60 pb-5 mb-6">
+          <div className="p-2.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7] text-[#B88732] shadow-xs">
+            <Mail className="w-5 h-5 text-[#B88732]" />
           </div>
           <div>
-            <h2 className="font-serif text-xl font-bold text-[#FAF8F3]">Change Email Address (OTP Verified)</h2>
-            <p className="text-xs text-[#C9C2A6]">
-              Current Account Email: <span className="font-mono text-[#F5E7A3] font-bold">{user?.email}</span>
+            <h2 className="font-serif text-xl font-bold text-[#0B1330]">Change Email Address (OTP Verified)</h2>
+            <p className="text-xs text-[#5A6679]">
+              Current Account Email: <span className="font-mono text-[#0B1330] font-bold bg-[#FCFAF7] px-2 py-0.5 rounded-md border border-[#E8D7B7]">{user?.email}</span>
             </p>
           </div>
         </div>
 
         {emailMessage && (
           <div className={`p-4 rounded-2xl mb-6 text-xs flex items-center gap-3 ${
-            emailMessage.type === 'success' ? 'bg-emerald-950/80 border border-emerald-500/50 text-emerald-300' : 'bg-rose-950/80 border border-rose-500/50 text-rose-300'
+            emailMessage.type === 'success' 
+              ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' 
+              : 'bg-rose-50 border border-rose-200 text-rose-800'
           }`}>
             {emailMessage.type === 'success' ? <CheckCircle2 className="w-5 h-5 flex-shrink-0" /> : <AlertCircle className="w-5 h-5 flex-shrink-0" />}
-            <span>{emailMessage.text}</span>
+            <span className="font-medium">{emailMessage.text}</span>
           </div>
         )}
 
         {!emailOtpSent ? (
           <form onSubmit={handleRequestEmailOtp} className="space-y-4 max-w-xl">
             <div>
-              <label className="block text-xs font-semibold text-[#C9C2A6] uppercase tracking-wider mb-2">
+              <label className="block text-xs font-bold text-[#5A6679] uppercase tracking-wider mb-2">
                 New Email Address
               </label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-[#D4AF37] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Mail className="w-4 h-4 text-[#B88732] absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="email"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
                   placeholder="enter.new.email@domain.com"
                   required
-                  className="w-full pl-10 pr-4 py-3 rounded-2xl bg-[#070D22] border border-[#D4AF37]/30 text-sm text-[#FAF8F3] focus:border-[#D4AF37] focus:outline-none transition-colors"
+                  className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white border border-[#E8D7B7] text-sm text-[#0B1330] placeholder:text-slate-400 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 focus:outline-none transition-all shadow-xs"
                 />
               </div>
-              <p className="text-[11px] text-[#C9C2A6] mt-1.5">
+              <p className="text-[11px] text-[#5A6679] mt-1.5">
                 We will dispatch a 6-digit OTP verification code to this new email address to complete the security change.
               </p>
             </div>
@@ -494,7 +498,7 @@ export const UserProfileModule: React.FC = () => {
             <button
               type="submit"
               disabled={requestingEmailOtp || !newEmail}
-              className="px-6 py-3 rounded-2xl bg-gradient-to-r from-[#1E4FA3] to-[#2563EB] text-white text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 shadow-[0_0_15px_rgba(37,99,235,0.4)] disabled:opacity-50 hover:brightness-110 transition-all"
+              className="px-6 py-3 rounded-2xl bg-[#0B1330] text-[#F5E7A3] text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 shadow-[0_4px_16px_rgba(11,19,48,0.2)] disabled:opacity-50 hover:bg-[#12204D] transition-all"
             >
               {requestingEmailOtp ? (
                 <>
@@ -503,29 +507,29 @@ export const UserProfileModule: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <KeyRound className="w-4 h-4" />
+                  <KeyRound className="w-4 h-4 text-[#D4AF37]" />
                   <span>Request Verification OTP for New Email</span>
                 </>
               )}
             </button>
           </form>
         ) : (
-          <form onSubmit={handleVerifyEmailOtp} className="space-y-4 max-w-xl bg-[#070D22]/60 p-5 rounded-2xl border border-[#D4AF37]/30">
+          <form onSubmit={handleVerifyEmailOtp} className="space-y-4 max-w-xl bg-[#FCFAF7] p-5 rounded-2xl border border-[#E8D7B7]">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-[#F5E7A3] font-semibold">
-                OTP Sent To: <span className="font-mono">{newEmail}</span>
+              <span className="text-xs text-[#0B1330] font-semibold">
+                OTP Sent To: <span className="font-mono font-bold text-[#B88732]">{newEmail}</span>
               </span>
               <button
                 type="button"
                 onClick={() => setEmailOtpSent(false)}
-                className="text-[11px] text-[#C9C2A6] underline hover:text-white"
+                className="text-[11px] text-[#B88732] font-semibold underline hover:text-[#0B1330]"
               >
                 Change Email
               </button>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#C9C2A6] uppercase tracking-wider mb-2">
+              <label className="block text-xs font-bold text-[#5A6679] uppercase tracking-wider mb-2">
                 Enter 6-Digit Email Verification Code
               </label>
               <input
@@ -535,7 +539,7 @@ export const UserProfileModule: React.FC = () => {
                 onChange={(e) => setEmailOtpCode(e.target.value.replace(/\D/g, ''))}
                 placeholder="e.g. 849201"
                 required
-                className="w-full text-center tracking-[0.5em] font-mono text-xl font-bold py-3 rounded-2xl bg-[#070D22] border border-[#D4AF37]/50 text-[#F5E7A3] focus:border-[#D4AF37] focus:outline-none"
+                className="w-full text-center tracking-[0.5em] font-mono text-xl font-bold py-3 rounded-2xl bg-white border border-[#D4AF37] text-[#0B1330] focus:ring-2 focus:ring-[#D4AF37]/20 focus:outline-none shadow-xs"
               />
             </div>
 
@@ -543,7 +547,7 @@ export const UserProfileModule: React.FC = () => {
               <button
                 type="submit"
                 disabled={verifyingEmailOtp || emailOtpCode.length < 6}
-                className="btn-gold-luxury px-6 py-3 rounded-2xl text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 shadow-[0_0_20px_rgba(212,175,55,0.4)] disabled:opacity-50"
+                className="btn-gold-luxury px-6 py-3 rounded-2xl text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 shadow-[0_8px_20px_rgba(184,135,50,0.25)] text-[#0B1330] disabled:opacity-50"
               >
                 {verifyingEmailOtp ? (
                   <>
@@ -562,7 +566,7 @@ export const UserProfileModule: React.FC = () => {
                 type="button"
                 onClick={handleRequestEmailOtp}
                 disabled={requestingEmailOtp}
-                className="px-4 py-3 rounded-2xl bg-[#12204D] border border-[#D4AF37]/40 text-xs font-semibold text-[#C9C2A6] hover:text-white transition-colors flex items-center gap-1.5"
+                className="px-4 py-3 rounded-2xl bg-white border border-[#E8D7B7] text-xs font-bold text-[#5A6679] hover:text-[#0B1330] hover:border-[#D4AF37] shadow-xs transition-colors flex items-center gap-1.5"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${requestingEmailOtp ? 'animate-spin' : ''}`} />
                 <span>Resend OTP</span>
@@ -573,24 +577,26 @@ export const UserProfileModule: React.FC = () => {
       </RevealOnScroll>
 
       {/* CARD 3: CHANGE PASSWORD (OTP OR DIRECT) */}
-      <RevealOnScroll className="rounded-3xl bg-[#0B1330]/90 border border-[#D4AF37]/30 p-6 sm:p-8 shadow-[0_15px_40px_rgba(0,0,0,0.5)]">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-[#D4AF37]/20 pb-5 mb-6">
+      <RevealOnScroll className="rounded-3xl bg-white border border-[#E8D7B7] p-6 sm:p-8 shadow-[0_12px_35px_rgba(184,135,50,0.06)]">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-[#E8D7B7]/60 pb-5 mb-6">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-[#D4AF37]/15 border border-[#D4AF37]/40 text-[#F5E7A3]">
-              <Lock className="w-5 h-5 text-[#D4AF37]" />
+            <div className="p-2.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7] text-[#B88732] shadow-xs">
+              <Lock className="w-5 h-5 text-[#B88732]" />
             </div>
             <div>
-              <h2 className="font-serif text-xl font-bold text-[#FAF8F3]">Password &amp; Security Settings</h2>
-              <p className="text-xs text-[#C9C2A6]">Change your account password securely using email OTP verification</p>
+              <h2 className="font-serif text-xl font-bold text-[#0B1330]">Password &amp; Security Settings</h2>
+              <p className="text-xs text-[#5A6679]">Change your account password securely using email OTP verification or current password</p>
             </div>
           </div>
 
-          <div className="flex rounded-xl bg-[#070D22] p-1 border border-[#D4AF37]/30">
+          <div className="flex rounded-2xl bg-[#FCFAF7] p-1 border border-[#E8D7B7]">
             <button
               type="button"
               onClick={() => setPasswordMode('otp')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                passwordMode === 'otp' ? 'bg-[#12204D] text-[#F5E7A3] shadow-md border border-[#D4AF37]/50' : 'text-[#C9C2A6] hover:text-white'
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                passwordMode === 'otp' 
+                  ? 'bg-[#0B1330] text-[#F5E7A3] shadow-sm' 
+                  : 'text-[#5A6679] hover:text-[#0B1330]'
               }`}
             >
               🔑 OTP Verification
@@ -598,8 +604,10 @@ export const UserProfileModule: React.FC = () => {
             <button
               type="button"
               onClick={() => setPasswordMode('direct')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                passwordMode === 'direct' ? 'bg-[#12204D] text-[#F5E7A3] shadow-md border border-[#D4AF37]/50' : 'text-[#C9C2A6] hover:text-white'
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                passwordMode === 'direct' 
+                  ? 'bg-[#0B1330] text-[#F5E7A3] shadow-sm' 
+                  : 'text-[#5A6679] hover:text-[#0B1330]'
               }`}
             >
               🔒 Current Password
@@ -611,48 +619,50 @@ export const UserProfileModule: React.FC = () => {
           <div>
             {passwordMessage && (
               <div className={`p-4 rounded-2xl mb-6 text-xs flex items-center gap-3 ${
-                passwordMessage.type === 'success' ? 'bg-emerald-950/80 border border-emerald-500/50 text-emerald-300' : 'bg-rose-950/80 border border-rose-500/50 text-rose-300'
+                passwordMessage.type === 'success' 
+                  ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' 
+                  : 'bg-rose-50 border border-rose-200 text-rose-800'
               }`}>
                 {passwordMessage.type === 'success' ? <CheckCircle2 className="w-5 h-5 flex-shrink-0" /> : <AlertCircle className="w-5 h-5 flex-shrink-0" />}
-                <span>{passwordMessage.text}</span>
+                <span className="font-medium">{passwordMessage.text}</span>
               </div>
             )}
 
             {!passwordOtpSent ? (
               <div className="space-y-4 max-w-xl">
-                <p className="text-xs text-[#C9C2A6]">
-                  Click below to dispatch a secure 6-digit OTP code to your registered email address (<span className="font-mono text-[#F5E7A3] font-bold">{user?.email}</span>).
+                <p className="text-xs text-[#5A6679] leading-relaxed">
+                  Click below to dispatch a secure 6-digit OTP code to your registered email address (<span className="font-mono text-[#0B1330] font-bold bg-[#FCFAF7] px-2 py-0.5 rounded-md border border-[#E8D7B7]">{user?.email}</span>).
                 </p>
                 <button
                   type="button"
                   onClick={handleRequestPasswordOtp}
                   disabled={requestingPasswordOtp}
-                  className="px-6 py-3 rounded-2xl bg-gradient-to-r from-[#D4AF37] via-[#F5E7A3] to-[#D4AF37] text-[#070D22] text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 shadow-[0_0_20px_rgba(212,175,55,0.4)] disabled:opacity-50 hover:brightness-110 transition-all"
+                  className="btn-gold-luxury px-6 py-3 rounded-2xl text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 shadow-[0_8px_20px_rgba(184,135,50,0.25)] text-[#0B1330] disabled:opacity-50 hover:brightness-105 active:scale-[0.99] transition-all"
                 >
                   {requestingPasswordOtp ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin text-[#070D22]" />
+                      <Loader2 className="w-4 h-4 animate-spin text-[#0B1330]" />
                       <span>Sending OTP Code...</span>
                     </>
                   ) : (
                     <>
-                      <KeyRound className="w-4 h-4 text-[#070D22]" />
+                      <KeyRound className="w-4 h-4 text-[#0B1330]" />
                       <span>Send Password Reset OTP Code</span>
                     </>
                   )}
                 </button>
               </div>
             ) : (
-              <form onSubmit={handleVerifyPasswordOtp} className="space-y-5 max-w-xl bg-[#070D22]/60 p-5 rounded-2xl border border-[#D4AF37]/30">
+              <form onSubmit={handleVerifyPasswordOtp} className="space-y-5 max-w-xl bg-[#FCFAF7] p-5 rounded-2xl border border-[#E8D7B7]">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-[#F5E7A3] font-semibold">
-                    OTP Dispatched To: <span className="font-mono">{user?.email}</span>
+                  <span className="text-xs text-[#0B1330] font-semibold">
+                    OTP Dispatched To: <span className="font-mono font-bold text-[#B88732]">{user?.email}</span>
                   </span>
                   <button
                     type="button"
                     onClick={handleRequestPasswordOtp}
                     disabled={requestingPasswordOtp}
-                    className="text-[11px] text-[#C9C2A6] underline hover:text-white flex items-center gap-1"
+                    className="text-[11px] text-[#B88732] font-semibold underline hover:text-[#0B1330] flex items-center gap-1"
                   >
                     <RefreshCw className={`w-3 h-3 ${requestingPasswordOtp ? 'animate-spin' : ''}`} />
                     <span>Resend Code</span>
@@ -660,7 +670,7 @@ export const UserProfileModule: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-[#C9C2A6] uppercase tracking-wider mb-2">
+                  <label className="block text-xs font-bold text-[#5A6679] uppercase tracking-wider mb-2">
                     Enter 6-Digit Security OTP Code
                   </label>
                   <input
@@ -670,12 +680,12 @@ export const UserProfileModule: React.FC = () => {
                     onChange={(e) => setPasswordOtpCode(e.target.value.replace(/\D/g, ''))}
                     placeholder="e.g. 592014"
                     required
-                    className="w-full text-center tracking-[0.5em] font-mono text-xl font-bold py-3 rounded-2xl bg-[#070D22] border border-[#D4AF37]/50 text-[#F5E7A3] focus:border-[#D4AF37] focus:outline-none"
+                    className="w-full text-center tracking-[0.5em] font-mono text-xl font-bold py-3 rounded-2xl bg-white border border-[#D4AF37] text-[#0B1330] focus:ring-2 focus:ring-[#D4AF37]/20 focus:outline-none shadow-xs"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-[#C9C2A6] uppercase tracking-wider mb-2">
+                  <label className="block text-xs font-bold text-[#5A6679] uppercase tracking-wider mb-2">
                     New Password
                   </label>
                   <input
@@ -684,12 +694,12 @@ export const UserProfileModule: React.FC = () => {
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="At least 6 characters"
                     required
-                    className="w-full px-4 py-3 rounded-2xl bg-[#070D22] border border-[#D4AF37]/30 text-sm text-[#FAF8F3] focus:border-[#D4AF37] focus:outline-none"
+                    className="w-full px-4 py-3 rounded-2xl bg-white border border-[#E8D7B7] text-sm text-[#0B1330] placeholder:text-slate-400 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 focus:outline-none transition-all shadow-xs"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-[#C9C2A6] uppercase tracking-wider mb-2">
+                  <label className="block text-xs font-bold text-[#5A6679] uppercase tracking-wider mb-2">
                     Confirm New Password
                   </label>
                   <input
@@ -698,7 +708,7 @@ export const UserProfileModule: React.FC = () => {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Re-enter new password"
                     required
-                    className="w-full px-4 py-3 rounded-2xl bg-[#070D22] border border-[#D4AF37]/30 text-sm text-[#FAF8F3] focus:border-[#D4AF37] focus:outline-none"
+                    className="w-full px-4 py-3 rounded-2xl bg-white border border-[#E8D7B7] text-sm text-[#0B1330] placeholder:text-slate-400 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 focus:outline-none transition-all shadow-xs"
                   />
                 </div>
 
@@ -706,7 +716,7 @@ export const UserProfileModule: React.FC = () => {
                   <button
                     type="submit"
                     disabled={verifyingPasswordOtp || passwordOtpCode.length < 6 || !newPassword}
-                    className="btn-gold-luxury px-6 py-3 rounded-2xl text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 shadow-[0_0_20px_rgba(212,175,55,0.4)] disabled:opacity-50"
+                    className="btn-gold-luxury px-6 py-3 rounded-2xl text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 shadow-[0_8px_20px_rgba(184,135,50,0.25)] text-[#0B1330] disabled:opacity-50"
                   >
                     {verifyingPasswordOtp ? (
                       <>
@@ -728,15 +738,17 @@ export const UserProfileModule: React.FC = () => {
           <form onSubmit={handleChangeDirectPassword} className="space-y-4 max-w-xl">
             {directPasswordMessage && (
               <div className={`p-4 rounded-2xl mb-4 text-xs flex items-center gap-3 ${
-                directPasswordMessage.type === 'success' ? 'bg-emerald-950/80 border border-emerald-500/50 text-emerald-300' : 'bg-rose-950/80 border border-rose-500/50 text-rose-300'
+                directPasswordMessage.type === 'success' 
+                  ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' 
+                  : 'bg-rose-50 border border-rose-200 text-rose-800'
               }`}>
                 {directPasswordMessage.type === 'success' ? <CheckCircle2 className="w-5 h-5 flex-shrink-0" /> : <AlertCircle className="w-5 h-5 flex-shrink-0" />}
-                <span>{directPasswordMessage.text}</span>
+                <span className="font-medium">{directPasswordMessage.text}</span>
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-semibold text-[#C9C2A6] uppercase tracking-wider mb-2">
+              <label className="block text-xs font-bold text-[#5A6679] uppercase tracking-wider mb-2">
                 Current Password
               </label>
               <input
@@ -745,12 +757,12 @@ export const UserProfileModule: React.FC = () => {
                 onChange={(e) => setOldPassword(e.target.value)}
                 placeholder="Enter current password"
                 required
-                className="w-full px-4 py-3 rounded-2xl bg-[#070D22] border border-[#D4AF37]/30 text-sm text-[#FAF8F3] focus:border-[#D4AF37] focus:outline-none"
+                className="w-full px-4 py-3 rounded-2xl bg-white border border-[#E8D7B7] text-sm text-[#0B1330] placeholder:text-slate-400 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 focus:outline-none transition-all shadow-xs"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#C9C2A6] uppercase tracking-wider mb-2">
+              <label className="block text-xs font-bold text-[#5A6679] uppercase tracking-wider mb-2">
                 New Password
               </label>
               <input
@@ -759,14 +771,14 @@ export const UserProfileModule: React.FC = () => {
                 onChange={(e) => setDirectNewPassword(e.target.value)}
                 placeholder="Enter new password (min 6 chars)"
                 required
-                className="w-full px-4 py-3 rounded-2xl bg-[#070D22] border border-[#D4AF37]/30 text-sm text-[#FAF8F3] focus:border-[#D4AF37] focus:outline-none"
+                className="w-full px-4 py-3 rounded-2xl bg-white border border-[#E8D7B7] text-sm text-[#0B1330] placeholder:text-slate-400 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 focus:outline-none transition-all shadow-xs"
               />
             </div>
 
             <button
               type="submit"
               disabled={changingDirectPassword || !oldPassword || !directNewPassword}
-              className="btn-gold-luxury px-6 py-3 rounded-2xl text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 shadow-[0_0_20px_rgba(212,175,55,0.4)] disabled:opacity-50"
+              className="btn-gold-luxury px-6 py-3 rounded-2xl text-xs font-extrabold uppercase tracking-widest flex items-center gap-2 shadow-[0_8px_20px_rgba(184,135,50,0.25)] text-[#0B1330] disabled:opacity-50"
             >
               {changingDirectPassword ? (
                 <>

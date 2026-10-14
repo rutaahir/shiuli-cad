@@ -23,7 +23,9 @@ import {
   Eye,
   Wallet,
   ArrowRight,
-  Receipt
+  Receipt,
+  Lock,
+  Unlock
 } from 'lucide-react';
 
 interface GatewayLogRecord {
@@ -42,6 +44,7 @@ interface GatewayLogRecord {
   status: string;
   raw_status?: string;
   can_approve?: boolean;
+  download_enabled_by_admin?: boolean;
   payment_method?: string;
   payment_details?: string;
   screenshot?: string | null;
@@ -60,6 +63,7 @@ export const AdminPaymentsModule: React.FC = () => {
 
   // Payment Verification Approval & Lightbox State
   const [approvingPaymentId, setApprovingPaymentId] = useState<string | null>(null);
+  const [togglingDownloadId, setTogglingDownloadId] = useState<number | null>(null);
   const [lightboxScreenshotUrl, setLightboxScreenshotUrl] = useState<string | null>(null);
   const [lightboxTitle, setLightboxTitle] = useState<string>('');
 
@@ -169,6 +173,27 @@ export const AdminPaymentsModule: React.FC = () => {
       alert(err?.message || 'Failed to approve payment.');
     } finally {
       setApprovingPaymentId(null);
+    }
+  };
+
+  const handleTogglePurchaseDownload = async (p: GatewayLogRecord) => {
+    if (!p.purchase_id) return;
+    const currentEnabled = p.download_enabled_by_admin !== false;
+    const newEnabled = !currentEnabled;
+    const confirmMsg = newEnabled
+      ? `Unlock CAD downloads for Purchase #${p.purchase_id}? The customer will be able to request OTP and download the CAD package.`
+      : `Lock CAD downloads for Purchase #${p.purchase_id}? This will immediately invalidate any active download tokens and prevent OTP verifications.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    setTogglingDownloadId(p.purchase_id);
+    try {
+      await api.togglePurchaseDownloadPermission(p.purchase_id, newEnabled);
+      alert(`Success! CAD downloads for Purchase #${p.purchase_id} are now ${newEnabled ? 'ENABLED / UNLOCKED' : 'LOCKED'}.`);
+      await fetchGatewayLogs();
+    } catch (err: any) {
+      alert(err?.message || 'Failed to update CAD download permission.');
+    } finally {
+      setTogglingDownloadId(null);
     }
   };
 
@@ -681,6 +706,10 @@ export const AdminPaymentsModule: React.FC = () => {
                           <span className="bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
                             <Clock className="w-3 h-3 text-amber-600" /> Pending Collection Confirmation
                           </span>
+                        ) : p.download_enabled_by_admin === false ? (
+                          <span className="bg-rose-50 text-rose-700 border border-rose-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                            <Lock className="w-3 h-3 text-rose-600" /> Downloads Locked by Admin
+                          </span>
                         ) : (
                           <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
                             <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Paid &amp; Download Enabled
@@ -737,6 +766,30 @@ export const AdminPaymentsModule: React.FC = () => {
                             <CheckCircle2 className="w-3.5 h-3.5 text-white" />
                           )}
                           <span>Confirm Payment Collected &amp; Enable Download</span>
+                        </button>
+                      )}
+
+                      {/* Lock / Unlock Toggle Button for Catalog Purchases */}
+                      {p.purchase_id && !isPending && (
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePurchaseDownload(p)}
+                          disabled={togglingDownloadId === p.purchase_id}
+                          className={`px-3 py-1.5 rounded-xl font-bold text-xs border transition-all inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${
+                            p.download_enabled_by_admin === false
+                              ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-300 shadow-2xs'
+                              : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                          }`}
+                          title={p.download_enabled_by_admin === false ? 'Unlock customer CAD downloads' : 'Lock customer CAD downloads'}
+                        >
+                          {togglingDownloadId === p.purchase_id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : p.download_enabled_by_admin === false ? (
+                            <Unlock className="w-3.5 h-3.5 text-emerald-600" />
+                          ) : (
+                            <Lock className="w-3.5 h-3.5 text-rose-600" />
+                          )}
+                          <span>{p.download_enabled_by_admin === false ? 'Unlock Download' : 'Lock Download'}</span>
                         </button>
                       )}
                     </div>

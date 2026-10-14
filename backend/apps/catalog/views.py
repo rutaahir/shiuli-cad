@@ -1,6 +1,8 @@
 import os
+import logging
+from django.conf import settings
 from django.shortcuts import get_object_or_404
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, StreamingHttpResponse
 from django.utils import timezone
 from django.db.models import Q
 from rest_framework import viewsets, status, permissions
@@ -99,9 +101,9 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
 
-        if self.action in ['list', 'retrieve']:
+        if self.action in ['list', 'retrieve', 'storage_config']:
             return [permissions.AllowAny()]
-        elif self.action in ['create', 'upload_image', 'upload_file', 'toggle_active', 'toggle_featured', 'destroy']:
+        elif self.action in ['create', 'upload_image', 'upload_file', 'gdrive_upload_session', 'gdrive_upload_complete', 'toggle_active', 'toggle_featured', 'destroy']:
             return [IsStaffOrAdmin()]
         elif self.action in ['pending', 'approve', 'reject']:
             return [IsAdmin()]
@@ -174,7 +176,8 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         # When staff is mutating (updating/deleting/toggling/uploading media), restrict to their own products
         if user.is_authenticated and getattr(user, 'role', '') == 'staff' and self.action in [
-            'update', 'partial_update', 'destroy', 'upload_image', 'upload_file', 'delete_image', 'delete_file', 'toggle_active'
+            'update', 'partial_update', 'destroy', 'upload_image', 'upload_file', 'delete_image', 'delete_file', 'toggle_active',
+            'gdrive_upload_session', 'gdrive_upload_complete'
         ]:
             return queryset.filter(uploaded_by=user).order_by('-created_at')
 
@@ -508,6 +511,124 @@ class ProductViewSet(viewsets.ModelViewSet):
         except ProductFile.DoesNotExist:
             return Response({"error": "File not found."}, status=status.HTTP_404_NOT_FOUND)
 
+    @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny], url_path='storage-config')
+    def storage_config(self, request):
+        """
+        Returns active CAD storage backend configuration.
+        """
+        backend = getattr(settings, 'CAD_STORAGE_BACKEND', 'local')
+        return Response({
+            "storage_backend": backend,
+            "is_gdrive": backend == 'gdrive'
+        })
+
+    @action(detail=True, methods=['post'], permission_classes=[IsStaffOrAdmin], url_path='gdrive-upload-session')
+    def gdrive_upload_session(self, request, slug=None):
+        """
+        Initiates a direct resumable upload session on Google Drive.
+        Enables browser to upload large CAD assets directly to Drive with zero server memory buffering.
+        """
+        product = self.get_object()
+        file_name = request.data.get('filename', '').strip()
+        file_type = request.data.get('file_type', '').strip().lower()
+        file_size = request.data.get('file_size')
+        mime_type = request.data.get('mime_type', 'application/octet-stream')
+
+        if not file_name or not file_type or not file_size:
+            return Response(
+                {"error": "filename, file_type, and file_size are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        valid_types = [choice[0] for choice in ProductFile.FileType.choices]
+        if file_type not in valid_types:
+            return Response(
+                {"error": f"Invalid file_type '{file_type}'. Valid choices: {', '.join(valid_types)}."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        ext = os.path.splitext(file_name)[1].lower()
+        allowed_extensions = {
+            '3dm': ['.3dm'],
+            'stl': ['.stl'],
+            'render': ['.jpg', '.jpeg', '.png', '.webp', '.tiff', '.bmp'],
+            'video': ['.mp4', '.mov', '.webm', '.avi', '.mkv'],
+            'zip': ['.zip', '.7z', '.tar', '.gz', '.rar'],
+        }
+        if ext not in allowed_extensions.get(file_type, []):
+            return Response(
+                {"error": f"Invalid file extension '{ext}' for type '{file_type}'. Allowed: {', '.join(allowed_extensions.get(file_type, []))}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        from apps.core.gdrive_service import create_resumable_upload_session, GoogleDriveError
+        origin = request.META.get('HTTP_ORIGIN')
+        try:
+            session_uri = create_resumable_upload_session(
+                filename=f"{product.slug}_{file_type}{ext}",
+                mime_type=mime_type,
+                size=int(file_size),
+                origin=origin
+            )
+            return Response({
+                "session_uri": session_uri,
+                "file_type": file_type,
+                "filename": file_name,
+                "product_slug": product.slug
+            }, status=status.HTTP_200_OK)
+        except GoogleDriveError as e:
+            return Response({"error": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsStaffOrAdmin], url_path='gdrive-upload-complete')
+    def gdrive_upload_complete(self, request, slug=None):
+        """
+        Finalizes a direct Google Drive upload after the browser finishes sending bytes.
+        Verifies metadata against Drive API and creates the ProductFile record.
+        """
+        product = self.get_object()
+        drive_file_id = request.data.get('drive_file_id', '').strip()
+        file_type = request.data.get('file_type', '').strip().lower()
+        original_filename = request.data.get('original_filename', '').strip()
+
+        if not drive_file_id or not file_type:
+            return Response(
+                {"error": "drive_file_id and file_type are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        valid_types = [choice[0] for choice in ProductFile.FileType.choices]
+        if file_type not in valid_types:
+            return Response(
+                {"error": f"Invalid file_type '{file_type}'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        from apps.core.gdrive_service import get_file_metadata, GoogleDriveError
+        try:
+            metadata = get_file_metadata(drive_file_id)
+        except GoogleDriveError as e:
+            return Response({"error": f"Failed to verify Google Drive file: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Replace existing product file of same type (cleans up old Drive or local file via post_delete signal)
+        existing = product.files.filter(file_type=file_type).first()
+        if existing:
+            try:
+                existing.delete()
+            except Exception as e:
+                logger.warning("Error cleaning up old ProductFile: %s", e)
+
+        pf = ProductFile.objects.create(
+            product=product,
+            file_type=file_type,
+            storage_provider=ProductFile.StorageProvider.GDRIVE,
+            drive_file_id=drive_file_id,
+            original_filename=original_filename or metadata.get('name', ''),
+            file_size_bytes=metadata.get('size', 0)
+        )
+
+        serializer = ProductFileSerializer(pf, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
     @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated], url_path='download/(?P<file_id>[^/.]+)')
     def download_file(self, request, file_id=None):
         try:
@@ -541,9 +662,34 @@ class ProductViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
 
+        # Google Drive streaming
+        if product_file.storage_provider == ProductFile.StorageProvider.GDRIVE and product_file.drive_file_id:
+            from apps.core.gdrive_service import stream_file, GoogleDriveQuotaError, GoogleDriveError
+            try:
+                stream = stream_file(product_file.drive_file_id)
+                response = StreamingHttpResponse(stream, content_type='application/octet-stream')
+                filename = product_file.original_filename or f"{product.slug}_{product_file.file_type}.{product_file.file_type}"
+                response['Content-Disposition'] = f'attachment; filename="{filename}"'
+                if product_file.file_size_bytes:
+                    response['Content-Length'] = str(product_file.file_size_bytes)
+                return response
+            except GoogleDriveQuotaError:
+                return Response(
+                    {"error": "Download temporarily unavailable due to storage quota limits, please try again later or contact support."},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+            except GoogleDriveError as e:
+                return Response(
+                    {"error": f"Failed to retrieve file from storage: {str(e)}"},
+                    status=status.HTTP_502_BAD_GATEWAY
+                )
+
+        if not product_file.file:
+            raise Http404("File content is not available.")
+
         file_handle = product_file.file.open('rb')
         response = FileResponse(file_handle, content_type='application/octet-stream')
-        file_name = os.path.basename(product_file.file.name)
+        file_name = product_file.original_filename or os.path.basename(product_file.file.name)
         response['Content-Disposition'] = f'attachment; filename="{file_name}"'
         return response
 

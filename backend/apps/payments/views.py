@@ -281,6 +281,7 @@ def incoming_gateway_logs(request):
             'status': pur.get_status_display(),
             'raw_status': pur.status,
             'can_approve': pur.status == 'pending',
+            'download_enabled_by_admin': pur.download_enabled_by_admin,
             'date': pur.purchased_at.strftime('%b %d, %Y, %I:%M %p'),
             'created_at_iso': pur.purchased_at.isoformat()
         })

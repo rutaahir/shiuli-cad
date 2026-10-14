@@ -168,9 +168,26 @@ class ProductFile(models.Model):
         VIDEO = "video", "360 Video"
         ZIP = "zip", "ZIP Archive (all CAD files)"
 
+    class StorageProvider(models.TextChoices):
+        LOCAL = "local", "Local Disk"
+        GDRIVE = "gdrive", "Google Drive"
+
     product = models.ForeignKey(Product, related_name="files", on_delete=models.CASCADE)
     file_type = models.CharField(max_length=10, choices=FileType.choices)
-    file = models.FileField(upload_to=product_file_upload_to, storage=protected_cad_storage)
+    storage_provider = models.CharField(
+        max_length=10,
+        choices=StorageProvider.choices,
+        default=StorageProvider.LOCAL,
+        help_text="Storage provider: 'local' (protected_media) or 'gdrive' (Google Drive)"
+    )
+    drive_file_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text="Google Drive file ID when storage_provider is gdrive"
+    )
+    file = models.FileField(upload_to=product_file_upload_to, storage=protected_cad_storage, blank=True, null=True)
     original_filename = models.CharField(max_length=500, blank=True, default='')
     file_size_bytes = models.PositiveBigIntegerField(null=True, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
@@ -188,3 +205,28 @@ class ProductFile(models.Model):
             except Exception:
                 pass
         super().save(*args, **kwargs)
+
+
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
+
+@receiver(post_delete, sender=ProductFile)
+def cleanup_product_file_storage(sender, instance, **kwargs):
+    """
+    Cleans up the underlying storage asset when a ProductFile record is deleted,
+    preventing orphaned files in Google Drive or on local disk.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    if instance.storage_provider == ProductFile.StorageProvider.GDRIVE and instance.drive_file_id:
+        try:
+            from apps.core.gdrive_service import delete_file
+            delete_file(instance.drive_file_id)
+        except Exception as e:
+            logger.warning("Failed to delete Google Drive file %s on ProductFile delete: %s", instance.drive_file_id, e)
+    elif instance.file:
+        try:
+            instance.file.delete(save=False)
+        except Exception as e:
+            logger.warning("Failed to delete local file on ProductFile delete: %s", e)

@@ -26,10 +26,12 @@ venv/
 ENV/
 env/
 
-# Backend Environment
+# Backend Environment & Credentials
 backend/.env
 backend/.env.*
 !backend/.env.example
+backend/credentials/
+*.service-account.json
 db.sqlite3
 *.bak
 node_modules/
@@ -38,3 +40,9 @@ dist/
 
 project_status_report.xlsx
 ~$*
+
+# Media & Uploads
+media/
+backend/media/
+protected_media/
+backend/protected_media/

@@ -66,7 +66,8 @@ class TestSecureCADDeliverySystem(APITestCase):
         self.client.force_authenticate(user=self.buyer)
         response = self.client.post('/api/payments/purchases/', {
             'product_id': self.product.id,
-            'license_type': 'atelier'
+            'license_type': 'atelier',
+            'auto_confirm': True
         })
         assert response.status_code == 201
         data = response.data
@@ -87,7 +88,10 @@ class TestSecureCADDeliverySystem(APITestCase):
     def test_03_wrong_otp_lockout_rate_limit(self):
         """Enter wrong OTP 5 times -> account/code locked out with 429 rate limit."""
         self.client.force_authenticate(user=self.buyer)
-        res = self.client.post('/api/payments/purchases/', {'product_id': self.product.id})
+        res = self.client.post('/api/payments/purchases/', {
+            'product_id': self.product.id,
+            'auto_confirm': True
+        })
         purchase_id = res.data['purchase_id']
 
         # Submit wrong code 5 times
@@ -103,7 +107,10 @@ class TestSecureCADDeliverySystem(APITestCase):
     def test_04_correct_otp_generates_token_and_omits_token_from_api_response(self):
         """Correct OTP -> DownloadToken created; API response NEVER exposes raw token."""
         self.client.force_authenticate(user=self.buyer)
-        res = self.client.post('/api/payments/purchases/', {'product_id': self.product.id})
+        res = self.client.post('/api/payments/purchases/', {
+            'product_id': self.product.id,
+            'auto_confirm': True
+        })
         purchase_id = res.data['purchase_id']
         purchase = Purchase.objects.get(id=purchase_id)
 
@@ -147,7 +154,7 @@ class TestSecureCADDeliverySystem(APITestCase):
         assert response.status_code in [200, 404]  # 404 only if physical file missing in test env
 
     def test_06_download_correct_buyer_streams_file_and_marks_used(self):
-        """Correct buyer streams CAD binary attachment and token is immediately marked used."""
+        """Correct buyer streams CAD binary attachment and token is marked used upon completion."""
         purchase = Purchase.objects.create(
             buyer=self.buyer,
             product=self.product,
@@ -168,10 +175,79 @@ class TestSecureCADDeliverySystem(APITestCase):
         assert response.headers['Content-Type'] == 'application/octet-stream'
         assert 'attachment' in response.headers['Content-Disposition']
 
-        # Token must be marked used immediately
+        # While stream is active, token is claimed with IN_PROGRESS lease and NOT yet completed
+        token_obj.refresh_from_db()
+        assert token_obj.status == DownloadToken.Status.IN_PROGRESS
+        assert token_obj.is_used is False
+        assert token_obj.attempt_count == 1
+
+        # Simulate client consuming the streaming response to EOF
+        content = b''.join(response.streaming_content)
+        assert len(content) > 0
+
+        # After stream completion, token is marked completed and is_used is True
         token_obj.refresh_from_db()
         assert token_obj.is_used is True
+        assert token_obj.status == DownloadToken.Status.COMPLETED
+        assert token_obj.completed_at is not None
         assert token_obj.used_at is not None
+
+    def test_06b_simultaneous_download_conflict_409(self):
+        """A request arriving while another stream is active returns HTTP 409 Conflict."""
+        purchase = Purchase.objects.create(
+            buyer=self.buyer,
+            product=self.product,
+            price_paid=15000.00,
+            payment_transaction_id="TXN-TEST",
+            status="paid"
+        )
+        token_obj = DownloadToken.objects.create(
+            purchase=purchase,
+            token="IN_PROGRESS_TOKEN_777",
+            locked_email=self.buyer.email,
+            expires_at=timezone.now() + timedelta(hours=48),
+            status=DownloadToken.Status.IN_PROGRESS,
+            in_progress_started_at=timezone.now(),
+            attempt_count=1
+        )
+
+        response = self.client.get(f'/download/{token_obj.token}/')
+        assert response.status_code == 409
+        assert 'in progress' in response.data['error'].lower()
+
+    def test_06c_admin_lock_blocks_download_and_revokes_tokens(self):
+        """Admin locking purchase blocks download and marks active tokens REVOKED."""
+        purchase = Purchase.objects.create(
+            buyer=self.buyer,
+            product=self.product,
+            price_paid=15000.00,
+            payment_transaction_id="TXN-TEST",
+            status="paid",
+            download_enabled_by_admin=True
+        )
+        token_obj = DownloadToken.objects.create(
+            purchase=purchase,
+            token="REVOKE_TEST_TOKEN_555",
+            locked_email=self.buyer.email,
+            expires_at=timezone.now() + timedelta(hours=48)
+        )
+
+        # Admin user toggles download permission
+        admin_user = User.objects.create_superuser('admin1', 'admin1@shiuli.com', 'AdminPass123!')
+        self.client.force_authenticate(user=admin_user)
+        toggle_res = self.client.post(f'/api/payments/purchases/{purchase.id}/toggle-download-permission/', {'enabled': False})
+        assert toggle_res.status_code == 200
+        assert toggle_res.data['download_enabled_by_admin'] is False
+
+        # Token was revoked
+        token_obj.refresh_from_db()
+        assert token_obj.status == DownloadToken.Status.REVOKED
+
+        # Customer attempts to download -> HTTP 403 Forbidden
+        self.client.force_authenticate(user=self.buyer)
+        dl_res = self.client.get(f'/download/{token_obj.token}/')
+        assert dl_res.status_code == 403
+        assert 'locked' in dl_res.data['error'].lower() or 'revoked' in dl_res.data['error'].lower()
 
     def test_07_second_download_attempt_fails_already_used(self):
         """Attempting to use an already-used token returns HTTP 400 'already used' error."""

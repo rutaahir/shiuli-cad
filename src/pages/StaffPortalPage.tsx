@@ -16,6 +16,7 @@ import { api } from '../services/api';
 import { StaffLayout } from '../components/staff/StaffLayout';
 import { AuthModal } from '../components/AuthModal';
 import { WaxSealStamp } from '../components/staff/WaxSealStamp';
+import { useAuth } from '../context/AuthContext';
 
 import { StaffWorkbenchTab } from '../components/staff/StaffWorkbenchTab';
 import { StaffJobPoolTab } from '../components/staff/StaffJobPoolTab';
@@ -53,8 +54,10 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
   onNavigate,
   initialTab,
 }) => {
+  const { openAuthModal } = useAuth();
   const [activeTab, setActiveTabState] = useState<StaffPortalTab>(initialTab || 'workbench');
   const [selectedActiveJobId, setSelectedActiveJobId] = useState<string | null>(null);
+  const [authWarning, setAuthWarning] = useState<string | null>(null);
 
   // Sync state from URL tab param if initialTab changes
   useEffect(() => {
@@ -275,6 +278,7 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
     try {
       const dash: any = await api.request('/staff/me/dashboard/');
       if (dash) {
+        setAuthWarning(null);
         setStaff((prev) => ({
           ...prev,
           name: `${dash.user?.first_name || ''} ${dash.user?.last_name || ''}`.trim() || dash.user?.username || prev.name,
@@ -285,8 +289,14 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
           rating: dash.user?.rating_average ? parseFloat(dash.user.rating_average) : prev.rating,
         }));
       }
-    } catch (e) {
-      console.warn('Failed to fetch staff dashboard:', e);
+    } catch (e: any) {
+      if (e?.status === 403 || e?.status === 401) {
+        setAuthWarning(
+          'You are currently viewing the Artisan Portal in Guest / Preview Mode. Sign in with an authorized CAD Staff account (e.g. designer_rahul / staff123) or Admin to access real-time job assignments and live payouts.'
+        );
+      } else {
+        console.warn('Failed to fetch staff dashboard:', e);
+      }
     }
   };
 
@@ -414,6 +424,22 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
           if (waxSeal.onComplete) waxSeal.onComplete();
         }}
       />
+
+      {/* Staff Auth Notice Banner */}
+      {authWarning && (
+        <div className="mb-5 p-4 rounded-2xl bg-[#FFF9F0] border border-[#E8D7B7] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-[#17345C] shadow-2xs animate-in fade-in">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0 animate-pulse" />
+            <span className="font-medium">{authWarning}</span>
+          </div>
+          <button
+            onClick={() => openAuthModal('Please sign in with your CAD Designer / Staff account to access the staff portal.')}
+            className="btn-gold-luxury px-3.5 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider shrink-0 cursor-pointer shadow-2xs"
+          >
+            Sign In as Staff
+          </button>
+        </div>
+      )}
 
       {/* Tab Contents */}
       {activeTab === 'workbench' && (

@@ -1,12 +1,18 @@
 import secrets
 import base64
+import os
+import shutil
+import tempfile
+import zipfile
+import logging
 from datetime import timedelta
 from django.utils import timezone
 from django.conf import settings
+from django.db import transaction
 from django.contrib.auth.hashers import make_password, check_password
 from django.core.files.base import ContentFile
 from apps.core.email_service import send_dynamic_mail as send_mail, send_otp_email, build_luxury_email_html
-from django.http import FileResponse
+from django.http import FileResponse, StreamingHttpResponse
 from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -14,6 +20,142 @@ from rest_framework.response import Response
 from apps.core.permissions import IsStaffOrAdmin
 from apps.catalog.models import Product, ProductFile
 from .models import Purchase, DownloadOTP, DownloadToken
+
+logger = logging.getLogger(__name__)
+
+CHUNK_SIZE = 1024 * 1024  # 1 MB chunk streaming size
+
+
+def stream_file_iterator(file_handle, chunk_size=CHUNK_SIZE, on_complete=None):
+    """
+    Zero-memory-buffering chunk generator for an open file handle.
+    Invokes on_complete() only when the file has been fully read and sent (EOF reached).
+    Ensures file handle is closed upon completion or interruption.
+    """
+    completed = False
+    try:
+        while True:
+            chunk = file_handle.read(chunk_size)
+            if not chunk:
+                completed = True
+                break
+            yield chunk
+    finally:
+        try:
+            file_handle.close()
+        except Exception as close_err:
+            logger.warning("Error closing file handle: %s", close_err)
+        if completed and on_complete:
+            try:
+                on_complete()
+            except Exception as comp_err:
+                logger.error("Error executing on_complete callback: %s", comp_err)
+
+
+def stream_temp_zip_iterator(temp_zip_path, chunk_size=CHUNK_SIZE, on_complete=None):
+    """
+    Zero-memory-buffering chunk generator for a disk-backed temporary ZIP archive.
+    Streams 1 MB chunks, cleans up the temporary file in finally block,
+    and calls on_complete() only when the full archive was streamed.
+    """
+    completed = False
+    try:
+        with open(temp_zip_path, 'rb') as f:
+            while True:
+                chunk = f.read(chunk_size)
+                if not chunk:
+                    completed = True
+                    break
+                yield chunk
+    finally:
+        try:
+            if os.path.exists(temp_zip_path):
+                os.unlink(temp_zip_path)
+        except Exception as cleanup_err:
+            logger.warning("Failed to remove temporary zip file %s: %s", temp_zip_path, cleanup_err)
+        if completed and on_complete:
+            try:
+                on_complete()
+            except Exception as comp_err:
+                logger.error("Error executing on_complete callback: %s", comp_err)
+
+
+def stream_gdrive_iterator(drive_file_id, token_id=None, chunk_size=CHUNK_SIZE, on_complete=None):
+    """
+    Zero-memory-buffering chunk generator from Google Drive.
+    Invokes on_complete() only when all bytes have been streamed (EOF reached).
+    Restores token to available state if quota error occurs during streaming.
+    """
+    completed = False
+    try:
+        from apps.core.gdrive_service import stream_file, GoogleDriveQuotaError
+        for chunk in stream_file(drive_file_id, chunk_size=chunk_size):
+            yield chunk
+        completed = True
+    except GoogleDriveQuotaError as quota_err:
+        logger.error("Drive quota exceeded while streaming file %s: %s", drive_file_id, quota_err)
+        if token_id:
+            try:
+                from django.db.models import F
+                DownloadToken.objects.filter(id=token_id).update(
+                    status=DownloadToken.Status.AVAILABLE,
+                    attempt_count=F('attempt_count') - 1,
+                    in_progress_started_at=None
+                )
+            except Exception as e:
+                logger.error("Failed to reset token on stream quota error: %s", e)
+        raise
+    finally:
+        if completed and on_complete:
+            try:
+                on_complete()
+            except Exception as comp_err:
+                logger.error("Error executing on_complete callback: %s", comp_err)
+
+
+def build_disk_backed_zip(file_items):
+    """
+    file_items is a list of tuples: (clean_filename, file_source, is_gdrive)
+    where:
+      - if is_gdrive=True: file_source is drive_file_id (streamed directly to disk)
+      - if is_gdrive=False and file_source is str/Path: filesystem path
+      - if is_gdrive=False and file_source is handle: open file handle
+    Writes directly to a disk-backed temporary file using ZIP_STORED.
+    Returns the absolute path to the temporary ZIP file.
+    """
+    temp_zip = tempfile.NamedTemporaryFile(suffix='.zip', delete=False)
+    temp_zip_path = temp_zip.name
+    temp_zip.close()
+
+    try:
+        with zipfile.ZipFile(temp_zip_path, 'w', compression=zipfile.ZIP_STORED, allowZip64=True) as zf:
+            for item in file_items:
+                clean_name = item[0]
+                source = item[1]
+                is_gdrive = item[2] if len(item) > 2 else False
+
+                if is_gdrive:
+                    from apps.core.gdrive_service import stream_file
+                    with zf.open(clean_name, 'w', force_zip64=True) as dest_entry:
+                        for chunk in stream_file(source):
+                            dest_entry.write(chunk)
+                elif isinstance(source, (str, bytes, os.PathLike)) and os.path.exists(source):
+                    zf.write(source, arcname=clean_name)
+                else:
+                    with zf.open(clean_name, 'w', force_zip64=True) as dest_entry:
+                        shutil.copyfileobj(source, dest_entry, length=CHUNK_SIZE)
+                    try:
+                        source.close()
+                    except Exception:
+                        pass
+        return temp_zip_path
+    except Exception:
+        if os.path.exists(temp_zip_path):
+            try:
+                os.unlink(temp_zip_path)
+            except Exception:
+                pass
+        raise
 
 
 def generate_6digit_otp():
@@ -467,11 +609,22 @@ def resend_otp(request, purchase_id):
     """
     POST /api/purchases/{id}/resend-otp/
     Rate-limited OTP resend (60-second cooldown + max 5 requests/hour).
+    Enforces PAID status and admin download permission.
     """
     try:
         purchase = Purchase.objects.get(id=purchase_id, buyer=request.user)
     except Purchase.DoesNotExist:
         return Response({"error": "Purchase not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if purchase.status != Purchase.Status.PAID:
+        return Response({
+            "error": "This purchase has not been marked as paid or approved yet."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    if not purchase.download_enabled_by_admin:
+        return Response({
+            "error": "Download permission has been locked by administration for this purchase. Please contact support."
+        }, status=status.HTTP_403_FORBIDDEN)
 
     now = timezone.now()
 
@@ -540,7 +693,7 @@ def verify_otp(request, purchase_id):
     """
     POST /api/purchases/{id}/verify-otp/
     Validates code against otp_hash, locks out after 5 failed attempts.
-    On success: generates single-use DownloadToken, emails secure link, returns confirmation ONLY.
+    On success: generates single-use DownloadToken, emails secure link, returns confirmation.
     """
     code = str(request.data.get('code', '')).strip()
     if not code:
@@ -550,6 +703,16 @@ def verify_otp(request, purchase_id):
         purchase = Purchase.objects.get(id=purchase_id, buyer=request.user)
     except Purchase.DoesNotExist:
         return Response({"error": "Purchase not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if purchase.status != Purchase.Status.PAID:
+        return Response({
+            "error": "This purchase has not been marked as paid or approved yet."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    if not purchase.download_enabled_by_admin:
+        return Response({
+            "error": "Download permission has been locked by administration for this purchase. Please contact support."
+        }, status=status.HTTP_403_FORBIDDEN)
 
     now = timezone.now()
     otp_obj = DownloadOTP.objects.filter(purchase=purchase, is_verified=False).order_by('-created_at').first()
@@ -584,7 +747,9 @@ def verify_otp(request, purchase_id):
         token=raw_token,
         locked_email=request.user.email,
         expires_at=expires_at,
-        is_used=False
+        is_used=False,
+        status=DownloadToken.Status.AVAILABLE,
+        attempt_count=0
     )
 
     origin = request.META.get('HTTP_ORIGIN') or request.META.get('HTTP_REFERER')
@@ -658,68 +823,141 @@ def verify_otp(request, purchase_id):
 def download_cad_file(request, token):
     """
     GET /download/{token}/ (and /api/payments/download/{token}/)
-    Secure single-use file streaming endpoint.
-    - Validates token exists, not expired, is_used == False.
-    - Streams CAD file directly from PROTECTED_MEDIA_ROOT.
-    - Marks token as used, records timestamp & client IP.
+    Secure single-use chunked file streaming endpoint.
+    - Uses transaction.atomic() + select_for_update() to claim token with 15-min lease.
+    - Prevents concurrent race conditions (second simultaneous request receives 409 Conflict).
+    - Enforces max 3 retry attempts on interrupted transfers.
+    - Zero in-memory buffering: multi-file packages stream from disk-backed temp zip (ZIP_STORED).
+    - Token marked completed and is_used=True ONLY upon verified stream completion (EOF).
+    - Enforces admin download lock and account email binding.
     """
-    try:
-        token_obj = DownloadToken.objects.select_related('purchase', 'purchase__product', 'purchase__buyer', 'order', 'order__client').get(token=token)
-    except DownloadToken.DoesNotExist:
-        return Response({
-            "error": "This download link is invalid, expired, or has already been used. If this is your purchase, request a new secure link from your Order History."
-        }, status=status.HTTP_404_NOT_FOUND)
-
     now = timezone.now()
+    LEASE_DURATION = timedelta(minutes=15)
+    MAX_ATTEMPTS = 3
 
-    if token_obj.is_used:
-        return Response({
-            "error": "This download link has already been used and has expired. You can request a new download link from your Order History."
-        }, status=status.HTTP_400_BAD_REQUEST)
+    with transaction.atomic():
+        try:
+            token_obj = (
+                DownloadToken.objects
+                .select_for_update()
+                .select_related('purchase', 'purchase__product', 'purchase__buyer', 'order', 'order__client')
+                .get(token=token)
+            )
+        except DownloadToken.DoesNotExist:
+            return Response({
+                "error": "This download link is invalid, expired, or has already been used. If this is your purchase, request a new secure link from your Order History."
+            }, status=status.HTTP_404_NOT_FOUND)
 
-    if token_obj.expires_at < now:
-        return Response({
-            "error": "This download link has expired (48-hour limit). Please request a new secure link from your Order History."
-        }, status=status.HTTP_400_BAD_REQUEST)
+        # 1. Admin download lock check
+        if token_obj.purchase and not token_obj.purchase.download_enabled_by_admin:
+            return Response({
+                "error": "Download permission has been locked by administration for this purchase. Please contact support."
+            }, status=status.HTTP_403_FORBIDDEN)
 
-    # Email lock validation (if user is authenticated in the session)
-    if request.user.is_authenticated and request.user.email:
-        if request.user.email.lower() != token_obj.locked_email.lower():
-            buyer_user = token_obj.purchase.buyer if token_obj.purchase else (token_obj.order.client if token_obj.order else None)
-            if not (buyer_user and request.user == buyer_user):
+        if token_obj.order and not token_obj.order.download_enabled_by_admin:
+            return Response({
+                "error": "Download permission has been locked by administration for this order. Please contact support."
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # 2. Check revoked status
+        if token_obj.status == DownloadToken.Status.REVOKED:
+            return Response({
+                "error": "This download link has been revoked by administration. Please contact support."
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # 3. Check already completed / used
+        if token_obj.is_used or token_obj.status == DownloadToken.Status.COMPLETED:
+            return Response({
+                "error": "This download link has already been used and has expired. You can request a new download link from your Order History."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 4. Check 48-hour expiration
+        if token_obj.expires_at < now or token_obj.status == DownloadToken.Status.EXPIRED:
+            if token_obj.status != DownloadToken.Status.EXPIRED:
+                token_obj.status = DownloadToken.Status.EXPIRED
+                token_obj.save(update_fields=['status'])
+            return Response({
+                "error": "This download link has expired (48-hour limit). Please request a new secure link from your Order History."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 5. Check PAID status for catalog purchase
+        if token_obj.purchase and token_obj.purchase.status != Purchase.Status.PAID:
+            return Response({
+                "error": "Payment for this purchase has not been completed or verified yet."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 6. Email lock validation (if user is authenticated in the session)
+        if request.user.is_authenticated and request.user.email:
+            if request.user.email.lower() != token_obj.locked_email.lower():
+                buyer_user = token_obj.purchase.buyer if token_obj.purchase else (token_obj.order.client if token_obj.order else None)
+                if not (buyer_user and request.user == buyer_user):
+                    return Response({
+                        "error": "This download link belongs to a different account and cannot be used here."
+                    }, status=status.HTTP_403_FORBIDDEN)
+
+        # 7. Check In-Progress Lease & Attempt Count
+        if token_obj.status == DownloadToken.Status.IN_PROGRESS:
+            if token_obj.in_progress_started_at and (now - token_obj.in_progress_started_at) < LEASE_DURATION:
                 return Response({
-                    "error": "This download link belongs to a different account and cannot be used here."
-                }, status=status.HTTP_403_FORBIDDEN)
+                    "error": "A download is currently in progress for this link. If your download was interrupted, please try again in 15 minutes."
+                }, status=status.HTTP_409_CONFLICT)
+            else:
+                if token_obj.attempt_count >= MAX_ATTEMPTS:
+                    token_obj.status = DownloadToken.Status.EXPIRED
+                    token_obj.save(update_fields=['status'])
+                    return Response({
+                        "error": f"Maximum download attempts ({MAX_ATTEMPTS}) reached for this link. Please request a new link from your Order History."
+                    }, status=status.HTTP_400_BAD_REQUEST)
 
-    # Handle Order deliverables if this token is for a Custom Order
+        # 8. Claim token: set to IN_PROGRESS, record attempt & client IP
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        ip = x_forwarded_for.split(',')[0].strip() if x_forwarded_for else request.META.get('REMOTE_ADDR', '127.0.0.1')
+
+        token_obj.status = DownloadToken.Status.IN_PROGRESS
+        token_obj.in_progress_started_at = now
+        token_obj.attempt_count += 1
+        token_obj.used_from_ip = ip
+        token_obj.save(update_fields=['status', 'in_progress_started_at', 'attempt_count', 'used_from_ip'])
+
+    # Stream completion callback: marks token as completed ONLY after client receives full stream
+    def mark_download_complete():
+        try:
+            with transaction.atomic():
+                t = DownloadToken.objects.select_for_update().get(id=token_obj.id)
+                if t.status != DownloadToken.Status.REVOKED:
+                    t.status = DownloadToken.Status.COMPLETED
+                    t.is_used = True
+                    t.completed_at = timezone.now()
+                    t.used_at = timezone.now()
+                    t.save(update_fields=['status', 'is_used', 'completed_at', 'used_at'])
+                if t.order:
+                    t.order.status = 'completed'
+                    t.order.save(update_fields=['status'])
+        except Exception as comp_err:
+            logger.error("Error finalizing download completion for token %s: %s", token_obj.id, comp_err)
+
+    # Handle Custom Order deliverables
     if token_obj.order:
         order = token_obj.order
         from apps.custom_orders.models import OrderDeliverable
         from apps.catalog.models import protected_cad_storage
-        import io, zipfile, os
+        from apps.core.gdrive_service import GoogleDriveQuotaError, GoogleDriveError
 
         deliverables = list(OrderDeliverable.objects.filter(order=order))
-        valid_deliverables = [d for d in deliverables if d.file]
+        valid_deliverables = [
+            d for d in deliverables
+            if (d.storage_provider == 'gdrive' and d.drive_file_id) or d.file
+        ]
 
         if not valid_deliverables:
             return Response({
                 "error": "The assigned CAD designer has not uploaded the production deliverables (.3DM / .STL) for this order yet. Please contact studio support or check back once files have been uploaded."
             }, status=status.HTTP_404_NOT_FOUND)
 
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        ip = x_forwarded_for.split(',')[0].strip() if x_forwarded_for else request.META.get('REMOTE_ADDR', '127.0.0.1')
-
-        token_obj.is_used = True
-        token_obj.used_at = now
-        token_obj.used_from_ip = ip
-        token_obj.save(update_fields=['is_used', 'used_at', 'used_from_ip'])
-
-        # Update Order status to COMPLETED
-        order.status = 'completed'
-        order.save(update_fields=['status'])
-
         def get_clean_name(deliv):
-            raw_filename = os.path.basename(deliv.file.name)
+            if deliv.original_filename:
+                return deliv.original_filename
+            raw_filename = os.path.basename(deliv.file.name) if deliv.file else f"ord_{order.id}_{deliv.file_type}.{deliv.file_type}"
             clean_filename = raw_filename
             prefix = f"ord_{order.id}_{deliv.file_type}_"
             if clean_filename.startswith(prefix):
@@ -731,11 +969,6 @@ def download_cad_file(request, token):
         try:
             if len(valid_deliverables) == 1:
                 deliv = valid_deliverables[0]
-                if protected_cad_storage.exists(deliv.file.name):
-                    file_handle = protected_cad_storage.open(deliv.file.name, 'rb')
-                else:
-                    file_handle = deliv.file.open('rb')
-
                 clean_filename = get_clean_name(deliv)
                 content_type = 'application/octet-stream'
                 if clean_filename.lower().endswith('.mp4') or deliv.file_type == 'video':
@@ -743,36 +976,83 @@ def download_cad_file(request, token):
                 elif clean_filename.lower().endswith('.stl'):
                     content_type = 'model/stl'
 
-                response = FileResponse(file_handle, content_type=content_type)
-                response['Content-Disposition'] = f'attachment; filename="{clean_filename}"'
-                response['Access-Control-Expose-Headers'] = 'Content-Disposition'
-                return response
+                if deliv.storage_provider == 'gdrive' and deliv.drive_file_id:
+                    response = StreamingHttpResponse(
+                        stream_gdrive_iterator(deliv.drive_file_id, on_complete=mark_download_complete),
+                        content_type=content_type
+                    )
+                    response['Content-Disposition'] = f'attachment; filename="{clean_filename}"'
+                    if deliv.file_size_bytes:
+                        response['Content-Length'] = str(deliv.file_size_bytes)
+                    response['Access-Control-Expose-Headers'] = 'Content-Disposition, Content-Length'
+                    return response
+                else:
+                    if protected_cad_storage.exists(deliv.file.name):
+                        file_handle = protected_cad_storage.open(deliv.file.name, 'rb')
+                    else:
+                        file_handle = deliv.file.open('rb')
+
+                    file_size = None
+                    try:
+                        file_size = deliv.file.size
+                    except Exception:
+                        pass
+
+                    response = StreamingHttpResponse(
+                        stream_file_iterator(file_handle, on_complete=mark_download_complete),
+                        content_type=content_type
+                    )
+                    response['Content-Disposition'] = f'attachment; filename="{clean_filename}"'
+                    if file_size:
+                        response['Content-Length'] = str(file_size)
+                    response['Access-Control-Expose-Headers'] = 'Content-Disposition, Content-Length'
+                    return response
             else:
-                # Package all deliverables (.3dm, .stl, .mp4) into a master production zip archive
-                zip_buffer = io.BytesIO()
-                with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-                    for deliv in valid_deliverables:
+                # Package all deliverables into a disk-backed ZIP (Zero RAM buffering)
+                file_items = []
+                for deliv in valid_deliverables:
+                    clean_name = get_clean_name(deliv)
+                    if deliv.storage_provider == 'gdrive' and deliv.drive_file_id:
+                        file_items.append((clean_name, deliv.drive_file_id, True))
+                    else:
                         try:
                             if protected_cad_storage.exists(deliv.file.name):
-                                f = protected_cad_storage.open(deliv.file.name, 'rb')
+                                f_h = protected_cad_storage.open(deliv.file.name, 'rb')
                             else:
-                                f = deliv.file.open('rb')
-                            data = f.read()
-                            f.close()
-                            clean_name = get_clean_name(deliv)
-                            zf.writestr(clean_name, data)
+                                f_h = deliv.file.open('rb')
+                            file_items.append((clean_name, f_h, False))
                         except Exception as file_err:
-                            print(f"[ZIP PACKAGING WARNING] Could not read deliverable {deliv.id}: {file_err}")
+                            logger.warning("Could not open deliverable %s: %s", deliv.id, file_err)
 
-                zip_buffer.seek(0)
+                temp_zip_path = build_disk_backed_zip(file_items)
                 zip_filename = f"order_{order.id}_cad_production_package.zip"
-                response = FileResponse(zip_buffer, content_type='application/zip')
+                zip_size = os.path.getsize(temp_zip_path)
+
+                response = StreamingHttpResponse(
+                    stream_temp_zip_iterator(temp_zip_path, on_complete=mark_download_complete),
+                    content_type='application/zip'
+                )
                 response['Content-Disposition'] = f'attachment; filename="{zip_filename}"'
-                response['Access-Control-Expose-Headers'] = 'Content-Disposition'
+                response['Content-Length'] = str(zip_size)
+                response['Access-Control-Expose-Headers'] = 'Content-Disposition, Content-Length'
                 return response
+        except GoogleDriveQuotaError as quota_err:
+            logger.error("Drive quota exceeded streaming order deliverables: %s", quota_err)
+            try:
+                with transaction.atomic():
+                    DownloadToken.objects.filter(id=token_obj.id).update(
+                        status=DownloadToken.Status.AVAILABLE,
+                        in_progress_started_at=None
+                    )
+            except Exception:
+                pass
+            return Response({
+                "error": "Download temporarily unavailable, please try again later or contact support."
+            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         except Exception as e:
             return Response({"error": f"Unable to stream file: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    # Catalog Product CAD Files
     product = token_obj.purchase.product
     cad_file_objs = list(ProductFile.objects.filter(
         product=product,
@@ -783,14 +1063,14 @@ def download_cad_file(request, token):
     valid_cad_files = []
     from apps.catalog.models import protected_cad_storage
     for cf in cad_file_objs:
-        if cf.file:
+        if cf.storage_provider == ProductFile.StorageProvider.GDRIVE and cf.drive_file_id:
+            valid_cad_files.append(cf)
+        elif cf.file:
             try:
                 if protected_cad_storage.exists(cf.file.name) or cf.file.storage.exists(cf.file.name):
                     valid_cad_files.append(cf)
             except Exception:
                 pass
-
-    import os, io, zipfile
 
     # Fallback to authentic Rhino & STL assets from cad_demo_files if no ProductFiles exist on disk
     fallback_dir = getattr(settings, 'BASE_DIR') / 'cad_demo_files'
@@ -799,77 +1079,110 @@ def download_cad_file(request, token):
         demo_stl = os.path.join(fallback_dir, 'diamond_solitaire_ring.stl')
         demo_files = [f for f in [demo_3dm, demo_stl] if os.path.exists(f)]
         if demo_files:
-            x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-            ip = x_forwarded_for.split(',')[0].strip() if x_forwarded_for else request.META.get('REMOTE_ADDR', '127.0.0.1')
-            token_obj.is_used = True
-            token_obj.used_at = now
-            token_obj.used_from_ip = ip
-            token_obj.save(update_fields=['is_used', 'used_at', 'used_from_ip'])
+            file_items = []
+            for df in demo_files:
+                ext = os.path.splitext(df)[1]
+                clean_name = f"{product.slug}_master{ext}"
+                file_items.append((clean_name, df, False))
 
-            # Package into ZIP archive
-            zip_buffer = io.BytesIO()
-            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-                for df in demo_files:
-                    ext = os.path.splitext(df)[1]
-                    clean_name = f"{product.slug}_master{ext}"
-                    with open(df, 'rb') as f_in:
-                        zf.writestr(clean_name, f_in.read())
-            zip_buffer.seek(0)
+            temp_zip_path = build_disk_backed_zip(file_items)
             zip_filename = f"{product.slug}_cad_production_package.zip"
-            response = FileResponse(zip_buffer, content_type='application/zip')
+            zip_size = os.path.getsize(temp_zip_path)
+
+            response = StreamingHttpResponse(
+                stream_temp_zip_iterator(temp_zip_path, on_complete=mark_download_complete),
+                content_type='application/zip'
+            )
             response['Content-Disposition'] = f'attachment; filename="{zip_filename}"'
-            response['Access-Control-Expose-Headers'] = 'Content-Disposition'
+            response['Content-Length'] = str(zip_size)
+            response['Access-Control-Expose-Headers'] = 'Content-Disposition, Content-Length'
             return response
 
     if not valid_cad_files:
         return Response({"error": "CAD design file not found for this product. Please contact support."}, status=status.HTTP_404_NOT_FOUND)
 
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-    if x_forwarded_for:
-        ip = x_forwarded_for.split(',')[0].strip()
-    else:
-        ip = request.META.get('REMOTE_ADDR', '127.0.0.1')
-
-    # Immediately mark token as used
-    token_obj.is_used = True
-    token_obj.used_at = now
-    token_obj.used_from_ip = ip
-    token_obj.save(update_fields=['is_used', 'used_at', 'used_from_ip'])
-
     try:
+        from apps.core.gdrive_service import GoogleDriveQuotaError, GoogleDriveError
+
         if len(valid_cad_files) == 1:
             cad_file_obj = valid_cad_files[0]
-            if protected_cad_storage.exists(cad_file_obj.file.name):
-                file_handle = protected_cad_storage.open(cad_file_obj.file.name, 'rb')
-            else:
-                file_handle = cad_file_obj.file.open('rb')
-
-            raw_name = os.path.basename(cad_file_obj.file.name)
+            raw_name = cad_file_obj.original_filename or (os.path.basename(cad_file_obj.file.name) if cad_file_obj.file else f"{product.slug}.{cad_file_obj.file_type}")
             content_type = 'model/stl' if raw_name.lower().endswith('.stl') else 'application/octet-stream'
-            response = FileResponse(file_handle, content_type=content_type)
-            response['Content-Disposition'] = f'attachment; filename="{raw_name}"'
-            response['Access-Control-Expose-Headers'] = 'Content-Disposition'
-            return response
+
+            if cad_file_obj.storage_provider == ProductFile.StorageProvider.GDRIVE and cad_file_obj.drive_file_id:
+                response = StreamingHttpResponse(
+                    stream_gdrive_iterator(cad_file_obj.drive_file_id, token_id=token_obj.id, on_complete=mark_download_complete),
+                    content_type=content_type
+                )
+                response['Content-Disposition'] = f'attachment; filename="{raw_name}"'
+                if cad_file_obj.file_size_bytes:
+                    response['Content-Length'] = str(cad_file_obj.file_size_bytes)
+                response['Access-Control-Expose-Headers'] = 'Content-Disposition, Content-Length'
+                return response
+            else:
+                if protected_cad_storage.exists(cad_file_obj.file.name):
+                    file_handle = protected_cad_storage.open(cad_file_obj.file.name, 'rb')
+                else:
+                    file_handle = cad_file_obj.file.open('rb')
+
+                file_size = None
+                try:
+                    file_size = cad_file_obj.file.size
+                except Exception:
+                    pass
+
+                response = StreamingHttpResponse(
+                    stream_file_iterator(file_handle, on_complete=mark_download_complete),
+                    content_type=content_type
+                )
+                response['Content-Disposition'] = f'attachment; filename="{raw_name}"'
+                if file_size:
+                    response['Content-Length'] = str(file_size)
+                response['Access-Control-Expose-Headers'] = 'Content-Disposition, Content-Length'
+                return response
         else:
-            # Package multiple CAD files (.3dm + .stl) into a single zip archive
-            zip_buffer = io.BytesIO()
-            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-                for cf in valid_cad_files:
+            # Package multiple CAD files (.3dm + .stl) into a single zip archive with zero memory buffering
+            file_items = []
+            for cf in valid_cad_files:
+                clean_name = cf.original_filename or (os.path.basename(cf.file.name) if cf.file else f"{product.slug}.{cf.file_type}")
+                if cf.storage_provider == ProductFile.StorageProvider.GDRIVE and cf.drive_file_id:
+                    file_items.append((clean_name, cf.drive_file_id, True))
+                else:
                     if protected_cad_storage.exists(cf.file.name):
                         f_in = protected_cad_storage.open(cf.file.name, 'rb')
                     else:
                         f_in = cf.file.open('rb')
-                    data = f_in.read()
-                    f_in.close()
-                    clean_name = os.path.basename(cf.file.name)
-                    zf.writestr(clean_name, data)
-            zip_buffer.seek(0)
+                    file_items.append((clean_name, f_in, False))
+
+            temp_zip_path = build_disk_backed_zip(file_items)
             zip_filename = f"{product.slug}_cad_production_package.zip"
-            response = FileResponse(zip_buffer, content_type='application/zip')
+            zip_size = os.path.getsize(temp_zip_path)
+
+            response = StreamingHttpResponse(
+                stream_temp_zip_iterator(temp_zip_path, on_complete=mark_download_complete),
+                content_type='application/zip'
+            )
             response['Content-Disposition'] = f'attachment; filename="{zip_filename}"'
-            response['Access-Control-Expose-Headers'] = 'Content-Disposition'
+            response['Content-Length'] = str(zip_size)
+            response['Access-Control-Expose-Headers'] = 'Content-Disposition, Content-Length'
             return response
+    except GoogleDriveQuotaError as quota_err:
+        logger.error("Drive quota exceeded for token %s: %s", token, quota_err)
+        try:
+            from django.db.models import F
+            with transaction.atomic():
+                DownloadToken.objects.filter(id=token_obj.id).update(
+                    status=DownloadToken.Status.AVAILABLE,
+                    attempt_count=F('attempt_count') - 1,
+                    in_progress_started_at=None
+                )
+        except Exception:
+            pass
+        return Response({
+            "error": "Download temporarily unavailable, please try again later or contact support."
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
     except Exception as e:
+        logger.error("Unable to stream file for token %s: %s", token, e)
         return Response({"error": f"Unable to stream file: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -885,6 +1198,16 @@ def resend_download_link(request, purchase_id):
         purchase = Purchase.objects.get(id=purchase_id, buyer=request.user)
     except Purchase.DoesNotExist:
         return Response({"error": "Purchase not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if purchase.status != Purchase.Status.PAID:
+        return Response({
+            "error": "This purchase has not been marked as paid or approved yet."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    if not purchase.download_enabled_by_admin:
+        return Response({
+            "error": "Download permission has been locked by administration for this purchase. Please contact support."
+        }, status=status.HTTP_403_FORBIDDEN)
 
     if purchase.redelivery_count >= 3:
         return Response({
@@ -935,6 +1258,51 @@ def resend_download_link(request, purchase_id):
     })
 
 
+@api_view(['POST'])
+@permission_classes([IsStaffOrAdmin])
+def toggle_purchase_download_permission(request, purchase_id):
+    """
+    POST /api/payments/purchases/{id}/toggle-download-permission/
+    Admin toggle to lock/unlock CAD downloads for a catalog purchase.
+    When locked, invalidates any active unexpired tokens.
+    """
+    try:
+        purchase = Purchase.objects.select_related('buyer', 'product').get(id=purchase_id)
+    except Purchase.DoesNotExist:
+        return Response({"error": "Purchase not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    enabled = request.data.get('enabled')
+    if enabled is not None:
+        if isinstance(enabled, str):
+            purchase.download_enabled_by_admin = enabled.lower() in ('true', '1', 'yes')
+        else:
+            purchase.download_enabled_by_admin = bool(enabled)
+    else:
+        purchase.download_enabled_by_admin = not purchase.download_enabled_by_admin
+    purchase.save(update_fields=['download_enabled_by_admin'])
+
+    revoked_tokens_count = 0
+    if not purchase.download_enabled_by_admin:
+        # Invalidate any active, uncompleted tokens
+        revoked_tokens_count = DownloadToken.objects.filter(
+            purchase=purchase,
+            is_used=False
+        ).exclude(
+            status__in=[DownloadToken.Status.COMPLETED, DownloadToken.Status.REVOKED]
+        ).update(
+            status=DownloadToken.Status.REVOKED,
+            is_used=True
+        )
+
+    return Response({
+        "success": True,
+        "purchase_id": purchase.id,
+        "download_enabled_by_admin": purchase.download_enabled_by_admin,
+        "revoked_tokens_count": revoked_tokens_count,
+        "message": f"Download permission for Purchase #{purchase.id} {'enabled' if purchase.download_enabled_by_admin else 'locked'}."
+    })
+
+
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def list_my_purchases(request):
@@ -959,7 +1327,8 @@ def list_my_purchases(request):
             "payment_details": p.payment_details or "",
             "payment_screenshot": request.build_absolute_uri(p.payment_screenshot.url) if p.payment_screenshot else None,
             "status": p.status,
-            "can_download": p.status == Purchase.Status.PAID,
+            "download_enabled_by_admin": p.download_enabled_by_admin,
+            "can_download": (p.status == Purchase.Status.PAID and p.download_enabled_by_admin),
             "admin_verified_at": p.admin_verified_at,
             "redelivery_count": p.redelivery_count,
             "max_redeliveries": 3,

@@ -628,14 +628,14 @@ function MainApp() {
 
       {/* Master Site Footer */}
       {isAuthPage ? (
-        <footer className="w-full py-4 px-4 text-center text-xs text-[#C9C2A6] border-t border-[#D4AF37]/20 bg-[#060B1E] relative z-20">
+        <footer className="w-full py-4 px-3 sm:px-6 lg:px-20 xl:px-28 text-center text-xs text-slate-400 border-t border-[#D6AD62]/20 bg-[#0A1628] relative z-20">
           <span className="tracking-wide">
             © 2026 SHIULI ALL RIGHTS RESERVED DEVELOPED BY{' '}
             <a
               href="https://technoadviser.com/"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#D4AF37] hover:text-[#F5E7A3] font-semibold underline underline-offset-2 transition-colors"
+              className="text-[#D6AD62] hover:text-[#E8D7B7] font-semibold underline underline-offset-2 transition-colors"
             >
               TECHNOADVISER
             </a>

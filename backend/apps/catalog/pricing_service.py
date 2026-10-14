@@ -370,22 +370,22 @@ def get_default_regional_pricing() -> Dict[str, Any]:
         "base_tier": {
             "name": "Base Country",
             "countries": ["IN"],
-            "price_usd": 20.00,
+            "price_usd": 10.00,
         },
         "tier_1": {
             "name": "Tier 1",
             "countries": ["BD", "NP", "LK"],
-            "price_usd": 10.00,
+            "price_usd": 20.00,
         },
         "tier_2": {
             "name": "Tier 2",
             "countries": ["US", "CA", "GB"],
-            "price_usd": 25.00,
+            "price_usd": 15.00,
         },
         "tier_3": {
             "name": "Tier 3",
             "countries": ["AU", "NZ", "SG"],
-            "price_usd": 30.00,
+            "price_usd": 10.00,
         },
         "rest_of_world": {
             "name": "Rest of the World",

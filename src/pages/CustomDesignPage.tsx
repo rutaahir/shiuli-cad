@@ -78,6 +78,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
   const [catalogSearch, setCatalogSearch] = useState<string>('');
   const [catalogCategoryFilter, setCatalogCategoryFilter] = useState<string>('all');
 
+  const textBoxInputRef = useRef<HTMLInputElement>(null);
   const pictureInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const cadInputRef = useRef<HTMLInputElement>(null);
@@ -732,19 +733,48 @@ Please confirm feasibility and provide the production CAD quotation.`;
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
                 {/* Option A: Text Box */}
                 <div
-                  onClick={() => setOrderMode('text')}
-                  className={`flex items-center gap-3.5 p-3.5 sm:p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                  onClick={() => {
+                    setOrderMode('text');
+                    textBoxInputRef.current?.focus();
+                  }}
+                  className={`flex items-start sm:items-center gap-3.5 p-3.5 sm:p-4 rounded-2xl border-2 cursor-pointer transition-all ${
                     orderMode === 'text'
-                      ? 'border-[#008080] bg-[#F2FAF9] shadow-sm'
+                      ? 'border-[#008080] ring-4 ring-[#008080]/15 bg-[#F2FAF9] shadow-md'
                       : 'border-[#E8D7B7] hover:border-[#D6AD62] bg-[#FFFDF9]'
                   }`}
                 >
-                  <div className="w-10 h-10 rounded-full bg-[#008080] text-white flex items-center justify-center shrink-0 shadow-sm">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-sm transition-all ${
+                    orderMode === 'text' ? 'bg-[#008080] text-white ring-2 ring-[#008080]/30' : 'bg-[#008080]/20 text-[#008080]'
+                  }`}>
                     <Edit3 className="w-5 h-5" />
                   </div>
-                  <div>
-                    <div className="font-bold text-sm text-[#17345C]">Text Box</div>
-                    <div className="text-[11px] text-[#626875]">Describe custom design in detail</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="font-bold text-sm text-[#17345C]">Text Box</div>
+                      {orderMode === 'text' && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#008080] bg-[#008080]/15 px-2 py-0.5 rounded-full animate-pulse">
+                          Active &bull; Type Here
+                        </span>
+                      )}
+                    </div>
+                    <div className={`mt-1.5 flex items-center gap-2 px-3 py-2 rounded-xl transition-all ${
+                      orderMode === 'text'
+                        ? 'bg-white border-2 border-[#008080] shadow-xs ring-2 ring-[#008080]/20'
+                        : 'bg-white/70 border border-[#E8D7B7]'
+                    }`}>
+                      <input
+                        ref={textBoxInputRef}
+                        type="text"
+                        value={customDesignText}
+                        onChange={(e) => {
+                          setOrderMode('text');
+                          setCustomDesignText(e.target.value);
+                        }}
+                        onFocus={() => setOrderMode('text')}
+                        placeholder="Type what you want to order here..."
+                        className="w-full bg-transparent text-xs sm:text-sm text-[#17243B] font-semibold placeholder-[#7A8699] focus:outline-hidden outline-none border-0 p-0 m-0"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -754,37 +784,34 @@ Please confirm feasibility and provide the production CAD quotation.`;
                     setOrderMode('select');
                     setShowCatalogModal(true);
                   }}
-                  className={`flex items-center gap-3.5 p-3.5 sm:p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                  className={`flex items-start sm:items-center gap-3.5 p-3.5 sm:p-4 rounded-2xl border-2 cursor-pointer transition-all ${
                     orderMode === 'select'
-                      ? 'border-[#17345C] bg-[#F4F7FB] shadow-sm'
+                      ? 'border-[#17345C] ring-4 ring-[#17345C]/15 bg-[#F4F7FB] shadow-md'
                       : 'border-[#E8D7B7] hover:border-[#D6AD62] bg-[#FFFDF9]'
                   }`}
                 >
-                  <div className="w-10 h-10 rounded-full bg-[#17345C] text-white flex items-center justify-center shrink-0 shadow-sm">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-sm transition-all ${
+                    orderMode === 'select' ? 'bg-[#17345C] text-white ring-2 ring-[#17345C]/30' : 'bg-[#17345C] text-white'
+                  }`}>
                     <ChevronDown className="w-5 h-5" />
                   </div>
-                  <div>
-                    <div className="font-bold text-sm text-[#17345C]">Select Here</div>
-                    <div className="text-[11px] text-[#626875]">
-                      {selectedCatalogItem ? selectedCatalogItem.title : 'Choose from catalogue templates'}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="font-bold text-sm text-[#17345C]">Select Here</div>
+                      {orderMode === 'select' && selectedCatalogItem && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#17345C] bg-[#17345C]/10 px-2 py-0.5 rounded-full">
+                          Selected
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1.5 flex items-center justify-between px-3 py-2 rounded-xl bg-white/70 border border-[#E8D7B7]">
+                      <span className="text-xs sm:text-sm text-[#626875] truncate font-medium">
+                        {selectedCatalogItem ? selectedCatalogItem.title : 'Choose from catalogue templates'}
+                      </span>
+                      <ChevronDown className="w-4 h-4 text-[#B88735] shrink-0 ml-1" />
                     </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Text Box Input for Custom Design Details */}
-              <div className="pt-1">
-                <input
-                  type="text"
-                  value={customDesignText}
-                  onChange={(e) => setCustomDesignText(e.target.value)}
-                  placeholder={
-                    orderMode === 'text'
-                      ? 'Describe what you want to order (e.g. Vintage Solitaire Diamond Ring with floral prongs, 2ct centre stone)...'
-                      : 'Custom notes on selected catalogue template...'
-                  }
-                  className="w-full px-4 py-3 rounded-xl border border-[#E8D7B7] focus:border-[#D6AD62] bg-[#FFFDF9] text-xs sm:text-sm text-[#17243B] font-medium focus:outline-hidden transition-colors"
-                />
               </div>
 
               {/* Attached catalogue product badge */}
@@ -994,16 +1021,6 @@ Please confirm feasibility and provide the production CAD quotation.`;
                   onChange={handleCadUpload}
                   className="hidden"
                 />
-
-                {/* Search in our catalogue */}
-                <button
-                  type="button"
-                  onClick={() => setShowCatalogModal(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#E8D7B7] hover:border-[#D6AD62] bg-[#FFFDF9] hover:bg-[#FFF9F0] text-xs font-semibold text-[#17345C] transition-all cursor-pointer shadow-2xs"
-                >
-                  <Search className="w-4 h-4 text-[#B88735]" />
-                  <span>Search in our catalogue</span>
-                </button>
               </div>
 
               {/* Uploaded Reference List Preview */}

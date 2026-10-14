@@ -59,19 +59,23 @@ class ProductFileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProductFile
-        fields = ['id', 'file_type', 'file', 'file_url', 'original_filename', 'file_size_bytes', 'file_size_mb', 'uploaded_at']
+        fields = ['id', 'file_type', 'file', 'file_url', 'original_filename', 'file_size_bytes', 'file_size_mb', 'storage_provider', 'uploaded_at']
 
     def get_file_url(self, obj):
         try:
+            request = self.context.get('request')
+            if obj.storage_provider == 'gdrive' and obj.drive_file_id:
+                # CAD files stored on Google Drive use secure proxy download endpoint
+                download_path = f"/api/catalog/products/download/{obj.id}/"
+                return request.build_absolute_uri(download_path) if request else download_path
+
             if obj.file:
                 if obj.file_type in ['render', 'video']:
                     try:
-                        request = self.context.get('request')
                         return request.build_absolute_uri(obj.file.url) if request else obj.file.url
                     except Exception:
                         pass
-                # CAD files (3dm, stl, zip) use secure download endpoint
-                request = self.context.get('request')
+                # Local CAD files (3dm, stl, zip) use secure download endpoint
                 download_path = f"/api/catalog/products/download/{obj.id}/"
                 return request.build_absolute_uri(download_path) if request else download_path
         except Exception:

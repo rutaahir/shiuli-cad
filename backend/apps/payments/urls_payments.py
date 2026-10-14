@@ -19,7 +19,8 @@ from .views_purchases import (
     download_cad_file,
     resend_download_link,
     list_my_purchases,
-    admin_approve_purchase
+    admin_approve_purchase,
+    toggle_purchase_download_permission
 )
 
 router = DefaultRouter()
@@ -38,6 +39,8 @@ urlpatterns = [
     path('purchases/verify/', verify_razorpay_purchase, name='purchase-verify-payment'),
     path('purchases/mine/', list_my_purchases, name='purchase-mine'),
     path('purchases/<int:purchase_id>/admin-approve/', admin_approve_purchase, name='purchase-admin-approve'),
+    path('purchases/<int:purchase_id>/toggle-download-permission/', toggle_purchase_download_permission, name='purchase-toggle-download-permission'),
+    path('purchases/<int:purchase_id>/toggle-download/', toggle_purchase_download_permission, name='purchase-toggle-download'),
     path('purchases/<int:purchase_id>/resend-otp/', resend_otp, name='purchase-resend-otp'),
     path('purchases/<int:purchase_id>/verify-otp/', verify_otp, name='purchase-verify-otp'),
     path('purchases/<int:purchase_id>/resend-download-link/', resend_download_link, name='purchase-resend-download-link'),

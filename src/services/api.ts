@@ -565,6 +565,14 @@ class ApiClient {
     });
   }
 
+  async togglePurchaseDownloadPermission(purchaseId: number | string, enabled?: boolean) {
+    this.ensureAdminToken();
+    return await this.request<any>(`/payments/purchases/${purchaseId}/toggle-download-permission/`, {
+      method: 'POST',
+      body: JSON.stringify(enabled !== undefined ? { enabled } : {}),
+    });
+  }
+
   async adminApprovePayment(paymentId: number | string) {
     this.ensureAdminToken();
     return await this.request<any>(`/payments/${paymentId}/admin-approve/`, {
@@ -836,6 +844,65 @@ class ApiClient {
     });
   }
 
+  private cadStorageConfig: { storage_backend: string; is_gdrive: boolean } | null = null;
+
+  async getCadStorageConfig(): Promise<{ storage_backend: string; is_gdrive: boolean }> {
+    if (this.cadStorageConfig) {
+      return this.cadStorageConfig;
+    }
+    try {
+      const config = await this.request<{ storage_backend: string; is_gdrive: boolean }>(
+        '/catalog/products/storage-config/'
+      );
+      this.cadStorageConfig = config;
+      return config;
+    } catch {
+      return { storage_backend: 'local', is_gdrive: false };
+    }
+  }
+
+  async createGDriveUploadSession(
+    slug: string,
+    file: File,
+    fileType: '3dm' | 'stl' | 'render' | 'video' | 'zip'
+  ): Promise<{ session_uri: string; file_type: string; filename: string }> {
+    await this.ensureAdminToken();
+    return this.request<{ session_uri: string; file_type: string; filename: string }>(
+      `/catalog/products/${slug}/gdrive-upload-session/`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: file.name,
+          file_type: fileType,
+          file_size: file.size,
+          mime_type: file.type || 'application/octet-stream',
+        }),
+      }
+    );
+  }
+
+  async completeGDriveUpload(
+    slug: string,
+    driveFileId: string,
+    fileType: '3dm' | 'stl' | 'render' | 'video' | 'zip',
+    originalFilename?: string
+  ): Promise<any> {
+    await this.ensureAdminToken();
+    return this.request<any>(
+      `/catalog/products/${slug}/gdrive-upload-complete/`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          drive_file_id: driveFileId,
+          file_type: fileType,
+          original_filename: originalFilename || '',
+        }),
+      }
+    );
+  }
+
   async uploadProductFile(
     slug: string,
     file: File,
@@ -843,6 +910,80 @@ class ApiClient {
     onProgress?: (percent: number) => void
   ): Promise<any> {
     await this.ensureAdminToken();
+
+    // Check if Google Drive storage is enabled
+    try {
+      const config = await this.getCadStorageConfig();
+      if (config.is_gdrive) {
+        return await this.uploadProductFileToGDrive(slug, file, fileType, onProgress);
+      }
+    } catch (gdriveCheckErr) {
+      console.warn('Failed to upload directly to GDrive, falling back to direct upload:', gdriveCheckErr);
+    }
+
+    return this.uploadProductFileDirect(slug, file, fileType, onProgress);
+  }
+
+  async uploadProductFileToGDrive(
+    slug: string,
+    file: File,
+    fileType: '3dm' | 'stl' | 'render' | 'video' | 'zip',
+    onProgress?: (percent: number) => void
+  ): Promise<any> {
+    // 1. Request resumable upload session URI from Django
+    const sessionData = await this.createGDriveUploadSession(slug, file, fileType);
+    const sessionUri = sessionData.session_uri;
+
+    // 2. Upload file directly to Google Drive session URI (Zero server RAM buffering)
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable && onProgress) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          onProgress(percent);
+        }
+      });
+
+      xhr.addEventListener('load', async () => {
+        if (xhr.status === 200 || xhr.status === 201) {
+          try {
+            const driveData = JSON.parse(xhr.responseText || '{}');
+            const driveFileId = driveData.id;
+            if (!driveFileId) {
+              throw new Error('Google Drive upload response did not include a valid file ID.');
+            }
+            // 3. Finalize upload with backend to create ProductFile record
+            const completed = await this.completeGDriveUpload(slug, driveFileId, fileType, file.name);
+            resolve(completed);
+          } catch (err) {
+            reject(err);
+          }
+        } else {
+          reject(new Error(`Google Drive upload failed with status ${xhr.status}: ${xhr.responseText}`));
+        }
+      });
+
+      xhr.addEventListener('error', () =>
+        reject(new Error(`Network error uploading "${file.name}" to Google Drive.`))
+      );
+      xhr.addEventListener('timeout', () =>
+        reject(new Error(`Upload timed out for "${file.name}" to Google Drive.`))
+      );
+      xhr.timeout = 60 * 60 * 1000; // 1 hour timeout for large CAD files
+
+      xhr.open('PUT', sessionUri);
+      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+      xhr.send(file);
+    });
+  }
+
+  async uploadProductFileDirect(
+    slug: string,
+    file: File,
+    fileType: '3dm' | 'stl' | 'render' | 'video' | 'zip',
+    onProgress?: (percent: number) => void
+  ): Promise<any> {
     let token = localStorage.getItem('shiuli_access_token');
 
     const formData = new FormData();
@@ -868,6 +1009,23 @@ class ApiClient {
             resolve({});
           }
         } else {
+          const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
+          if (xhr.status === 413) {
+            reject(
+              new Error(
+                `File too large for live server (HTTP 413 Request Entity Too Large). The server or proxy rejected "${file.name}" (${fileSizeMB} MB). Live Nginx client_max_body_size or Cloudflare payload limit exceeded.`
+              )
+            );
+            return;
+          }
+          if (xhr.status === 504 || xhr.status === 524) {
+            reject(
+              new Error(
+                `Upload timed out on live server (HTTP ${xhr.status}). Uploading "${file.name}" (${fileSizeMB} MB) took longer than the server / Cloudflare timeout limit.`
+              )
+            );
+            return;
+          }
           try {
             const errData = JSON.parse(xhr.responseText || '{}');
             reject(new Error(errData.error || errData.detail || `CAD File upload failed (${xhr.status}).`));
@@ -877,8 +1035,8 @@ class ApiClient {
         }
       });
 
-      xhr.addEventListener('error', () => reject(new Error('Network error during CAD file upload. Check your connection.')));
-      xhr.addEventListener('timeout', () => reject(new Error('CAD file upload timed out. The file may be too large.')));
+      xhr.addEventListener('error', () => reject(new Error(`Network error uploading "${file.name}". Connection was terminated by the server.`)));
+      xhr.addEventListener('timeout', () => reject(new Error(`Upload timed out for "${file.name}". The file may be too large for your internet connection speed.`)));
       xhr.timeout = 30 * 60 * 1000; // 30 minutes timeout for very large files
 
       xhr.open('POST', `${API_BASE_URL}/catalog/products/${slug}/upload-file/`);

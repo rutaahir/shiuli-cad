@@ -88,23 +88,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   return (
     <div className="h-screen w-screen bg-[#FFFDF9] text-[#17243B] flex flex-col font-sans overflow-hidden admin-portal">
       {/* Prototype Banner Notice */}
-      <div className="bg-[#17345C] border-b border-[#E8D7B7]/40 px-4 py-2 text-center text-xs text-[#FFF9F0] flex items-center justify-between sm:justify-center gap-3 flex-shrink-0">
-        <div className="flex items-center gap-2 text-[11px] sm:text-xs">
-          <ShieldCheck className="w-3.5 h-3.5 text-[#D9B66F] shrink-0" />
-          <span className="font-serif font-bold tracking-wider text-[#FFF9F0]">
-            SUPER ADMIN CONTROL PANEL
-          </span>
-          <span className="hidden sm:inline-block px-2 py-0.5 rounded-full bg-white/10 border border-[#E8D7B7]/30 text-[#D9B66F] text-[10px] font-mono">
-            Atelier Workspace
-          </span>
-        </div>
-        <button
-          onClick={onExitAdmin}
-          className="text-[11px] font-semibold px-3 py-1 rounded-full bg-white/10 hover:bg-[#D9B66F] hover:text-[#17345C] text-[#FFF9F0] border border-[#E8D7B7]/30 transition-all shrink-0 cursor-pointer"
-        >
-          Exit to Site →
-        </button>
-      </div>
+
 
       <div className="flex-1 flex min-h-0 overflow-hidden relative">
         {/* Mobile Slide-over Drawer Backdrop */}
@@ -117,16 +101,15 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
 
         {/* Mobile Slide-over Drawer */}
         <aside
-          className={`fixed inset-y-0 left-0 w-[280px] bg-gradient-to-b from-[#17345C] via-[#142C4E] to-[#0E1F36] text-[#FFF9F0] z-50 flex flex-col justify-between transition-transform duration-300 lg:hidden shadow-2xl border-r border-[#E8D7B7]/30 ${
-            isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
+          className={`fixed inset-y-0 left-0 w-[280px] bg-[#FFFDF9] text-[#17243B] z-50 flex flex-col justify-between transition-transform duration-300 lg:hidden shadow-2xl border-r border-[#E8D7B7] ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}
         >
           <div className="flex-1 flex flex-col min-h-0">
-            <div className="p-4 flex items-center justify-between border-b border-[#E8D7B7]/25 bg-[#17345C]">
-              <BrandLogo variant="horizontal" size="sm" theme="dark" />
+            <div className="p-4 flex items-center justify-between border-b border-[#E8D7B7] bg-white">
+              <BrandLogo variant="horizontal" size="sm" theme="light" />
               <button
                 onClick={() => setIsMobileSidebarOpen(false)}
-                className="p-1.5 rounded-lg bg-white/10 text-white hover:bg-white/20"
+                className="p-1.5 rounded-lg bg-[#FFF9F0] border border-[#E8D7B7] text-[#17345C] hover:bg-white"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -141,18 +124,17 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                       onSelectModule(item.id);
                       setIsMobileSidebarOpen(false);
                     }}
-                    className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-medium transition-all ${
-                      isActive
-                        ? 'bg-gradient-to-r from-[#D9B66F]/25 via-[#D9B66F]/10 to-transparent text-[#F5E7A3] font-bold border-l-4 border-[#D9B66F]'
-                        : 'text-[#E8D7B7]/80 hover:bg-white/10 hover:text-white'
-                    }`}
+                    className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-medium transition-all ${isActive
+                        ? 'bg-[#FFF9F0] text-[#17345C] font-bold border-l-4 border-[#B88732] shadow-2xs'
+                        : 'text-[#687386] hover:bg-[#FFF9F0] hover:text-[#17345C]'
+                      }`}
                   >
-                    <span className={isActive ? 'text-[#D9B66F]' : 'text-[#E8D7B7]/70'}>
+                    <span className={isActive ? 'text-[#B88732]' : 'text-[#687386]'}>
                       {item.icon}
                     </span>
                     <span className="truncate flex-1 text-left">{item.label}</span>
                     {item.badge && item.badge > 0 ? (
-                      <span className="px-2 py-0.5 rounded-full bg-[#D9B66F] text-[#17345C] font-mono text-[10px] font-bold">
+                      <span className="px-2 py-0.5 rounded-full bg-[#17345C] text-[#FFF9F0] font-mono text-[10px] font-bold">
                         {item.badge}
                       </span>
                     ) : null}
@@ -161,44 +143,43 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
               })}
             </nav>
           </div>
-          <div className="p-4 border-t border-[#E8D7B7]/25 bg-[#0E1F36]">
-            <div className="flex items-center gap-3 p-2 rounded-xl bg-[#17345C] border border-[#E8D7B7]/30">
+          <div className="p-4 border-t border-[#E8D7B7] bg-[#FFF9F0]">
+            <div className="flex items-center gap-3 p-2 rounded-xl bg-white border border-[#E8D7B7]">
               <img
                 src="/unsplash-img/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80"
                 alt="Admin"
                 className="w-8 h-8 rounded-full object-cover border-2 border-[#D9B66F]"
               />
               <div className="flex-1 overflow-hidden">
-                <div className="text-xs font-serif font-bold text-[#FFF9F0] truncate">Harshil Shah</div>
-                <div className="text-[10px] text-[#D9B66F] font-mono">Head CAD Engineer</div>
+                <div className="text-xs font-serif font-bold text-[#17345C] truncate">Harshil Shah</div>
+                <div className="text-[10px] text-[#B88732] font-semibold">Head CAD Engineer</div>
               </div>
-              <button onClick={onExitAdmin} className="text-[#E8D7B7]/70 hover:text-rose-400 p-1">
+              <button onClick={onExitAdmin} className="text-[#687386] hover:text-rose-600 p-1">
                 <LogOut className="w-4 h-4" />
               </button>
             </div>
           </div>
         </aside>
 
-        {/* Royal Sapphire & Gold Metallic Desktop Sidebar */}
+        {/* Luxury Atelier Ivory Porcelain & Gold Desktop Sidebar */}
         <aside
-          className={`h-full flex-shrink-0 bg-gradient-to-b from-[#17345C] via-[#142C4E] to-[#0E1F36] text-[#FFF9F0] border-r border-[#E8D7B7]/30 hidden lg:flex flex-col justify-between transition-all duration-300 z-30 shadow-[4px_0_24px_rgba(23,52,92,0.12)] ${
-            isSidebarCollapsed ? 'w-[76px]' : 'w-[260px]'
-          }`}
+          className={`h-full flex-shrink-0 bg-[#FFFDF9] text-[#17243B] border-r border-[#E8D7B7] hidden lg:flex flex-col justify-between transition-all duration-300 z-30 shadow-[4px_0_24px_rgba(23,52,92,0.05)] ${isSidebarCollapsed ? 'w-[76px]' : 'w-[260px]'
+            }`}
         >
           {/* Top Brand Header (Single Line Logo) */}
           <div className="flex-1 flex flex-col min-h-0">
-            <div className="p-3.5 flex items-center justify-between border-b border-[#E8D7B7]/25 bg-[#17345C]/90 backdrop-blur-md whitespace-nowrap overflow-hidden flex-shrink-0">
+            <div className="p-3.5 flex items-center justify-between border-b border-[#E8D7B7] bg-white/90 backdrop-blur-md whitespace-nowrap overflow-hidden flex-shrink-0">
               {!isSidebarCollapsed ? (
-                <BrandLogo variant="horizontal" size="sm" theme="dark" />
+                <BrandLogo variant="horizontal" size="sm" theme="light" />
               ) : (
                 <div className="mx-auto">
-                  <BrandLogo variant="mark-only" size="sm" theme="dark" />
+                  <BrandLogo variant="mark-only" size="sm" theme="light" />
                 </div>
               )}
             </div>
 
             {/* Navigation Links (Scrollable Area) */}
-            <nav className="p-3 space-y-1.5 overflow-y-auto flex-1 thin-gold-scrollbar">
+            <nav className="p-3 space-y-1.5 overflow-y-auto flex-1 custom-scrollbar">
               {navItems.map((item) => {
                 const isActive = activeModule === item.id;
                 return (
@@ -206,20 +187,19 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                     key={item.id}
                     onClick={() => onSelectModule(item.id)}
                     title={isSidebarCollapsed ? item.label : undefined}
-                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all relative ${
-                      isActive
-                        ? 'bg-gradient-to-r from-[#D9B66F]/25 via-[#D9B66F]/10 to-transparent text-[#F5E7A3] font-bold border-l-[3px] border-[#D9B66F] pl-3 shadow-[0_0_15px_rgba(217,182,111,0.2)]'
-                        : 'text-[#E8D7B7]/80 hover:bg-white/10 hover:text-white'
-                    }`}
+                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all relative cursor-pointer ${isActive
+                        ? 'bg-[#FFF9F0] text-[#17345C] font-bold border-l-[3px] border-[#B88732] pl-3 shadow-2xs'
+                        : 'text-[#687386] hover:bg-[#FFF9F0] hover:text-[#17345C]'
+                      }`}
                   >
-                    <span className={isActive ? 'text-[#D9B66F]' : 'text-[#E8D7B7]/70'}>
+                    <span className={isActive ? 'text-[#B88732]' : 'text-[#687386]'}>
                       {item.icon}
                     </span>
                     {!isSidebarCollapsed && (
                       <span className="truncate flex-1 text-left tracking-wide">{item.label}</span>
                     )}
                     {!isSidebarCollapsed && item.badge && item.badge > 0 ? (
-                      <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-[#D9B66F] to-[#F5E7A3] text-[#17345C] font-mono text-[10px] font-bold shadow-[0_0_8px_rgba(217,182,111,0.4)]">
+                      <span className="px-2 py-0.5 rounded-full bg-[#17345C] text-[#FFF9F0] font-mono text-[10px] font-bold shadow-2xs">
                         {item.badge}
                       </span>
                     ) : null}
@@ -230,24 +210,24 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           </div>
 
           {/* Bottom Sidebar Controls (Fixed at Bottom) */}
-          <div className="p-3 border-t border-[#E8D7B7]/25 bg-[#0E1F36]/90 backdrop-blur-md space-y-2.5 flex-shrink-0">
+          <div className="p-3 border-t border-[#E8D7B7] bg-[#FFF9F0]/80 backdrop-blur-md space-y-2.5 flex-shrink-0">
             {/* Collapse Toggle */}
             <button
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-[#17345C]/80 border border-[#E8D7B7]/25 hover:border-[#D9B66F] text-xs text-[#E8D7B7] hover:text-white transition-all shadow-sm cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-white border border-[#E8D7B7] hover:border-[#B88732] text-xs text-[#17345C] hover:bg-[#FFFDF9] transition-all shadow-2xs cursor-pointer"
             >
               {isSidebarCollapsed ? (
-                <ChevronRight className="w-4 h-4 text-[#D9B66F]" />
+                <ChevronRight className="w-4 h-4 text-[#B88732]" />
               ) : (
                 <>
-                  <ChevronLeft className="w-4 h-4 text-[#D9B66F]" />
-                  <span className="text-[11px] font-medium tracking-wide">Collapse Sidebar</span>
+                  <ChevronLeft className="w-4 h-4 text-[#B88732]" />
+                  <span className="text-[11px] font-semibold tracking-wide text-[#17345C]">Collapse Sidebar</span>
                 </>
               )}
             </button>
 
             {/* Admin Profile Mini Card */}
-            <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-[#17345C]/80 border border-[#E8D7B7]/30 shadow-inner">
+            <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white border border-[#E8D7B7] shadow-2xs">
               <img
                 src="/unsplash-img/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80"
                 alt="Admin"
@@ -255,10 +235,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
               />
               {!isSidebarCollapsed && (
                 <div className="flex-1 overflow-hidden">
-                  <div className="text-xs font-serif font-bold text-[#FFF9F0] truncate">
+                  <div className="text-xs font-serif font-bold text-[#17345C] truncate">
                     Harshil Shah
                   </div>
-                  <div className="text-[10px] text-[#D9B66F] font-mono truncate">
+                  <div className="text-[10px] text-[#B88732] font-semibold tracking-wide truncate">
                     Head CAD Engineer
                   </div>
                 </div>
@@ -266,7 +246,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
               <button
                 onClick={onExitAdmin}
                 title="Exit Admin"
-                className="text-[#E8D7B7]/70 hover:text-rose-400 transition-colors p-1 cursor-pointer"
+                className="text-[#687386] hover:text-rose-600 transition-colors p-1 cursor-pointer"
               >
                 <LogOut className="w-3.5 h-3.5" />
               </button>
@@ -394,11 +374,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                             if (n.actionUrl) onSelectModule(n.actionUrl as AdminModuleId);
                             setShowNotifications(false);
                           }}
-                          className={`p-3 rounded-xl border transition-all cursor-pointer ${
-                            n.read
+                          className={`p-3 rounded-xl border transition-all cursor-pointer ${n.read
                               ? 'bg-[#FFFDF9]/60 border-transparent text-[#687386]'
                               : 'bg-[#FFF9F0] border-[#E8D7B7] text-[#17345C] shadow-2xs'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-start justify-between gap-2">
                             <span className="font-semibold text-xs text-[#17345C]">{n.title}</span>
