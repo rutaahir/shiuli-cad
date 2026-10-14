@@ -303,3 +303,80 @@ class TestGoogleDriveCADDelivery(APITestCase):
         pf.refresh_from_db()
         self.assertEqual(pf.storage_provider, 'gdrive')
         self.assertEqual(pf.drive_file_id, 'uploaded_migrated_drive_id')
+
+    @patch('apps.core.gdrive_service.test_folder_access')
+    def test_09_gdrive_status_endpoint(self, mock_test_access):
+        """Admin can check Google Drive connectivity and storage health."""
+        mock_test_access.return_value = {
+            'status': 'connected',
+            'folder_id': 'test_mock_folder_123',
+            'folder_name': 'Shiuli CAD Studio Storage',
+            'can_add_files': True,
+            'owners': ['admin@shiulicadstudio.com'],
+            'authorized_user': 'admin@shiulicadstudio.com',
+            'storage_limit_gb': 15.0,
+            'storage_usage_gb': 1.25,
+            'storage_available_gb': 13.75
+        }
+        self.client.force_authenticate(user=self.admin)
+        resp = self.client.get('/api/catalog/products/gdrive-status/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data['status'], 'connected')
+        self.assertEqual(resp.data['folder_name'], 'Shiuli CAD Studio Storage')
+        self.assertEqual(resp.data['storage_available_gb'], 13.75)
+
+    @patch('apps.core.gdrive_service.create_resumable_upload_session')
+    def test_10_gdrive_upload_session_granular_errors(self, mock_session):
+        """Upload session endpoint returns appropriate HTTP status codes for specific errors."""
+        from apps.core.gdrive_service import GoogleDriveAuthError, GoogleDriveQuotaError, GoogleDrivePermissionError, GoogleDriveNotFoundError
+        self.client.force_authenticate(user=self.admin)
+        payload = {
+            'filename': 'emerald_pendant.3dm',
+            'file_type': '3dm',
+            'file_size': 10485760,
+            'mime_type': 'application/octet-stream'
+        }
+
+        # Auth error -> 401
+        mock_session.side_effect = GoogleDriveAuthError("OAuth required")
+        resp = self.client.post(f'/api/catalog/products/{self.product.slug}/gdrive-upload-session/', payload, format='json')
+        self.assertEqual(resp.status_code, 401)
+        self.assertEqual(resp.data.get('code'), 'gdrive_auth_required')
+
+        # Quota error -> 507
+        mock_session.side_effect = GoogleDriveQuotaError("Quota exceeded")
+        resp = self.client.post(f'/api/catalog/products/{self.product.slug}/gdrive-upload-session/', payload, format='json')
+        self.assertEqual(resp.status_code, 507)
+        self.assertEqual(resp.data.get('code'), 'gdrive_quota_exceeded')
+
+        # Permission error -> 403
+        mock_session.side_effect = GoogleDrivePermissionError("Permission denied")
+        resp = self.client.post(f'/api/catalog/products/{self.product.slug}/gdrive-upload-session/', payload, format='json')
+        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(resp.data.get('code'), 'gdrive_permission_denied')
+
+        # Not found error -> 404
+        mock_session.side_effect = GoogleDriveNotFoundError("Folder not found")
+        resp = self.client.post(f'/api/catalog/products/{self.product.slug}/gdrive-upload-session/', payload, format='json')
+        self.assertEqual(resp.status_code, 404)
+        self.assertEqual(resp.data.get('code'), 'gdrive_folder_not_found')
+
+    @patch('apps.core.gdrive_service.test_folder_access')
+    def test_11_test_gdrive_connection_command(self, mock_test_access):
+        """test_gdrive_connection management command output test."""
+        mock_test_access.return_value = {
+            'status': 'connected',
+            'folder_id': 'test_mock_folder_123',
+            'folder_name': 'Shiuli CAD Studio Storage',
+            'can_add_files': True,
+            'owners': ['user@gmail.com'],
+            'authorized_user': 'user@gmail.com',
+            'storage_limit_gb': 15.0,
+            'storage_usage_gb': 2.0,
+            'storage_available_gb': 13.0
+        }
+        out = io.StringIO()
+        call_command('test_gdrive_connection', stdout=out)
+        output = out.getvalue()
+        self.assertIn('Connection & Authentication Successful', output)
+        self.assertIn('Shiuli CAD Studio Storage', output)

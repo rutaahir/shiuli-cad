@@ -1,7 +1,7 @@
 """
 Google Drive Service for Shiuli CAD Studio
 Handles secure, authenticated interaction with Google Drive for private CAD asset storage.
-Credentials and folder configurations are loaded exclusively from environment variables.
+Supports OAuth 2.0 User Authorization (for personal 15 GB Google Accounts) as well as Service Accounts.
 """
 
 import os
@@ -11,6 +11,7 @@ import base64
 import logging
 import requests
 from google.oauth2 import service_account
+from google.oauth2 import credentials as user_credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -27,37 +28,122 @@ class GoogleDriveError(Exception):
     pass
 
 
+class GoogleDriveAuthError(GoogleDriveError):
+    """Raised when Google Drive OAuth user credentials are missing, expired, or revoked."""
+    pass
+
+
+class GoogleDrivePermissionError(GoogleDriveError):
+    """Raised when access to a Google Drive file or folder is forbidden."""
+    pass
+
+
 class GoogleDriveQuotaError(GoogleDriveError):
     """Raised when Google Drive quota or rate limits are reached."""
     pass
 
 
+class GoogleDriveNotFoundError(GoogleDriveError):
+    """Raised when a file or folder does not exist in Google Drive."""
+    pass
+
+
 def get_drive_credentials():
     """
-    Constructs Google OAuth service account credentials from environment variables.
-    Supports either:
-      1. GDRIVE_SERVICE_ACCOUNT_JSON_PATH (path relative to BASE_DIR or absolute)
-      2. GDRIVE_SERVICE_ACCOUNT_BASE64 (base64-encoded JSON key string)
+    Constructs Google Drive credentials.
+    Priority 1: User OAuth 2.0 Credentials (Personal Google Account with 15GB free quota).
+      Loaded from GDRIVE_USER_TOKEN_JSON_PATH (e.g. credentials/gdrive-user-token.json)
+      or environment variables (GDRIVE_REFRESH_TOKEN, GDRIVE_OAUTH_CLIENT_ID, GDRIVE_OAUTH_CLIENT_SECRET).
+      Automatically refreshes access token using the refresh token and writes back to disk.
+    Priority 2: Service Account credentials (for Google Workspace Shared Drives).
     """
-    json_path = getattr(settings, 'GDRIVE_SERVICE_ACCOUNT_JSON_PATH', '').strip()
-    b64_json = getattr(settings, 'GDRIVE_SERVICE_ACCOUNT_BASE64', '').strip()
+    token_json_path = getattr(settings, 'GDRIVE_USER_TOKEN_JSON_PATH', '').strip()
+    refresh_token = getattr(settings, 'GDRIVE_REFRESH_TOKEN', '').strip()
 
-    if json_path:
-        full_path = os.path.join(settings.BASE_DIR, json_path) if not os.path.isabs(json_path) else json_path
+    # Priority 1A: Load from user OAuth token file
+    if token_json_path:
+        full_path = os.path.join(settings.BASE_DIR, token_json_path) if not os.path.isabs(token_json_path) else token_json_path
         if os.path.exists(full_path):
-            return service_account.Credentials.from_service_account_file(full_path, scopes=SCOPES)
-        logger.error("Service account JSON file not found at %s", full_path)
+            try:
+                creds = user_credentials.Credentials.from_authorized_user_file(full_path, scopes=SCOPES)
+                if not creds.valid:
+                    if creds.expired and creds.refresh_token:
+                        try:
+                            creds.refresh(Request())
+                            with open(full_path, 'w', encoding='utf-8') as f:
+                                f.write(creds.to_json())
+                            logger.info("Successfully refreshed Google Drive user OAuth credentials.")
+                        except Exception as ref_err:
+                            logger.error("Failed to refresh Google Drive user token: %s", ref_err)
+                            raise GoogleDriveAuthError(
+                                "Google Drive authorization expired or was revoked. "
+                                "Run 'python backend/manage.py setup_gdrive_oauth' to re-authorize."
+                            )
+                return creds
+            except GoogleDriveAuthError:
+                raise
+            except Exception as e:
+                logger.error("Error loading user credentials from %s: %s", full_path, e)
 
-    if b64_json:
+    # Priority 1B: Load from refresh token in environment
+    if refresh_token:
+        client_id = getattr(settings, 'GDRIVE_OAUTH_CLIENT_ID', '').strip()
+        client_secret = getattr(settings, 'GDRIVE_OAUTH_CLIENT_SECRET', '').strip()
+
+        # If client ID/secret are not explicit in settings, try reading from client secrets file
+        if not (client_id and client_secret):
+            client_json_path = getattr(settings, 'GDRIVE_OAUTH_CLIENT_JSON_PATH', '').strip()
+            if client_json_path:
+                client_full_path = os.path.join(settings.BASE_DIR, client_json_path) if not os.path.isabs(client_json_path) else client_json_path
+                if os.path.exists(client_full_path):
+                    try:
+                        with open(client_full_path, 'r', encoding='utf-8') as f:
+                            cdata = json.load(f)
+                        key = 'installed' if 'installed' in cdata else 'web'
+                        client_id = cdata[key].get('client_id')
+                        client_secret = cdata[key].get('client_secret')
+                    except Exception as e:
+                        logger.error("Failed to parse client secrets: %s", e)
+
+        if client_id and client_secret:
+            try:
+                creds = user_credentials.Credentials(
+                    None,
+                    refresh_token=refresh_token,
+                    token_uri='https://oauth2.googleapis.com/token',
+                    client_id=client_id,
+                    client_secret=client_secret,
+                    scopes=SCOPES
+                )
+                creds.refresh(Request())
+                return creds
+            except Exception as e:
+                logger.error("Failed to initialize user credentials from refresh token: %s", e)
+                raise GoogleDriveAuthError(
+                    f"Google Drive OAuth refresh token invalid or revoked: {e}. "
+                    "Run 'python backend/manage.py setup_gdrive_oauth' to re-authorize."
+                )
+
+    # Priority 2: Service Account Fallback
+    sa_json_path = getattr(settings, 'GDRIVE_SERVICE_ACCOUNT_JSON_PATH', '').strip()
+    sa_b64 = getattr(settings, 'GDRIVE_SERVICE_ACCOUNT_BASE64', '').strip()
+    if sa_json_path:
+        full_sa_path = os.path.join(settings.BASE_DIR, sa_json_path) if not os.path.isabs(sa_json_path) else sa_json_path
+        if os.path.exists(full_sa_path):
+            try:
+                return service_account.Credentials.from_service_account_file(full_sa_path, scopes=SCOPES)
+            except Exception as e:
+                logger.warning("Failed to load service account: %s", e)
+    if sa_b64:
         try:
-            info = json.loads(base64.b64decode(b64_json).decode('utf-8'))
+            info = json.loads(base64.b64decode(sa_b64).decode('utf-8'))
             return service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
         except Exception as e:
-            logger.error("Failed to decode GDRIVE_SERVICE_ACCOUNT_BASE64: %s", e)
+            logger.warning("Failed to load base64 service account: %s", e)
 
-    raise GoogleDriveError(
-        "Google Drive service account credentials not configured. "
-        "Set GDRIVE_SERVICE_ACCOUNT_JSON_PATH or GDRIVE_SERVICE_ACCOUNT_BASE64 in your environment."
+    raise GoogleDriveAuthError(
+        "Google Drive OAuth authorization required. Please run 'python backend/manage.py setup_gdrive_oauth' "
+        "to authorize your personal Google Drive account."
     )
 
 
@@ -81,6 +167,65 @@ def get_folder_id():
     if not folder_id:
         raise GoogleDriveError("GDRIVE_FOLDER_ID is not configured in settings.")
     return folder_id
+
+
+def test_folder_access(folder_id=None):
+    """
+    Safe connectivity test that verifies OAuth credentials, folder existence,
+    write capabilities, and storage quota without modifying any files.
+    """
+    target_folder_id = folder_id or get_folder_id()
+    service = get_drive_service()
+
+    try:
+        # 1. Fetch folder metadata
+        folder_meta = service.files().get(
+            fileId=target_folder_id,
+            fields='id, name, mimeType, capabilities, owners, trashed',
+            supportsAllDrives=True
+        ).execute()
+
+        if folder_meta.get('trashed'):
+            raise GoogleDriveNotFoundError(f"Configured Google Drive folder '{folder_meta.get('name')}' is in the trash.")
+
+        if folder_meta.get('mimeType') != 'application/vnd.google-apps.folder':
+            raise GoogleDriveError(f"Target ID '{target_folder_id}' is not a Google Drive folder (type: {folder_meta.get('mimeType')}).")
+
+        can_add = folder_meta.get('capabilities', {}).get('canAddChildren', False)
+
+        # 2. Fetch user storage quota
+        about_data = service.about().get(fields='storageQuota, user').execute()
+        quota = about_data.get('storageQuota', {})
+        user_info = about_data.get('user', {})
+
+        limit_bytes = int(quota.get('limit', 0)) if quota.get('limit') else None
+        usage_bytes = int(quota.get('usage', 0)) if quota.get('usage') else 0
+
+        return {
+            'status': 'connected',
+            'folder_id': target_folder_id,
+            'folder_name': folder_meta.get('name'),
+            'can_add_files': can_add,
+            'owners': [o.get('emailAddress') for o in folder_meta.get('owners', [])],
+            'authorized_user': user_info.get('emailAddress'),
+            'storage_limit_gb': round(limit_bytes / (1024**3), 2) if limit_bytes else 'Unlimited',
+            'storage_usage_gb': round(usage_bytes / (1024**3), 2),
+            'storage_available_gb': round((limit_bytes - usage_bytes) / (1024**3), 2) if limit_bytes else 'N/A'
+        }
+    except HttpError as err:
+        status_code = err.resp.status
+        if status_code == 404:
+            raise GoogleDriveNotFoundError(f"Folder '{target_folder_id}' not found in Google Drive.")
+        elif status_code == 403:
+            err_text = str(err).lower()
+            if 'quota' in err_text:
+                raise GoogleDriveQuotaError("Google Drive storage quota exceeded.")
+            raise GoogleDrivePermissionError(
+                f"Permission denied for folder '{target_folder_id}'. Ensure your authorized Google account has access to this folder."
+            )
+        elif status_code == 401:
+            raise GoogleDriveAuthError("Google Drive authentication token expired or invalid.")
+        raise GoogleDriveError(f"Google Drive API error ({status_code}): {err}")
 
 
 def create_resumable_upload_session(filename, mime_type, size, origin=None):
@@ -108,16 +253,31 @@ def create_resumable_upload_session(filename, mime_type, size, origin=None):
         'parents': [folder_id]
     }
 
-    response = requests.post(url, headers=headers, json=metadata, timeout=15)
+    try:
+        response = requests.post(url, headers=headers, json=metadata, timeout=15)
+    except requests.exceptions.RequestException as req_err:
+        logger.error("Network error reaching Google Drive upload endpoint: %s", req_err)
+        raise GoogleDriveError(f"Network error contacting Google Drive: {req_err}")
 
     if response.status_code in [200, 201]:
         session_uri = response.headers.get('Location')
         if not session_uri:
             raise GoogleDriveError("Google Drive did not return a Location header for the upload session.")
         return session_uri
+    elif response.status_code == 401:
+        raise GoogleDriveAuthError("Google Drive authorization expired. Please re-authenticate your Google Account.")
+    elif response.status_code == 403:
+        err_body = response.text.lower()
+        if 'quota' in err_body or 'storage' in err_body:
+            raise GoogleDriveQuotaError("Google Drive storage quota exceeded.")
+        raise GoogleDrivePermissionError(
+            f"Google Drive permission denied. Ensure your Google account has Editor access to folder {folder_id}."
+        )
+    elif response.status_code == 404:
+        raise GoogleDriveNotFoundError(f"Google Drive folder {folder_id} was not found.")
     else:
         logger.error("Failed to initiate resumable upload session: %s - %s", response.status_code, response.text)
-        raise GoogleDriveError(f"Drive upload session initiation failed with status {response.status_code}")
+        raise GoogleDriveError(f"Drive upload session initiation failed with status {response.status_code}: {response.text}")
 
 
 def get_file_metadata(file_id):
@@ -145,7 +305,9 @@ def get_file_metadata(file_id):
     except HttpError as err:
         logger.error("Failed to fetch metadata for file %s: %s", file_id, err)
         if err.resp.status == 404:
-            raise GoogleDriveError(f"File {file_id} not found in Google Drive.")
+            raise GoogleDriveNotFoundError(f"File {file_id} not found in Google Drive.")
+        elif err.resp.status == 403:
+            raise GoogleDrivePermissionError(f"Access denied to file {file_id} in Google Drive.")
         raise GoogleDriveError(f"Google Drive API error: {err}")
 
 
@@ -172,13 +334,15 @@ def stream_file(file_id, chunk_size=CHUNK_SIZE_DEFAULT, max_retries=3):
                         yield chunk
                 return
 
-            # Check rate limiting or quota exhaustion
             if resp.status_code == 403:
                 error_body = resp.text.lower()
                 logger.error("Google Drive 403 Forbidden for file %s: %s", file_id, resp.text)
-                if 'quota' in error_body or 'ratelimit' in error_body or 'userRateLimitExceeded' in error_body:
+                if 'quota' in error_body or 'ratelimit' in error_body or 'userratelimitexceeded' in error_body:
                     raise GoogleDriveQuotaError("Download temporarily unavailable, please try again later or contact support.")
-                raise GoogleDriveError("Access to the requested CAD file in Google Drive was denied.")
+                raise GoogleDrivePermissionError("Access to the requested CAD file in Google Drive was denied.")
+
+            if resp.status_code == 404:
+                raise GoogleDriveNotFoundError(f"File {file_id} not found in Google Drive.")
 
             # Retry on 429 or 5xx server errors with exponential backoff
             if resp.status_code in (429, 500, 502, 503, 504) and attempt < max_retries:
@@ -192,7 +356,7 @@ def stream_file(file_id, chunk_size=CHUNK_SIZE_DEFAULT, max_retries=3):
             resp.raise_for_status()
 
         except (requests.exceptions.RequestException, GoogleDriveError) as ex:
-            if isinstance(ex, GoogleDriveQuotaError):
+            if isinstance(ex, (GoogleDriveQuotaError, GoogleDrivePermissionError, GoogleDriveNotFoundError, GoogleDriveAuthError)):
                 raise
             if attempt < max_retries:
                 attempt += 1

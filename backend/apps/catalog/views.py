@@ -103,7 +103,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         if self.action in ['list', 'retrieve', 'storage_config']:
             return [permissions.AllowAny()]
-        elif self.action in ['create', 'upload_image', 'upload_file', 'gdrive_upload_session', 'gdrive_upload_complete', 'toggle_active', 'toggle_featured', 'destroy']:
+        elif self.action in ['create', 'upload_image', 'upload_file', 'gdrive_upload_session', 'gdrive_upload_complete', 'gdrive_status', 'toggle_active', 'toggle_featured', 'destroy']:
             return [IsStaffOrAdmin()]
         elif self.action in ['pending', 'approve', 'reject']:
             return [IsAdmin()]
@@ -561,7 +561,14 @@ class ProductViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        from apps.core.gdrive_service import create_resumable_upload_session, GoogleDriveError
+        from apps.core.gdrive_service import (
+            create_resumable_upload_session,
+            GoogleDriveError,
+            GoogleDriveAuthError,
+            GoogleDrivePermissionError,
+            GoogleDriveQuotaError,
+            GoogleDriveNotFoundError
+        )
         origin = request.META.get('HTTP_ORIGIN')
         try:
             session_uri = create_resumable_upload_session(
@@ -576,8 +583,44 @@ class ProductViewSet(viewsets.ModelViewSet):
                 "filename": file_name,
                 "product_slug": product.slug
             }, status=status.HTTP_200_OK)
+        except GoogleDriveAuthError as e:
+            return Response({
+                "error": str(e),
+                "code": "gdrive_auth_required"
+            }, status=status.HTTP_401_UNAUTHORIZED)
+        except GoogleDriveQuotaError as e:
+            return Response({
+                "error": str(e),
+                "code": "gdrive_quota_exceeded"
+            }, status=status.HTTP_507_INSUFFICIENT_STORAGE)
+        except GoogleDrivePermissionError as e:
+            return Response({
+                "error": str(e),
+                "code": "gdrive_permission_denied"
+            }, status=status.HTTP_403_FORBIDDEN)
+        except GoogleDriveNotFoundError as e:
+            return Response({
+                "error": str(e),
+                "code": "gdrive_folder_not_found"
+            }, status=status.HTTP_404_NOT_FOUND)
         except GoogleDriveError as e:
-            return Response({"error": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+            return Response({"error": str(e), "code": "gdrive_error"}, status=status.HTTP_502_BAD_GATEWAY)
+
+    @action(detail=False, methods=['get'], permission_classes=[IsStaffOrAdmin], url_path='gdrive-status')
+    def gdrive_status(self, request):
+        """
+        Safe health check to verify Google Drive authorization and folder access.
+        """
+        from apps.core.gdrive_service import test_folder_access, GoogleDriveError
+        try:
+            info = test_folder_access()
+            return Response(info, status=status.HTTP_200_OK)
+        except GoogleDriveError as e:
+            return Response({
+                "status": "error",
+                "error": str(e),
+                "error_type": type(e).__name__
+            }, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['post'], permission_classes=[IsStaffOrAdmin], url_path='gdrive-upload-complete')
     def gdrive_upload_complete(self, request, slug=None):

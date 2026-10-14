@@ -254,4 +254,11 @@ GDRIVE_FOLDER_ID = config('GDRIVE_FOLDER_ID', default='').strip()
 GDRIVE_SERVICE_ACCOUNT_JSON_PATH = config('GDRIVE_SERVICE_ACCOUNT_JSON_PATH', default='').strip()
 GDRIVE_SERVICE_ACCOUNT_BASE64 = config('GDRIVE_SERVICE_ACCOUNT_BASE64', default='').strip()
 
+# Google Drive OAuth 2.0 User Storage (Personal Google Drive Account)
+GDRIVE_OAUTH_CLIENT_JSON_PATH = config('GDRIVE_OAUTH_CLIENT_JSON_PATH', default='credentials/gdrive-oauth-client.json').strip()
+GDRIVE_USER_TOKEN_JSON_PATH = config('GDRIVE_USER_TOKEN_JSON_PATH', default='credentials/gdrive-user-token.json').strip()
+GDRIVE_OAUTH_CLIENT_ID = config('GDRIVE_OAUTH_CLIENT_ID', default='').strip()
+GDRIVE_OAUTH_CLIENT_SECRET = config('GDRIVE_OAUTH_CLIENT_SECRET', default='').strip()
+GDRIVE_REFRESH_TOKEN = config('GDRIVE_REFRESH_TOKEN', default='').strip()
+
 
