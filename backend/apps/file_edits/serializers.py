@@ -17,7 +17,7 @@ class FileEditRequestSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'client', 'client_name', 'client_email', 'contact_name', 'contact_email', 'contact_phone',
             'original_file', 'original_file_format', 'modification_types',
-            'modification_type_labels', 'description', 'reference_image', 'status',
+            'modification_type_labels', 'description', 'reference_image', 'voice_note', 'status',
             'submission_intent', 'estimated_price_shown', 'agreed_price',
             'converted_order', 'created_at', 'updated_at'
         ]

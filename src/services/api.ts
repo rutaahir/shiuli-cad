@@ -1524,6 +1524,29 @@ class ApiClient {
     return [];
   }
 
+  async createModificationType(data: any): Promise<any> {
+    await this.ensureAdminToken();
+    return this.request<any>('/file-edits/modification-types/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateModificationType(id: number, data: any): Promise<any> {
+    await this.ensureAdminToken();
+    return this.request<any>(`/file-edits/modification-types/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteModificationType(id: number): Promise<any> {
+    await this.ensureAdminToken();
+    return this.request<any>(`/file-edits/modification-types/${id}/`, {
+      method: 'DELETE',
+    });
+  }
+
   async createFileEditRequest(data: any): Promise<any> {
     const isFormData = typeof FormData !== 'undefined' && data instanceof FormData;
     return this.request<any>('/file-edits/requests/', {

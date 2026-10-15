@@ -22,7 +22,11 @@ import {
   Clock,
   DollarSign,
   Tag,
-  FileText
+  FileText,
+  Trash2,
+  Volume2,
+  Mic,
+  Play
 } from 'lucide-react';
 
 export interface FileEditRequestItem {
@@ -39,6 +43,7 @@ export interface FileEditRequestItem {
   modification_type_labels: string[];
   description: string;
   reference_image?: string | null;
+  voice_note?: string | null;
   status: 'new' | 'quoted' | 'negotiating' | 'agreed' | 'rejected';
   submission_intent: 'quote_only' | 'place_order';
   estimated_price_shown?: string | number | null;
@@ -141,15 +146,17 @@ export const AdminFileEditsModule: React.FC = () => {
     }
   };
 
+  const [deletingModId, setDeletingModId] = useState<number | null>(null);
+
   // Modification Type Handlers
   const handleOpenEditMod = (mod?: ModificationTypeData) => {
     if (mod) {
       setEditingMod({ ...mod });
     } else {
       setEditingMod({
-        key: 'custom-modification',
-        label: 'New Modification Type',
-        description: 'Description of CAD file modification',
+        key: '',
+        label: '',
+        description: '',
         base_price: 75.0,
         icon: 'Wrench',
         is_active: true,
@@ -161,23 +168,23 @@ export const AdminFileEditsModule: React.FC = () => {
 
   const handleSaveMod = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingMod || !editingMod.key) return;
+    if (!editingMod || !editingMod.label?.trim()) return;
     setIsSubmittingMod(true);
     setErrorMsg('');
     setSuccessMsg('');
 
     try {
+      const generatedKey = editingMod.key?.trim() || editingMod.label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const payload = {
+        ...editingMod,
+        key: generatedKey,
+      };
+
       if (editingMod.id) {
-        await api.request(`/file-edits/modification-types/${editingMod.id}/`, {
-          method: 'PATCH',
-          body: JSON.stringify(editingMod),
-        });
+        await api.updateModificationType(editingMod.id, payload);
         setSuccessMsg(`Modification type "${editingMod.label}" updated successfully.`);
       } else {
-        await api.request('/file-edits/modification-types/', {
-          method: 'POST',
-          body: JSON.stringify(editingMod),
-        });
+        await api.createModificationType(payload);
         setSuccessMsg(`New modification type "${editingMod.label}" created successfully.`);
       }
       setIsModModalOpen(false);
@@ -187,6 +194,29 @@ export const AdminFileEditsModule: React.FC = () => {
       setErrorMsg(err.message || 'Failed to save modification type.');
     } finally {
       setIsSubmittingMod(false);
+    }
+  };
+
+  const handleDeleteMod = async (mod: ModificationTypeData) => {
+    if (!window.confirm(`Are you sure you want to delete modification type "${mod.label}"? This action cannot be undone.`)) {
+      return;
+    }
+    setDeletingModId(mod.id);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      await api.deleteModificationType(mod.id);
+      setSuccessMsg(`Modification type "${mod.label}" deleted successfully.`);
+      if (isModModalOpen && editingMod?.id === mod.id) {
+        setIsModModalOpen(false);
+        setEditingMod(null);
+      }
+      await loadModTypes();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to delete modification type.');
+    } finally {
+      setDeletingModId(null);
     }
   };
 
@@ -492,12 +522,28 @@ export const AdminFileEditsModule: React.FC = () => {
                         ${typeof mod.base_price === 'number' ? mod.base_price.toFixed(2) : mod.base_price}
                       </span>
                     </div>
-                    <button
-                      onClick={() => handleOpenEditMod(mod)}
-                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-bold text-slate-700 flex items-center gap-1.5 transition-colors"
-                    >
-                      <Edit2 className="w-3.5 h-3.5 text-slate-500" /> Edit
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleOpenEditMod(mod)}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-bold text-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+                        title="Edit Modification Type"
+                      >
+                        <Edit2 className="w-3.5 h-3.5 text-slate-500" /> Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteMod(mod)}
+                        disabled={deletingModId === mod.id}
+                        className="p-1.5 text-rose-500 hover:bg-rose-50 hover:text-rose-700 rounded-lg transition-colors cursor-pointer"
+                        title="Delete Modification Type"
+                      >
+                        {deletingModId === mod.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-rose-500" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -600,6 +646,27 @@ export const AdminFileEditsModule: React.FC = () => {
                   <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
                     <Eye className="w-5 h-5" />
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Voice Note & Audio Instructions */}
+            {selectedReq.voice_note && (
+              <div className="space-y-2 border-t border-slate-100 pt-4">
+                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-2">
+                  <Volume2 className="w-4 h-4 text-[#D4AF37]" /> Client Voice Note / Audio Instructions
+                </h4>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <audio controls src={selectedReq.voice_note} className="w-full sm:w-80 h-9" />
+                  <a
+                    href={selectedReq.voice_note}
+                    target="_blank"
+                    rel="noreferrer"
+                    download
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0B1330] text-[#F5E7A3] text-xs font-bold rounded-lg shrink-0 shadow-sm hover:bg-[#121F4D] transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5 text-[#D4AF37]" /> Download Audio
+                  </a>
                 </div>
               </div>
             )}
@@ -743,21 +810,36 @@ export const AdminFileEditsModule: React.FC = () => {
                 </label>
               </div>
 
-              <div className="pt-4 border-t border-slate-200 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsModModalOpen(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingMod}
-                  className="px-6 py-2 bg-[#0B1330] hover:bg-[#121F4D] text-[#F5E7A3] font-bold rounded-xl text-xs flex items-center gap-2"
-                >
-                  {isSubmittingMod ? <Loader2 className="w-4 h-4 animate-spin text-[#D4AF37]" /> : 'Save Modification'}
-                </button>
+              <div className="pt-4 border-t border-slate-200 flex items-center justify-between gap-3">
+                {editingMod.id ? (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteMod(editingMod as ModificationTypeData)}
+                    disabled={isSubmittingMod || deletingModId === editingMod.id}
+                    className="px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" /> Delete Option
+                  </button>
+                ) : (
+                  <div />
+                )}
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsModModalOpen(false)}
+                    className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingMod}
+                    className="px-6 py-2 bg-[#0B1330] hover:bg-[#121F4D] text-[#F5E7A3] font-bold rounded-xl text-xs flex items-center gap-2 cursor-pointer shadow-md"
+                  >
+                    {isSubmittingMod ? <Loader2 className="w-4 h-4 animate-spin text-[#D4AF37]" /> : 'Save Modification'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

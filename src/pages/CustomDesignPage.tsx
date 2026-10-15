@@ -40,6 +40,10 @@ import { api } from '../services/api';
 import { useCatalog, BackendProduct } from '../hooks/useCatalog';
 import { useAuth } from '../context/AuthContext';
 import { appStore } from '../services/store';
+import {
+  getMainShowcaseCategories,
+  CANONICAL_MAIN_CATEGORIES,
+} from '../utils/categoryHelper';
 
 interface CustomDesignPageProps {
   initialProductId?: string;
@@ -55,12 +59,44 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
   onNavigate,
 }) => {
   const { user, isLoggedIn } = useAuth();
-  const { products: catalogProducts } = useCatalog();
+  const { products: catalogProducts, categories: catalogCategories } = useCatalog();
 
   // 1. "What you want to order:"
-  const [orderMode, setOrderMode] = useState<'text' | 'select'>('text');
   const [customDesignText, setCustomDesignText] = useState<string>('');
   const [selectedCatalogItem, setSelectedCatalogItem] = useState<BackendProduct | null>(null);
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState<boolean>(false);
+  const categoryBoxRef = useRef<HTMLDivElement>(null);
+  const categoryInputRef = useRef<HTMLInputElement>(null);
+
+  // Main categories list
+  const mainCategories = useMemo(() => {
+    const showcase = getMainShowcaseCategories(catalogCategories, catalogProducts);
+    if (showcase && showcase.length > 0) {
+      return showcase;
+    }
+    return CANONICAL_MAIN_CATEGORIES;
+  }, [catalogCategories, catalogProducts]);
+
+  // Filtered categories based on input text
+  const filteredCategories = useMemo(() => {
+    const q = customDesignText.trim().toLowerCase();
+    if (!q) return mainCategories;
+    const matches = mainCategories.filter((cat) => cat.name.toLowerCase().includes(q));
+    return matches.length > 0 ? matches : mainCategories;
+  }, [mainCategories, customDesignText]);
+
+  // Click outside listener for category dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (categoryBoxRef.current && !categoryBoxRef.current.contains(event.target as Node)) {
+        setIsCategoryDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // 2. Material & Carat Selection (with custom write-in options)
   const [material, setMaterial] = useState<'Gold' | 'Silver' | 'Platinum' | 'Brass' | 'Other'>('Gold');
@@ -78,7 +114,6 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
   const [catalogSearch, setCatalogSearch] = useState<string>('');
   const [catalogCategoryFilter, setCatalogCategoryFilter] = useState<string>('all');
 
-  const textBoxInputRef = useRef<HTMLInputElement>(null);
   const pictureInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const cadInputRef = useRef<HTMLInputElement>(null);
@@ -131,7 +166,6 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
       if (found) {
         setSelectedCatalogItem(found);
         setCustomDesignText(`Based on Catalogue Design: ${found.title}`);
-        setOrderMode('select');
       }
     }
   }, [initialProductId, catalogProducts]);
@@ -435,7 +469,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
   // Generate Complete Order Details Text for WhatsApp / Telegram / Email / Admin
   const generateCompleteOrderText = () => {
     const designDesc =
-      orderMode === 'select' && selectedCatalogItem
+      selectedCatalogItem
         ? `Catalogue Reference: ${selectedCatalogItem.title} (SKU: ${selectedCatalogItem.sku || selectedCatalogItem.id})`
         : customDesignText.trim() || 'Bespoke Custom Jewellery CAD';
 
@@ -451,8 +485,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 • Email: ${contactEmail.trim() || 'Not provided'}
 
 💍 Design Requirement:
-• Order Type: ${orderMode === 'text' ? 'Custom Idea (Text Box)' : 'Catalogue Reference'}
-• Description / Title: ${designDesc}
+• Requirement: ${designDesc}
 
 ✨ Metal & Carat Specifications:
 • Material: ${effectiveMaterial}
@@ -524,8 +557,8 @@ Please confirm feasibility and provide the production CAD quotation.`;
       setSubmitError('Please enter your Email Address for CAD dispatch and invoice.');
       return;
     }
-    if (orderMode === 'text' && !customDesignText.trim()) {
-      setSubmitError('Please write what you want to order in the text box, or select a reference template.');
+    if (!customDesignText.trim() && !selectedCatalogItem) {
+      setSubmitError('Please select a category or type what you want to order.');
       return;
     }
 
@@ -533,7 +566,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
 
     try {
       const designTitle =
-        orderMode === 'select' && selectedCatalogItem
+        selectedCatalogItem
           ? selectedCatalogItem.title
           : customDesignText.trim() || 'Custom Jewellery CAD Design';
 
@@ -730,87 +763,193 @@ Please confirm feasibility and provide the production CAD quotation.`;
                 What you want to order:
               </label>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
-                {/* Option A: Text Box */}
+              {/* Single interactive combobox / category selector with custom write-in */}
+              <div ref={categoryBoxRef} className="relative">
                 <div
                   onClick={() => {
-                    setOrderMode('text');
-                    textBoxInputRef.current?.focus();
+                    categoryInputRef.current?.focus();
+                    setIsCategoryDropdownOpen(true);
                   }}
-                  className={`flex items-start sm:items-center gap-3.5 p-3.5 sm:p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                    orderMode === 'text'
-                      ? 'border-[#008080] ring-4 ring-[#008080]/15 bg-[#F2FAF9] shadow-md'
-                      : 'border-[#E8D7B7] hover:border-[#D6AD62] bg-[#FFFDF9]'
+                  className={`flex items-center gap-3 p-3 sm:p-3.5 rounded-2xl border-2 transition-all cursor-text bg-white ${
+                    isCategoryDropdownOpen
+                      ? 'border-[#17345C] ring-4 ring-[#17345C]/10 shadow-md'
+                      : 'border-[#E8D7B7] hover:border-[#D6AD62] shadow-2xs'
                   }`}
                 >
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-sm transition-all ${
-                    orderMode === 'text' ? 'bg-[#008080] text-white ring-2 ring-[#008080]/30' : 'bg-[#008080]/20 text-[#008080]'
-                  }`}>
-                    <Edit3 className="w-5 h-5" />
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-[#FFF9F0] border border-[#E8D7B7] text-[#B88735]">
+                    <Gem className="w-5 h-5" />
                   </div>
+
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="font-bold text-sm text-[#17345C]">Text Box</div>
-                      {orderMode === 'text' && (
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#008080] bg-[#008080]/15 px-2 py-0.5 rounded-full animate-pulse">
-                          Active &bull; Type Here
-                        </span>
-                      )}
-                    </div>
-                    <div className={`mt-1.5 flex items-center gap-2 px-3 py-2 rounded-xl transition-all ${
-                      orderMode === 'text'
-                        ? 'bg-white border-2 border-[#008080] shadow-xs ring-2 ring-[#008080]/20'
-                        : 'bg-white/70 border border-[#E8D7B7]'
-                    }`}>
-                      <input
-                        ref={textBoxInputRef}
-                        type="text"
-                        value={customDesignText}
-                        onChange={(e) => {
-                          setOrderMode('text');
-                          setCustomDesignText(e.target.value);
+                    <input
+                      ref={categoryInputRef}
+                      type="text"
+                      value={customDesignText}
+                      onChange={(e) => {
+                        setCustomDesignText(e.target.value);
+                        if (!isCategoryDropdownOpen) setIsCategoryDropdownOpen(true);
+                      }}
+                      onFocus={() => setIsCategoryDropdownOpen(true)}
+                      placeholder="Select a category or type what you want to order..."
+                      className="w-full bg-transparent text-sm sm:text-base text-[#17243B] font-semibold placeholder-[#7A8699] focus:outline-hidden outline-none border-0 p-0 m-0"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    {customDesignText && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCustomDesignText('');
+                          setSelectedCatalogItem(null);
+                          categoryInputRef.current?.focus();
                         }}
-                        onFocus={() => setOrderMode('text')}
-                        placeholder="Type what you want to order here..."
-                        className="w-full bg-transparent text-xs sm:text-sm text-[#17243B] font-semibold placeholder-[#7A8699] focus:outline-hidden outline-none border-0 p-0 m-0"
+                        className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                        title="Clear"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsCategoryDropdownOpen((prev) => !prev);
+                        categoryInputRef.current?.focus();
+                      }}
+                      className="p-1.5 rounded-full hover:bg-[#FFF9F0] text-[#17345C] transition-colors cursor-pointer"
+                      title="Select category"
+                    >
+                      <ChevronDown
+                        className={`w-5 h-5 text-[#B88735] transition-transform duration-200 ${
+                          isCategoryDropdownOpen ? 'rotate-180' : ''
+                        }`}
                       />
-                    </div>
+                    </button>
                   </div>
                 </div>
 
-                {/* Option B: Select from Catalogue */}
-                <div
-                  onClick={() => {
-                    setOrderMode('select');
-                    setShowCatalogModal(true);
-                  }}
-                  className={`flex items-start sm:items-center gap-3.5 p-3.5 sm:p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                    orderMode === 'select'
-                      ? 'border-[#17345C] ring-4 ring-[#17345C]/15 bg-[#F4F7FB] shadow-md'
-                      : 'border-[#E8D7B7] hover:border-[#D6AD62] bg-[#FFFDF9]'
-                  }`}
-                >
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-sm transition-all ${
-                    orderMode === 'select' ? 'bg-[#17345C] text-white ring-2 ring-[#17345C]/30' : 'bg-[#17345C] text-white'
-                  }`}>
-                    <ChevronDown className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="font-bold text-sm text-[#17345C]">Select Here</div>
-                      {orderMode === 'select' && selectedCatalogItem && (
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#17345C] bg-[#17345C]/10 px-2 py-0.5 rounded-full">
-                          Selected
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-1.5 flex items-center justify-between px-3 py-2 rounded-xl bg-white/70 border border-[#E8D7B7]">
-                      <span className="text-xs sm:text-sm text-[#626875] truncate font-medium">
-                        {selectedCatalogItem ? selectedCatalogItem.title : 'Choose from catalogue templates'}
-                      </span>
-                      <ChevronDown className="w-4 h-4 text-[#B88735] shrink-0 ml-1" />
-                    </div>
-                  </div>
+                {/* Dropdown Menu */}
+                <AnimatePresence>
+                  {isCategoryDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute z-30 left-0 right-0 mt-2 bg-white rounded-2xl border border-[#E8D7B7] shadow-xl overflow-hidden divide-y divide-[#F2E8D9]"
+                    >
+                      <div className="p-3 bg-[#FFFDF9]">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-[#B88735] mb-2 px-1">
+                          Select from Main Categories
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          {filteredCategories.map((cat) => {
+                            const isSelected =
+                              customDesignText.trim().toLowerCase() === cat.name.toLowerCase();
+                            return (
+                              <button
+                                key={cat.slug || cat.name}
+                                type="button"
+                                onClick={() => {
+                                  setCustomDesignText(cat.name);
+                                  setSelectedCatalogItem(null);
+                                  setIsCategoryDropdownOpen(false);
+                                }}
+                                className={`flex items-center gap-2 p-2 rounded-xl border text-left transition-all cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-[#17345C] text-white border-[#17345C] shadow-xs'
+                                    : 'bg-white hover:bg-[#FFF9F0] border-[#E8D7B7] hover:border-[#D6AD62] text-[#17345C]'
+                                }`}
+                              >
+                                {cat.image ? (
+                                  <img
+                                    src={cat.image}
+                                    alt={cat.name}
+                                    className="w-8 h-8 rounded-lg object-cover shrink-0 border border-[#E8D7B7]/50"
+                                  />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-lg bg-[#FFF9F0] flex items-center justify-center shrink-0 text-[#B88735]">
+                                    <Gem className="w-4 h-4" />
+                                  </div>
+                                )}
+                                <span className="text-xs font-semibold truncate">{cat.name}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Write custom requirement option */}
+                      <div
+                        onClick={() => setIsCategoryDropdownOpen(false)}
+                        className="p-3 bg-[#FFFDF9] hover:bg-[#FFF9F0] transition-colors cursor-pointer flex items-center justify-between gap-3"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-7 h-7 rounded-full bg-[#008080]/15 text-[#008080] flex items-center justify-center shrink-0">
+                            <Sparkles className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-[#17345C] truncate">
+                              {customDesignText.trim()
+                                ? `Order custom item: "${customDesignText.trim()}"`
+                                : "Can't find your choice? Type anything you want directly in the box above"}
+                            </p>
+                            <p className="text-[10px] text-[#626875]">
+                              Our master CAD designers will model any bespoke requirement
+                            </p>
+                          </div>
+                        </div>
+                        {customDesignText.trim() && (
+                          <span className="text-[10px] font-bold text-[#008080] bg-[#008080]/10 px-2 py-0.5 rounded-full shrink-0">
+                            Custom Item
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Browse Catalog Templates link */}
+                      <div
+                        onClick={() => {
+                          setIsCategoryDropdownOpen(false);
+                          setShowCatalogModal(true);
+                        }}
+                        className="p-2.5 bg-[#F4F7FB] hover:bg-[#E9F0FA] cursor-pointer text-center text-xs font-semibold text-[#17345C] flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <span>Need inspiration? Browse our 3D catalogue models</span>
+                        <ArrowRight className="w-3.5 h-3.5 text-[#B88735]" />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Quick Select Category Chips below box */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-2 no-scrollbar text-xs">
+                  <span className="text-[11px] font-semibold text-[#7A8699] shrink-0 mr-0.5">
+                    Main Categories:
+                  </span>
+                  {mainCategories.map((cat) => {
+                    const isSelected =
+                      customDesignText.trim().toLowerCase() === cat.name.toLowerCase();
+                    return (
+                      <button
+                        key={cat.slug || cat.name}
+                        type="button"
+                        onClick={() => {
+                          setCustomDesignText(cat.name);
+                          setSelectedCatalogItem(null);
+                          setIsCategoryDropdownOpen(false);
+                        }}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-all shrink-0 cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#17345C] text-white shadow-xs'
+                            : 'bg-[#FFFDF9] border border-[#E8D7B7] text-[#17345C] hover:border-[#D6AD62] hover:bg-[#FFF9F0]'
+                        }`}
+                      >
+                        {cat.name}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -830,7 +969,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
                     type="button"
                     onClick={() => {
                       setSelectedCatalogItem(null);
-                      setOrderMode('text');
+                      setCustomDesignText('');
                     }}
                     className="text-gray-400 hover:text-red-500 p-1 cursor-pointer"
                     title="Remove reference"
@@ -1409,7 +1548,6 @@ Please confirm feasibility and provide the production CAD quotation.`;
                     onClick={() => {
                       setSelectedCatalogItem(item);
                       setCustomDesignText(`Catalogue Reference: ${item.title}`);
-                      setOrderMode('select');
                       setShowCatalogModal(false);
                     }}
                     className={`p-2.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${

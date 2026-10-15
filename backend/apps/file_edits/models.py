@@ -38,6 +38,7 @@ class FileEditRequest(models.Model):
     modification_types = models.ManyToManyField(ModificationType, related_name="edit_requests")
     description = models.TextField()
     reference_image = models.ImageField(upload_to="file_edits/references/", null=True, blank=True)
+    voice_note = models.FileField(upload_to="file_edits/voice_notes/", null=True, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.NEW)
     submission_intent = models.CharField(max_length=20, choices=Intent.choices, default=Intent.QUOTE_ONLY)
     estimated_price_shown = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)

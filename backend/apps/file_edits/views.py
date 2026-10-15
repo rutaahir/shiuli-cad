@@ -9,14 +9,20 @@ class IsAdminOrReadOnly(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.method in permissions.SAFE_METHODS:
             return True
-        return bool(request.user and request.user.is_authenticated and getattr(request.user, 'role', None) == 'admin')
+        user = request.user
+        return bool(user and user.is_authenticated and (getattr(user, 'role', None) == 'admin' or user.is_staff or user.is_superuser))
 
 
 class ModificationTypeViewSet(viewsets.ModelViewSet):
-    queryset = ModificationType.objects.filter(is_active=True).order_by('display_order', 'id')
     serializer_class = ModificationTypeSerializer
     permission_classes = [IsAdminOrReadOnly]
     pagination_class = None
+
+    def get_queryset(self):
+        user = self.request.user
+        if user and user.is_authenticated and (getattr(user, 'role', None) == 'admin' or user.is_staff or user.is_superuser):
+            return ModificationType.objects.all().order_by('display_order', 'id')
+        return ModificationType.objects.filter(is_active=True).order_by('display_order', 'id')
 
 
 class FileEditRequestViewSet(viewsets.ModelViewSet):
