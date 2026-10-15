@@ -55,7 +55,8 @@ import {
   Search,
   Bell,
   BellRing,
-  CheckCheck
+  CheckCheck,
+  XCircle
 } from 'lucide-react';
 import { RevealOnScroll } from '../components/motion/RevealOnScroll';
 
@@ -163,6 +164,62 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
   const [lightboxZoom, setLightboxZoom] = useState<number>(1);
   const [revisionModalOrder, setRevisionModalOrder] = useState<any | null>(null);
   const [revisionToastMsg, setRevisionToastMsg] = useState<string | null>(null);
+
+  // Re-submit Payment Proof State
+  const [resubmitModalPurchase, setResubmitModalPurchase] = useState<any | null>(null);
+  const [resubmitUtr, setResubmitUtr] = useState('');
+  const [resubmitMethod, setResubmitMethod] = useState<'upi' | 'cash_check'>('upi');
+  const [resubmitDetails, setResubmitDetails] = useState('');
+  const [resubmitFile, setResubmitFile] = useState<File | null>(null);
+  const [resubmitFilePreview, setResubmitFilePreview] = useState<string | null>(null);
+  const [isSubmittingResubmit, setIsSubmittingResubmit] = useState(false);
+
+  const openResubmitModal = (purchase: any) => {
+    setResubmitModalPurchase(purchase);
+    setResubmitUtr(purchase.payment_transaction_id || '');
+    setResubmitMethod(purchase.payment_method === 'cash_check' ? 'cash_check' : 'upi');
+    setResubmitDetails(purchase.payment_details || '');
+    setResubmitFile(null);
+    setResubmitFilePreview(null);
+  };
+
+  const handleConfirmResubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resubmitModalPurchase) return;
+    if (!resubmitUtr.trim()) {
+      alert('Please enter your updated 12-digit UPI reference number or transaction reference.');
+      return;
+    }
+
+    setIsSubmittingResubmit(true);
+    try {
+      let screenshotBase64: string | undefined = undefined;
+      if (resubmitFile) {
+        screenshotBase64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(resubmitFile);
+        });
+      }
+
+      await api.resubmitPurchaseProof(resubmitModalPurchase.id, {
+        payment_transaction_id: resubmitUtr.trim(),
+        utr_number: resubmitUtr.trim(),
+        payment_method: resubmitMethod,
+        payment_details: resubmitDetails.trim(),
+        payment_screenshot: screenshotBase64,
+      });
+
+      alert('Payment proof re-submitted successfully! Atelier accounts will review and verify your submission.');
+      setResubmitModalPurchase(null);
+      await fetchPurchases();
+    } catch (err: any) {
+      alert(err?.message || 'Failed to re-submit payment proof.');
+    } finally {
+      setIsSubmittingResubmit(false);
+    }
+  };
 
   const fetchCustomRequests = async () => {
     setLoadingCustom(true);
@@ -2833,10 +2890,15 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                 <Clock className="w-2.5 h-2.5 animate-pulse text-amber-600" />
                                 Awaiting Admin Verification
                               </span>
+                            ) : p.status === 'declined' ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-300 inline-flex items-center gap-1">
+                                <XCircle className="w-2.5 h-2.5 text-rose-600" />
+                                Payment Proof Declined
+                              </span>
                             ) : p.status === 'paid' ? (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1">
                                 <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
-                                Payment Verified & Enabled
+                                Payment Verified &amp; Enabled
                               </span>
                             ) : (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-300">
@@ -2859,7 +2921,61 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                         </div>
                       )}
 
-                      {p.status === 'pending' ? (
+                      {p.status === 'declined' ? (
+                        <>
+                          {/* Step Indicator Bar for Declined Payment */}
+                          <div className="p-3.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-2">
+                            <div className="text-[11px] font-mono text-[#5A6679] flex justify-between">
+                              <span>Verification Trail</span>
+                              <span className="text-rose-700 font-bold">
+                                Proof Declined by Accounts
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-1.5 text-center text-[10px] font-mono">
+                              <div className="p-1.5 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-800 font-semibold flex items-center justify-center gap-1">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                <span>1. Proof Sent</span>
+                              </div>
+                              <div className="p-1.5 rounded-lg bg-rose-50 border border-rose-300 text-rose-800 font-semibold flex items-center justify-center gap-1">
+                                <XCircle className="w-3 h-3 text-rose-600" />
+                                <span>2. Declined</span>
+                              </div>
+                              <div className="p-1.5 rounded-lg bg-slate-100 border border-slate-300 text-slate-400 flex items-center justify-center gap-1 font-semibold">
+                                <Lock className="w-3 h-3" />
+                                <span>3. Download Locked</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-900 space-y-2">
+                            <div className="flex items-center gap-1.5 font-bold text-rose-800">
+                              <XCircle className="w-4 h-4 text-rose-600" />
+                              <span>Payment Proof Not Verified</span>
+                            </div>
+                            <p className="text-[11px] text-[#5A6679] leading-relaxed">
+                              Our Atelier accounts desk could not confirm this transaction in the bank ledger.
+                            </p>
+                            {p.decline_reason && (
+                              <div className="p-2.5 rounded-xl bg-white border border-rose-200 text-[11px]">
+                                <span className="text-[10px] uppercase font-bold text-rose-700 font-mono block">Reason from Accounts:</span>
+                                <span className="text-slate-800 font-medium">{p.decline_reason}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="pt-2 border-t border-[#E8D7B7]">
+                            <button
+                              type="button"
+                              onClick={() => openResubmitModal(p)}
+                              className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-600 to-[#D4AF37] hover:from-amber-500 hover:to-[#E5C158] text-[#0B1330] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-md transition-all"
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                              <span>Re-submit Corrected Payment Proof</span>
+                            </button>
+                          </div>
+                        </>
+                      ) : p.status === 'pending' ? (
                         <>
                           {/* Step Indicator Bar for Pending Payment */}
                           <div className="p-3.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-2">
@@ -3753,6 +3869,141 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
           >
             <X className="w-4 h-4" />
           </button>
+        </div>
+      )}
+
+      {/* Re-submit Payment Proof Modal */}
+      {resubmitModalPurchase && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+          onClick={() => setResubmitModalPurchase(null)}
+        >
+          <div
+            className="relative w-full max-w-lg bg-white rounded-3xl border border-[#D4AF37]/50 shadow-2xl p-6 sm:p-7 space-y-5 animate-scale-in text-[#1E2230]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-[#E8D7B7]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700">
+                  <RefreshCw className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-serif text-lg font-bold text-[#0B1330]">Re-submit Payment Proof</h3>
+                  <p className="text-xs text-[#5A6679]">Purchase #{resubmitModalPurchase.id} — {resubmitModalPurchase.product_title}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setResubmitModalPurchase(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Previous Decline Reason Display */}
+            {resubmitModalPurchase.decline_reason && (
+              <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-900 space-y-1">
+                <div className="flex items-center gap-1.5 font-bold text-rose-800">
+                  <XCircle className="w-4 h-4 text-rose-600" />
+                  <span>Accounts Decline Reason:</span>
+                </div>
+                <p className="text-[11px] font-mono leading-relaxed pl-5">
+                  {resubmitModalPurchase.decline_reason}
+                </p>
+              </div>
+            )}
+
+            <form onSubmit={handleConfirmResubmit} className="space-y-4 text-xs">
+              <div>
+                <label className="text-xs font-bold text-slate-800 block mb-1">
+                  12-Digit UPI Reference Number (UTR) / Transaction ID *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={resubmitUtr}
+                  onChange={(e) => setResubmitUtr(e.target.value)}
+                  placeholder="e.g. 428719283749 or UPI Ref / Bank IMPS No."
+                  className="w-full p-3 rounded-xl border border-slate-300 font-mono text-xs focus:ring-2 focus:ring-[#D4AF37] focus:border-[#D4AF37] outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-800 block mb-1">
+                  Payment Mode
+                </label>
+                <select
+                  value={resubmitMethod}
+                  onChange={(e) => setResubmitMethod(e.target.value as any)}
+                  className="w-full p-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-[#D4AF37] outline-none"
+                >
+                  <option value="upi">UPI / QR Code Transfer</option>
+                  <option value="cash_check">Cash / Cheque Deposit</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-800 block mb-1">
+                  Updated Payment Screenshot / Receipt (Optional)
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] || null;
+                    setResubmitFile(f);
+                    if (f) {
+                      setResubmitFilePreview(URL.createObjectURL(f));
+                    } else {
+                      setResubmitFilePreview(null);
+                    }
+                  }}
+                  className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#E8EEFF] file:text-[#2856C7] hover:file:bg-[#D4AF37]/20 cursor-pointer"
+                />
+                {resubmitFilePreview && (
+                  <div className="mt-2 p-1.5 border border-slate-200 rounded-xl bg-slate-50 max-w-[200px]">
+                    <img src={resubmitFilePreview} alt="Receipt preview" className="rounded-lg max-h-32 object-contain" />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-800 block mb-1">
+                  Additional Notes for Accounts Team (Optional)
+                </label>
+                <textarea
+                  rows={2}
+                  value={resubmitDetails}
+                  onChange={(e) => setResubmitDetails(e.target.value)}
+                  placeholder="e.g. Paid from HDFC account of Rajesh Shah..."
+                  className="w-full p-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-[#D4AF37] outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setResubmitModalPurchase(null)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingResubmit}
+                  className="btn-gold-luxury px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider inline-flex items-center gap-2 cursor-pointer shadow-md disabled:opacity-50"
+                >
+                  {isSubmittingResubmit ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-[#0B1330]" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4 text-[#0B1330]" />
+                  )}
+                  <span>Re-submit for Verification</span>
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

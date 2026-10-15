@@ -332,6 +332,29 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate, onSucces
                 </div>
               </div>
 
+              {/* Debug / Dev OTP Quick Assist Banner */}
+              {debugOtp && (
+                <div className="p-3 bg-[#D4AF37]/10 border border-[#D4AF37]/30 rounded-xl text-[#B88732] text-xs flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[#B88732] shrink-0" />
+                    <span>
+                      Dev Code: <strong className="text-[#17345C] font-mono tracking-widest text-sm font-bold">{debugOtp}</strong>
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const digits = debugOtp.slice(0, 6).split('');
+                      while (digits.length < 6) digits.push('');
+                      setOtpDigits(digits);
+                    }}
+                    className="text-[11px] bg-[#B88732]/15 hover:bg-[#B88732]/25 text-[#17345C] px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer"
+                  >
+                    Auto-Fill
+                  </button>
+                </div>
+              )}
+
               {/* 6 Individual Digit Boxes */}
               <div className="flex justify-center gap-2 sm:gap-3">
                 {otpDigits.map((digit, index) => (

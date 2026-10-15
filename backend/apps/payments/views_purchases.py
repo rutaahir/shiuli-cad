@@ -559,7 +559,33 @@ def admin_approve_purchase(request, purchase_id):
     purchase.last_otp_generated_at = now
     purchase.save(update_fields=['status', 'admin_verified_at', 'admin_verified_by', 'otp_generation_count', 'last_otp_generated_at'])
 
-    # Generate 6-digit OTP code & store hashed
+    # Generate single-use download token & store in DB
+    raw_token = secrets.token_urlsafe(32)
+    token_expires_at = now + timedelta(hours=48)
+
+    # Invalidate any old unused tokens for this purchase
+    DownloadToken.objects.filter(purchase=purchase, is_used=False).update(status=DownloadToken.Status.EXPIRED)
+
+    DownloadToken.objects.create(
+        purchase=purchase,
+        token=raw_token,
+        locked_email=purchase.buyer.email,
+        expires_at=token_expires_at,
+        is_used=False,
+        status=DownloadToken.Status.AVAILABLE,
+        attempt_count=0
+    )
+
+    origin = request.META.get('HTTP_ORIGIN') or request.META.get('HTTP_REFERER')
+    if origin:
+        from urllib.parse import urlparse
+        parsed = urlparse(origin)
+        base_url = f"{parsed.scheme}://{parsed.netloc}"
+    else:
+        base_url = "http://localhost:3000"
+    download_url = f"{base_url}/download/{raw_token}"
+
+    # Also generate 6-digit OTP code & store hashed for optional dashboard entry
     otp_code = generate_6digit_otp()
     otp_hash = make_password(otp_code)
     expires_at = now + timedelta(minutes=10)
@@ -575,31 +601,203 @@ def admin_approve_purchase(request, purchase_id):
 
     masked_email = mask_email(purchase.buyer.email)
 
-    # Dev terminal log
+    # Terminal log
     print("\n" + "=" * 70)
-    print(f"[ADMIN CONFIRMED PAYMENT - DOWNLOAD ENABLED]")
+    print(f"✨ [ADMIN APPROVED PAYMENT — ONE-TIME SECURE DOWNLOAD LINK READY]")
     print(f"   Purchase ID: #{purchase.id}")
     print(f"   Product:     {purchase.product.title}")
     print(f"   Buyer Email: {purchase.buyer.email}")
+    print(f"   ONE-TIME DOWNLOAD LINK: >>> {download_url} <<<")
     print(f"   VERIFICATION CODE (OTP): >>> {otp_code} <<<")
     print("=" * 70 + "\n")
 
     try:
-        send_otp_email(
-            email=purchase.buyer.email,
-            otp_code=otp_code,
-            name=purchase.buyer.get_full_name() or purchase.buyer.username,
-            purpose="purchase_otp"
+        subject = f"Your Secure CAD Download Link — '{purchase.product.title}'"
+        plain_msg = (
+            f"Hello {purchase.buyer.get_full_name() or purchase.buyer.username},\n\n"
+            f"Your payment has been verified and confirmed by Shiuli CAD Studio!\n\n"
+            f"Here is your single-use secure download link for '{purchase.product.title}' ({purchase.get_license_type_display()}):\n\n"
+            f"{download_url}\n\n"
+            f"CRITICAL SECURITY NOTE:\n"
+            f"- For security and intellectual property protection, this link can only be downloaded ONCE.\n"
+            f"- The link is locked to your registered account ({purchase.buyer.email}) and will expire in 48 hours or immediately upon verified download completion.\n\n"
+            f"Warm regards,\nShiuli CAD Studio Engineering Team"
         )
+        html_msg = build_luxury_email_html(
+            headline="Your 3D CAD Production Package is Ready",
+            paragraphs=[
+                f"Hello {purchase.buyer.get_full_name() or purchase.buyer.username},",
+                f"Your payment has been verified and confirmed by Atelier Accounts! Your production-ready jewellery CAD package for <strong>'{purchase.product.title}'</strong> ({purchase.get_license_type_display()}) is ready for download.",
+                "Click the button below to download your watertight .3DM, castable .STL, and 4K studio renders:",
+                "<strong>Single-Use Security Notice:</strong> This link can only be downloaded <strong>once</strong>. After your download finishes, the token will be permanently closed for IP security."
+            ],
+            action_button_text="DOWNLOAD 3D CAD PACKAGE",
+            action_button_url=download_url,
+            footer_note="Valid for a single download within 48 hours. If you did not initiate this request, contact support immediately."
+        )
+        send_mail(
+            subject=subject,
+            message=plain_msg,
+            recipient_list=[purchase.buyer.email],
+            html_message=html_msg,
+            fail_silently=False
+        )
+        print(f"[EMAIL SUCCESS] One-time download link dispatched to {purchase.buyer.email}")
     except Exception as e:
         print(f"[EMAIL SERVICE WARNING] Failed to dispatch admin approval email: {e}")
 
-    return Response({
-        "message": f"Payment verified! Download enabled for {masked_email}. 6-digit verification code has been dispatched.",
+    resp_data = {
+        "message": f"Payment verified! One-time secure download link dispatched to {masked_email}.",
         "purchase_id": purchase.id,
         "product_title": purchase.product.title,
         "status": "paid",
         "masked_email": masked_email,
+        "download_url": download_url,
+    }
+    if settings.DEBUG:
+        resp_data["debug_otp"] = otp_code
+        resp_data["debug_download_url"] = download_url
+
+    return Response(resp_data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([IsStaffOrAdmin])
+def admin_decline_purchase(request, purchase_id):
+    """
+    POST /api/purchases/{id}/admin-decline/
+    Admin declines payment proof submission.
+    Marks purchase as DECLINED, stores decline reason, invalidates any tokens,
+    creates in-app notification for the customer, and emails customer notice.
+    """
+    try:
+        purchase = Purchase.objects.select_related('buyer', 'product').get(id=purchase_id)
+    except Purchase.DoesNotExist:
+        return Response({"error": "Purchase record not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    reason = (request.data.get('reason') or '').strip()
+    if not reason:
+        reason = "Payment proof verification could not be validated against bank records."
+
+    now = timezone.now()
+    purchase.status = Purchase.Status.DECLINED
+    purchase.decline_reason = reason
+    purchase.declined_at = now
+    purchase.declined_by = request.user
+    purchase.download_enabled_by_admin = False
+    purchase.save(update_fields=['status', 'decline_reason', 'declined_at', 'declined_by', 'download_enabled_by_admin'])
+
+    # Invalidate any active tokens or OTPs
+    DownloadToken.objects.filter(purchase=purchase).update(status=DownloadToken.Status.EXPIRED)
+    DownloadOTP.objects.filter(purchase=purchase).delete()
+
+    # Create in-app Notification for customer
+    try:
+        from apps.notifications.models import Notification
+        Notification.objects.create(
+            recipient=purchase.buyer,
+            title=f"Payment Verification Declined — {purchase.product.title}",
+            body=f"Your payment proof for '{purchase.product.title}' was declined by Atelier Accounts. Reason: {reason}. You can re-submit your transaction details in your My Downloads dashboard.",
+            notification_type="purchase_declined"
+        )
+    except Exception as notif_err:
+        print(f"[NOTIFICATION WARNING] Failed to create notification: {notif_err}")
+
+    # Dispatch Luxury Email to customer
+    try:
+        subject = f"Payment Verification Notice — '{purchase.product.title}'"
+        plain_msg = (
+            f"Hello {purchase.buyer.get_full_name() or purchase.buyer.username},\n\n"
+            f"We reviewed the payment proof submitted for '{purchase.product.title}'. "
+            f"Unfortunately, our accounts team was unable to verify the transaction in our bank ledger.\n\n"
+            f"Reason provided: {reason}\n\n"
+            f"Next steps:\n"
+            f"- Visit your Shiuli CAD Studio My Account > Purchases dashboard.\n"
+            f"- Click 'Re-submit Payment Proof' to provide your updated UTR transaction reference number or a clear receipt screenshot.\n\n"
+            f"If you believe this is in error or need assistance, please contact our support desk.\n\n"
+            f"Warm regards,\nShiuli CAD Studio Accounts"
+        )
+        html_msg = build_luxury_email_html(
+            headline="Payment Verification Notice",
+            paragraphs=[
+                f"Hello {purchase.buyer.get_full_name() or purchase.buyer.username},",
+                f"Our accounts team reviewed the payment details submitted for <strong>'{purchase.product.title}'</strong> ({purchase.get_license_type_display()}).",
+                f"Unfortunately, the payment proof could not be verified in our bank ledger. <strong>Reason:</strong> {reason}",
+                "Please visit your account dashboard to re-submit your valid bank reference (UTR) or upload a clear transaction screenshot."
+            ],
+            action_button_text="GO TO MY PURCHASES",
+            action_button_url="http://localhost:3000/account?tab=downloads",
+            footer_note="If you already made the transfer, please reply to this email with your bank payment advice."
+        )
+        send_mail(
+            subject=subject,
+            message=plain_msg,
+            recipient_list=[purchase.buyer.email],
+            html_message=html_msg,
+            fail_silently=False
+        )
+        print(f"[EMAIL SUCCESS] Payment decline notice dispatched to {purchase.buyer.email}")
+    except Exception as email_err:
+        print(f"[EMAIL WARNING] Failed to dispatch decline email: {email_err}")
+
+    return Response({
+        "message": f"Payment proof for Purchase #{purchase.id} has been marked as declined and customer notified.",
+        "purchase_id": purchase.id,
+        "status": "declined",
+        "decline_reason": reason
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def resubmit_purchase_proof(request, purchase_id):
+    """
+    POST /api/purchases/{id}/resubmit-proof/
+    Customer re-submits transaction reference and/or screenshot after a payment proof decline.
+    Resets status to PENDING and clears previous decline reason.
+    """
+    try:
+        purchase = Purchase.objects.get(id=purchase_id, buyer=request.user)
+    except Purchase.DoesNotExist:
+        return Response({"error": "Purchase record not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if purchase.status not in [Purchase.Status.DECLINED, Purchase.Status.PENDING]:
+        return Response({"error": f"Cannot re-submit proof for purchase with status '{purchase.status}'."}, status=status.HTTP_400_BAD_REQUEST)
+
+    payment_transaction_id = request.data.get('payment_transaction_id') or request.data.get('utr_number') or purchase.payment_transaction_id
+    payment_method = request.data.get('payment_method') or purchase.payment_method
+    payment_details = request.data.get('payment_details', purchase.payment_details)
+
+    screenshot_file = request.FILES.get('payment_screenshot')
+    screenshot_data = request.data.get('payment_screenshot')
+    if not screenshot_file and isinstance(screenshot_data, str) and screenshot_data.startswith('data:image'):
+        try:
+            format_part, imgstr = screenshot_data.split(';base64,')
+            ext = format_part.split('/')[-1]
+            if ext == 'jpeg':
+                ext = 'jpg'
+            file_name = f"proof_resub_{request.user.id}_{secrets.token_hex(4)}.{ext}"
+            screenshot_file = ContentFile(base64.b64decode(imgstr), name=file_name)
+        except Exception as e:
+            print(f"[SCREENSHOT DECODE WARNING] {e}")
+
+    purchase.payment_transaction_id = payment_transaction_id
+    purchase.payment_method = payment_method
+    purchase.payment_details = payment_details
+    if screenshot_file:
+        purchase.payment_screenshot = screenshot_file
+
+    purchase.status = Purchase.Status.PENDING
+    purchase.decline_reason = ""
+    purchase.declined_at = None
+    purchase.declined_by = None
+    purchase.save()
+
+    return Response({
+        "message": "Payment proof re-submitted successfully! Atelier accounts will re-verify your submission.",
+        "purchase_id": purchase.id,
+        "status": "pending",
+        "payment_transaction_id": purchase.payment_transaction_id
     }, status=status.HTTP_200_OK)
 
 
@@ -1327,6 +1525,8 @@ def list_my_purchases(request):
             "payment_details": p.payment_details or "",
             "payment_screenshot": request.build_absolute_uri(p.payment_screenshot.url) if p.payment_screenshot else None,
             "status": p.status,
+            "decline_reason": p.decline_reason or "",
+            "declined_at": p.declined_at,
             "download_enabled_by_admin": p.download_enabled_by_admin,
             "can_download": (p.status == Purchase.Status.PAID and p.download_enabled_by_admin),
             "admin_verified_at": p.admin_verified_at,

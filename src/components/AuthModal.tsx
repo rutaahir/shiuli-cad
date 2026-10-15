@@ -519,6 +519,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </form>
           ) : (
             <form onSubmit={handleVerifyPasswordReset} className="space-y-4">
+              {/* Debug / Dev OTP Quick Assist Banner */}
+              {debugOtp && (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-200 text-xs flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[#D4AF37] shrink-0" />
+                    <span>
+                      Dev Reset Code: <strong className="text-white font-mono tracking-widest text-sm font-bold">{debugOtp}</strong>
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const digits = debugOtp.slice(0, 6).split('');
+                      while (digits.length < 6) digits.push('');
+                      setFpOtpDigits(digits);
+                    }}
+                    className="text-[11px] bg-[#D4AF37]/20 hover:bg-[#D4AF37]/30 text-[#F5E7A3] px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer"
+                  >
+                    Auto-Fill
+                  </button>
+                </div>
+              )}
+
               {/* 6 Individual Digit Boxes */}
               <div className="flex justify-center gap-1.5 xs:gap-2 sm:gap-3">
                 {fpOtpDigits.map((digit, index) => (
@@ -623,6 +646,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <ShieldCheck className="w-6 h-6" />
               </div>
             </div>
+
+            {/* Debug / Dev OTP Quick Assist Banner */}
+            {debugOtp && (
+              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-200 text-xs flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-[#D4AF37] shrink-0" />
+                  <span>
+                    Dev Verification Code: <strong className="text-white font-mono tracking-widest text-sm font-bold">{debugOtp}</strong>
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const digits = debugOtp.slice(0, 6).split('');
+                    while (digits.length < 6) digits.push('');
+                    setOtpDigits(digits);
+                  }}
+                  className="text-[11px] bg-[#D4AF37]/20 hover:bg-[#D4AF37]/30 text-[#F5E7A3] px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer"
+                >
+                  Auto-Fill
+                </button>
+              </div>
+            )}
 
             {/* 6 Individual Digit Boxes */}
             <div className="flex justify-center gap-1.5 xs:gap-2 sm:gap-3">

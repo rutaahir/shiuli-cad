@@ -61,6 +61,7 @@ class Payment(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
         SUCCESS = "success", "Success"
+        DECLINED = "declined", "Declined"
         FAILED = "failed", "Failed"
 
     order = models.ForeignKey(Order, related_name="payments", on_delete=models.CASCADE)
@@ -71,7 +72,12 @@ class Payment(models.Model):
     payment_method = models.CharField(max_length=50, blank=True, default="upi")
     payment_details = models.TextField(blank=True, default="")
     payment_screenshot = models.FileField(upload_to="payment_proofs/", blank=True, null=True)
-    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    status = models.CharField(max_length=15, choices=Status.choices, default=Status.PENDING)
+    decline_reason = models.TextField(blank=True, default="")
+    declined_at = models.DateTimeField(null=True, blank=True)
+    declined_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="declined_payments"
+    )
     admin_verified_at = models.DateTimeField(null=True, blank=True)
     admin_verified_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="verified_payments"
@@ -114,6 +120,7 @@ class Purchase(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending Payment"
         PAID = "paid", "Paid"
+        DECLINED = "declined", "Declined"
         FAILED = "failed", "Failed"
 
     buyer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="purchases")
@@ -125,6 +132,11 @@ class Purchase(models.Model):
     payment_details = models.TextField(blank=True, default="")
     payment_screenshot = models.FileField(upload_to="payment_proofs/", blank=True, null=True)
     status = models.CharField(max_length=15, choices=Status.choices, default=Status.PENDING)
+    decline_reason = models.TextField(blank=True, default="")
+    declined_at = models.DateTimeField(null=True, blank=True)
+    declined_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="declined_purchases"
+    )
     # Regional Tier Pricing Snapshot
     pricing_mode = models.CharField(max_length=20, default="global", blank=True)
     pricing_tier = models.CharField(max_length=50, blank=True, default="")

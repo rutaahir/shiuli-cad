@@ -224,6 +224,52 @@ def admin_approve_custom_payment(request, payment_id):
     }, status=status.HTTP_200_OK)
 
 
+@api_view(['POST'])
+@permission_classes([IsStaffOrAdmin])
+def admin_decline_custom_payment(request, payment_id):
+    """
+    POST /api/payments/<id>/admin-decline/
+    Admin declines verification of a custom order payment (Cash, Cheque, UPI).
+    Marks Payment status as DECLINED, stores reason, and alerts client.
+    """
+    try:
+        payment = Payment.objects.select_related('order', 'order__client', 'payment_stage').get(id=payment_id)
+    except Payment.DoesNotExist:
+        return Response({"error": "Payment record not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    reason = (request.data.get('reason') or '').strip()
+    if not reason:
+        reason = "Payment proof could not be verified in bank records."
+
+    now = timezone.now()
+    payment.status = Payment.Status.DECLINED
+    payment.decline_reason = reason
+    payment.declined_at = now
+    payment.declined_by = request.user
+    payment.save(update_fields=['status', 'decline_reason', 'declined_at', 'declined_by'])
+
+    # Send Notification to client
+    if payment.order and payment.order.client:
+        try:
+            from apps.notifications.models import Notification
+            Notification.objects.create(
+                recipient=payment.order.client,
+                title=f"Payment Verification Declined — Order #{payment.order.order_number}",
+                body=f"Your payment proof of ₹{payment.amount:,.2f} for Order #{payment.order.order_number} was declined. Reason: {reason}. Please re-submit payment details.",
+                notification_type="payment_declined",
+                related_order=payment.order
+            )
+        except Exception as notif_err:
+            print(f"[NOTIFICATION WARNING] {notif_err}")
+
+    return Response({
+        "message": f"Payment #{payment.id} has been declined.",
+        "payment_id": payment.id,
+        "status": "declined",
+        "decline_reason": reason
+    }, status=status.HTTP_200_OK)
+
+
 @api_view(['GET'])
 @permission_classes([IsStaffOrAdmin])
 def incoming_gateway_logs(request):
@@ -253,7 +299,10 @@ def incoming_gateway_logs(request):
             'screenshot': screenshot_url,
             'status': p.get_status_display(),
             'raw_status': p.status,
+            'decline_reason': p.decline_reason or "",
+            'declined_at': getattr(p, 'declined_at', None).isoformat() if getattr(p, 'declined_at', None) else None,
             'can_approve': p.status == 'pending',
+            'can_decline': p.status == 'pending',
             'date': p.created_at.strftime('%b %d, %Y, %I:%M %p'),
             'created_at_iso': p.created_at.isoformat()
         })
@@ -280,7 +329,10 @@ def incoming_gateway_logs(request):
             'screenshot': screenshot_url,
             'status': pur.get_status_display(),
             'raw_status': pur.status,
+            'decline_reason': pur.decline_reason or "",
+            'declined_at': pur.declined_at.isoformat() if pur.declined_at else None,
             'can_approve': pur.status == 'pending',
+            'can_decline': pur.status == 'pending',
             'download_enabled_by_admin': pur.download_enabled_by_admin,
             'date': pur.purchased_at.strftime('%b %d, %Y, %I:%M %p'),
             'created_at_iso': pur.purchased_at.isoformat()

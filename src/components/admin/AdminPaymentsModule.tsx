@@ -25,7 +25,8 @@ import {
   ArrowRight,
   Receipt,
   Lock,
-  Unlock
+  Unlock,
+  XCircle
 } from 'lucide-react';
 
 interface GatewayLogRecord {
@@ -44,6 +45,9 @@ interface GatewayLogRecord {
   status: string;
   raw_status?: string;
   can_approve?: boolean;
+  can_decline?: boolean;
+  decline_reason?: string;
+  declined_at?: string | null;
   download_enabled_by_admin?: boolean;
   payment_method?: string;
   payment_details?: string;
@@ -53,7 +57,14 @@ interface GatewayLogRecord {
 }
 
 export const AdminPaymentsModule: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'settlements' | 'client-payments'>('settlements');
+  const [activeTab, setActiveTab] = useState<'settlements' | 'client-payments'>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sub = params.get('subtab') || params.get('tab');
+    if (sub === 'gateway' || sub === 'client-payments' || sub === 'client') {
+      return 'client-payments';
+    }
+    return 'settlements';
+  });
   const [settlements, setSettlements] = useState<SettlementRecord[]>([]);
   const [loadingSettlements, setLoadingSettlements] = useState<boolean>(true);
   const [clientPayments, setClientPayments] = useState<GatewayLogRecord[]>([]);
@@ -66,6 +77,12 @@ export const AdminPaymentsModule: React.FC = () => {
   const [togglingDownloadId, setTogglingDownloadId] = useState<number | null>(null);
   const [lightboxScreenshotUrl, setLightboxScreenshotUrl] = useState<string | null>(null);
   const [lightboxTitle, setLightboxTitle] = useState<string>('');
+
+  // Payment Decline State
+  const [declineModalItem, setDeclineModalItem] = useState<GatewayLogRecord | null>(null);
+  const [selectedDeclineReason, setSelectedDeclineReason] = useState<string>('UTR / Reference not found in bank statement');
+  const [customDeclineReason, setCustomDeclineReason] = useState<string>('');
+  const [decliningPaymentId, setDecliningPaymentId] = useState<string | null>(null);
 
   // Settlement Payout Modal State
   const [settleModalItem, setSettleModalItem] = useState<SettlementRecord | null>(null);
@@ -173,6 +190,42 @@ export const AdminPaymentsModule: React.FC = () => {
       alert(err?.message || 'Failed to approve payment.');
     } finally {
       setApprovingPaymentId(null);
+    }
+  };
+
+  const openDeclineModal = (p: GatewayLogRecord) => {
+    setDeclineModalItem(p);
+    setSelectedDeclineReason('UTR / Reference not found in bank statement');
+    setCustomDeclineReason('');
+  };
+
+  const handleConfirmDecline = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!declineModalItem) return;
+
+    const finalReason = selectedDeclineReason === 'custom'
+      ? customDeclineReason.trim()
+      : selectedDeclineReason;
+
+    if (!finalReason) {
+      alert('Please enter or select a reason for declining this payment proof.');
+      return;
+    }
+
+    setDecliningPaymentId(declineModalItem.id);
+    try {
+      if (declineModalItem.purchase_id) {
+        await api.adminDeclinePurchase(declineModalItem.purchase_id, finalReason);
+      } else if (declineModalItem.payment_id) {
+        await api.adminDeclinePayment(declineModalItem.payment_id, finalReason);
+      }
+      alert(`Payment ${declineModalItem.id} has been declined. The client has been notified via email and in-app alert.`);
+      setDeclineModalItem(null);
+      await fetchGatewayLogs();
+    } catch (err: any) {
+      alert(err?.message || 'Failed to decline payment.');
+    } finally {
+      setDecliningPaymentId(null);
     }
   };
 
@@ -374,11 +427,16 @@ export const AdminPaymentsModule: React.FC = () => {
                   setActiveTab('client-payments');
                   fetchGatewayLogs();
                 }}
-                className={`px-3 py-1.5 rounded-lg transition-all ${
+                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
                   activeTab === 'client-payments' ? 'bg-[#0D1B4C] text-white shadow' : 'text-[#6B7280] hover:text-[#1E2230]'
                 }`}
               >
-                Client Gateway ({clientPayments.length})
+                <span>Client Gateway ({clientPayments.length})</span>
+                {clientPayments.filter((p) => p.can_approve || p.raw_status === 'pending').length > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white animate-pulse">
+                    {clientPayments.filter((p) => p.can_approve || p.raw_status === 'pending').length} Pending
+                  </span>
+                )}
               </button>
             </div>
 
@@ -706,6 +764,10 @@ export const AdminPaymentsModule: React.FC = () => {
                           <span className="bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
                             <Clock className="w-3 h-3 text-amber-600" /> Pending Collection Confirmation
                           </span>
+                        ) : p.raw_status === 'declined' ? (
+                          <span className="bg-rose-100 text-rose-800 border border-rose-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                            <XCircle className="w-3 h-3 text-rose-600" /> Payment Declined
+                          </span>
                         ) : p.download_enabled_by_admin === false ? (
                           <span className="bg-rose-50 text-rose-700 border border-rose-300 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
                             <Lock className="w-3 h-3 text-rose-600" /> Downloads Locked by Admin
@@ -716,6 +778,16 @@ export const AdminPaymentsModule: React.FC = () => {
                           </span>
                         )}
                       </div>
+
+                      {/* Decline Reason Note if declined */}
+                      {p.raw_status === 'declined' && p.decline_reason && (
+                        <div className="text-[11px] font-sans text-rose-900 bg-rose-50 p-2.5 rounded-xl border border-rose-200 max-w-xl">
+                          <strong className="font-semibold text-rose-950 block text-[10px] uppercase font-mono text-rose-700">
+                            Decline Reason Provided to Client:
+                          </strong>
+                          <span className="leading-relaxed">{p.decline_reason}</span>
+                        </div>
+                      )}
 
                       {/* Customer Details Note */}
                       {p.payment_details && (
@@ -752,21 +824,32 @@ export const AdminPaymentsModule: React.FC = () => {
                         <div className="text-[10px] text-[#6B7280]">{p.date}</div>
                       </div>
 
-                      {/* Approval Button for Pending Transactions */}
+                      {/* Approval and Decline Buttons for Pending Transactions */}
                       {isPending && (
-                        <button
-                          type="button"
-                          onClick={() => handleApproveIncomingPayment(p)}
-                          disabled={approvingPaymentId === p.id}
-                          className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-600 text-white font-bold text-xs shadow-md transition-all inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                        >
-                          {approvingPaymentId === p.id ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <CheckCircle2 className="w-3.5 h-3.5 text-white" />
-                          )}
-                          <span>Confirm Payment Collected &amp; Enable Download</span>
-                        </button>
+                        <div className="flex items-center gap-2 flex-wrap sm:justify-end">
+                          <button
+                            type="button"
+                            onClick={() => handleApproveIncomingPayment(p)}
+                            disabled={approvingPaymentId === p.id || decliningPaymentId === p.id}
+                            className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-600 text-white font-bold text-xs shadow-md transition-all inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                          >
+                            {approvingPaymentId === p.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                            )}
+                            <span>Approve &amp; Send Download Link</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openDeclineModal(p)}
+                            disabled={approvingPaymentId === p.id || decliningPaymentId === p.id}
+                            className="px-3 py-2 rounded-xl bg-white hover:bg-rose-50 text-rose-700 border border-rose-300 font-bold text-xs shadow-2xs transition-all inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                          >
+                            <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                            <span>Decline</span>
+                          </button>
+                        </div>
                       )}
 
                       {/* Lock / Unlock Toggle Button for Catalog Purchases */}
@@ -842,6 +925,135 @@ export const AdminPaymentsModule: React.FC = () => {
                 <span>Open Full Size</span>
               </a>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: DECLINE PAYMENT PROOF WITH REASON */}
+      {declineModalItem && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+          onClick={() => setDeclineModalItem(null)}
+        >
+          <div
+            className="relative w-full max-w-lg bg-white rounded-3xl border border-rose-200 shadow-2xl p-6 sm:p-7 space-y-5 animate-scale-in text-[#1E2230]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-rose-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center text-rose-600">
+                  <XCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-serif text-lg font-bold text-slate-900">Decline Payment Proof</h3>
+                  <p className="text-xs text-slate-500">Ref: {declineModalItem.id} — {declineModalItem.client}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDeclineModalItem(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Target Item & Amount Badge */}
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <span className="text-[10px] font-mono text-slate-500 uppercase block">Client / Buyer</span>
+                <strong className="text-sm font-bold text-slate-800">{declineModalItem.client}</strong>
+                <span className="text-[10px] text-slate-500 block truncate">{declineModalItem.client_email || declineModalItem.buyer_email}</span>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] font-mono text-slate-500 uppercase block">Claimed Amount</span>
+                <strong className="text-base font-bold text-emerald-600">{declineModalItem.amount}</strong>
+                <span className="text-[10px] text-slate-500 block truncate">{declineModalItem.type}</span>
+              </div>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleConfirmDecline} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-800 block">
+                  Select Decline Reason (Visible to Customer)
+                </label>
+                <div className="space-y-2">
+                  {[
+                    'UTR / Reference not found in bank statement',
+                    'Payment proof screenshot is blurry or incomplete',
+                    'Transferred amount does not match product price',
+                    'Duplicate transaction reference (already claimed)',
+                    'custom'
+                  ].map((opt) => (
+                    <label
+                      key={opt}
+                      className={`flex items-start gap-2.5 p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                        selectedDeclineReason === opt
+                          ? 'bg-rose-50 border-rose-300 text-rose-900 font-semibold'
+                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="declineReason"
+                        checked={selectedDeclineReason === opt}
+                        onChange={() => setSelectedDeclineReason(opt)}
+                        className="mt-0.5 text-rose-600 focus:ring-rose-500"
+                      />
+                      <span>{opt === 'custom' ? 'Other custom reason (type below)' : opt}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {selectedDeclineReason === 'custom' && (
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-slate-700 block">
+                    Custom Decline Message:
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={customDeclineReason}
+                    onChange={(e) => setCustomDeclineReason(e.target.value)}
+                    placeholder="Provide specific details so the customer understands what was missing..."
+                    className="w-full p-2.5 rounded-xl border border-rose-300 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                    required
+                  />
+                </div>
+              )}
+
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] space-y-1">
+                <strong>What happens when you decline:</strong>
+                <ul className="list-disc list-inside space-y-0.5 text-[#5A6679]">
+                  <li>Customer receives an instant in-app notification and registered email notice.</li>
+                  <li>Customer can re-submit updated UTR or receipt from their My Account &gt; Purchases page.</li>
+                  <li>Download permission remains securely locked.</li>
+                </ul>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeclineModalItem(null)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={decliningPaymentId === declineModalItem.id}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white font-bold text-xs shadow-md transition-all inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {decliningPaymentId === declineModalItem.id ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <XCircle className="w-3.5 h-3.5 text-white" />
+                  )}
+                  <span>Decline Payment &amp; Notify Customer</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

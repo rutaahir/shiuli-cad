@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CartItem, PageId } from '../types';
 import { X, Trash2, ShieldCheck, Download, Sparkles, ArrowRight, CheckCircle2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -55,6 +55,35 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
   const { currentCountry, exchangeRates } = useCustomerCountry();
 
+  const [submittedOrderInfo, setSubmittedOrderInfo] = useState<{
+    transactionId: string;
+    itemTitles: string[];
+    email: string;
+    method: string;
+  } | null>(null);
+
+  // Automatically reset completed state when drawer closes
+  useEffect(() => {
+    if (!isOpen) {
+      setOrderCompleted(false);
+      setSubmittedOrderInfo(null);
+    }
+  }, [isOpen]);
+
+  // When items are in the cart bag, always show the items
+  useEffect(() => {
+    if (items.length > 0) {
+      setOrderCompleted(false);
+      setSubmittedOrderInfo(null);
+    }
+  }, [items.length]);
+
+  const handleClose = () => {
+    setOrderCompleted(false);
+    setSubmittedOrderInfo(null);
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   const subtotal = items.reduce((acc, item) => {
@@ -90,6 +119,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     setIsPaymentModalOpen(false);
 
     if (_result?.isPendingVerification) {
+      const titles = items.map((i) => i.product.title);
       try {
         for (const item of items) {
           await api.post<any>('/payments/purchases/', {
@@ -106,6 +136,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       } catch (err) {
         console.error('Failed to create pending purchases:', err);
       }
+      setSubmittedOrderInfo({
+        transactionId: _result.transactionId || `TXN-SHIULI-${Math.floor(10000000 + Math.random() * 90000000)}`,
+        itemTitles: titles,
+        email: user?.email || '',
+        method: _result.method || 'UPI Transfer',
+      });
       onClearCart();
       setOrderCompleted(true);
       return;
@@ -141,6 +177,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
   const handleOtpVerifiedSuccess = () => {
     setOtpModalState(prev => ({ ...prev, isOpen: false }));
+    setSubmittedOrderInfo({
+      transactionId: `TXN-VERIFIED-${Date.now()}`,
+      itemTitles: items.map(i => i.product.title),
+      email: user?.email || '',
+      method: 'Verified',
+    });
+    onClearCart();
     setOrderCompleted(true);
     try {
       confetti({
@@ -152,52 +195,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     } catch (e) {
       // Confetti fallback
     }
-
-    const recipientEmail = user?.email || 'shahharshil3103@gmail.com';
-    items.forEach((item) => {
-      sendCadDownloadEmail(
-        recipientEmail,
-        item.product.title,
-        ['.3DM', '.STL'],
-        'https://shiulicadstudio.com/downloads/sample-cad-pack.zip',
-        'Master CAD Production Package'
-      ).catch((err) => console.warn('Background CAD download email notification error:', err));
-    });
-  };
-
-  const handleSimulateDownload = () => {
-    const manifest = `SHIULI CAD STUDIO — MASTER CAD RELEASE PACKAGE
-================================================================
-Generated for: ${user?.email || 'Valued Atelier Jeweller'}
-Date: ${new Date().toISOString()}
-Order ID: SCS-ORD-${Math.floor(100000 + Math.random() * 900000)}
-Files included:
-${items.map((it, i) => `  ${i + 1}. ${it.product.title}
-     - Format: .3DM (Rhino 7/8 Native Layered Model)
-     - Format: .STL (Watertight High-Res Mesh, 1.25% Casting Shrinkage Applied)
-     - Format: .OBJ (Universal Quad Mesh)
-     - 4K Studio Ray-traced Renders
-     - Package: Master CAD Production Files`).join('\n\n')}
-
-Manufacturing Guarantee: 100% Watertight Solid Geometry. Zero non-manifold edges.
-Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
-
-    const blob = new Blob([manifest], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Shiuli-CAD-Package-${Date.now()}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   };
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
       {/* Backdrop */}
       <div
-        onClick={onClose}
+        onClick={handleClose}
         className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
       />
 
@@ -213,7 +217,7 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
               </h2>
             </div>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="p-1.5 text-[#6B5A3E] hover:text-[#0F264A] hover:bg-white rounded-full border border-[#E5D2B0] shadow-2xs transition-all hover:scale-105 active:scale-95 cursor-pointer"
               aria-label="Close cart"
             >
@@ -223,57 +227,71 @@ Support: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
           {/* Body */}
           <div className="flex-1 overflow-y-auto p-5 space-y-4">
-            {orderCompleted ? (
+            {orderCompleted && submittedOrderInfo ? (
               /* Success confirmation state */
-              <div className="text-center py-10 space-y-5">
-                <div className="w-16 h-16 mx-auto rounded-full bg-emerald-50 border-2 border-emerald-500 flex items-center justify-center animate-bounce">
+              <div className="text-center py-6 space-y-4">
+                <div className="w-16 h-16 mx-auto rounded-full bg-emerald-50 border-2 border-emerald-500/40 flex items-center justify-center shadow-lg shadow-emerald-500/10">
                   <CheckCircle2 className="w-8 h-8 text-emerald-600" />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <h3 className="font-serif text-2xl text-[#0F264A] font-bold">
-                    Your CAD Files Are Ready!
+                    Payment Proof Submitted!
                   </h3>
-                  <p className="text-xs text-[#526075] max-w-xs mx-auto">
-                    Payment confirmed. Instant download unlocked for Rhino .3DM, castable .STL meshes, and 4K renders.
+                  <p className="text-xs text-[#526075] max-w-xs mx-auto leading-relaxed">
+                    Thank you! Payment reference <strong className="font-mono text-[#0F264A]">{submittedOrderInfo.transactionId}</strong> has been submitted to Atelier Accounts for verification.
                   </p>
                 </div>
 
-                {/* Download Simulator Button */}
-                <button
-                  onClick={handleSimulateDownload}
-                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#DFB35A] via-[#ECC976] to-[#C99834] text-[#0C2340] font-serif font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md border border-[#FFF0BA] cursor-pointer"
-                >
-                  <Download className="w-4 h-4 text-[#0C2340]" />
-                  Download CAD Package (.ZIP)
-                </button>
+                {/* Items Purchased List */}
+                {submittedOrderInfo.itemTitles.length > 0 && (
+                  <div className="p-4 rounded-2xl bg-white border border-[#EADAC0] text-left text-xs space-y-2 shadow-2xs">
+                    <p className="font-bold text-[#0F264A] font-serif uppercase tracking-wider text-[11px]">
+                      Selected CAD Packages ({submittedOrderInfo.itemTitles.length})
+                    </p>
+                    <ul className="space-y-1 text-[#526075]">
+                      {submittedOrderInfo.itemTitles.map((title, i) => (
+                        <li key={i} className="flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#B88732] shrink-0" />
+                          <span className="font-medium text-[#0F264A] line-clamp-1">{title}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
-                <div className="p-4 rounded-2xl bg-white border border-[#EADAC0] text-left text-xs space-y-2 text-[#526075] shadow-2xs">
-                  <p className="font-bold text-[#0F264A]">What’s Inside Your Download:</p>
-                  <p>• Layered Rhino .3DM (Stone prongs, cutters, metal body)</p>
-                  <p>• Watertight .STL (1.25% Shrinkage pre-compensated)</p>
-                  <p>• Production Spec Sheet &amp; Stone Count PDF</p>
+                {/* Secure Delivery Protocol Notice */}
+                <div className="p-4 rounded-2xl bg-[#FFF9ED] border border-[#E8D7B7] text-left text-xs space-y-2.5 text-[#526075]">
+                  <div className="flex items-center gap-2 text-[#0F264A] font-bold">
+                    <ShieldCheck className="w-4 h-4 text-[#B88732]" />
+                    <span>Secure Delivery Protocol:</span>
+                  </div>
+                  <p className="text-[11.5px] leading-relaxed">
+                    • <strong>One-Time Download Link:</strong> Once your payment is approved by Atelier Accounts, a secure <strong>single-use download link</strong> will be dispatched to <strong className="text-[#0F264A]">{submittedOrderInfo.email || user?.email}</strong>.
+                  </p>
+                  <p className="text-[11.5px] leading-relaxed">
+                    • <strong>Single-Use Only:</strong> For 3D CAD intellectual property protection, each purchased package can only be downloaded <strong>once</strong> from the link.
+                  </p>
+                  <p className="text-[11.5px] leading-relaxed">
+                    • <strong>Track Order Status:</strong> You can view approval status anytime under <strong>My Account &rarr; Purchases</strong>.
+                  </p>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-2 pt-2">
                   <button
                     onClick={() => {
-                      onClearCart();
-                      setOrderCompleted(false);
-                      onClose();
+                      handleClose();
                       onNavigate('account');
                     }}
-                    className="flex-1 py-2.5 rounded-xl border border-[#EADAC0] bg-white text-xs text-[#0F264A] font-semibold hover:bg-[#FFF9F0] transition-colors cursor-pointer"
+                    className="flex-1 py-3 rounded-xl border border-[#EADAC0] bg-white text-xs text-[#0F264A] font-bold hover:bg-[#FFF9F0] transition-colors cursor-pointer shadow-sm"
                   >
                     View In My Account
                   </button>
                   <button
                     onClick={() => {
-                      onClearCart();
-                      setOrderCompleted(false);
-                      onClose();
+                      handleClose();
                       onNavigate('collections');
                     }}
-                    className="flex-1 py-2.5 rounded-xl bg-[#FFF9ED] border border-[#E2C898] text-xs text-[#B88732] font-semibold hover:bg-[#FAF4E8] transition-colors cursor-pointer"
+                    className="flex-1 py-3 rounded-xl bg-gradient-to-r from-[#DFB35A] via-[#ECC976] to-[#C99834] text-[#0C2340] font-serif font-bold text-xs uppercase tracking-wider shadow-sm hover:shadow-md transition-all cursor-pointer border border-[#FFF0BA]"
                   >
                     Browse More CAD
                   </button>

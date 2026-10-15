@@ -570,6 +570,21 @@ class ApiClient {
     });
   }
 
+  async adminDeclinePurchase(purchaseId: number | string, reason?: string) {
+    this.ensureAdminToken();
+    return await this.request<any>(`/payments/purchases/${purchaseId}/admin-decline/`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason || 'Payment proof verification declined.' }),
+    });
+  }
+
+  async resubmitPurchaseProof(purchaseId: number | string, data: { payment_transaction_id?: string; utr_number?: string; payment_method?: string; payment_details?: string; payment_screenshot?: string }) {
+    return await this.request<any>(`/payments/purchases/${purchaseId}/resubmit-proof/`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   async togglePurchaseDownloadPermission(purchaseId: number | string, enabled?: boolean) {
     this.ensureAdminToken();
     return await this.request<any>(`/payments/purchases/${purchaseId}/toggle-download-permission/`, {
@@ -582,6 +597,14 @@ class ApiClient {
     this.ensureAdminToken();
     return await this.request<any>(`/payments/${paymentId}/admin-approve/`, {
       method: 'POST',
+    });
+  }
+
+  async adminDeclinePayment(paymentId: number | string, reason?: string) {
+    this.ensureAdminToken();
+    return await this.request<any>(`/payments/${paymentId}/admin-decline/`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason || 'Payment proof verification declined.' }),
     });
   }
 

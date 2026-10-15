@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AdminModuleId, AdminNotification } from '../../types';
 import { BrandLogo } from '../BrandLogo';
+import { api } from '../../services/api';
 import {
   LayoutDashboard,
   FolderKanban,
@@ -67,6 +68,15 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const [pendingPaymentsCount, setPendingPaymentsCount] = useState<number>(0);
+
+  useEffect(() => {
+    api.getGatewayLogs().then((logs) => {
+      const pCount = (logs || []).filter((p: any) => p.can_approve || p.raw_status === 'pending').length;
+      setPendingPaymentsCount(pCount);
+    }).catch(() => {});
+  }, [activeModule]);
+
   const navItems: { id: AdminModuleId; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: 'overview', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
     { id: 'catalog', label: 'Categories & Products', icon: <FolderKanban className="w-4 h-4" /> },
@@ -78,7 +88,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     { id: 'contact-inquiries', label: 'Contact Inquiries', icon: <Mail className="w-4 h-4" /> },
     { id: 'orders', label: 'Master Orders', icon: <ShoppingBag className="w-4 h-4" /> },
     { id: 'staff', label: 'Staff & Job Limits', icon: <Users className="w-4 h-4" /> },
-    { id: 'payments', label: 'Payments & Settlements', icon: <CreditCard className="w-4 h-4" /> },
+    { id: 'payments', label: 'Payments & Gateway', icon: <CreditCard className="w-4 h-4" />, badge: pendingPaymentsCount > 0 ? pendingPaymentsCount : undefined },
     { id: 'clients', label: 'Client Base', icon: <UserCheck className="w-4 h-4" /> },
     { id: 'analytics', label: 'Reports & Analytics', icon: <BarChart3 className="w-4 h-4" /> },
     { id: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" />, badge: unreadCount },

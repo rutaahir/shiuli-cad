@@ -143,6 +143,8 @@ class SendRegistrationOTPView(APIView):
         print(f"   VERIFICATION CODE (OTP): >>> {otp_code} <<<")
         print("=" * 70 + "\n")
 
+        email_sent = False
+        email_err_msg = None
         try:
             send_otp_email(
                 email=email,
@@ -150,14 +152,23 @@ class SendRegistrationOTPView(APIView):
                 name=name,
                 purpose="registration"
             )
+            email_sent = True
         except Exception as e:
+            email_err_msg = str(e)
             print(f"[EMAIL SERVICE WARNING] Failed to dispatch registration OTP email: {e}")
 
-        return Response({
+        response_data = {
             "message": f"Verification code sent to {email}. Enter code to complete registration.",
             "email": email,
             "expires_in_seconds": 600,
-        }, status=status.HTTP_200_OK)
+            "email_sent": email_sent,
+        }
+        if not email_sent:
+            response_data["email_warning"] = "Email delivery service reported an issue with outgoing SMTP."
+        if settings.DEBUG:
+            response_data["debug_otp"] = otp_code
+
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
 class VerifyRegistrationOTPView(APIView):
@@ -343,6 +354,7 @@ class RequestEmailChangeOTPView(APIView):
         print(f"   VERIFICATION CODE (OTP): >>> {otp_code} <<<")
         print("=" * 70 + "\n")
 
+        email_sent = False
         try:
             send_otp_email(
                 email=new_email,
@@ -350,13 +362,19 @@ class RequestEmailChangeOTPView(APIView):
                 name=request.user.first_name or request.user.username,
                 purpose="email_change"
             )
+            email_sent = True
         except Exception as e:
             print(f"[EMAIL SERVICE WARNING] Failed to send email change OTP: {e}")
 
-        return Response({
+        response_data = {
             "message": f"Verification code sent to {new_email}. Enter code to confirm change.",
-            "expires_in_seconds": 600
-        }, status=status.HTTP_200_OK)
+            "expires_in_seconds": 600,
+            "email_sent": email_sent,
+        }
+        if settings.DEBUG:
+            response_data["debug_otp"] = otp_code
+
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
 class VerifyEmailChangeOTPView(APIView):
@@ -451,6 +469,7 @@ class RequestPasswordResetOTPView(APIView):
         print(f"   VERIFICATION CODE (OTP): >>> {otp_code} <<<")
         print("=" * 70 + "\n")
 
+        email_sent = False
         try:
             send_otp_email(
                 email=user.email,
@@ -458,14 +477,20 @@ class RequestPasswordResetOTPView(APIView):
                 name=user.first_name or user.username,
                 purpose="password_reset"
             )
+            email_sent = True
         except Exception as e:
             print(f"[EMAIL SERVICE WARNING] Failed to send password reset OTP: {e}")
 
-        return Response({
+        response_data = {
             "message": f"Verification code sent to {user.email}. Enter code and new password to confirm.",
             "email": user.email,
             "expires_in_seconds": 600,
-        }, status=status.HTTP_200_OK)
+            "email_sent": email_sent,
+        }
+        if settings.DEBUG:
+            response_data["debug_otp"] = otp_code
+
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
 class VerifyPasswordResetOTPView(APIView):

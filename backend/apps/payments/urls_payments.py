@@ -8,7 +8,8 @@ from .views import (
     PaymentPlanTemplateViewSet,
     incoming_gateway_logs,
     razorpay_webhook,
-    admin_approve_custom_payment
+    admin_approve_custom_payment,
+    admin_decline_custom_payment
 )
 from .views_purchases import (
     create_purchase,
@@ -20,6 +21,8 @@ from .views_purchases import (
     resend_download_link,
     list_my_purchases,
     admin_approve_purchase,
+    admin_decline_purchase,
+    resubmit_purchase_proof,
     toggle_purchase_download_permission
 )
 
@@ -34,11 +37,14 @@ urlpatterns = [
     path('pay-stage/', pay_stage_payment, name='payment-pay-stage'),
     path('pay-full-order/', pay_full_order_payment, name='payment-pay-full-order'),
     path('<int:payment_id>/admin-approve/', admin_approve_custom_payment, name='payment-admin-approve'),
+    path('<int:payment_id>/admin-decline/', admin_decline_custom_payment, name='payment-admin-decline'),
     path('purchases/', create_purchase, name='purchase-create'),
     path('purchases/create-order/', create_razorpay_purchase_order, name='purchase-create-order'),
     path('purchases/verify/', verify_razorpay_purchase, name='purchase-verify-payment'),
     path('purchases/mine/', list_my_purchases, name='purchase-mine'),
     path('purchases/<int:purchase_id>/admin-approve/', admin_approve_purchase, name='purchase-admin-approve'),
+    path('purchases/<int:purchase_id>/admin-decline/', admin_decline_purchase, name='purchase-admin-decline'),
+    path('purchases/<int:purchase_id>/resubmit-proof/', resubmit_purchase_proof, name='purchase-resubmit-proof'),
     path('purchases/<int:purchase_id>/toggle-download-permission/', toggle_purchase_download_permission, name='purchase-toggle-download-permission'),
     path('purchases/<int:purchase_id>/toggle-download/', toggle_purchase_download_permission, name='purchase-toggle-download'),
     path('purchases/<int:purchase_id>/resend-otp/', resend_otp, name='purchase-resend-otp'),
