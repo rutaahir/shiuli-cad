@@ -598,12 +598,13 @@ class CustomRequestViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         req_id = instance.id
         try:
-            if hasattr(instance, 'order') and instance.order:
-                order = instance.order
-                instance.order = None
-                instance.save(update_fields=['order'])
-                order.custom_request = None
-                order.save(update_fields=['custom_request'])
+            try:
+                order = getattr(instance, 'order', None)
+                if order:
+                    order.custom_request = None
+                    order.save(update_fields=['custom_request'])
+            except Exception:
+                pass
             instance.delete()
             return Response({"message": f"Custom Request #{req_id} permanently deleted from database."}, status=status.HTTP_200_OK)
         except Exception as e:
