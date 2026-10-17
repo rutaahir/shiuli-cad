@@ -115,7 +115,7 @@ export const StaffLayout: React.FC<StaffLayoutProps> = ({
   ];
 
   return (
-    <div className="h-screen w-screen bg-[#F6F7FB] text-[#1E2230] flex flex-col font-sans overflow-hidden select-none">
+    <div className="h-screen w-screen bg-[#FAF8F5] text-[#17243B] flex flex-col font-sans overflow-hidden select-none">
       {/* Prototype Banner Header */}
       <div className="bg-[#09112B] border-b border-[#D4AF37]/30 px-3 py-1.5 text-center text-xs text-[#F5F1E8] flex items-center justify-between sm:justify-center gap-2 flex-shrink-0 z-40">
         <div className="flex items-center gap-2 text-[11px] sm:text-xs">
@@ -459,7 +459,7 @@ export const StaffLayout: React.FC<StaffLayoutProps> = ({
           </header>
 
           {/* Main Viewport Content */}
-          <main className="flex-1 bg-[#F6F7FB] overflow-y-auto p-6 custom-scrollbar">
+          <main className="flex-1 bg-[#FAF8F5] overflow-y-auto p-6 custom-scrollbar">
             {children}
           </main>
         </div>

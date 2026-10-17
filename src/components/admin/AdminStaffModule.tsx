@@ -498,9 +498,9 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
       )}
 
       {/* Header & Sub-tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-[#E5E7EF] shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-[#E8D7B7] shadow-sm">
         <div>
-          <h1 className="font-serif text-2xl font-bold text-[#1E2230] tracking-tight">
+          <h1 className="font-serif text-2xl font-bold text-[#17243B] tracking-tight">
             Staff & Job Limit Control Center
           </h1>
           <p className="text-xs text-[#6B7280] mt-0.5">
@@ -509,11 +509,11 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 bg-[#F6F7FB] p-1 rounded-xl border border-[#E5E7EF] text-xs font-semibold">
+          <div className="flex items-center gap-1 bg-[#FAF8F5] p-1 rounded-xl border border-[#E8D7B7] text-xs font-semibold">
             <button
               onClick={() => setSubTab('board')}
               className={`px-3 py-1.5 rounded-lg transition-all ${
-                subTab === 'board' ? 'bg-[#0D1B4C] text-white' : 'text-[#6B7280] hover:text-[#1E2230]'
+                subTab === 'board' ? 'bg-[#17345C] text-white' : 'text-[#6B7280] hover:text-[#17243B]'
               }`}
             >
               Load Board
@@ -521,7 +521,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
             <button
               onClick={() => setSubTab('all')}
               className={`px-3 py-1.5 rounded-lg transition-all ${
-                subTab === 'all' ? 'bg-[#0D1B4C] text-white' : 'text-[#6B7280] hover:text-[#1E2230]'
+                subTab === 'all' ? 'bg-[#17345C] text-white' : 'text-[#6B7280] hover:text-[#17243B]'
               }`}
             >
               All Staff ({staffMembers.length})
@@ -529,7 +529,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
             <button
               onClick={() => setSubTab('rules')}
               className={`px-3 py-1.5 rounded-lg transition-all ${
-                subTab === 'rules' ? 'bg-[#0D1B4C] text-white' : 'text-[#6B7280] hover:text-[#1E2230]'
+                subTab === 'rules' ? 'bg-[#17345C] text-white' : 'text-[#6B7280] hover:text-[#17243B]'
               }`}
             >
               Assignment Rules
@@ -537,7 +537,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
             <button
               onClick={() => setSubTab('performance')}
               className={`px-3 py-1.5 rounded-lg transition-all ${
-                subTab === 'performance' ? 'bg-[#0D1B4C] text-white' : 'text-[#6B7280] hover:text-[#1E2230]'
+                subTab === 'performance' ? 'bg-[#17345C] text-white' : 'text-[#6B7280] hover:text-[#17243B]'
               }`}
             >
               Leaderboard
@@ -545,12 +545,12 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
             <button
               onClick={() => setSubTab('applications')}
               className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
-                subTab === 'applications' ? 'bg-[#0D1B4C] text-white' : 'text-[#6B7280] hover:text-[#1E2230]'
+                subTab === 'applications' ? 'bg-[#17345C] text-white' : 'text-[#6B7280] hover:text-[#17243B]'
               }`}
             >
               <span>Applications</span>
               {pendingDesignerAppsCount > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full font-mono text-[10px] bg-[#C9A227] text-[#0D1B4C] font-bold animate-pulse">
+                <span className="px-1.5 py-0.5 rounded-full font-mono text-[10px] bg-[#C9A227] text-[#17345C] font-bold animate-pulse">
                   {pendingDesignerAppsCount}
                 </span>
               )}
@@ -571,7 +571,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
       {isLoadingStaff && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map((n) => (
-            <div key={n} className="bg-white rounded-2xl border border-[#E5E7EF] p-5 space-y-4 animate-pulse">
+            <div key={n} className="bg-white rounded-2xl border border-[#E8D7B7] p-5 space-y-4 animate-pulse">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-slate-200" />
                 <div className="space-y-2 flex-1">
@@ -587,9 +587,9 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
 
       {/* Empty State */}
       {!isLoadingStaff && staffMembers.length === 0 && (
-        <div className="bg-white rounded-2xl border border-[#E5E7EF] p-12 text-center space-y-3">
+        <div className="bg-white rounded-2xl border border-[#E8D7B7] p-12 text-center space-y-3">
           <Users className="w-12 h-12 text-[#D4AF37] mx-auto opacity-60" />
-          <h3 className="font-serif text-lg font-bold text-[#1E2230]">No Staff Members Yet</h3>
+          <h3 className="font-serif text-lg font-bold text-[#17243B]">No Staff Members Yet</h3>
           <p className="text-xs text-[#6B7280] max-w-sm mx-auto">
             Click "Add Staff" above to register your first CAD designer and grant them portal credentials.
           </p>
@@ -611,19 +611,19 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
       {!isLoadingStaff && staffMembers.length > 0 && subTab === 'board' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <div className="text-xs font-semibold text-[#1E2230] flex items-center gap-2">
+            <div className="text-xs font-semibold text-[#17243B] flex items-center gap-2">
               <span>Live Modeller Capacity Grid</span>
               <span className="text-[10px] font-mono text-[#6B7280]">
                 (Filled dots = Active accepted designs)
               </span>
             </div>
 
-            <div className="flex items-center gap-1 bg-white px-3 py-1.5 rounded-xl border border-[#E5E7EF] text-xs">
+            <div className="flex items-center gap-1 bg-white px-3 py-1.5 rounded-xl border border-[#E8D7B7] text-xs">
               <span className="text-[#6B7280] font-mono">Filter:</span>
               <button
                 onClick={() => setLoadFilter('all')}
                 className={`px-2 py-0.5 rounded ${
-                  loadFilter === 'all' ? 'font-bold text-[#0D1B4C]' : 'text-[#6B7280]'
+                  loadFilter === 'all' ? 'font-bold text-[#17345C]' : 'text-[#6B7280]'
                 }`}
               >
                 All
@@ -654,7 +654,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
               return (
                 <div
                   key={staff.id}
-                  className="bg-white rounded-2xl border border-[#E5E7EF] p-5 shadow-sm space-y-4 hover:border-[#C9A227] hover:shadow-md transition-all flex flex-col justify-between group"
+                  className="bg-white rounded-2xl border border-[#E8D7B7] p-5 shadow-sm space-y-4 hover:border-[#C9A227] hover:shadow-md transition-all flex flex-col justify-between group"
                 >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
@@ -672,18 +672,18 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                             onError={(e) => {
                               (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80';
                             }}
-                            className="w-11 h-11 rounded-full object-cover border-2 border-[#0D1B4C] group-hover/profile:border-[#C9A227] group-hover/profile:scale-105 transition-all shadow-sm"
+                            className="w-11 h-11 rounded-full object-cover border-2 border-[#17345C] group-hover/profile:border-[#C9A227] group-hover/profile:scale-105 transition-all shadow-sm"
                           />
-                          <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#C9A227] text-[#0D1B4C] rounded-full flex items-center justify-center text-[9px] shadow-sm">
+                          <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#C9A227] text-[#17345C] rounded-full flex items-center justify-center text-[9px] shadow-sm">
                             <Eye className="w-2.5 h-2.5" />
                           </span>
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <h3 className="font-bold text-sm text-[#1E2230] group-hover/profile:text-[#C9A227] transition-colors truncate">
+                            <h3 className="font-bold text-sm text-[#17243B] group-hover/profile:text-[#C9A227] transition-colors truncate">
                               {staff.name}
                             </h3>
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#FAF9F5] border border-[#E5E7EF] text-[#6B7280] group-hover/profile:border-[#C9A227]/70 group-hover/profile:text-[#0D1B4C] font-semibold tracking-wide flex items-center gap-0.5">
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#FAF9F5] border border-[#E8D7B7] text-[#6B7280] group-hover/profile:border-[#C9A227]/70 group-hover/profile:text-[#17345C] font-semibold tracking-wide flex items-center gap-0.5">
                               DETAILS →
                             </span>
                           </div>
@@ -716,10 +716,10 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                     </div>
 
                     {/* Circular Slots Indicator */}
-                    <div className="p-4 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] space-y-2">
+                    <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] space-y-2">
                       <div className="flex items-center justify-between text-xs font-mono">
                         <span className="text-[#6B7280]">Capacity Slot Indicator</span>
-                        <span className="font-bold text-[#1E2230]">
+                        <span className="font-bold text-[#17243B]">
                           {staff.currentLoad} / {staff.maxJobLimit} slots filled
                         </span>
                       </div>
@@ -732,8 +732,8 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                               key={idx}
                               className={`w-6 h-6 rounded-full flex items-center justify-center font-mono text-[10px] font-bold transition-all duration-300 ${
                                 isFilled
-                                  ? 'bg-[#0D1B4C] text-[#C9A227] shadow-md border-2 border-[#C9A227] scale-105'
-                                  : 'bg-white border-2 border-[#E5E7EF] text-[#6B7280]'
+                                  ? 'bg-[#17345C] text-[#C9A227] shadow-md border-2 border-[#C9A227] scale-105'
+                                  : 'bg-white border-2 border-[#E8D7B7] text-[#6B7280]'
                               }`}
                             >
                               {isFilled ? '●' : '○'}
@@ -745,7 +745,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
 
                     <button
                       onClick={() => handleOpenStaffJobs(staff)}
-                      className="w-full py-2 px-3 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] hover:bg-[#E5E7EF] font-semibold text-xs text-[#0D1B4C] flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+                      className="w-full py-2 px-3 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] hover:bg-[#E8D7B7] font-semibold text-xs text-[#17345C] flex items-center justify-center gap-1.5 transition-colors shadow-sm"
                     >
                       <Briefcase className="w-3.5 h-3.5 text-[#C9A227]" />
                       <span>Manage Assigned Jobs ({staff.currentLoad})</span>
@@ -753,7 +753,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                   </div>
 
                   {/* Inline Limit Adjuster Stepper (+ / -) */}
-                  <div className="pt-3 border-t border-[#E5E7EF] flex items-center justify-between">
+                  <div className="pt-3 border-t border-[#E8D7B7] flex items-center justify-between">
                     <span className="text-xs font-medium text-[#6B7280]">Max Limit:</span>
                     <div className="flex items-center gap-2">
                       <button
@@ -763,12 +763,12 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                           handleUpdateLimit(staff.id, staff.maxJobLimit - 1);
                         }}
                         disabled={staff.maxJobLimit <= 1 || updatingLimitId === staff.id}
-                        className="w-7 h-7 rounded-lg bg-[#F6F7FB] border border-[#E5E7EF] font-bold text-xs hover:bg-[#0D1B4C] hover:text-white hover:border-[#0D1B4C] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 active:scale-90 flex items-center justify-center"
+                        className="w-7 h-7 rounded-lg bg-[#FAF8F5] border border-[#E8D7B7] font-bold text-xs hover:bg-[#17345C] hover:text-white hover:border-[#17345C] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 active:scale-90 flex items-center justify-center"
                         title="Decrease job limit"
                       >
                         {updatingLimitId === staff.id ? '·' : '−'}
                       </button>
-                      <span className={`font-mono font-bold text-sm min-w-[24px] text-center transition-colors duration-200 ${updatingLimitId === staff.id ? 'text-[#C9A227]' : 'text-[#1E2230]'}`}>
+                      <span className={`font-mono font-bold text-sm min-w-[24px] text-center transition-colors duration-200 ${updatingLimitId === staff.id ? 'text-[#C9A227]' : 'text-[#17243B]'}`}>
                         {staff.maxJobLimit}
                       </span>
                       <button
@@ -778,7 +778,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                           handleUpdateLimit(staff.id, staff.maxJobLimit + 1);
                         }}
                         disabled={staff.maxJobLimit >= 20 || updatingLimitId === staff.id}
-                        className="w-7 h-7 rounded-lg bg-[#F6F7FB] border border-[#E5E7EF] font-bold text-xs hover:bg-[#0D1B4C] hover:text-white hover:border-[#0D1B4C] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 active:scale-90 flex items-center justify-center"
+                        className="w-7 h-7 rounded-lg bg-[#FAF8F5] border border-[#E8D7B7] font-bold text-xs hover:bg-[#17345C] hover:text-white hover:border-[#17345C] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 active:scale-90 flex items-center justify-center"
                         title="Increase job limit"
                       >
                         {updatingLimitId === staff.id ? '·' : '+'}
@@ -794,11 +794,11 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
 
       {/* Sub-tab A: All Staff List */}
       {!isLoadingStaff && staffMembers.length > 0 && subTab === 'all' && (
-        <div className="bg-white rounded-2xl border border-[#E5E7EF] shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-[#E8D7B7] shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="bg-[#F6F7FB] border-b border-[#E5E7EF] text-[#6B7280] font-mono text-[11px] uppercase tracking-wider">
+                <tr className="bg-[#FAF8F5] border-b border-[#E8D7B7] text-[#6B7280] font-mono text-[11px] uppercase tracking-wider">
                   <th className="py-3.5 px-4 font-semibold">Staff Member</th>
                   <th className="py-3.5 px-4 font-semibold">Contact</th>
                   <th className="py-3.5 px-4 font-semibold">Specialization</th>
@@ -808,12 +808,12 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                   <th className="py-3.5 px-4 font-semibold text-right">Job Limit (+ / -)</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E5E7EF]">
+              <tbody className="divide-y divide-[#E8D7B7]">
                 {staffMembers.map((staff) => (
                   <tr
                     key={staff.id}
                     onClick={() => setInspectingStaff(staff)}
-                    className="hover:bg-[#F6F7FB]/70 transition-colors cursor-pointer group"
+                    className="hover:bg-[#FAF8F5]/70 transition-colors cursor-pointer group"
                     title="Click row to view staff registration dossier"
                   >
                     <td className="py-3.5 px-4">
@@ -824,12 +824,12 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80';
                           }}
-                          className="w-9 h-9 rounded-full object-cover border border-[#E5E7EF] group-hover:border-[#C9A227] transition-colors"
+                          className="w-9 h-9 rounded-full object-cover border border-[#E8D7B7] group-hover:border-[#C9A227] transition-colors"
                         />
                         <div>
-                          <div className="font-bold text-[#1E2230] group-hover:text-[#C9A227] transition-colors flex items-center gap-1.5">
+                          <div className="font-bold text-[#17243B] group-hover:text-[#C9A227] transition-colors flex items-center gap-1.5">
                             <span>{staff.name}</span>
-                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#FAF9F5] border border-[#E5E7EF] text-[#6B7280] font-mono">
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#FAF9F5] border border-[#E8D7B7] text-[#6B7280] font-mono">
                               PROFILE →
                             </span>
                           </div>
@@ -838,22 +838,22 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                       </div>
                     </td>
                     <td className="py-3.5 px-4">
-                      <div className="text-[#1E2230]">{staff.email}</div>
+                      <div className="text-[#17243B]">{staff.email}</div>
                       <div className="text-[10px] text-[#6B7280]">{staff.phone}</div>
                     </td>
                     <td className="py-3.5 px-4">
-                      <span className="px-2.5 py-1 rounded-full bg-[#F6F7FB] border border-[#E5E7EF] font-medium text-[#1E2230]">
+                      <span className="px-2.5 py-1 rounded-full bg-[#FAF8F5] border border-[#E8D7B7] font-medium text-[#17243B]">
                         {staff.role}
                       </span>
                     </td>
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-[#1E2230]">
+                        <span className="font-mono font-bold text-[#17243B]">
                           {staff.currentLoad} / {staff.maxJobLimit}
                         </span>
                         <button
                           onClick={() => handleOpenStaffJobs(staff)}
-                          className="px-2 py-0.5 rounded bg-[#F6F7FB] border border-[#E5E7EF] hover:bg-[#0D1B4C] hover:text-white font-semibold text-[10px] text-[#0D1B4C] transition-colors"
+                          className="px-2 py-0.5 rounded bg-[#FAF8F5] border border-[#E8D7B7] hover:bg-[#17345C] hover:text-white font-semibold text-[10px] text-[#17345C] transition-colors"
                           title="Manage Active Jobs"
                         >
                           Jobs ({staff.currentLoad})
@@ -861,7 +861,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                       </div>
                     </td>
                     <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-1 font-bold text-[#1E2230]">
+                      <div className="flex items-center gap-1 font-bold text-[#17243B]">
                         <span className="text-[#C9A227]">★</span>
                         <span>{staff.rating.toFixed(1)}</span>
                       </div>
@@ -887,12 +887,12 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                             handleUpdateLimit(staff.id, staff.maxJobLimit - 1);
                           }}
                           disabled={staff.maxJobLimit <= 1 || updatingLimitId === staff.id}
-                          className="w-7 h-7 rounded-lg bg-[#F6F7FB] border border-[#E5E7EF] font-bold text-xs hover:bg-[#0D1B4C] hover:text-white hover:border-[#0D1B4C] text-[#6B7280] flex items-center justify-center transition-all duration-200 active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                          className="w-7 h-7 rounded-lg bg-[#FAF8F5] border border-[#E8D7B7] font-bold text-xs hover:bg-[#17345C] hover:text-white hover:border-[#17345C] text-[#6B7280] flex items-center justify-center transition-all duration-200 active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed"
                           title="Decrease Limit"
                         >
                           {updatingLimitId === staff.id ? '·' : '−'}
                         </button>
-                        <span className={`font-mono font-bold text-xs min-w-[24px] text-center transition-colors duration-200 ${updatingLimitId === staff.id ? 'text-[#C9A227]' : 'text-[#1E2230]'}`}>
+                        <span className={`font-mono font-bold text-xs min-w-[24px] text-center transition-colors duration-200 ${updatingLimitId === staff.id ? 'text-[#C9A227]' : 'text-[#17243B]'}`}>
                           {staff.maxJobLimit}
                         </span>
                         <button
@@ -902,7 +902,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                             handleUpdateLimit(staff.id, staff.maxJobLimit + 1);
                           }}
                           disabled={staff.maxJobLimit >= 20 || updatingLimitId === staff.id}
-                          className="w-7 h-7 rounded-lg bg-[#F6F7FB] border border-[#E5E7EF] font-bold text-xs hover:bg-[#0D1B4C] hover:text-white hover:border-[#0D1B4C] text-[#6B7280] flex items-center justify-center transition-all duration-200 active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                          className="w-7 h-7 rounded-lg bg-[#FAF8F5] border border-[#E8D7B7] font-bold text-xs hover:bg-[#17345C] hover:text-white hover:border-[#17345C] text-[#6B7280] flex items-center justify-center transition-all duration-200 active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed"
                           title="Increase Limit"
                         >
                           {updatingLimitId === staff.id ? '·' : '+'}
@@ -931,10 +931,10 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
       {/* PART 1 — FIX THE "REGISTER NEW CAD MODELLER" DRAWER FORM */}
       {showAddDrawer && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-end">
-          <div className="w-full max-w-md bg-white h-full shadow-2xl p-6 overflow-y-auto space-y-6 animate-in slide-in-from-right duration-250 text-[#1E2230]">
-            <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-4">
+          <div className="w-full max-w-md bg-white h-full shadow-2xl p-6 overflow-y-auto space-y-6 animate-in slide-in-from-right duration-250 text-[#17243B]">
+            <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-4">
               <div>
-                <h3 className="font-serif text-lg font-bold text-[#1E2230]">
+                <h3 className="font-serif text-lg font-bold text-[#17243B]">
                   Register New CAD Modeller
                 </h3>
                 <p className="text-xs text-[#6B7280]">
@@ -943,7 +943,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
               </div>
               <button
                 onClick={() => setShowAddDrawer(false)}
-                className="text-[#6B7280] hover:text-[#1E2230] p-1.5 rounded-lg hover:bg-[#F6F7FB]"
+                className="text-[#6B7280] hover:text-[#17243B] p-1.5 rounded-lg hover:bg-[#FAF8F5]"
               >
                 ✕
               </button>
@@ -960,7 +960,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
             <form onSubmit={handleCreateStaff} className="space-y-4 text-xs">
               {/* Full Name */}
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">
+                <label className="font-semibold text-[#17243B] block mb-1">
                   Full Name <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -969,9 +969,9 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="e.g. Salim Merchant"
-                  className={`w-full px-3.5 py-2.5 rounded-xl bg-[#F6F7FB] border ${
-                    fieldErrors.fullName ? 'border-rose-500' : 'border-[#E5E7EF]'
-                  } focus:outline-none focus:border-[#0D1B4C] text-xs`}
+                  className={`w-full px-3.5 py-2.5 rounded-xl bg-[#FAF8F5] border ${
+                    fieldErrors.fullName ? 'border-rose-500' : 'border-[#E8D7B7]'
+                  } focus:outline-none focus:border-[#17345C] text-xs`}
                 />
                 {fieldErrors.fullName && (
                   <p className="text-rose-500 text-[11px] mt-1">{fieldErrors.fullName}</p>
@@ -980,7 +980,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
 
               {/* Email */}
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">
+                <label className="font-semibold text-[#17243B] block mb-1">
                   Email Address <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -989,9 +989,9 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="salim@shiuli.com"
-                  className={`w-full px-3.5 py-2.5 rounded-xl bg-[#F6F7FB] border ${
-                    fieldErrors.email ? 'border-rose-500' : 'border-[#E5E7EF]'
-                  } focus:outline-none focus:border-[#0D1B4C] text-xs`}
+                  className={`w-full px-3.5 py-2.5 rounded-xl bg-[#FAF8F5] border ${
+                    fieldErrors.email ? 'border-rose-500' : 'border-[#E8D7B7]'
+                  } focus:outline-none focus:border-[#17345C] text-xs`}
                 />
                 {fieldErrors.email && (
                   <p className="text-rose-500 text-[11px] mt-1">{fieldErrors.email}</p>
@@ -1000,7 +1000,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
 
               {/* Phone Number */}
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">
+                <label className="font-semibold text-[#17243B] block mb-1">
                   Phone Number <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -1009,9 +1009,9 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   placeholder="+91 98765 43210"
-                  className={`w-full px-3.5 py-2.5 rounded-xl bg-[#F6F7FB] border ${
-                    fieldErrors.phoneNumber ? 'border-rose-500' : 'border-[#E5E7EF]'
-                  } focus:outline-none focus:border-[#0D1B4C] text-xs`}
+                  className={`w-full px-3.5 py-2.5 rounded-xl bg-[#FAF8F5] border ${
+                    fieldErrors.phoneNumber ? 'border-rose-500' : 'border-[#E8D7B7]'
+                  } focus:outline-none focus:border-[#17345C] text-xs`}
                 />
                 {fieldErrors.phoneNumber && (
                   <p className="text-rose-500 text-[11px] mt-1">{fieldErrors.phoneNumber}</p>
@@ -1020,7 +1020,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
 
               {/* Specialization Role Tags */}
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">
+                <label className="font-semibold text-[#17243B] block mb-1">
                   Specialization Tags / Role
                 </label>
                 <input
@@ -1028,13 +1028,13 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                   value={specialtyTags}
                   onChange={(e) => setSpecialtyTags(e.target.value)}
                   placeholder="e.g. Diamond Setting, Temple Jewellery, 3D Rhino"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] focus:outline-none focus:border-[#0D1B4C] text-xs"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] focus:outline-none focus:border-[#17345C] text-xs"
                 />
               </div>
 
               {/* Initial Max Concurrent Job Limit */}
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">
+                <label className="font-semibold text-[#17243B] block mb-1">
                   Initial Max Concurrent Job Limit
                 </label>
                 <input
@@ -1043,20 +1043,20 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                   max={5}
                   value={maxJobLimit}
                   onChange={(e) => setMaxJobLimit(Number(e.target.value))}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] focus:outline-none font-mono font-bold text-xs"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] focus:outline-none font-mono font-bold text-xs"
                 />
               </div>
 
               {/* Set Initial Password & Random Generator */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="font-semibold text-[#1E2230]">
+                  <label className="font-semibold text-[#17243B]">
                     Set Initial Login Password <span className="text-rose-500">*</span>
                   </label>
                   <button
                     type="button"
                     onClick={generateRandomPassword}
-                    className="text-[11px] text-[#0D1B4C] font-semibold hover:underline flex items-center gap-1"
+                    className="text-[11px] text-[#17345C] font-semibold hover:underline flex items-center gap-1"
                   >
                     <RefreshCw className="w-3 h-3 text-[#C9A227]" />
                     Generate Random
@@ -1070,16 +1070,16 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Set password for staff login"
-                    className={`w-full pl-3.5 pr-20 py-2.5 rounded-xl bg-[#F6F7FB] border ${
-                      fieldErrors.password ? 'border-rose-500' : 'border-[#E5E7EF]'
-                    } focus:outline-none focus:border-[#0D1B4C] text-xs font-mono`}
+                    className={`w-full pl-3.5 pr-20 py-2.5 rounded-xl bg-[#FAF8F5] border ${
+                      fieldErrors.password ? 'border-rose-500' : 'border-[#E8D7B7]'
+                    } focus:outline-none focus:border-[#17345C] text-xs font-mono`}
                   />
 
                   <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="p-1 text-[#6B7280] hover:text-[#1E2230]"
+                      className="p-1 text-[#6B7280] hover:text-[#17243B]"
                     >
                       {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </button>
@@ -1087,7 +1087,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                       <button
                         type="button"
                         onClick={copyPasswordToClipboard}
-                        className="p-1 text-[#6B7280] hover:text-[#1E2230]"
+                        className="p-1 text-[#6B7280] hover:text-[#17243B]"
                         title="Copy Password"
                       >
                         {copiedPassword ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
@@ -1101,18 +1101,18 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                 )}
                 {password && showPassword && (
                   <p className="text-[10px] text-[#6B7280] mt-1 font-mono">
-                    Share this initial credential with staff member: <strong className="text-[#0D1B4C]">{password}</strong>
+                    Share this initial credential with staff member: <strong className="text-[#17345C]">{password}</strong>
                   </p>
                 )}
               </div>
 
               {/* Submit Buttons */}
-              <div className="pt-4 flex justify-end gap-3 border-t border-[#E5E7EF]">
+              <div className="pt-4 flex justify-end gap-3 border-t border-[#E8D7B7]">
                 <button
                   type="button"
                   onClick={() => setShowAddDrawer(false)}
                   disabled={isSubmitting}
-                  className="px-4 py-2 rounded-xl border border-[#E5E7EF] text-[#1E2230] text-xs font-medium"
+                  className="px-4 py-2 rounded-xl border border-[#E8D7B7] text-[#17243B] text-xs font-medium"
                 >
                   Cancel
                 </button>
@@ -1139,8 +1139,8 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
       {/* PART 2 — ASSIGNED JOBS MANAGEMENT DRAWER */}
       {selectedStaffForJobs && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-end">
-          <div className="w-full max-w-lg bg-white h-full shadow-2xl p-6 overflow-y-auto space-y-6 animate-in slide-in-from-right duration-250 text-[#1E2230]">
-            <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-4">
+          <div className="w-full max-w-lg bg-white h-full shadow-2xl p-6 overflow-y-auto space-y-6 animate-in slide-in-from-right duration-250 text-[#17243B]">
+            <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-4">
               <div className="flex items-center gap-3">
                 <img
                   src={getOptimizedImageUrl(selectedStaffForJobs.avatar)}
@@ -1148,30 +1148,30 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80';
                   }}
-                  className="w-11 h-11 rounded-full object-cover border-2 border-[#0D1B4C]"
+                  className="w-11 h-11 rounded-full object-cover border-2 border-[#17345C]"
                 />
                 <div>
-                  <h3 className="font-serif text-lg font-bold text-[#1E2230]">
+                  <h3 className="font-serif text-lg font-bold text-[#17243B]">
                     {selectedStaffForJobs.name}
                   </h3>
                   <p className="text-xs text-[#6B7280]">
-                    {selectedStaffForJobs.role} • <span className="font-mono font-bold text-[#0D1B4C]">{selectedStaffForJobs.currentLoad} / {selectedStaffForJobs.maxJobLimit} Jobs</span>
+                    {selectedStaffForJobs.role} • <span className="font-mono font-bold text-[#17345C]">{selectedStaffForJobs.currentLoad} / {selectedStaffForJobs.maxJobLimit} Jobs</span>
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedStaffForJobs(null)}
-                className="text-[#6B7280] hover:text-[#1E2230] p-1.5 rounded-lg hover:bg-[#F6F7FB]"
+                className="text-[#6B7280] hover:text-[#17243B] p-1.5 rounded-lg hover:bg-[#FAF8F5]"
               >
                 ✕
               </button>
             </div>
 
             {/* Capacity Banner */}
-            <div className="p-3.5 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] flex items-center justify-between text-xs">
+            <div className="p-3.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] flex items-center justify-between text-xs">
               <div className="flex items-center gap-2">
                 <Briefcase className="w-4 h-4 text-[#C9A227]" />
-                <span className="font-medium text-[#1E2230]">Current Assigned Workbench</span>
+                <span className="font-medium text-[#17243B]">Current Assigned Workbench</span>
               </div>
               <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase ${
                 selectedStaffForJobs.currentLoad >= selectedStaffForJobs.maxJobLimit
@@ -1189,9 +1189,9 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
               </h4>
 
               {(!selectedStaffForJobs.activeJobs || selectedStaffForJobs.activeJobs.length === 0) ? (
-                <div className="p-8 text-center bg-[#F6F7FB] rounded-2xl border border-dashed border-[#E5E7EF] space-y-2">
+                <div className="p-8 text-center bg-[#FAF8F5] rounded-2xl border border-dashed border-[#E8D7B7] space-y-2">
                   <Briefcase className="w-8 h-8 text-[#6B7280] mx-auto opacity-50" />
-                  <p className="font-medium text-xs text-[#1E2230]">No Active Jobs Assigned</p>
+                  <p className="font-medium text-xs text-[#17243B]">No Active Jobs Assigned</p>
                   <p className="text-[11px] text-[#6B7280] max-w-xs mx-auto">
                     This modeller currently has no active custom CAD jobs on their workbench. They are ready to claim designs from the open job pool.
                   </p>
@@ -1201,17 +1201,17 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                   {selectedStaffForJobs.activeJobs.map((job: any) => (
                     <div
                       key={job.id}
-                      className="p-4 rounded-xl bg-white border border-[#E5E7EF] shadow-sm space-y-3 hover:border-[#C9A227]/40 transition-all"
+                      className="p-4 rounded-xl bg-white border border-[#E8D7B7] shadow-sm space-y-3 hover:border-[#C9A227]/40 transition-all"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs font-bold text-[#0D1B4C]">#{job.id}</span>
+                            <span className="font-mono text-xs font-bold text-[#17345C]">#{job.id}</span>
                             <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold uppercase">
                               {job.status.replace(/_/g, ' ')}
                             </span>
                           </div>
-                          <h5 className="font-bold text-xs text-[#1E2230] mt-1">{job.title}</h5>
+                          <h5 className="font-bold text-xs text-[#17243B] mt-1">{job.title}</h5>
                           <p className="text-[11px] text-[#6B7280]">
                             Client: {job.client_name} ({job.client_email})
                           </p>
@@ -1220,14 +1220,14 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
 
                       {/* Reassignment Controls */}
                       {reassigningJobId === job.id ? (
-                        <div className="p-3 bg-[#F6F7FB] rounded-xl border border-[#E5E7EF] space-y-2">
-                          <label className="text-[11px] font-semibold text-[#1E2230] block">
+                        <div className="p-3 bg-[#FAF8F5] rounded-xl border border-[#E8D7B7] space-y-2">
+                          <label className="text-[11px] font-semibold text-[#17243B] block">
                             Select New CAD Modeller:
                           </label>
                           <select
                             value={targetModellerId}
                             onChange={(e) => setTargetModellerId(e.target.value)}
-                            className="w-full px-2.5 py-1.5 text-xs bg-white border border-[#E5E7EF] rounded-lg focus:outline-none focus:border-[#0D1B4C]"
+                            className="w-full px-2.5 py-1.5 text-xs bg-white border border-[#E8D7B7] rounded-lg focus:outline-none focus:border-[#17345C]"
                           >
                             <option value="">-- Choose Modeller --</option>
                             {staffMembers
@@ -1242,7 +1242,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                             <button
                               onClick={() => setReassigningJobId(null)}
                               disabled={isReassignSubmitting}
-                              className="px-2.5 py-1 text-[11px] text-[#6B7280] hover:text-[#1E2230]"
+                              className="px-2.5 py-1 text-[11px] text-[#6B7280] hover:text-[#17243B]"
                             >
                               Cancel
                             </button>
@@ -1256,13 +1256,13 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                           </div>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-between pt-2 border-t border-[#E5E7EF] text-xs">
+                        <div className="flex items-center justify-between pt-2 border-t border-[#E8D7B7] text-xs">
                           <button
                             onClick={() => {
                               setReassigningJobId(job.id);
                               setTargetModellerId('');
                             }}
-                            className="text-[#0D1B4C] hover:text-[#C9A227] font-semibold flex items-center gap-1 text-[11px] transition-colors"
+                            className="text-[#17345C] hover:text-[#C9A227] font-semibold flex items-center gap-1 text-[11px] transition-colors"
                           >
                             <UserCheck className="w-3.5 h-3.5" />
                             <span>Reassign Modeller</span>
@@ -1288,10 +1288,10 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
               )}
             </div>
 
-            <div className="pt-4 border-t border-[#E5E7EF] flex justify-end">
+            <div className="pt-4 border-t border-[#E8D7B7] flex justify-end">
               <button
                 onClick={() => setSelectedStaffForJobs(null)}
-                className="px-4 py-2 bg-[#F6F7FB] hover:bg-[#E5E7EF] text-[#1E2230] rounded-xl text-xs font-semibold"
+                className="px-4 py-2 bg-[#FAF8F5] hover:bg-[#E8D7B7] text-[#17243B] rounded-xl text-xs font-semibold"
               >
                 Done
               </button>
@@ -1309,11 +1309,11 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
           onClick={() => setInspectingStaff(null)}
         >
           <div
-            className="w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 border-l border-[#C9A227]/30 text-[#1E2230] overflow-hidden"
+            className="w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 border-l border-[#C9A227]/30 text-[#17243B] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Top Navy & Gold Luxury Header */}
-            <div className="bg-[#0D1B4C] text-[#FAF8F3] p-6 border-b border-[#C9A227]/30 relative flex-shrink-0">
+            <div className="bg-[#17345C] text-[#FAF8F3] p-6 border-b border-[#C9A227]/30 relative flex-shrink-0">
               {/* Close Button */}
               <button
                 onClick={() => setInspectingStaff(null)}
@@ -1346,7 +1346,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                       className="w-16 h-16 rounded-2xl object-cover border-2 border-[#C9A227] shadow-xl"
                     />
                     <span
-                      className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-[#0D1B4C] ${
+                      className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-[#17345C] ${
                         inspectingStaff.status === 'active' ? 'bg-[#1F9D66]' : 'bg-rose-500'
                       }`}
                       title={inspectingStaff.status === 'active' ? 'Active Modeller' : 'Inactive'}
@@ -1413,11 +1413,11 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
             {/* Scrollable Content Body */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#FAF9F5]">
               {/* CAPACITY & JOB LIMIT CONTROLLER */}
-              <div className="bg-white rounded-2xl border border-[#E5E7EF] p-5 shadow-xs space-y-4">
+              <div className="bg-white rounded-2xl border border-[#E8D7B7] p-5 shadow-xs space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Sliders className="w-4 h-4 text-[#C9A227]" />
-                    <h3 className="font-bold text-xs uppercase tracking-wider text-[#1E2230]">
+                    <h3 className="font-bold text-xs uppercase tracking-wider text-[#17243B]">
                       Live Capacity & Concurrent Job Limit
                     </h3>
                   </div>
@@ -1430,10 +1430,10 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center bg-[#F6F7FB] p-4 rounded-xl border border-[#E5E7EF]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center bg-[#FAF8F5] p-4 rounded-xl border border-[#E8D7B7]">
                   <div className="space-y-1.5">
                     <div className="text-xs text-[#6B7280] font-mono">
-                      Current Load: <strong className="text-[#1E2230]">{inspectingStaff.currentLoad}</strong> / {inspectingStaff.maxJobLimit} orders
+                      Current Load: <strong className="text-[#17243B]">{inspectingStaff.currentLoad}</strong> / {inspectingStaff.maxJobLimit} orders
                     </div>
                     {/* Dots indicator */}
                     <div className="flex items-center gap-1.5 pt-1">
@@ -1444,8 +1444,8 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                             key={idx}
                             className={`w-6 h-6 rounded-full flex items-center justify-center font-mono text-[10px] font-bold transition-all ${
                               isFilled
-                                ? 'bg-[#0D1B4C] text-[#C9A227] shadow-xs border-2 border-[#C9A227]'
-                                : 'bg-white border-2 border-[#E5E7EF] text-[#6B7280]'
+                                ? 'bg-[#17345C] text-[#C9A227] shadow-xs border-2 border-[#C9A227]'
+                                : 'bg-white border-2 border-[#E8D7B7] text-[#6B7280]'
                             }`}
                           >
                             {isFilled ? '●' : '○'}
@@ -1461,18 +1461,18 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                       <button
                         onClick={() => handleUpdateLimit(inspectingStaff.id, inspectingStaff.maxJobLimit - 1)}
                         disabled={inspectingStaff.maxJobLimit <= 1 || updatingLimitId === inspectingStaff.id}
-                        className="w-8 h-8 rounded-lg bg-white border border-[#E5E7EF] font-bold text-sm hover:bg-[#0D1B4C] hover:text-white hover:border-[#0D1B4C] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-xs flex items-center justify-center active:scale-95"
+                        className="w-8 h-8 rounded-lg bg-white border border-[#E8D7B7] font-bold text-sm hover:bg-[#17345C] hover:text-white hover:border-[#17345C] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-xs flex items-center justify-center active:scale-95"
                         title="Decrease Limit"
                       >
                         −
                       </button>
-                      <span className="font-mono font-bold text-base min-w-[32px] text-center text-[#1E2230]">
+                      <span className="font-mono font-bold text-base min-w-[32px] text-center text-[#17243B]">
                         {inspectingStaff.maxJobLimit}
                       </span>
                       <button
                         onClick={() => handleUpdateLimit(inspectingStaff.id, inspectingStaff.maxJobLimit + 1)}
                         disabled={inspectingStaff.maxJobLimit >= 20 || updatingLimitId === inspectingStaff.id}
-                        className="w-8 h-8 rounded-lg bg-white border border-[#E5E7EF] font-bold text-sm hover:bg-[#0D1B4C] hover:text-white hover:border-[#0D1B4C] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-xs flex items-center justify-center active:scale-95"
+                        className="w-8 h-8 rounded-lg bg-white border border-[#E8D7B7] font-bold text-sm hover:bg-[#17345C] hover:text-white hover:border-[#17345C] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-xs flex items-center justify-center active:scale-95"
                         title="Increase Limit"
                       >
                         +
@@ -1483,22 +1483,22 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
 
                 {/* Metrics ribbon */}
                 <div className="grid grid-cols-3 gap-3 pt-1">
-                  <div className="bg-[#FAF9F5] p-3 rounded-xl border border-[#E5E7EF] text-center">
+                  <div className="bg-[#FAF9F5] p-3 rounded-xl border border-[#E8D7B7] text-center">
                     <div className="text-[10px] text-[#6B7280] uppercase tracking-wider font-semibold">Jobs Finished</div>
-                    <div className="font-mono font-bold text-base text-[#1E2230] mt-0.5">
+                    <div className="font-mono font-bold text-base text-[#17243B] mt-0.5">
                       {inspectingStaff.jobsCompleted}
                     </div>
                   </div>
-                  <div className="bg-[#FAF9F5] p-3 rounded-xl border border-[#E5E7EF] text-center">
+                  <div className="bg-[#FAF9F5] p-3 rounded-xl border border-[#E8D7B7] text-center">
                     <div className="text-[10px] text-[#6B7280] uppercase tracking-wider font-semibold">Client Rating</div>
-                    <div className="font-mono font-bold text-base text-[#1E2230] mt-0.5 flex items-center justify-center gap-1">
+                    <div className="font-mono font-bold text-base text-[#17243B] mt-0.5 flex items-center justify-center gap-1">
                       <Star className="w-3.5 h-3.5 fill-[#C9A227] text-[#C9A227]" />
                       <span>{inspectingStaff.rating.toFixed(1)}</span>
                     </div>
                   </div>
-                  <div className="bg-[#FAF9F5] p-3 rounded-xl border border-[#E5E7EF] text-center">
+                  <div className="bg-[#FAF9F5] p-3 rounded-xl border border-[#E8D7B7] text-center">
                     <div className="text-[10px] text-[#6B7280] uppercase tracking-wider font-semibold">Active In Flight</div>
-                    <div className="font-mono font-bold text-base text-[#0D1B4C] mt-0.5">
+                    <div className="font-mono font-bold text-base text-[#17345C] mt-0.5">
                       {inspectingStaff.currentLoad}
                     </div>
                   </div>
@@ -1506,11 +1506,11 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
               </div>
 
               {/* REGISTRATION DOSSIER: PERSONAL & CONTACT */}
-              <div className="bg-white rounded-2xl border border-[#E5E7EF] p-5 shadow-xs space-y-4">
-                <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-3">
+              <div className="bg-white rounded-2xl border border-[#E8D7B7] p-5 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-3">
                   <div className="flex items-center gap-2">
                     <FileText className="w-4 h-4 text-[#C9A227]" />
-                    <h3 className="font-bold text-xs uppercase tracking-wider text-[#1E2230]">
+                    <h3 className="font-bold text-xs uppercase tracking-wider text-[#17243B]">
                       Registration Record & Contact Details
                     </h3>
                   </div>
@@ -1527,11 +1527,11 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                   {/* First Name & Last Name */}
                   <div className="space-y-1">
                     <div className="text-[11px] font-semibold text-[#6B7280] uppercase">Legal First Name</div>
-                    <div className="font-medium text-[#1E2230] bg-[#F6F7FB] px-3 py-2 rounded-xl border border-[#E5E7EF] flex items-center justify-between">
+                    <div className="font-medium text-[#17243B] bg-[#FAF8F5] px-3 py-2 rounded-xl border border-[#E8D7B7] flex items-center justify-between">
                       <span>{inspectingStaff.registrationDetails?.first_name || inspectingStaff.name.split(' ')[0] || '—'}</span>
                       <button
                         onClick={() => handleCopyText(inspectingStaff.registrationDetails?.first_name || inspectingStaff.name.split(' ')[0] || '', 'first_name')}
-                        className="text-[#6B7280] hover:text-[#0D1B4C]"
+                        className="text-[#6B7280] hover:text-[#17345C]"
                         title="Copy"
                       >
                         {copiedField === 'first_name' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
@@ -1541,11 +1541,11 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
 
                   <div className="space-y-1">
                     <div className="text-[11px] font-semibold text-[#6B7280] uppercase">Legal Last Name</div>
-                    <div className="font-medium text-[#1E2230] bg-[#F6F7FB] px-3 py-2 rounded-xl border border-[#E5E7EF] flex items-center justify-between">
+                    <div className="font-medium text-[#17243B] bg-[#FAF8F5] px-3 py-2 rounded-xl border border-[#E8D7B7] flex items-center justify-between">
                       <span>{inspectingStaff.registrationDetails?.last_name || inspectingStaff.name.split(' ').slice(1).join(' ') || '—'}</span>
                       <button
                         onClick={() => handleCopyText(inspectingStaff.registrationDetails?.last_name || inspectingStaff.name.split(' ').slice(1).join(' ') || '', 'last_name')}
-                        className="text-[#6B7280] hover:text-[#0D1B4C]"
+                        className="text-[#6B7280] hover:text-[#17345C]"
                         title="Copy"
                       >
                         {copiedField === 'last_name' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
@@ -1559,13 +1559,13 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                       <Mail className="w-3 h-3 text-[#C9A227]" />
                       <span>Official Email</span>
                     </div>
-                    <div className="font-medium text-[#1E2230] bg-[#F6F7FB] px-3 py-2 rounded-xl border border-[#E5E7EF] flex items-center justify-between break-all">
+                    <div className="font-medium text-[#17243B] bg-[#FAF8F5] px-3 py-2 rounded-xl border border-[#E8D7B7] flex items-center justify-between break-all">
                       <a href={`mailto:${inspectingStaff.registrationDetails?.email || inspectingStaff.email}`} className="hover:text-[#C9A227] transition-colors">
                         {inspectingStaff.registrationDetails?.email || inspectingStaff.email}
                       </a>
                       <button
                         onClick={() => handleCopyText(inspectingStaff.registrationDetails?.email || inspectingStaff.email, 'email')}
-                        className="text-[#6B7280] hover:text-[#0D1B4C] ml-2 flex-shrink-0"
+                        className="text-[#6B7280] hover:text-[#17345C] ml-2 flex-shrink-0"
                         title="Copy email"
                       >
                         {copiedField === 'email' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
@@ -1579,14 +1579,14 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                       <Phone className="w-3 h-3 text-[#C9A227]" />
                       <span>Phone Number</span>
                     </div>
-                    <div className="font-medium text-[#1E2230] bg-[#F6F7FB] px-3 py-2 rounded-xl border border-[#E5E7EF] flex items-center justify-between">
+                    <div className="font-medium text-[#17243B] bg-[#FAF8F5] px-3 py-2 rounded-xl border border-[#E8D7B7] flex items-center justify-between">
                       <a href={`tel:${inspectingStaff.registrationDetails?.phone_number || inspectingStaff.phone}`} className="hover:text-[#C9A227] transition-colors">
                         {inspectingStaff.registrationDetails?.phone_number || inspectingStaff.phone}
                       </a>
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => handleCopyText(inspectingStaff.registrationDetails?.phone_number || inspectingStaff.phone, 'phone')}
-                          className="text-[#6B7280] hover:text-[#0D1B4C]"
+                          className="text-[#6B7280] hover:text-[#17345C]"
                           title="Copy phone"
                         >
                           {copiedField === 'phone' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
@@ -1598,11 +1598,11 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                   {/* Username */}
                   <div className="space-y-1">
                     <div className="text-[11px] font-semibold text-[#6B7280] uppercase">Workbench Username</div>
-                    <div className="font-mono text-[#0D1B4C] font-semibold bg-[#F6F7FB] px-3 py-2 rounded-xl border border-[#E5E7EF] flex items-center justify-between">
+                    <div className="font-mono text-[#17345C] font-semibold bg-[#FAF8F5] px-3 py-2 rounded-xl border border-[#E8D7B7] flex items-center justify-between">
                       <span>@{inspectingStaff.username || 'staff'}</span>
                       <button
                         onClick={() => handleCopyText(inspectingStaff.username || '', 'username')}
-                        className="text-[#6B7280] hover:text-[#0D1B4C]"
+                        className="text-[#6B7280] hover:text-[#17345C]"
                         title="Copy username"
                       >
                         {copiedField === 'username' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
@@ -1613,7 +1613,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                   {/* Specialization / Role */}
                   <div className="space-y-1">
                     <div className="text-[11px] font-semibold text-[#6B7280] uppercase">Modeller Specialization</div>
-                    <div className="font-medium text-[#1E2230] bg-[#F6F7FB] px-3 py-2 rounded-xl border border-[#E5E7EF]">
+                    <div className="font-medium text-[#17243B] bg-[#FAF8F5] px-3 py-2 rounded-xl border border-[#E8D7B7]">
                       {inspectingStaff.role}
                     </div>
                   </div>
@@ -1621,11 +1621,11 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
               </div>
 
               {/* REGISTRATION DOSSIER: ADDRESS & RESIDENCE */}
-              <div className="bg-white rounded-2xl border border-[#E5E7EF] p-5 shadow-xs space-y-4">
-                <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-3">
+              <div className="bg-white rounded-2xl border border-[#E8D7B7] p-5 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-3">
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-[#C9A227]" />
-                    <h3 className="font-bold text-xs uppercase tracking-wider text-[#1E2230]">
+                    <h3 className="font-bold text-xs uppercase tracking-wider text-[#17243B]">
                       Registered Residence & Studio Address
                     </h3>
                   </div>
@@ -1635,35 +1635,35 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                 </div>
 
                 <div className="space-y-3 text-xs">
-                  <div className="p-3 bg-[#F6F7FB] rounded-xl border border-[#E5E7EF] space-y-1">
+                  <div className="p-3 bg-[#FAF8F5] rounded-xl border border-[#E8D7B7] space-y-1">
                     <div className="text-[11px] text-[#6B7280] font-semibold uppercase">Street Address / Premises</div>
-                    <div className="font-medium text-[#1E2230]">
+                    <div className="font-medium text-[#17243B]">
                       {inspectingStaff.registrationDetails?.address || 'Atelier Jewellery Quarter, Studio Suite 4B'}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="p-3 bg-[#F6F7FB] rounded-xl border border-[#E5E7EF]">
+                    <div className="p-3 bg-[#FAF8F5] rounded-xl border border-[#E8D7B7]">
                       <div className="text-[10px] text-[#6B7280] font-semibold uppercase">City</div>
-                      <div className="font-medium text-[#1E2230] mt-0.5">
+                      <div className="font-medium text-[#17243B] mt-0.5">
                         {inspectingStaff.registrationDetails?.city || 'Mumbai'}
                       </div>
                     </div>
-                    <div className="p-3 bg-[#F6F7FB] rounded-xl border border-[#E5E7EF]">
+                    <div className="p-3 bg-[#FAF8F5] rounded-xl border border-[#E8D7B7]">
                       <div className="text-[10px] text-[#6B7280] font-semibold uppercase">State</div>
-                      <div className="font-medium text-[#1E2230] mt-0.5">
+                      <div className="font-medium text-[#17243B] mt-0.5">
                         {inspectingStaff.registrationDetails?.state || 'Maharashtra'}
                       </div>
                     </div>
-                    <div className="p-3 bg-[#F6F7FB] rounded-xl border border-[#E5E7EF]">
+                    <div className="p-3 bg-[#FAF8F5] rounded-xl border border-[#E8D7B7]">
                       <div className="text-[10px] text-[#6B7280] font-semibold uppercase">Country</div>
-                      <div className="font-medium text-[#1E2230] mt-0.5">
+                      <div className="font-medium text-[#17243B] mt-0.5">
                         {inspectingStaff.registrationDetails?.country || 'India'}
                       </div>
                     </div>
-                    <div className="p-3 bg-[#F6F7FB] rounded-xl border border-[#E5E7EF]">
+                    <div className="p-3 bg-[#FAF8F5] rounded-xl border border-[#E8D7B7]">
                       <div className="text-[10px] text-[#6B7280] font-semibold uppercase">Postal Code</div>
-                      <div className="font-mono font-medium text-[#1E2230] mt-0.5">
+                      <div className="font-mono font-medium text-[#17243B] mt-0.5">
                         {inspectingStaff.registrationDetails?.pincode || '400002'}
                       </div>
                     </div>
@@ -1672,22 +1672,22 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
               </div>
 
               {/* REGISTRATION DOSSIER: CAD EXPERIENCE & SOFTWARE BACKGROUND */}
-              <div className="bg-white rounded-2xl border border-[#E5E7EF] p-5 shadow-xs space-y-4">
-                <div className="flex items-center gap-2 border-b border-[#E5E7EF] pb-3">
+              <div className="bg-white rounded-2xl border border-[#E8D7B7] p-5 shadow-xs space-y-4">
+                <div className="flex items-center gap-2 border-b border-[#E8D7B7] pb-3">
                   <Award className="w-4 h-4 text-[#C9A227]" />
-                  <h3 className="font-bold text-xs uppercase tracking-wider text-[#1E2230]">
+                  <h3 className="font-bold text-xs uppercase tracking-wider text-[#17243B]">
                     CAD Experience & Software Background
                   </h3>
                 </div>
 
                 <div className="space-y-3 text-xs">
-                  <div className="p-3.5 bg-[#FAF9F5] rounded-xl border border-[#E5E7EF] text-[#1E2230] leading-relaxed whitespace-pre-wrap">
+                  <div className="p-3.5 bg-[#FAF9F5] rounded-xl border border-[#E8D7B7] text-[#17243B] leading-relaxed whitespace-pre-wrap">
                     {inspectingStaff.registrationDetails?.experience || inspectingStaff.bio || 'Experienced 3D jewellery CAD modeller specializing in MatrixGold, Rhino 3D, and sub-micron casting tolerances for rings, necklaces, and bespoke bridal pieces.'}
                   </div>
 
                   <div className="flex flex-wrap gap-1.5 pt-1">
                     {['MatrixGold', 'Rhino 3D', 'ZBrush', 'KeyShot', 'Sub-micron Tolerances', 'Watertight Mesh'].map((tag) => (
-                      <span key={tag} className="px-2.5 py-1 rounded-lg bg-[#F6F7FB] border border-[#E5E7EF] text-[11px] font-medium text-[#0D1B4C]">
+                      <span key={tag} className="px-2.5 py-1 rounded-lg bg-[#FAF8F5] border border-[#E8D7B7] text-[11px] font-medium text-[#17345C]">
                         ✓ {tag}
                       </span>
                     ))}
@@ -1696,17 +1696,17 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
               </div>
 
               {/* REGISTRATION DOSSIER: PORTFOLIO & SAMPLE WORK ARCHIVE */}
-              <div className="bg-white rounded-2xl border border-[#E5E7EF] p-5 shadow-xs space-y-4">
-                <div className="flex items-center gap-2 border-b border-[#E5E7EF] pb-3">
+              <div className="bg-white rounded-2xl border border-[#E8D7B7] p-5 shadow-xs space-y-4">
+                <div className="flex items-center gap-2 border-b border-[#E8D7B7] pb-3">
                   <Globe className="w-4 h-4 text-[#C9A227]" />
-                  <h3 className="font-bold text-xs uppercase tracking-wider text-[#1E2230]">
+                  <h3 className="font-bold text-xs uppercase tracking-wider text-[#17243B]">
                     Portfolio & Uploaded Sample Work
                   </h3>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   {/* Portfolio Link */}
-                  <div className="p-4 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] space-y-2 flex flex-col justify-between">
+                  <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] space-y-2 flex flex-col justify-between">
                     <div>
                       <div className="text-[11px] font-semibold text-[#6B7280] uppercase flex items-center gap-1.5">
                         <ExternalLink className="w-3.5 h-3.5 text-[#C9A227]" />
@@ -1724,20 +1724,20 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                           : `https://${inspectingStaff.registrationDetails.portfolio_link}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-2 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-[#0D1B4C] hover:bg-[#C9A227] hover:text-[#0D1B4C] text-[#FAF8F3] font-semibold text-xs transition-colors shadow-xs"
+                        className="mt-2 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-[#17345C] hover:bg-[#C9A227] hover:text-[#17345C] text-[#FAF8F3] font-semibold text-xs transition-colors shadow-xs"
                       >
                         <span>Open Live Portfolio</span>
                         <ExternalLink className="w-3.5 h-3.5" />
                       </a>
                     ) : (
-                      <div className="mt-2 text-[11px] italic text-[#6B7280] p-2 bg-white rounded-lg border border-[#E5E7EF] text-center">
+                      <div className="mt-2 text-[11px] italic text-[#6B7280] p-2 bg-white rounded-lg border border-[#E8D7B7] text-center">
                         Portfolio link not provided at registration
                       </div>
                     )}
                   </div>
 
                   {/* Sample Work Zip Archive */}
-                  <div className="p-4 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] space-y-2 flex flex-col justify-between">
+                  <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] space-y-2 flex flex-col justify-between">
                     <div>
                       <div className="text-[11px] font-semibold text-[#6B7280] uppercase flex items-center gap-1.5">
                         <Download className="w-3.5 h-3.5 text-[#C9A227]" />
@@ -1760,7 +1760,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                         <span>Download Sample Archive (.ZIP)</span>
                       </a>
                     ) : (
-                      <div className="mt-2 text-[11px] italic text-[#6B7280] p-2 bg-white rounded-lg border border-[#E5E7EF] text-center">
+                      <div className="mt-2 text-[11px] italic text-[#6B7280] p-2 bg-white rounded-lg border border-[#E8D7B7] text-center">
                         No archive file attached
                       </div>
                     )}
@@ -1769,11 +1769,11 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
               </div>
 
               {/* CURRENTLY ASSIGNED ACTIVE ORDERS */}
-              <div className="bg-white rounded-2xl border border-[#E5E7EF] p-5 shadow-xs space-y-4">
-                <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-3">
+              <div className="bg-white rounded-2xl border border-[#E8D7B7] p-5 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-3">
                   <div className="flex items-center gap-2">
                     <Briefcase className="w-4 h-4 text-[#C9A227]" />
-                    <h3 className="font-bold text-xs uppercase tracking-wider text-[#1E2230]">
+                    <h3 className="font-bold text-xs uppercase tracking-wider text-[#17243B]">
                       Active Assigned Workbench Jobs ({inspectingStaff.currentLoad})
                     </h3>
                   </div>
@@ -1783,7 +1783,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                       setInspectingStaff(null);
                       handleOpenStaffJobs(target);
                     }}
-                    className="text-xs font-semibold text-[#0D1B4C] hover:text-[#C9A227] transition-colors flex items-center gap-1"
+                    className="text-xs font-semibold text-[#17345C] hover:text-[#C9A227] transition-colors flex items-center gap-1"
                   >
                     <span>Manage / Reassign</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -1795,10 +1795,10 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                     {inspectingStaff.activeJobs.map((job: any, idx: number) => (
                       <div
                         key={job.id || job.orderId || idx}
-                        className="p-3 bg-[#F6F7FB] rounded-xl border border-[#E5E7EF] flex items-center justify-between text-xs"
+                        className="p-3 bg-[#FAF8F5] rounded-xl border border-[#E8D7B7] flex items-center justify-between text-xs"
                       >
                         <div className="space-y-0.5">
-                          <div className="font-bold text-[#1E2230] flex items-center gap-2">
+                          <div className="font-bold text-[#17243B] flex items-center gap-2">
                             <span>#{job.orderId || job.id}</span>
                             <span className="text-[#6B7280] font-normal">•</span>
                             <span className="font-medium">{job.designTitle || job.title || 'Custom CAD Design'}</span>
@@ -1814,9 +1814,9 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                     ))}
                   </div>
                 ) : (
-                  <div className="p-6 bg-[#FAF9F5] rounded-xl border border-[#E5E7EF] text-center space-y-1 text-xs">
+                  <div className="p-6 bg-[#FAF9F5] rounded-xl border border-[#E8D7B7] text-center space-y-1 text-xs">
                     <CheckCircle2 className="w-6 h-6 text-emerald-600 mx-auto" />
-                    <p className="font-bold text-[#1E2230]">No Active Jobs In Flight</p>
+                    <p className="font-bold text-[#17243B]">No Active Jobs In Flight</p>
                     <p className="text-[11px] text-[#6B7280]">
                       Modeller has {inspectingStaff.maxJobLimit} available slots to accept new CAD orders.
                     </p>
@@ -1826,7 +1826,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
             </div>
 
             {/* Bottom Footer Actions */}
-            <div className="bg-white p-5 border-t border-[#E5E7EF] flex items-center justify-between gap-3 flex-shrink-0">
+            <div className="bg-white p-5 border-t border-[#E8D7B7] flex items-center justify-between gap-3 flex-shrink-0">
               <button
                 type="button"
                 onClick={() => {
@@ -1848,7 +1848,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                     setInspectingStaff(null);
                     handleOpenStaffJobs(target);
                   }}
-                  className="px-4 py-2 rounded-xl bg-[#0D1B4C] hover:bg-[#1E2230] text-white text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm"
+                  className="px-4 py-2 rounded-xl bg-[#17345C] hover:bg-[#17243B] text-white text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm"
                 >
                   <Briefcase className="w-3.5 h-3.5 text-[#C9A227]" />
                   <span>Open Job Workbench</span>
@@ -1856,7 +1856,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                 <button
                   type="button"
                   onClick={() => setInspectingStaff(null)}
-                  className="px-4 py-2 rounded-xl border border-[#E5E7EF] bg-[#F6F7FB] hover:bg-[#E5E7EF] text-xs font-semibold text-[#1E2230] transition-colors"
+                  className="px-4 py-2 rounded-xl border border-[#E8D7B7] bg-[#FAF8F5] hover:bg-[#E8D7B7] text-xs font-semibold text-[#17243B] transition-colors"
                 >
                   Close Dossier
                 </button>
@@ -1869,17 +1869,17 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
       {/* Permanent Delete Staff Confirmation Modal */}
       {deletingStaff && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-white rounded-3xl border border-[#E5E7EF] shadow-2xl p-6 sm:p-8 space-y-6 text-[#1E2230] relative overflow-hidden">
+          <div className="w-full max-w-md bg-white rounded-3xl border border-[#E8D7B7] shadow-2xl p-6 sm:p-8 space-y-6 text-[#17243B] relative overflow-hidden">
             <div className="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-600 mx-auto">
               <Trash2 className="w-6 h-6" />
             </div>
 
             <div className="text-center space-y-2">
-              <h3 className="font-serif text-xl font-bold text-[#1E2230]">
+              <h3 className="font-serif text-xl font-bold text-[#17243B]">
                 Permanently Delete Staff Member?
               </h3>
               <p className="text-xs text-[#6B7280] leading-relaxed">
-                Are you sure you want to permanently delete <strong className="text-[#1E2230]">{deletingStaff.name}</strong> (<span className="font-mono text-[11px]">#{deletingStaff.id}</span>)?
+                Are you sure you want to permanently delete <strong className="text-[#17243B]">{deletingStaff.name}</strong> (<span className="font-mono text-[11px]">#{deletingStaff.id}</span>)?
               </p>
               <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-[11px] font-medium text-left mt-3 leading-snug">
                 ⚠️ <strong>Warning:</strong> This will revoke all CAD workbench access, delete login credentials, and remove them from capacity load boards. This action cannot be undone.
@@ -1891,7 +1891,7 @@ export const AdminStaffModule: React.FC<AdminStaffModuleProps> = ({
                 type="button"
                 onClick={() => setDeletingStaff(null)}
                 disabled={isDeleting}
-                className="flex-1 py-3 px-4 rounded-xl border border-[#E5E7EF] bg-white hover:bg-[#F6F7FB] text-xs font-semibold text-[#1E2230] transition-colors cursor-pointer"
+                className="flex-1 py-3 px-4 rounded-xl border border-[#E8D7B7] bg-white hover:bg-[#FAF8F5] text-xs font-semibold text-[#17243B] transition-colors cursor-pointer"
               >
                 Cancel
               </button>

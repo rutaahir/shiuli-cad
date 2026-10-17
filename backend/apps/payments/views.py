@@ -201,7 +201,7 @@ def admin_approve_custom_payment(request, payment_id):
     """
     POST /api/payments/<id>/admin-approve/
     Admin confirms receipt of a custom order payment (Cash, Cheque, UPI).
-    Marks Payment status as SUCCESS and marks OrderPaymentStage as PAID.
+    Marks Payment status as SUCCESS and processes stage completion without prematurely enabling downloads.
     """
     try:
         payment = Payment.objects.select_related('order', 'payment_stage').get(id=payment_id)
@@ -213,14 +213,27 @@ def admin_approve_custom_payment(request, payment_id):
     payment.admin_verified_by = request.user
     payment.save(update_fields=['status', 'admin_verified_at', 'admin_verified_by'])
 
+    order = payment.order
     if payment.payment_stage:
-        payment.payment_stage.status = OrderPaymentStage.Status.PAID
-        payment.payment_stage.paid_at = timezone.now()
-        payment.payment_stage.save(update_fields=['status', 'paid_at'])
+        process_stage_payment_success(payment.payment_stage, transaction_id=payment.gateway_transaction_id)
+    elif order:
+        if payment.payment_type == Payment.PaymentType.FULL:
+            process_full_order_payment_success(order, transaction_id=payment.gateway_transaction_id)
+        elif payment.payment_type in [Payment.PaymentType.ADVANCE, Payment.PaymentType.STAGE]:
+            first_stage = order.payment_stages.filter(order_index=0).first()
+            if first_stage:
+                process_stage_payment_success(first_stage, transaction_id=payment.gateway_transaction_id)
+
+    # Check if order is now 100% fully paid
+    is_fully_paid = False
+    if order:
+        stages = order.payment_stages.all()
+        is_fully_paid = bool(order.balance_paid or (stages.exists() and all(s.status == 'paid' for s in stages)))
 
     return Response({
         "message": f"Payment #{payment.id} verified and approved successfully.",
-        "payment_id": payment.id
+        "payment_id": payment.id,
+        "is_order_fully_paid": is_fully_paid
     }, status=status.HTTP_200_OK)
 
 
@@ -274,37 +287,169 @@ def admin_decline_custom_payment(request, payment_id):
 @permission_classes([IsStaffOrAdmin])
 def incoming_gateway_logs(request):
     """Returns combined incoming client payment transactions (Payments & Product Purchases) for Financial Gateway Audit."""
+    from collections import OrderedDict
     from .models import Purchase
     logs = []
 
-    # 1. Custom Order Payments
-    payments = Payment.objects.all().select_related('order', 'order__client', 'payment_stage').order_by('-created_at')
+    # 1. Custom Order Payments (Grouped into unified Order Cards with nested Step Transactions)
+    orders_map = OrderedDict()
+    payments = Payment.objects.all().select_related('order', 'order__client', 'payment_stage').prefetch_related('order__payment_stages').order_by('-created_at')
+    
     for p in payments:
-        client_name = f"{p.order.client.first_name} {p.order.client.last_name}".strip() or p.order.client.username if (p.order and p.order.client) else "Client"
-        client_email = p.order.client.email if (p.order and p.order.client) else ""
-        stage_label = p.payment_stage.label if p.payment_stage else p.get_payment_type_display()
-        screenshot_url = request.build_absolute_uri(p.payment_screenshot.url) if p.payment_screenshot else None
+        oid = p.order_id
+        if oid not in orders_map:
+            orders_map[oid] = {
+                'order': p.order,
+                'payments': []
+            }
+        orders_map[oid]['payments'].append(p)
+
+    for oid, group in orders_map.items():
+        order = group['order']
+        order_payments = group['payments']
+
+        client_name = f"{order.client.first_name} {order.client.last_name}".strip() or order.client.username if (order and order.client) else "Client"
+        client_email = order.client.email if (order and order.client) else ""
+
+        item_title = f"Order #{order.id}" if order else "Custom Order"
+        if order and order.order_type == 'file_edit':
+            item_title = f"Order #{order.id} • CAD File Modification"
+        elif order and order.product:
+            item_title = f"Order #{order.id} • {order.product.title}"
+        elif order and order.custom_request:
+            item_title = f"Order #{order.id} • Bespoke CAD Design"
+
+        order_total_val = float(order.total_price) if (order and order.total_price) else 0.0
+        order_stages = list(order.payment_stages.all().order_by('order_index')) if order else []
+        total_stages_count = len(order_stages)
+        paid_stages = [s for s in order_stages if s.status == 'paid']
+        paid_stages_count = len(paid_stages)
+
+        # Check full payment & calculate verified collected amount
+        has_successful_full_payment = any(p.payment_type == Payment.PaymentType.FULL and p.status == Payment.Status.SUCCESS for p in order_payments)
+        if order and (order.balance_paid or has_successful_full_payment or (total_stages_count > 0 and paid_stages_count == total_stages_count)):
+            order_paid_val = order_total_val
+            is_order_fully_paid = True
+        else:
+            if total_stages_count > 0:
+                order_paid_val = sum(float(s.amount) for s in paid_stages)
+            else:
+                order_paid_val = sum(float(p.amount) for p in order_payments if p.status == Payment.Status.SUCCESS)
+            order_paid_val = min(order_total_val, order_paid_val) if order_total_val > 0 else order_paid_val
+            is_order_fully_paid = bool(order and order.status == 'completed') or (order_paid_val >= order_total_val and order_total_val > 0)
+
+        order_remaining_val = max(0.0, round(order_total_val - order_paid_val, 2))
+
+        # Build stages representation
+        stages_data = []
+        for s in order_stages:
+            stages_data.append({
+                'id': s.id,
+                'order_index': s.order_index,
+                'step_number': s.order_index + 1,
+                'label': s.label,
+                'percentage': float(s.percentage),
+                'amount': float(s.amount),
+                'amount_disp': f"₹{float(s.amount):,.2f}",
+                'status': s.status,
+                'paid_at': s.paid_at.strftime('%b %d, %Y, %I:%M %p') if s.paid_at else None,
+            })
+
+        # Build nested transactions representation
+        transactions_data = []
+        for p in order_payments:
+            screenshot_url = request.build_absolute_uri(p.payment_screenshot.url) if p.payment_screenshot else None
+            stage_label = p.payment_stage.label if p.payment_stage else p.get_payment_type_display()
+            is_stg = bool(p.payment_stage or p.payment_type in [Payment.PaymentType.ADVANCE, Payment.PaymentType.STAGE])
+            stg_pct = float(p.payment_stage.percentage) if p.payment_stage else (10.0 if p.payment_type == Payment.PaymentType.ADVANCE else None)
+            stg_idx = (p.payment_stage.order_index + 1) if p.payment_stage else 1
+
+            transactions_data.append({
+                'id': f"PAY-{p.id}",
+                'payment_id': p.id,
+                'order_id': order.id if order else p.order_id,
+                'order_number': getattr(order, 'order_number', f"ORD-{order.id}" if order else ""),
+                'item_title': item_title,
+                'client': client_name,
+                'client_email': client_email,
+                'amount': f"₹{p.amount:,.2f}",
+                'amount_raw': float(p.amount),
+                'payment_type': p.payment_type,
+                'type': stage_label,
+                'ref': p.gateway_transaction_id or f"pay_tx_{p.id}",
+                'payment_method': p.payment_method or "upi",
+                'payment_details': p.payment_details or "",
+                'screenshot': screenshot_url,
+                'status': p.get_status_display(),
+                'raw_status': p.status,
+                'decline_reason': p.decline_reason or "",
+                'declined_at': getattr(p, 'declined_at', None).isoformat() if getattr(p, 'declined_at', None) else None,
+                'can_approve': p.status == 'pending',
+                'can_decline': p.status == 'pending',
+                'is_stage_payment': is_stg,
+                'stage_name': stage_label,
+                'stage_percentage': stg_pct,
+                'stage_order_index': stg_idx,
+                'is_order_fully_paid': is_order_fully_paid,
+                'date': p.created_at.strftime('%b %d, %Y, %I:%M %p'),
+                'created_at_iso': p.created_at.isoformat()
+            })
+
+        has_pending = any(t['raw_status'] == 'pending' for t in transactions_data)
+        pending_count = sum(1 for t in transactions_data if t['raw_status'] == 'pending')
+
+        if has_pending:
+            order_status_display = f"Pending Verification ({pending_count})"
+            raw_status = "pending"
+        elif is_order_fully_paid:
+            order_status_display = "100% Fully Settled"
+            raw_status = "paid"
+        elif order_paid_val > 0:
+            order_status_display = f"Part Payment (₹{order_paid_val:,.2f} Paid)"
+            raw_status = "partial"
+        else:
+            order_status_display = "Awaiting Payment"
+            raw_status = "unpaid"
+
+        latest_txn = transactions_data[0] if transactions_data else None
+
         logs.append({
-            'id': f"PAY-{p.id}",
-            'payment_id': p.id,
-            'order_id': p.order_id,
+            'id': f"ORD-{order.id}" if order else f"PAY-GRP-{oid}",
+            'entry_type': 'order',
+            'order_id': order.id if order else oid,
+            'order_number': getattr(order, 'order_number', f"ORD-{order.id}" if order else ""),
+            'item_title': item_title,
             'client': client_name,
             'client_email': client_email,
-            'amount': f"₹{p.amount:,.2f}",
-            'amount_raw': float(p.amount),
-            'type': stage_label,
-            'ref': p.gateway_transaction_id or f"pay_tx_{p.id}",
-            'payment_method': p.payment_method or "upi",
-            'payment_details': p.payment_details or "",
-            'screenshot': screenshot_url,
-            'status': p.get_status_display(),
-            'raw_status': p.status,
-            'decline_reason': p.decline_reason or "",
-            'declined_at': getattr(p, 'declined_at', None).isoformat() if getattr(p, 'declined_at', None) else None,
-            'can_approve': p.status == 'pending',
-            'can_decline': p.status == 'pending',
-            'date': p.created_at.strftime('%b %d, %Y, %I:%M %p'),
-            'created_at_iso': p.created_at.isoformat()
+            'amount': f"₹{order_total_val:,.2f}",
+            'amount_raw': order_total_val,
+            'type': f"Custom Order ({total_stages_count} Stages)" if total_stages_count > 0 else "Custom Order",
+            'ref': latest_txn['ref'] if latest_txn else f"ord_{order.id}",
+            'payment_method': latest_txn['payment_method'] if latest_txn else "upi",
+            'payment_details': latest_txn['payment_details'] if latest_txn else "",
+            'screenshot': latest_txn['screenshot'] if latest_txn else None,
+            'status': order_status_display,
+            'raw_status': raw_status,
+            'can_approve': has_pending,
+            'can_decline': has_pending,
+            'has_pending_transactions': has_pending,
+            'pending_transactions_count': pending_count,
+            'is_stage_payment': total_stages_count > 0,
+            'paid_stages_count': paid_stages_count,
+            'total_stages_count': total_stages_count,
+            'order_total_val': order_total_val,
+            'order_total_amount': f"₹{order_total_val:,.2f}",
+            'order_paid_val': order_paid_val,
+            'order_paid_amount': f"₹{order_paid_val:,.2f}",
+            'order_remaining_val': order_remaining_val,
+            'order_remaining_amount': f"₹{order_remaining_val:,.2f}",
+            'is_order_fully_paid': is_order_fully_paid,
+            'can_send_download': is_order_fully_paid,
+            'download_enabled_by_admin': order.download_enabled_by_admin if order else False,
+            'stages': stages_data,
+            'transactions': transactions_data,
+            'date': latest_txn['date'] if latest_txn else (order.created_at.strftime('%b %d, %Y, %I:%M %p') if order else ""),
+            'created_at_iso': latest_txn['created_at_iso'] if latest_txn else (order.created_at.isoformat() if order else "")
         })
 
     # 2. Ready CAD Product Purchases
@@ -334,9 +479,56 @@ def incoming_gateway_logs(request):
             'can_approve': pur.status == 'pending',
             'can_decline': pur.status == 'pending',
             'download_enabled_by_admin': pur.download_enabled_by_admin,
+            'is_stage_payment': False,
+            'is_order_fully_paid': pur.status == 'paid',
+            'can_send_download': pur.status == 'pending',
             'date': pur.purchased_at.strftime('%b %d, %Y, %I:%M %p'),
             'created_at_iso': pur.purchased_at.isoformat()
         })
+
+    # 3. CAD File Edit Modifications
+    try:
+        from apps.file_edits.models import FileEditRequest
+        file_edits = FileEditRequest.objects.filter(agreed_price__isnull=False).select_related('client', 'cad_order').order_by('-created_at')
+        for fe in file_edits:
+            # If this file edit already has a converted Order that has payment records, skip it from Section 3
+            # because its actual payments are already accurately displayed under Section 1!
+            order_obj = getattr(fe, 'cad_order', None) or getattr(fe, 'converted_order', None)
+            if order_obj and order_obj.payments.exists():
+                continue
+
+            client_name = fe.contact_name or (f"{fe.client.first_name} {fe.client.last_name}".strip() or fe.client.username if fe.client else "Client")
+            client_email = fe.contact_email or (fe.client.email if fe.client else "")
+            is_usd = (fe.currency or 'USD').upper() == 'USD'
+            amt_raw = float(fe.agreed_price) * 86.85 if is_usd else float(fe.agreed_price)
+            amt_disp = f"₹{int(round(amt_raw)):,} (≈ ${float(fe.agreed_price):.2f} USD)" if is_usd else f"₹{int(round(amt_raw)):,}"
+            
+            fe_status_display = "Converted to Order" if order_obj else ("Agreement Active" if fe.status == 'agreed' else fe.status.title())
+            logs.append({
+                'id': f"FED-{fe.id}",
+                'client': client_name,
+                'client_email': client_email,
+                'item_title': f"CAD File Edit #{fe.id} ({fe.original_file_format.upper()})",
+                'amount': amt_disp,
+                'amount_raw': round(amt_raw, 2),
+                'type': f"CAD Modification ({fe.original_file_format.upper()})",
+                'ref': f"fed_tx_{fe.id}",
+                'payment_method': "online",
+                'payment_details': "Official CAD Modification Agreement",
+                'screenshot': None,
+                'status': fe_status_display,
+                'raw_status': 'converted' if order_obj else ('agreed' if fe.status == 'agreed' else fe.status),
+                'can_approve': False,
+                'can_decline': False,
+                'is_stage_payment': False,
+                'is_order_fully_paid': False,
+                'can_send_download': False,
+                'download_enabled_by_admin': False,
+                'date': fe.created_at.strftime('%b %d, %Y, %I:%M %p'),
+                'created_at_iso': fe.created_at.isoformat()
+            })
+    except Exception as e:
+        pass
 
     # Sort descending by creation date
     logs.sort(key=lambda x: x['created_at_iso'], reverse=True)
@@ -351,21 +543,33 @@ class SettlementViewSet(viewsets.ReadOnlyModelViewSet):
         user = self.request.user
         
         # Auto-create missing settlements for completed orders
-        completed_orders = Order.objects.filter(status=Order.Status.COMPLETED, assigned_staff__isnull=False)
+        completed_orders = Order.objects.filter(
+            status__in=[Order.Status.COMPLETED, 'delivered'],
+            assigned_staff__isnull=False
+        )
         for ord_obj in completed_orders:
             from decimal import Decimal
+            payout_val = ord_obj.staff_payout_price or ord_obj.payout_price or (ord_obj.total_price * Decimal('0.70'))
             Settlement.objects.get_or_create(
                 order=ord_obj,
                 staff=ord_obj.assigned_staff,
                 defaults={
-                    'amount': ord_obj.total_price * Decimal('0.70'),
+                    'amount': payout_val,
                     'amount_paid': Decimal('0.00'),
                     'status': Settlement.Status.PENDING
                 }
             )
 
-        if getattr(user, 'role', None) in ['admin', 'staff'] or getattr(user, 'is_staff', False):
+        role = getattr(user, 'role', None)
+        is_admin = role == 'admin' or getattr(user, 'is_superuser', False)
+
+        if is_admin and not self.request.query_params.get('mine'):
+            staff_id = self.request.query_params.get('staff_id')
+            if staff_id:
+                return Settlement.objects.filter(staff_id=staff_id).select_related('staff', 'order').order_by('-id')
             return Settlement.objects.all().select_related('staff', 'order').order_by('-id')
+        elif role == 'staff' or is_admin:
+            return Settlement.objects.filter(staff=user).select_related('staff', 'order').order_by('-id')
         return Settlement.objects.none()
 
     @action(detail=False, methods=['post'], permission_classes=[IsStaffOrAdmin], url_path='process')

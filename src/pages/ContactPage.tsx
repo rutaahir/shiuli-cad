@@ -405,7 +405,7 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
 
                 {/* Field 3: Subject Dropdown */}
                 <div className="space-y-1.5">
-                  <label className="block text-[11px] uppercase tracking-wider font-semibold text-[#17345C]">
+                  <label className="block text-xs uppercase tracking-wider font-bold text-[#0B1330] mb-1">
                     Subject / Topic
                   </label>
                   <div className="relative">

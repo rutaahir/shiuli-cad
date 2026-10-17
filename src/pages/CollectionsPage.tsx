@@ -18,15 +18,18 @@ import {
   Loader2,
   Layers,
   AlertTriangle,
+  Lock,
 } from 'lucide-react';
 import { RevealOnScroll } from '../components/motion/RevealOnScroll';
 import { StaggerGrid, StaggerItem } from '../components/motion/StaggerGrid';
 import { LazyImage } from '../components/motion/LazyImage';
 import { useCatalog, toProductShape, fetchCatalog } from '../hooks/useCatalog';
 import { formatINR } from '../utils/currencyHelper';
+import { useCustomerCountry, resolveDisplayPrice, formatCurrencyAmount } from '../utils/countryContext';
 import { getOptimizedImageUrl } from '../utils/imageHelper';
 import { isProductInCategory } from '../utils/categoryHelper';
 import { ProductPriceTag } from '../components/common/ProductPriceTag';
+import { useAuth } from '../context/AuthContext';
 
 interface CollectionsPageProps {
   initialCategory?: string;
@@ -65,31 +68,38 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
   onToggleWishlist,
   wishlistIds,
 }) => {
+  const { isLoggedIn } = useAuth();
   const { categories, allCategories, products, styles, isLoading, isError, errorMessage } = useCatalog();
+  const { currentCountry, exchangeRates } = useCustomerCountry();
 
   const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [selectedSlug, setSelectedSlug] = useState<string>(initialCategory);
   const [selectedStyleId, setSelectedStyleId] = useState<string>('all');
-  const [maxPrice, setMaxPrice] = useState<number>(99999);
   const [sortBy, setSortBy] = useState<'popular' | 'price-asc' | 'price-desc' | 'newest'>('popular');
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const catalogTopRef = useRef<HTMLDivElement>(null);
 
-  // Sync when parent navigates to a specific category
-  useEffect(() => {
-    if (initialCategory) setSelectedSlug(initialCategory);
-  }, [initialCategory]);
-
-  useEffect(() => {
-    if (initialSearch !== undefined) setSearchQuery(initialSearch);
-  }, [initialSearch]);
-
-  // ── Derived: max price across all products ──
+  // ── Derived: max price across all products in customer currency ──
   const globalMaxPrice = useMemo(() => {
-    if (!products.length) return 10000;
-    return Math.max(...products.map((p) => Number(p.price) || 0), 100);
-  }, [products]);
+    if (!products.length) return currentCountry.currency === 'INR' ? 10000 : 200;
+    const maxVal = Math.max(
+      ...products.map((p) => {
+        const resolved = resolveDisplayPrice(p, 'standard', currentCountry.code, exchangeRates);
+        return resolved.amount || 0;
+      }),
+      currentCountry.currency === 'INR' ? 1000 : 20
+    );
+    return currentCountry.currency === 'INR' ? Math.ceil(maxVal / 100) * 100 : Math.ceil(maxVal);
+  }, [products, currentCountry.code, currentCountry.currency, exchangeRates]);
+
+  const [maxPrice, setMaxPrice] = useState<number>(99999);
+
+  useEffect(() => {
+    if (globalMaxPrice > 0) {
+      setMaxPrice(globalMaxPrice);
+    }
+  }, [globalMaxPrice]);
 
   // ── State for expanded parent categories in sidebar ──
   const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({});
@@ -205,8 +215,9 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
           if (!hasStyle) return false;
         }
 
-        // Price filter
-        if (Number(p.price) > maxPrice) return false;
+        // Price filter in customer currency
+        const resolved = resolveDisplayPrice(p, 'standard', currentCountry.code, exchangeRates);
+        if (resolved.amount > maxPrice) return false;
 
         // Search
         if (searchQuery.trim()) {
@@ -224,12 +235,20 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
         return true;
       })
       .sort((a, b) => {
-        if (sortBy === 'price-asc') return Number(a.price) - Number(b.price);
-        if (sortBy === 'price-desc') return Number(b.price) - Number(a.price);
+        if (sortBy === 'price-asc') {
+          const pA = resolveDisplayPrice(a, 'standard', currentCountry.code, exchangeRates).amount;
+          const pB = resolveDisplayPrice(b, 'standard', currentCountry.code, exchangeRates).amount;
+          return pA - pB;
+        }
+        if (sortBy === 'price-desc') {
+          const pA = resolveDisplayPrice(a, 'standard', currentCountry.code, exchangeRates).amount;
+          const pB = resolveDisplayPrice(b, 'standard', currentCountry.code, exchangeRates).amount;
+          return pB - pA;
+        }
         if (sortBy === 'newest') return (b.is_new ? 1 : 0) - (a.is_new ? 1 : 0);
         return (b.is_bestseller ? 1 : 0) - (a.is_bestseller ? 1 : 0);
       });
-  }, [products, categories, selectedSlug, selectedStyleId, maxPrice, searchQuery, sortBy]);
+  }, [products, categories, selectedSlug, selectedStyleId, maxPrice, searchQuery, sortBy, currentCountry.code, exchangeRates]);
 
   // Reset page to 1 whenever any filter or sort option changes
   useEffect(() => {
@@ -272,33 +291,34 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between pb-3 border-b border-[#E8D7B7]">
-        <h3 className="font-serif text-lg text-[#17345C] flex items-center gap-2">
+        <h3 className="font-serif text-lg font-bold text-[#0B1330] flex items-center gap-2">
           <SlidersHorizontal className="w-4 h-4 text-[#B88732]" />
           Filter Library
         </h3>
         <button
           onClick={handleResetFilters}
-          className="text-[11px] text-[#687386] hover:text-[#B88732] flex items-center gap-1 transition-colors cursor-pointer"
+          className="text-xs font-semibold text-[#8C6218] hover:text-[#B88732] flex items-center gap-1 transition-colors cursor-pointer bg-[#FFF9F0] px-2.5 py-1 rounded-lg border border-[#E8D7B7]/80 hover:border-[#D4AF37]"
+          title="Reset All Filters"
         >
           <RotateCcw className="w-3 h-3" />
-          Reset
+          <span>Reset</span>
         </button>
       </div>
 
       {/* Category Filter */}
       <div className="space-y-2">
-        <span className="text-[11px] uppercase tracking-wider text-[#B88732] font-semibold block">
+        <span className="text-xs uppercase tracking-wider text-[#8C6218] font-bold block">
           Jewellery Category
         </span>
 
         {isLoading && categories.length === 0 ? (
-          <div className="flex items-center gap-2 text-xs text-[#687386] py-2">
-            <Loader2 className="w-3 h-3 animate-spin text-[#B88732]" />
-            Loading categories…
+          <div className="flex items-center gap-2 text-xs text-[#475569] py-2">
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#B88732]" />
+            <span>Loading categories…</span>
           </div>
         ) : isError && categories.length === 0 ? (
           <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs space-y-2">
-            <p className="text-red-700 text-[11px]">Failed to load categories.</p>
+            <p className="text-red-700 text-[11px] font-medium">Failed to load categories.</p>
             <button
               onClick={() => fetchCatalog(true)}
               className="px-2.5 py-1 rounded-lg bg-red-100 hover:bg-red-200 border border-red-300 text-[10px] font-semibold text-red-700 flex items-center gap-1 transition-colors cursor-pointer"
@@ -312,21 +332,21 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
             {/* All Categories */}
             <button
               onClick={() => setSelectedSlug('all')}
-              className={`w-full text-left px-3 py-2 rounded-xl transition-all flex items-center justify-between font-medium cursor-pointer ${
+              className={`w-full text-left px-3 py-2.5 rounded-xl transition-all flex items-center justify-between font-bold cursor-pointer ${
                 selectedSlug === 'all'
-                  ? 'bg-[#17345C] text-[#FFF9F0] font-bold shadow-md'
-                  : 'text-[#17243B] hover:bg-white hover:text-[#17345C]'
+                  ? 'bg-[#0B1330] text-[#F5E7A3] font-bold shadow-md border border-[#D4AF37]/40'
+                  : 'text-[#0B1330] hover:bg-[#FFF9F0] hover:text-[#B88732]'
               }`}
             >
               <div className="flex items-center gap-2">
-                <Layers className="w-3.5 h-3.5" />
+                <Layers className="w-3.5 h-3.5 text-[#B88732]" />
                 <span>All Categories</span>
               </div>
               <span
                 className={`font-mono text-[10px] px-2 py-0.5 rounded-full ${
                   selectedSlug === 'all'
-                    ? 'bg-white/20 text-white font-bold'
-                    : 'bg-[#E8D7B7]/40 text-[#17345C]'
+                    ? 'bg-[#D4AF37]/20 text-[#F5E7A3] font-bold border border-[#D4AF37]/40'
+                    : 'bg-[#FFF9F0] border border-[#E8D7B7] text-[#0B1330] font-bold'
                 }`}
               >
                 {products.length}
@@ -348,10 +368,10 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                       onClick={() => setSelectedSlug(cat.slug)}
                       className={`group w-full text-left px-3 py-2 rounded-xl transition-all flex items-center justify-between cursor-pointer ${
                         isSelected
-                          ? 'bg-[#17345C] text-[#FFF9F0] font-bold shadow-md'
+                          ? 'bg-[#0B1330] text-[#F5E7A3] font-bold shadow-md border border-[#D4AF37]/40'
                           : hasActiveChild
-                          ? 'bg-white text-[#B88732] font-semibold border border-[#E8D7B7]'
-                          : 'text-[#17243B] hover:bg-white hover:text-[#17345C]'
+                          ? 'bg-[#FFF9F0] text-[#8C6218] font-bold border border-[#E8D7B7]'
+                          : 'text-[#0B1330] font-semibold hover:bg-[#FFF9F0] hover:text-[#B88732]'
                       }`}
                     >
                       <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -365,7 +385,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                             <ChevronDown
                               className={`w-3.5 h-3.5 transition-transform duration-200 ${
                                 isExpanded ? 'transform rotate-180' : ''
-                              } ${isSelected ? 'text-white' : 'text-[#B88732]'}`}
+                              } ${isSelected ? 'text-[#F5E7A3]' : 'text-[#B88732]'}`}
                             />
                           </button>
                         ) : (
@@ -376,10 +396,10 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                       <span
                         className={`font-mono text-[10px] px-2 py-0.5 rounded-full shrink-0 ml-2 ${
                           isSelected
-                            ? 'bg-white/20 text-white font-bold'
+                            ? 'bg-[#D4AF37]/20 text-[#F5E7A3] font-bold border border-[#D4AF37]/40'
                             : cat.totalCount > 0
-                            ? 'bg-[#E8D7B7]/40 text-[#17345C]'
-                            : 'bg-black/5 text-[#687386]'
+                            ? 'bg-[#FFF9F0] text-[#0B1330] border border-[#E8D7B7] font-bold'
+                            : 'bg-black/5 text-[#94A3B8]'
                         }`}
                       >
                         {cat.totalCount}
@@ -397,25 +417,25 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                               onClick={() => setSelectedSlug(sc.slug)}
                               className={`w-full text-left px-2.5 py-1.5 rounded-lg transition-colors flex items-center justify-between text-[11px] cursor-pointer ${
                                 isSubSelected
-                                  ? 'bg-[#FFF9F0] text-[#B88732] font-bold border border-[#E8D7B7]'
-                                  : 'text-[#687386] hover:text-[#17243B] hover:bg-white'
+                                  ? 'bg-[#FFF9F0] text-[#8C6218] font-bold border border-[#E8D7B7]'
+                                  : 'text-[#475569] font-medium hover:text-[#0B1330] hover:bg-white'
                               }`}
                             >
                               <span className="flex items-center gap-1.5 truncate">
                                 <span
-                                  className={`w-1 h-1 rounded-full ${
-                                    isSubSelected ? 'bg-[#B88732]' : 'bg-[#687386]/50'
+                                  className={`w-1.5 h-1.5 rounded-full ${
+                                    isSubSelected ? 'bg-[#B88732]' : 'bg-[#94A3B8]'
                                   }`}
                                 />
                                 <span className="truncate">{sc.name}</span>
                               </span>
                               <span
-                                className={`font-mono text-[9px] px-1.5 py-0.2 rounded-full shrink-0 ml-1.5 ${
+                                className={`font-mono text-[9px] px-1.5 py-0.5 rounded-full shrink-0 ml-1.5 ${
                                   isSubSelected
-                                    ? 'bg-[#E8D7B7]/60 text-[#17345C] font-bold'
+                                    ? 'bg-[#E8D7B7]/80 text-[#0B1330] font-bold'
                                     : sc.count > 0
-                                    ? 'bg-white text-[#17345C] border border-[#E8D7B7]'
-                                    : 'text-[#687386]/50'
+                                    ? 'bg-white text-[#0B1330] border border-[#E8D7B7] font-bold'
+                                    : 'text-[#94A3B8]'
                                 }`}
                               >
                                 {sc.count}
@@ -435,50 +455,53 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
 
       {/* Design Style Filter — from live backend */}
       {styles.length > 0 && (
-        <div className="space-y-2 pt-2 border-t border-[#E8D7B7]">
-          <span className="text-[11px] uppercase tracking-wider text-[#B88732] font-semibold block">
+        <div className="space-y-2.5 pt-3 border-t border-[#E8D7B7]">
+          <span className="text-xs uppercase tracking-wider text-[#8C6218] font-bold block">
             Design Style
           </span>
           <div className="flex flex-wrap gap-1.5">
-            {[{ id: 0, name: 'All' }, ...styles].map((s) => (
-              <button
-                key={s.id}
-                onClick={() => setSelectedStyleId(s.id === 0 ? 'all' : String(s.id))}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all cursor-pointer ${
-                  (s.id === 0 && selectedStyleId === 'all') || String(s.id) === selectedStyleId
-                    ? 'border-[#B88732] bg-[#17345C] text-white shadow-xs'
-                    : 'border-[#E8D7B7] bg-white text-[#17243B] hover:border-[#D9B66F]'
-                }`}
-              >
-                {s.name}
-              </button>
-            ))}
+            {[{ id: 0, name: 'All' }, ...styles].map((s) => {
+              const isSelected = (s.id === 0 && selectedStyleId === 'all') || String(s.id) === selectedStyleId;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => setSelectedStyleId(s.id === 0 ? 'all' : String(s.id))}
+                  className={`px-3 py-1 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+                    isSelected
+                      ? 'border-[#B88732] bg-[#0B1330] text-[#F5E7A3] shadow-xs'
+                      : 'border-[#E8D7B7] bg-white text-[#0B1330] hover:border-[#D9B66F] hover:bg-[#FFF9F0]'
+                  }`}
+                >
+                  {s.name}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
 
       {/* Price Range */}
-      <div className="space-y-2 pt-2 border-t border-[#E8D7B7]">
-        <div className="flex justify-between text-xs">
-          <span className="text-[11px] uppercase tracking-wider text-[#B88732] font-semibold">
+      <div className="space-y-2.5 pt-3 border-t border-[#E8D7B7]">
+        <div className="flex justify-between items-center text-xs">
+          <span className="text-xs uppercase tracking-wider text-[#8C6218] font-bold">
             Max Price Range
           </span>
-          <span className="font-mono text-[#17345C] font-bold">
-            {maxPrice >= globalMaxPrice ? 'Any' : `₹${formatINR(maxPrice)}`}
+          <span className="font-mono text-[#0B1330] font-black text-sm">
+            {maxPrice >= globalMaxPrice ? 'Any' : formatCurrencyAmount(maxPrice, currentCountry.currency, currentCountry.symbol)}
           </span>
         </div>
         <input
           type="range"
           min="0"
           max={globalMaxPrice}
-          step={Math.max(5, Math.round(globalMaxPrice / 100))}
+          step={Math.max(1, Math.round(globalMaxPrice / 100))}
           value={maxPrice}
           onChange={(e) => setMaxPrice(Number(e.target.value))}
           className="w-full accent-[#B88732] cursor-pointer"
         />
-        <div className="flex justify-between text-[10px] text-[#687386] font-mono">
-          <span>₹0</span>
-          <span>₹{formatINR(globalMaxPrice)}</span>
+        <div className="flex justify-between text-[11px] text-[#475569] font-mono font-semibold">
+          <span>{currentCountry.symbol}0</span>
+          <span>{formatCurrencyAmount(globalMaxPrice, currentCountry.currency, currentCountry.symbol)}</span>
         </div>
       </div>
     </div>
@@ -699,22 +722,23 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                           className="group rounded-xl sm:rounded-2xl bg-white border border-[#E8D7B7] overflow-hidden shadow-xs hover:shadow-xl hover:border-[#D9B66F] hover:-translate-y-1 sm:hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between cursor-pointer"
                         >
                           {/* Image */}
-                          <div className="relative aspect-square overflow-hidden bg-[#FFF9F0]">
+                          <div className="relative aspect-square overflow-hidden bg-gradient-to-b from-[#FFFDF9] to-[#FAF7F2]">
                             <LazyImage
                               src={getOptimizedImageUrl(product.primaryImage, product.category)}
                               alt={product.title}
+                              category={product.category}
                               className="w-full h-full object-contain p-2 sm:p-3 transition-transform duration-500 group-hover:scale-105"
                             />
 
                             {/* Badges */}
                             <div className="absolute top-2 sm:top-3 left-2 sm:left-3 flex flex-col gap-1 z-10">
                               {product.isBestseller && (
-                                <span className="px-1.5 sm:px-2 py-0.5 rounded bg-[#D9B66F] text-[#17345C] text-[8.5px] sm:text-[10px] font-bold tracking-wider uppercase shadow-xs">
+                                <span className="px-2 py-0.5 rounded bg-gradient-to-r from-[#D4AF37] to-[#B88732] text-[#070D22] text-[9px] sm:text-[10px] font-black tracking-wider uppercase shadow-sm">
                                   Bestseller
                                 </span>
                               )}
                               {product.isNew && (
-                                <span className="px-1.5 sm:px-2 py-0.5 rounded bg-[#17345C] text-white text-[8.5px] sm:text-[10px] font-bold tracking-wider uppercase shadow-xs">
+                                <span className="px-2 py-0.5 rounded bg-[#0B1330] text-[#F5E7A3] text-[9px] sm:text-[10px] font-bold tracking-wider uppercase shadow-sm border border-[#D4AF37]/30">
                                   New
                                 </span>
                               )}
@@ -726,7 +750,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                               className={`absolute top-2 sm:top-3 right-2 sm:right-3 z-10 p-1.5 sm:p-2 rounded-full backdrop-blur-md transition-colors shadow-xs ${
                                 isWishlisted
                                   ? 'bg-[#B88732] text-white'
-                                  : 'bg-white/90 text-[#17345C] hover:text-[#B88732]'
+                                  : 'bg-white/95 text-[#0B1330] hover:text-[#B88732] border border-[#E8D7B7]/60'
                               }`}
                               title={isWishlisted ? 'Remove from Wishlist' : 'Add to Wishlist'}
                               aria-label="Wishlist"
@@ -737,7 +761,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                             {/* Quick View (Desktop) */}
                             <button
                               onClick={(e) => { e.stopPropagation(); onQuickView(product); }}
-                              className="absolute inset-x-2 sm:inset-x-3 bottom-2 sm:bottom-3 z-10 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-white/95 backdrop-blur border border-[#E8D7B7] text-[10px] sm:text-xs font-semibold text-[#17345C] hidden sm:flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-md hover:border-[#D9B66F]"
+                              className="absolute inset-x-2 sm:inset-x-3 bottom-2 sm:bottom-3 z-10 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-white/95 backdrop-blur border border-[#E8D7B7] text-[10px] sm:text-xs font-bold text-[#0B1330] hidden sm:flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-md hover:border-[#D9B66F]"
                             >
                               <Eye className="w-3.5 h-3.5 text-[#B88732]" />
                               <span>Quick View CAD Specs</span>
@@ -745,30 +769,43 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                           </div>
 
                           {/* Info */}
-                          <div className="p-2.5 sm:p-4 space-y-1.5 sm:space-y-3">
-                            <div className="flex items-center justify-between text-[8.5px] sm:text-[10px] uppercase tracking-wider text-[#B88732] font-semibold">
-                              <span className="truncate max-w-[60%]">{product.category}</span>
-                              <span className="text-[#236E6A] font-mono text-[8px] sm:text-[10px] shrink-0">Watertight STL</span>
+                          <div className="p-3 sm:p-4 space-y-2 sm:space-y-2.5 bg-white">
+                            <div className="flex items-center justify-between text-[10px] uppercase tracking-wider font-bold">
+                              <span className="text-[#8C6218] font-mono tracking-wider truncate max-w-[60%]">
+                                {product.category || 'Atelier Design'}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 font-mono text-[9px] font-bold tracking-wider shrink-0 shadow-2xs">
+                                WATERTIGHT STL
+                              </span>
                             </div>
-                            <h3 className="font-serif text-xs sm:text-lg text-[#17345C] group-hover:text-[#B88732] line-clamp-1 transition-colors font-medium sm:font-normal">
+                            <h3 className="font-serif text-sm sm:text-base text-[#0B1330] group-hover:text-[#B88732] line-clamp-1 transition-colors font-bold">
                               {product.title}
                             </h3>
-                            <div className="grid grid-cols-2 gap-0.5 sm:gap-1 text-[9px] sm:text-[11px] text-[#687386] py-1 border-y border-[#E8D7B7]/40">
-                              <span className="truncate">18K: {product.specs?.metalWeight18k || '—'}</span>
-                              <span className="truncate text-right">{product.specs?.diamondCount ? `${product.specs.diamondCount} Gems` : 'Solid Metal'}</span>
+                            <div className="grid grid-cols-2 gap-1 text-[11px] text-[#475569] font-mono py-1.5 border-y border-[#E8D7B7]/50">
+                              <span className="truncate">18K: <strong className="text-[#0B1330]">{product.specs?.metalWeight18k || '—'}</strong></span>
+                              <span className="truncate text-right"><strong className="text-[#0B1330]">{product.specs?.diamondCount ? `${product.specs.diamondCount} Gems` : 'Solid Metal'}</strong></span>
                             </div>
-                            <div className="flex items-center justify-between pt-1 sm:pt-2 gap-1.5">
+                            <div className="flex items-center justify-between pt-1 gap-2">
                               <div className="min-w-0 flex-1">
-                                <ProductPriceTag product={product} size="sm" />
+                                <ProductPriceTag product={product} size="sm" primaryColorClass="text-[#0B1330] font-black" />
                               </div>
                               <button
                                 onClick={(e) => { e.stopPropagation(); onAddToCart(product, 'standard'); }}
-                                className="btn-gold-luxury px-2 sm:px-3.5 py-1.5 rounded-lg text-[9.5px] sm:text-[11px] font-semibold uppercase tracking-wider flex items-center justify-center gap-1 shadow-xs shrink-0 cursor-pointer"
-                                title="Add to Bag"
-                                aria-label="Add to Bag"
+                                className="px-3 sm:px-4 py-1.5 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#F3DE9C] to-[#B88732] text-[#070D22] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm hover:brightness-105 active:scale-95 transition-all cursor-pointer shrink-0"
+                                title={isLoggedIn ? "Add to Bag" : "Sign in to Order / Add to Bag"}
+                                aria-label={isLoggedIn ? "Add to Bag" : "Sign in to Order / Add to Bag"}
                               >
-                                <ShoppingBag className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#17345C]" />
-                                <span className="hidden xs:inline sm:inline">Add</span>
+                                {!isLoggedIn ? (
+                                  <>
+                                    <Lock className="w-3.5 h-3.5 text-[#070D22]" />
+                                    <span>ADD</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <ShoppingBag className="w-3.5 h-3.5 text-[#070D22]" />
+                                    <span>ADD</span>
+                                  </>
+                                )}
                               </button>
                             </div>
                           </div>

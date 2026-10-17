@@ -591,21 +591,24 @@ img {
 }
 
 /* Luxury hairline borders for cards, containers & dividers */
+.admin-portal .border-\[\#E8D7B7\],
 .admin-portal .border-\[\#E5E7EF\],
 .admin-portal .border-slate-200 {
-  border-color: rgba(232, 215, 183, 0.6) !important;
+  border-color: rgba(232, 215, 183, 0.7) !important;
 }
 
 .admin-portal .border-slate-300 {
   border-color: #E8D7B7 !important;
 }
 
+.admin-portal .divide-\[\#E8D7B7\] > * + *,
 .admin-portal .divide-\[\#E5E7EF\] > * + *,
 .admin-portal .divide-slate-200 > * + * {
-  border-color: rgba(232, 215, 183, 0.45) !important;
+  border-color: rgba(232, 215, 183, 0.5) !important;
 }
 
 /* Warm ivory & cream card backgrounds */
+.admin-portal .bg-\[\#FAF8F5\],
 .admin-portal .bg-\[\#FAF9F5\],
 .admin-portal .bg-\[\#F6F7FB\],
 .admin-portal .bg-slate-50 {

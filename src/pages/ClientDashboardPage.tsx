@@ -56,7 +56,9 @@ import {
   Bell,
   BellRing,
   CheckCheck,
-  XCircle
+  XCircle,
+  Wrench,
+  Cloud
 } from 'lucide-react';
 import { RevealOnScroll } from '../components/motion/RevealOnScroll';
 
@@ -118,7 +120,9 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
   const [desktopAlertsEnabled, setDesktopAlertsEnabled] = useState<boolean>(() => {
     return typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted';
   });
-  const lastAdminMsgIdRef = useRef<{ [reqId: number]: number }>({});
+  const lastAdminMsgIdRef = useRef<{ [reqId: string]: number }>({});
+  const lastStatusRef = useRef<{ [key: string]: string }>({});
+  const [selectedReqKey, setSelectedReqKey] = useState<string | null>(null);
   const initialFetchDoneRef = useRef<boolean>(false);
   const [counterPriceInput, setCounterPriceInput] = useState<{ [key: number]: string }>({});
   const [counterMessageInput, setCounterMessageInput] = useState<{ [key: number]: string }>({});
@@ -221,6 +225,28 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
     }
   };
 
+  const getOrderForRequest = (r: any) => {
+    if (!r) return null;
+    if (r.order) return r.order;
+    if (r.converted_order_details) return r.converted_order_details;
+    if (r.is_file_edit) {
+      return (
+        clientOrders.find((o: any) =>
+          o.order_type === 'file_edit' && (
+            o.file_edit_request?.id === r.id ||
+            o.file_edit_request === r.id ||
+            String(o.id) === String(r.converted_order)
+          )
+        ) || null
+      );
+    }
+    return (
+      clientOrders.find((o: any) =>
+        o.custom_request?.id === r.id || String(o.id) === String(r.order?.id)
+      ) || null
+    );
+  };
+
   const fetchCustomRequests = async () => {
     setLoadingCustom(true);
     try {
@@ -243,30 +269,35 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
       const storedContactEmail = (localStorage.getItem('shiuli_contact_email') || '').toLowerCase().trim();
       const currentUserEmail = (user?.email || userEmail || storedContactEmail || '').toLowerCase().trim();
       const currentUserId = user?.id;
+      const isStaffOrAdmin = Boolean(user?.is_staff || user?.role === 'admin' || user?.role === 'staff');
 
-      const userDbRequests = dbRequests.filter((req: any) => {
-        if (storedLastReqId && String(req.id) === String(storedLastReqId)) return true;
-        if (!currentUserEmail && !currentUserId) return true;
-        const matchesId = currentUserId && (String(req.client) === String(currentUserId) || String(req.client?.id) === String(currentUserId));
-        const contactEmail = (req.contact_email || '').toLowerCase().trim();
-        const clientEmailVal = (req.client_email || req.client?.email || '').toLowerCase().trim();
-        const matchesEmail = currentUserEmail && (
-          contactEmail === currentUserEmail ||
-          clientEmailVal === currentUserEmail ||
-          (contactEmail && currentUserEmail.startsWith(contactEmail.split('@')[0])) ||
-          (clientEmailVal && currentUserEmail.startsWith(clientEmailVal.split('@')[0])) ||
-          (contactEmail && contactEmail.startsWith(currentUserEmail.split('@')[0]))
-        );
-        const matchesUsername = user?.username && (
-          req.client_name === user.username || 
-          req.client?.username === user.username ||
-          (req.client_name && user.username.includes(req.client_name))
-        );
-        return matchesId || matchesEmail || matchesUsername;
-      });
+      // For authenticated non-staff clients, backend /custom-requests/ is ALREADY strictly scoped to the user
+      const userDbRequests = (isLoggedIn && !isStaffOrAdmin)
+        ? dbRequests
+        : dbRequests.filter((req: any) => {
+            if (storedLastReqId && String(req.id) === String(storedLastReqId)) return true;
+            if (!currentUserEmail && !currentUserId) return true;
+            const matchesId = currentUserId && (String(req.client) === String(currentUserId) || String(req.client?.id) === String(currentUserId));
+            const contactEmail = (req.contact_email || '').toLowerCase().trim();
+            const clientEmailVal = (req.client_email || req.client?.email || '').toLowerCase().trim();
+            const matchesEmail = currentUserEmail && (
+              contactEmail === currentUserEmail ||
+              clientEmailVal === currentUserEmail ||
+              (contactEmail && currentUserEmail.startsWith(contactEmail.split('@')[0])) ||
+              (clientEmailVal && currentUserEmail.startsWith(clientEmailVal.split('@')[0])) ||
+              (contactEmail && contactEmail.startsWith(currentUserEmail.split('@')[0]))
+            );
+            const matchesUsername = user?.username && (
+              req.client_name === user.username || 
+              req.client?.username === user.username ||
+              (req.client_name && user.username.includes(req.client_name))
+            );
+            return matchesId || matchesEmail || matchesUsername;
+          });
 
       // Strictly filter local requests so user requests are accurately retrieved
       const localRequests = (appStore.getCustomRequests() || []).filter((loc: any) => {
+        if (!loc || !loc.id) return false;
         if (storedLastReqId && String(loc.id) === String(storedLastReqId)) return true;
         if (!currentUserEmail && !currentUserId) return true;
         const locEmail = (loc.clientEmail || loc.client_email || loc.contact_email || loc.email || '').toLowerCase().trim();
@@ -280,48 +311,184 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
         return matchesEmail || matchesId;
       });
 
-      const combined = [...userDbRequests];
+      const combined: any[] = [...userDbRequests];
 
       localRequests.forEach((loc: any) => {
-        if (!combined.some((c: any) => String(c.id) === String(loc.id))) {
+        if (!combined.some((c: any) => !c.is_file_edit && String(c.id) === String(loc.id))) {
           combined.push({
             id: loc.id,
             request_mode: loc.request_mode || 'quick',
-            category_name: loc.jewelleryType || 'Custom Jewellery',
-            aesthetic_style_name: loc.metalPreference || 'Luxury Style',
-            metal_alloy_name: loc.metalPreference || 'Custom Gold',
+            category_name: loc.jewelleryType || loc.title || 'Custom Jewellery',
+            aesthetic_style_name: loc.metalPreference || loc.metal_alloy_name || 'Luxury Style',
+            metal_alloy_name: loc.metalPreference || loc.metal_alloy_name || 'Custom Gold',
             estimated_price_shown: parseFloat(String(loc.currentQuote || loc.targetBudget || '0').replace(/[^0-9.]/g, '')),
             status: loc.status || 'new',
             description: loc.description || 'Bespoke CAD Design Brief',
             reference_image: loc.referenceImage || loc.reference_image,
             voice_recording_url: loc.voice_recording_url || '',
-            created_at: loc.createdAt || 'Just now',
+            created_at: loc.createdAt || loc.created_at || new Date().toISOString(),
             messages: loc.messages || [],
             order: loc.order || null,
           });
         }
       });
 
+      // Fetch CAD File Editing & Modification Orders
+      let fileEditRequests: any[] = [];
+      try {
+        const feData: any = await api.getFileEditRequests();
+        fileEditRequests = Array.isArray(feData) ? feData : (feData?.results || feData?.data || []);
+      } catch (err) {
+        console.warn('Backend file edit requests fetch error:', err);
+      }
+
+      // Filter and append file edit requests for this user
+      fileEditRequests.forEach((fe: any) => {
+        const matchesId = currentUserId && (String(fe.client) === String(currentUserId) || String(fe.client?.id) === String(currentUserId));
+        const contactEmail = (fe.contact_email || '').toLowerCase().trim();
+        const clientEmailVal = (fe.client_email || fe.client?.email || '').toLowerCase().trim();
+        const matchesEmail = currentUserEmail && (
+          contactEmail === currentUserEmail ||
+          clientEmailVal === currentUserEmail ||
+          (contactEmail && currentUserEmail.startsWith(contactEmail.split('@')[0])) ||
+          (clientEmailVal && currentUserEmail.startsWith(clientEmailVal.split('@')[0])) ||
+          (contactEmail && contactEmail.startsWith(currentUserEmail.split('@')[0]))
+        );
+        const matchesUsername = user?.username && (
+          fe.client_name === user.username ||
+          (fe.client_name && user.username.includes(fe.client_name))
+        );
+
+        if (!isLoggedIn || isStaffOrAdmin || matchesId || matchesEmail || matchesUsername) {
+          const feCurrency = (fe.currency || 'USD').toUpperCase();
+          const USD_RATE = 86.85;
+
+          const toBothCurrencies = (raw: any) => {
+            if (raw === undefined || raw === null || raw === '') return { inr: null, usd: null };
+            const num = typeof raw === 'number' ? raw : parseFloat(raw);
+            if (isNaN(num) || num <= 0) return { inr: null, usd: null };
+            if (feCurrency === 'INR') {
+              return {
+                inr: Math.round(num),
+                usd: Number((num / USD_RATE).toFixed(2))
+              };
+            } else {
+              return {
+                inr: Math.round(num * USD_RATE),
+                usd: Number(num.toFixed(2))
+              };
+            }
+          };
+
+          const agreedConv = toBothCurrencies(fe.agreed_price);
+          const quotedConv = toBothCurrencies(fe.quoted_price);
+          const estConv = toBothCurrencies(fe.estimated_price_shown);
+
+          // Normalize messages so sender_type is admin / client consistently
+          const normalizedMsgs = (fe.messages || []).map((m: any) => {
+            const senderType = m.sender_type || m.sender;
+            const msgCur = (m.currency || feCurrency).toUpperCase();
+            const rawPrice = m.offered_price != null ? m.offered_price : m.price_offer;
+            let pInr: number | null = null;
+            let pUsd: number | null = null;
+            if (rawPrice != null && rawPrice !== '') {
+              const pNum = typeof rawPrice === 'number' ? rawPrice : parseFloat(rawPrice);
+              if (!isNaN(pNum) && pNum > 0) {
+                if (msgCur === 'INR') {
+                  pInr = Math.round(pNum);
+                  pUsd = Number((pNum / USD_RATE).toFixed(2));
+                } else {
+                  pInr = Math.round(pNum * USD_RATE);
+                  pUsd = Number(pNum.toFixed(2));
+                }
+              }
+            }
+
+            return {
+              id: m.id,
+              sender_type: senderType,
+              sender: senderType,
+              sender_name: m.sender_name || (senderType === 'admin' ? 'Senior CAD Engineer' : 'You'),
+              message: m.message,
+              offered_price: pInr,
+              price_offer: pInr,
+              offered_price_usd: pUsd,
+              offered_price_inr: pInr,
+              currency: msgCur,
+              created_at: m.created_at,
+            };
+          });
+
+          combined.push({
+            id: fe.id,
+            is_file_edit: true,
+            request_mode: 'file_edit',
+            category_name: 'CAD File Modification Studio',
+            aesthetic_style_name: fe.original_file_format ? `.${fe.original_file_format.toUpperCase()} 3D Model` : 'CAD Repair',
+            metal_alloy_name: fe.modification_type_labels?.join(', ') || '3D Modifications',
+            estimated_price_shown: agreedConv.inr || quotedConv.inr || estConv.inr || 0,
+            agreed_price: agreedConv.inr,
+            quoted_price: quotedConv.inr,
+            agreed_price_usd: agreedConv.usd,
+            quoted_price_usd: quotedConv.usd,
+            estimated_price_shown_usd: estConv.usd,
+            currency: 'INR',
+            original_currency: feCurrency,
+            status: fe.status,
+            description: fe.description,
+            reference_image: fe.reference_image,
+            voice_recording_url: fe.voice_note,
+            voice_note: fe.voice_note,
+            created_at: fe.created_at,
+            messages: normalizedMsgs,
+            order: fe.converted_order_details || null,
+            converted_order: fe.converted_order,
+            // File Edit Specific Properties:
+            original_file: fe.original_file,
+            original_file_format: fe.original_file_format,
+            original_file_name: fe.original_file_name,
+            storage_provider: fe.storage_provider,
+            drive_file_id: fe.drive_file_id,
+            drive_web_view_link: fe.drive_web_view_link,
+            download_url: fe.download_url,
+            file_size_bytes: fe.file_size_bytes,
+            target_weight_grams: fe.target_weight_grams,
+            target_stone_size: fe.target_stone_size,
+            modification_type_labels: fe.modification_type_labels,
+            admin_notes: fe.admin_notes,
+            rejection_reason: fe.rejection_reason,
+          });
+        }
+      });
+
+      // Sort by creation date descending
+      combined.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
       setCustomRequests(combined);
 
-      // Check for incoming negotiation notifications from Studio Admin
+      // Check for incoming negotiation notifications and status changes from Studio Admin
       combined.forEach((r: any) => {
+        const itemKey = r.is_file_edit ? `fe-${r.id}` : `cr-${r.id}`;
+        const ord = getOrderForRequest(r);
+        const ordNum = r.is_file_edit ? `File Edit #${r.id}` : (ord ? `Order #${ord.id}` : `Request #${r.id}`);
+
+        // 1. Negotiation Message Alerts from Admin
         const adminMsgs = (r.messages || []).filter((m: any) => m.sender_type === 'admin' || m.sender === 'admin');
         const latestAdminMsg = adminMsgs[adminMsgs.length - 1];
         if (latestAdminMsg && latestAdminMsg.id) {
           if (initialFetchDoneRef.current) {
-            const prevId = lastAdminMsgIdRef.current[r.id] || 0;
-            if (latestAdminMsg.id > prevId) {
-              lastAdminMsgIdRef.current[r.id] = latestAdminMsg.id;
-              const ord = r.order || clientOrders.find((o: any) => o.custom_request?.id === r.id || String(o.id) === String(r.order?.id));
-              const ordNum = ord ? `Order #${ord.id}` : `Request #${r.id}`;
+            const prevMsgId = lastAdminMsgIdRef.current[itemKey] || 0;
+            if (latestAdminMsg.id > prevMsgId) {
+              lastAdminMsgIdRef.current[itemKey] = latestAdminMsg.id;
               const offerTxt = latestAdminMsg.offered_price ? ` (Quote Offer: ₹${Number(latestAdminMsg.offered_price).toLocaleString('en-IN')})` : '';
 
+              playNegotiationRing();
               triggerNegotiationAlert({
-                title: `Shiuli CAD Studio: ${ordNum} Negotiation Offer`,
+                title: `Shiuli CAD Studio: ${ordNum} Quotation & Negotiation`,
                 body: `${latestAdminMsg.message || 'Studio Admin sent an updated quote/message'}${offerTxt}`,
                 onClick: () => {
                   setSelectedCustomReqId(r.id);
+                  setSelectedReqKey(itemKey);
                   setOpenedOrderId(r.id);
                   setActiveStageTab('negotiation');
                 }
@@ -336,9 +503,53 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
               });
             }
           } else {
-            lastAdminMsgIdRef.current[r.id] = latestAdminMsg.id;
+            lastAdminMsgIdRef.current[itemKey] = latestAdminMsg.id;
           }
         }
+
+        // 2. Status Transition Alerts (Approved / Agreed or Rejected / Declined)
+        if (initialFetchDoneRef.current) {
+          const prevStatus = lastStatusRef.current[itemKey];
+          if (prevStatus && prevStatus !== r.status) {
+            if (r.status === 'agreed') {
+              playNegotiationRing();
+              triggerNegotiationAlert({
+                title: `Shiuli CAD Studio: ${ordNum} APPROVED!`,
+                body: `Your ${r.is_file_edit ? 'CAD file edit order' : 'custom order'} #${r.id} has been APPROVED by Studio Admin.`,
+                onClick: () => {
+                  setSelectedCustomReqId(r.id);
+                  setSelectedReqKey(itemKey);
+                  setOpenedOrderId(r.id);
+                }
+              });
+              setNegotiationAlertBanner({
+                reqId: r.id,
+                orderId: ord?.id,
+                title: `${ordNum} APPROVED!`,
+                message: `Studio Admin approved your order. Final agreed price: ${formatINR(r.agreed_price || r.estimated_price_shown)}.`,
+                offeredPrice: r.agreed_price ? Number(r.agreed_price) : undefined,
+              });
+            } else if (r.status === 'rejected') {
+              playNegotiationRing();
+              triggerNegotiationAlert({
+                title: `Shiuli CAD Studio: ${ordNum} Declined`,
+                body: `Studio Admin was unable to proceed: ${r.rejection_reason || 'Please check order notes.'}`,
+                onClick: () => {
+                  setSelectedCustomReqId(r.id);
+                  setSelectedReqKey(itemKey);
+                  setOpenedOrderId(r.id);
+                }
+              });
+              setNegotiationAlertBanner({
+                reqId: r.id,
+                orderId: ord?.id,
+                title: `${ordNum} Declined`,
+                message: r.rejection_reason || 'Studio Admin was unable to proceed with this order.',
+              });
+            }
+          }
+        }
+        lastStatusRef.current[itemKey] = r.status;
       });
 
       if (combined.length > 0) {
@@ -383,17 +594,20 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
         return [];
       };
       const rawOrders = ensureArray(res);
-      const filtered = rawOrders.filter((ord: any) => {
-        if (!currentUserEmail && !currentUserId) return true;
-        const matchesId = currentUserId && (String(ord.client) === String(currentUserId) || String(ord.client?.id) === String(currentUserId));
-        const ordEmail = (ord.client_email || ord.client?.email || ord.contact_email || '').toLowerCase().trim();
-        const matchesEmail = currentUserEmail && (
-          !ordEmail ||
-          ordEmail === currentUserEmail ||
-          (ordEmail && currentUserEmail.startsWith(ordEmail.split('@')[0]))
-        );
-        return matchesId || matchesEmail || !ordEmail;
-      });
+      const isStaffOrAdmin = Boolean(user?.is_staff || user?.role === 'admin' || user?.role === 'staff');
+      const filtered = (isLoggedIn && !isStaffOrAdmin)
+        ? rawOrders
+        : rawOrders.filter((ord: any) => {
+            if (!currentUserEmail && !currentUserId) return true;
+            const matchesId = currentUserId && (String(ord.client) === String(currentUserId) || String(ord.client?.id) === String(currentUserId));
+            const ordEmail = (ord.client_email || ord.client?.email || ord.contact_email || '').toLowerCase().trim();
+            const matchesEmail = currentUserEmail && (
+              !ordEmail ||
+              ordEmail === currentUserEmail ||
+              (ordEmail && currentUserEmail.startsWith(ordEmail.split('@')[0]))
+            );
+            return matchesId || matchesEmail || !ordEmail;
+          });
       setClientOrders(filtered);
     } catch (err) {
       console.warn('Failed to fetch client orders:', err);
@@ -477,13 +691,44 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
   const handleAcceptQuote = async (reqId: number) => {
     setIsSubmitting((prev) => ({ ...prev, [reqId]: true }));
     try {
-      await api.request(`/custom-requests/${reqId}/accept-quote/`, {
-        method: 'POST',
-      });
+      const active = customRequests.find((r) => r.id === reqId);
+      if (active?.is_file_edit) {
+        await api.acceptFileEditQuote(reqId);
+      } else {
+        await api.request(`/custom-requests/${reqId}/accept-quote/`, {
+          method: 'POST',
+        });
+      }
       await fetchCustomRequests();
       await fetchClientOrders();
     } catch (err: any) {
       alert(err?.message || 'Failed to accept quote. Please try again.');
+    } finally {
+      setIsSubmitting((prev) => ({ ...prev, [reqId]: false }));
+    }
+  };
+
+  const handleRejectQuote = async (reqId: number) => {
+    const reason = window.prompt(
+      'Are you sure you want to decline this quote? Please state your reason (optional):',
+      'Price exceeds budget / Requirements changed'
+    );
+    if (reason === null) return;
+
+    setIsSubmitting((prev) => ({ ...prev, [reqId]: true }));
+    try {
+      const active = customRequests.find((r) => r.id === reqId);
+      if (active?.is_file_edit) {
+        await api.rejectFileEditRequest(reqId, reason.trim() || 'Declined by customer');
+      } else {
+        await api.request(`/custom-requests/${reqId}/cancel/`, {
+          method: 'POST',
+          body: JSON.stringify({ reason: reason.trim() || 'Declined by customer' }),
+        });
+      }
+      await fetchCustomRequests();
+    } catch (err: any) {
+      alert(err?.message || 'Failed to decline quote. Please try again.');
     } finally {
       setIsSubmitting((prev) => ({ ...prev, [reqId]: false }));
     }
@@ -497,13 +742,22 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
 
     setIsSubmitting((prev) => ({ ...prev, [reqId]: true }));
     try {
-      await api.request(`/custom-requests/${reqId}/negotiate/`, {
-        method: 'POST',
-        body: JSON.stringify({
+      const active = customRequests.find((r) => r.id === reqId);
+      if (active?.is_file_edit) {
+        await api.negotiateFileEditRequest(reqId, {
           price: priceStr ? parseFloat(priceStr) : undefined,
           message: message || '',
-        }),
-      });
+          currency: 'INR',
+        });
+      } else {
+        await api.request(`/custom-requests/${reqId}/negotiate/`, {
+          method: 'POST',
+          body: JSON.stringify({
+            price: priceStr ? parseFloat(priceStr) : undefined,
+            message: message || '',
+          }),
+        });
+      }
       setCounterPriceInput((prev) => ({ ...prev, [reqId]: '' }));
       setCounterMessageInput((prev) => ({ ...prev, [reqId]: '' }));
       fetchCustomRequests();
@@ -595,7 +849,8 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
         method: 'POST',
       });
       alert('3D Design Preview Approved! Next milestone payment stage unlocked.');
-      fetchCustomRequests();
+      await fetchCustomRequests();
+      await fetchClientOrders();
     } catch (err: any) {
       alert(err?.message || 'Failed to approve design preview.');
     }
@@ -607,28 +862,6 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
       .map(toProductShape)
       .filter((p) => wishlistIds.includes(p.id));
   }, [catalogProducts, wishlistIds]);
-
-  const handleSimulateDownload = (productTitle: string, fileType: string) => {
-    const text = `SHIULI CAD STUDIO — MASTER DELIVERABLE
-Product: ${productTitle}
-File Format: ${fileType}
-Tolerance: 0.02mm
-Mesh Integrity: 100% Watertight Solid (Zero Non-Manifold Edges)
-Shrinkage Allowance: 1.25% Gold/Platinum pre-scaled
-License: Atelier Studio Production
-Client Account: ${userEmail}
-Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
-
-    const blob = new Blob([text], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${productTitle.replace(/\s+/g, '_')}_${fileType}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-[#0B1330] pt-24 pb-24 px-4 sm:px-8 lg:px-12">
@@ -829,7 +1062,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                 const filteredRequests = customRequests.filter((r) => {
                   if (!orderSearchTerm.trim()) return true;
                   const term = orderSearchTerm.toLowerCase().trim();
-                  const ord = r.order || clientOrders.find((o: any) => o.custom_request?.id === r.id || String(o.id) === String(r.order?.id));
+                  const ord = getOrderForRequest(r);
                   const ordNum = ord ? `ord #${ord.id} order #${ord.id} ${ord.id}` : '';
                   const reqNum = `req #${r.id} ${r.id}`;
                   const cat = (r.category_name || '').toLowerCase();
@@ -838,9 +1071,11 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                 });
 
                 // 2. Determine active selected request
-                const activeReq = customRequests.find((r) => r.id === selectedCustomReqId) || (filteredRequests.length > 0 ? filteredRequests[0] : customRequests[0]);
+                const activeReq = (selectedReqKey ? customRequests.find((r) => (r.is_file_edit ? `fe-${r.id}` : `cr-${r.id}`) === selectedReqKey) : null)
+                  || customRequests.find((r) => r.id === selectedCustomReqId)
+                  || (filteredRequests.length > 0 ? filteredRequests[0] : customRequests[0]);
                 const req = activeReq;
-                const order = req.order || clientOrders.find((o: any) => o.custom_request?.id === req.id || String(o.id) === String(req.order?.id));
+                const order = getOrderForRequest(req);
                 const assignedStaff = order?.assigned_staff;
                 const isOrderConfirmed = Boolean(
                   req.status === 'agreed' ||
@@ -987,7 +1222,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                         {/* THE LITTLE BOXES (CARDS GRID) */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
                           {filteredRequests.map((item) => {
-                            const itemOrder = item.order || clientOrders.find((o: any) => o.custom_request?.id === item.id || String(o.id) === String(item.order?.id));
+                            const itemOrder = getOrderForRequest(item);
                             const itemAssigned = itemOrder?.assigned_staff;
                             const itemHasQuote = Boolean(item.agreed_price || item.status === 'quoted' || item.status === 'agreed' || itemOrder?.total_price);
                             const itemTotal = itemHasQuote ? parseFloat(item.agreed_price || itemOrder?.total_price || item.estimated_price_shown || '0') : 0;
@@ -1007,9 +1242,10 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
 
                             return (
                               <div
-                                key={item.id}
+                                key={item.is_file_edit ? `fe-${item.id}` : `cr-${item.id}`}
                                 onClick={() => {
                                   setSelectedCustomReqId(item.id);
+                                  setSelectedReqKey(item.is_file_edit ? `fe-${item.id}` : `cr-${item.id}`);
                                   setOpenedOrderId(item.id);
                                   if (hasNegotiationPending) {
                                     setActiveStageTab('negotiation');
@@ -1025,14 +1261,19 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                   {/* Header Row: ORDER # & STATUS */}
                                   <div className="flex items-start justify-between gap-2 mb-2">
                                     <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className="px-2.5 py-1 rounded-lg bg-[#0B1330] text-[#F5E7A3] text-xs font-mono font-black tracking-wider shadow-sm">
-                                        {itemOrder ? `ORDER #${itemOrder.id}` : `REQ #${item.id}`}
+                                      <span className="px-2.5 py-1 rounded-lg bg-[#0B1330] text-[#F5E7A3] text-xs font-mono font-black tracking-wider shadow-sm flex items-center gap-1.5">
+                                        {item.is_file_edit && <Wrench className="w-3 h-3 text-[#D4AF37]" />}
+                                        {item.is_file_edit ? `FILE EDIT #${item.id}` : (itemOrder ? `ORDER #${itemOrder.id}` : `REQ #${item.id || 'NEW'}`)}
                                       </span>
-                                      {itemOrder && (
-                                        <span className="text-[11px] font-mono text-[#5A6679] font-semibold">
-                                          (REQ #{item.id})
+                                      {item.is_file_edit ? (
+                                        <span className="px-2 py-0.5 rounded bg-[#FFF8EC] border border-[#E8D7B7] text-[10px] font-mono text-[#9A6A1A] font-bold uppercase">
+                                          .{item.original_file_format || 'cad'}
                                         </span>
-                                      )}
+                                      ) : itemOrder ? (
+                                        <span className="text-[11px] font-mono text-[#5A6679] font-semibold">
+                                          (REQ #{item.id || 'NEW'})
+                                        </span>
+                                      ) : null}
                                     </div>
 
                                     <span className="text-[11px] font-mono text-[#B88732] group-hover:text-[#0B1330] font-bold shrink-0 flex items-center gap-0.5 transition-colors">
@@ -1048,6 +1289,10 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                         alt={item.category_name}
                                         className="w-13 h-13 rounded-xl object-cover border border-[#E8D7B7] bg-white shadow-xs shrink-0"
                                       />
+                                    ) : item.is_file_edit ? (
+                                      <div className="w-13 h-13 rounded-xl bg-gradient-to-br from-[#0B1330] to-[#162145] border border-[#D4AF37]/40 flex items-center justify-center text-[#F5E7A3] shadow-xs shrink-0">
+                                        <FileCode2 className="w-6 h-6 text-[#D4AF37]" />
+                                      </div>
                                     ) : (
                                       <div className="w-13 h-13 rounded-xl bg-gradient-to-br from-[#FFF9EE] to-[#FFF3DC] border border-[#E8D7B7] flex items-center justify-center text-[#B88732] shadow-xs shrink-0">
                                         <Gem className="w-6 h-6 text-[#B88732]" />
@@ -1055,13 +1300,15 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                     )}
                                     <div className="min-w-0 flex-1">
                                       <h4 className="font-serif text-sm font-bold text-[#0B1330] truncate group-hover:text-[#B88732] transition-colors">
-                                        {item.category_name || 'Bespoke Custom Jewellery'}
+                                        {item.category_name || item.title || 'Bespoke Custom Jewellery'}
                                       </h4>
                                       <p className="text-[11px] font-mono text-[#5A6679] truncate font-medium">
-                                        {metalLabel}
+                                        {item.is_file_edit ? (item.modification_type_labels?.join(', ') || 'CAD Modification') : metalLabel}
                                       </p>
                                       <span className="text-[10px] font-mono text-[#8C97A7] block">
-                                        {item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Recent'}
+                                        {item.created_at && !isNaN(new Date(item.created_at).getTime())
+                                          ? new Date(item.created_at).toLocaleDateString()
+                                          : 'Recent'}
                                       </span>
                                     </div>
                                   </div>
@@ -1069,25 +1316,39 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                   {/* Status Pill */}
                                   <div className="mt-1">
                                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider inline-flex items-center gap-1.5 w-full justify-start ${
-                                      itemAssigned
+                                      item.status === 'agreed' || (itemOrder && itemOrder.status)
                                         ? 'bg-emerald-50 border border-emerald-300 text-emerald-800'
-                                        : item.status === 'agreed' || (itemOrder && itemOrder.status)
-                                        ? 'bg-amber-50 border border-amber-300 text-amber-800'
+                                        : item.status === 'rejected'
+                                        ? 'bg-rose-50 border border-rose-300 text-rose-800'
                                         : item.status === 'quoted'
                                         ? 'bg-blue-50 border border-blue-300 text-blue-800'
+                                        : item.status === 'negotiating'
+                                        ? 'bg-purple-50 border border-purple-300 text-purple-800'
                                         : 'bg-slate-100 border border-slate-300 text-slate-700'
                                     }`}>
                                       <span className={`w-1.5 h-1.5 rounded-full ${
-                                        itemAssigned ? 'bg-emerald-600 animate-pulse' : 'bg-[#D4AF37]'
+                                        item.status === 'agreed' ? 'bg-emerald-600' : (item.status === 'rejected' ? 'bg-rose-600' : 'bg-[#D4AF37]')
                                       }`} />
                                       <span className="truncate">
-                                        {itemAssigned
-                                          ? 'In CAD Production'
-                                          : itemOrder
-                                          ? 'Order Confirmed'
-                                          : item.status === 'quoted'
-                                          ? 'Official Quote Ready'
-                                          : 'Brief In Review'}
+                                        {item.is_file_edit ? (
+                                          item.status === 'agreed'
+                                            ? 'Approved & Agreed'
+                                            : item.status === 'rejected'
+                                            ? 'Order Declined'
+                                            : item.status === 'quoted'
+                                            ? 'Official Quote Ready'
+                                            : item.status === 'negotiating'
+                                            ? 'Negotiating Price'
+                                            : 'Under Assessment'
+                                        ) : (
+                                          itemAssigned
+                                            ? 'In CAD Production'
+                                            : itemOrder
+                                            ? 'Order Confirmed'
+                                            : item.status === 'quoted'
+                                            ? 'Official Quote Ready'
+                                            : 'Brief In Review'
+                                        )}
                                       </span>
                                     </span>
                                   </div>
@@ -1172,19 +1433,48 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                             <div className="border-l border-white/20 pl-3">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="px-2.5 py-0.5 rounded-lg bg-[#D4AF37] text-[#070D22] text-xs font-mono font-black shadow">
-                                  {order ? `ORDER #${order.id}` : `REQ #${req.id}`}
+                                  {req.is_file_edit ? `FILE EDIT #${req.id}` : (order ? `ORDER #${order.id}` : `REQ #${req.id}`)}
                                 </span>
-                                {order && (
+                                {req.is_file_edit && req.original_file_format && (
+                                  <span className="px-2 py-0.5 rounded-lg bg-white/20 text-[#F5E7A3] text-xs font-mono font-bold uppercase">
+                                    .{req.original_file_format}
+                                  </span>
+                                )}
+                                {req.is_file_edit && req.storage_provider === 'gdrive' && (
+                                  <span className="px-2 py-0.5 rounded-lg bg-blue-500/30 text-blue-200 border border-blue-400/30 text-[10px] font-mono font-bold flex items-center gap-1">
+                                    <Cloud className="w-3 h-3 text-blue-300" />
+                                    Drive (&gt;50MB)
+                                  </span>
+                                )}
+                                {!req.is_file_edit && order && (
                                   <span className="text-xs font-mono font-bold text-[#F5E7A3]">
                                     (REQ #{req.id})
                                   </span>
                                 )}
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-white/15 text-slate-200">
-                                  {assignedStaff ? 'CAD Production Active' : isOrderConfirmed ? 'Order Confirmed' : req.status === 'quoted' ? 'Official Quote' : 'In Review'}
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase ${
+                                  req.status === 'rejected'
+                                    ? 'bg-rose-500/20 text-rose-300 border border-rose-400/40'
+                                    : req.status === 'agreed' || isOrderConfirmed
+                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40'
+                                    : req.status === 'quoted'
+                                    ? 'bg-blue-500/20 text-blue-200 border border-blue-400/40'
+                                    : 'bg-white/15 text-slate-200'
+                                }`}>
+                                  {req.status === 'rejected'
+                                    ? 'Order Declined'
+                                    : assignedStaff
+                                    ? 'CAD Production Active'
+                                    : isOrderConfirmed
+                                    ? 'Order Approved & Confirmed'
+                                    : req.status === 'quoted'
+                                    ? 'Official Quote Received'
+                                    : req.status === 'negotiating'
+                                    ? 'Negotiation Active'
+                                    : 'Under Assessment'}
                                 </span>
                               </div>
                               <h3 className="font-serif text-lg sm:text-xl font-bold text-white mt-0.5 truncate">
-                                {req.category_name || 'Bespoke Custom Jewellery'}
+                                {req.is_file_edit ? (req.original_file_name || `CAD File Modification #${req.id}`) : (req.category_name || 'Bespoke Custom Jewellery')}
                               </h3>
                             </div>
                           </div>
@@ -1304,24 +1594,54 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                       <div className="space-y-1">
                         <div className="flex flex-wrap items-center gap-3">
                           <span className="text-xs font-mono font-bold text-[#B88732]">
-                            REQ #{req.id} {order ? `• ORDER #${order.id}` : ''}
+                            {req.is_file_edit ? `FILE EDIT #${req.id}` : `REQ #${req.id}`} {order ? `• ORDER #${order.id}` : ''}
                           </span>
                           
                           {/* Elegant Single Status Pill */}
-                          <span className="px-3.5 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider bg-white border border-[#D9B66F]/50 text-[#B88732] flex items-center gap-2 shadow-xs">
-                            <span className="w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse" />
-                            {assignedStaff
-                              ? 'In Design • CAD Production Active'
-                              : isOrderConfirmed
-                              ? 'Order Confirmed • Awaiting Booking Payment (10%)'
+                          <span className={`px-3.5 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider border flex items-center gap-2 shadow-xs ${
+                            req.status === 'rejected'
+                              ? 'bg-rose-50 border-rose-300 text-rose-800'
+                              : req.status === 'agreed' || isOrderConfirmed
+                              ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
                               : req.status === 'quoted'
-                              ? 'Official Quote Received'
+                              ? 'bg-blue-50 border-blue-300 text-blue-800'
                               : req.status === 'negotiating'
-                              ? 'Price Negotiation in Progress'
-                              : 'Submitted • In Review'}
+                              ? 'bg-purple-50 border-purple-300 text-purple-800'
+                              : 'bg-white border-[#D9B66F]/50 text-[#B88732]'
+                          }`}>
+                            <span className={`w-2 h-2 rounded-full ${
+                              req.status === 'rejected'
+                                ? 'bg-rose-600'
+                                : req.status === 'agreed' || isOrderConfirmed
+                                ? 'bg-emerald-600'
+                                : req.status === 'quoted'
+                                ? 'bg-blue-600'
+                                : 'bg-[#D4AF37] animate-pulse'
+                            }`} />
+                            {req.is_file_edit ? (
+                              req.status === 'rejected'
+                                ? 'Order Declined by CAD Atelier'
+                                : req.status === 'agreed'
+                                ? 'Order Approved & Agreed'
+                                : req.status === 'quoted'
+                                ? 'Official Quote Received'
+                                : req.status === 'negotiating'
+                                ? 'Price Negotiation in Progress'
+                                : 'Submitted • In Assessment'
+                            ) : (
+                              assignedStaff
+                                ? 'In Design • CAD Production Active'
+                                : isOrderConfirmed
+                                ? 'Order Confirmed • Awaiting Booking Payment (10%)'
+                                : req.status === 'quoted'
+                                ? 'Official Quote Received'
+                                : req.status === 'negotiating'
+                                ? 'Price Negotiation in Progress'
+                                : 'Submitted • In Review'
+                            )}
                           </span>
 
-                          {req.request_mode === 'quick' && (
+                          {!req.is_file_edit && req.request_mode === 'quick' && (
                             <span className="px-3 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider bg-amber-500/15 border border-amber-400/40 text-amber-700 flex items-center gap-1.5 shadow-xs">
                               <Zap className="w-3.5 h-3.5 text-amber-500" />
                               Quick Request
@@ -1329,57 +1649,118 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                           )}
                         </div>
 
-                        {(() => {
-                          const selMetal = req.selections?.find((s: any) => s.group_key === 'metal' || s.group_label?.toLowerCase().includes('metal'));
-                          const metalName = selMetal?.value_label || req.metal_alloy_name;
-                          const selPurity = req.selections?.find((s: any) => s.group_key === 'purity' || s.group_label?.toLowerCase().includes('purity') || s.group_label?.toLowerCase().includes('karat'));
-                          return (
-                            <div className="space-y-2">
-                              <div className="flex flex-wrap items-center gap-3">
-                                <h2 className="font-serif text-3xl font-extrabold text-[#0B1330]">
-                                  {req.category_name || 'Bespoke Custom Jewellery'} {metalName ? `(${metalName})` : ''}
-                                </h2>
-                                <button
-                                  type="button"
-                                  onClick={() => setSpecsModalRequest(req)}
+                        {req.is_file_edit ? (
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap items-center gap-3">
+                              <h2 className="font-serif text-3xl font-extrabold text-[#0B1330]">
+                                CAD File Modification: {req.original_file_name || `File Edit #${req.id}`}
+                              </h2>
+                              {req.download_url && (
+                                <a
+                                  href={req.download_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  download
                                   className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] hover:brightness-110 font-bold text-xs flex items-center gap-1.5 shadow-[0_2px_10px_rgba(212,175,55,0.25)] transition-all cursor-pointer"
                                 >
-                                  <Sliders className="w-3.5 h-3.5 text-[#070D22]" />
-                                  <span>View All My Selections &amp; Form Entries</span>
-                                </button>
-                              </div>
-
-                              {/* Quick Specs Chips */}
-                              <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono">
-                                {selMetal && (
-                                  <span className="px-2.5 py-0.5 rounded-lg bg-white border border-[#E8D7B7] text-[#0B1330] shadow-xs">
-                                    Metal: <strong className="text-[#0B1330] font-bold">{selMetal.value_label}</strong>
-                                  </span>
-                                )}
-                                {selPurity && (
-                                  <span className="px-2.5 py-0.5 rounded-lg bg-white border border-[#E8D7B7] text-[#0B1330] shadow-xs">
-                                    Purity: <strong className="text-[#9A6A1A] font-bold">{selPurity.value_label}</strong>
-                                  </span>
-                                )}
-                                {req.ring_size && (
-                                  <span className="px-2.5 py-0.5 rounded-lg bg-white border border-[#E8D7B7] text-[#0B1330] shadow-xs">
-                                    Size: <strong className="text-[#0B1330] font-bold">{req.ring_size} ({req.ring_size_standard?.toUpperCase() || 'IN/HK'})</strong>
-                                  </span>
-                                )}
-                                {req.target_weight_grams && (
-                                  <span className="px-2.5 py-0.5 rounded-lg bg-white border border-[#E8D7B7] text-[#0B1330] shadow-xs">
-                                    Weight: <strong className="text-[#0B1330] font-bold">{req.target_weight_grams}g</strong>
-                                  </span>
-                                )}
-                                {req.budget_range && (
-                                  <span className="px-2.5 py-0.5 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 shadow-xs font-semibold">
-                                    {req.budget_range}
-                                  </span>
-                                )}
-                              </div>
+                                  <Download className="w-3.5 h-3.5 text-[#070D22]" />
+                                  <span>Download Uploaded CAD</span>
+                                </a>
+                              )}
                             </div>
-                          );
-                        })()}
+
+                            {/* Quick Specs Chips for File Edit */}
+                            <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono">
+                              {req.original_file_format && (
+                                <span className="px-2.5 py-0.5 rounded-lg bg-[#0B1330] text-[#F5E7A3] font-bold uppercase shadow-xs">
+                                  .{req.original_file_format} Format
+                                </span>
+                              )}
+                              {req.storage_provider === 'gdrive' ? (
+                                <span className="px-2.5 py-0.5 rounded-lg bg-blue-50 border border-blue-300 text-blue-800 shadow-xs font-bold flex items-center gap-1">
+                                  <Cloud className="w-3 h-3 text-blue-600" />
+                                  Google Drive (&gt;50MB)
+                                </span>
+                              ) : (
+                                <span className="px-2.5 py-0.5 rounded-lg bg-slate-100 border border-slate-300 text-slate-700 shadow-xs font-bold">
+                                  Direct Upload (≤50MB)
+                                </span>
+                              )}
+                              {req.file_size_bytes && (
+                                <span className="px-2.5 py-0.5 rounded-lg bg-white border border-[#E8D7B7] text-[#0B1330] shadow-xs">
+                                  Size: <strong className="text-[#0B1330] font-bold">{(req.file_size_bytes / (1024 * 1024)).toFixed(1)} MB</strong>
+                                </span>
+                              )}
+                              {req.target_weight_grams && (
+                                <span className="px-2.5 py-0.5 rounded-lg bg-white border border-[#E8D7B7] text-[#0B1330] shadow-xs">
+                                  Target Weight: <strong className="text-[#0B1330] font-bold">{req.target_weight_grams}g</strong>
+                                </span>
+                              )}
+                              {req.target_stone_size && (
+                                <span className="px-2.5 py-0.5 rounded-lg bg-white border border-[#E8D7B7] text-[#0B1330] shadow-xs">
+                                  Target Stone: <strong className="text-[#0B1330] font-bold">{req.target_stone_size}</strong>
+                                </span>
+                              )}
+                              {req.modification_type_labels?.map((label: string, idx: number) => (
+                                <span key={idx} className="px-2.5 py-0.5 rounded-lg bg-[#FFF9EE] border border-[#E8D7B7] text-[#9A6A1A] font-bold shadow-xs">
+                                  {label}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          (() => {
+                            const selMetal = req.selections?.find((s: any) => s.group_key === 'metal' || s.group_label?.toLowerCase().includes('metal'));
+                            const metalName = selMetal?.value_label || req.metal_alloy_name;
+                            const selPurity = req.selections?.find((s: any) => s.group_key === 'purity' || s.group_label?.toLowerCase().includes('purity') || s.group_label?.toLowerCase().includes('karat'));
+                            return (
+                              <div className="space-y-2">
+                                <div className="flex flex-wrap items-center gap-3">
+                                  <h2 className="font-serif text-3xl font-extrabold text-[#0B1330]">
+                                    {req.category_name || 'Bespoke Custom Jewellery'} {metalName ? `(${metalName})` : ''}
+                                  </h2>
+                                  <button
+                                    type="button"
+                                    onClick={() => setSpecsModalRequest(req)}
+                                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] hover:brightness-110 font-bold text-xs flex items-center gap-1.5 shadow-[0_2px_10px_rgba(212,175,55,0.25)] transition-all cursor-pointer"
+                                  >
+                                    <Sliders className="w-3.5 h-3.5 text-[#070D22]" />
+                                    <span>View All My Selections &amp; Form Entries</span>
+                                  </button>
+                                </div>
+
+                                {/* Quick Specs Chips */}
+                                <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono">
+                                  {selMetal && (
+                                    <span className="px-2.5 py-0.5 rounded-lg bg-white border border-[#E8D7B7] text-[#0B1330] shadow-xs">
+                                      Metal: <strong className="text-[#0B1330] font-bold">{selMetal.value_label}</strong>
+                                    </span>
+                                  )}
+                                  {selPurity && (
+                                    <span className="px-2.5 py-0.5 rounded-lg bg-white border border-[#E8D7B7] text-[#0B1330] shadow-xs">
+                                      Purity: <strong className="text-[#9A6A1A] font-bold">{selPurity.value_label}</strong>
+                                    </span>
+                                  )}
+                                  {req.ring_size && (
+                                    <span className="px-2.5 py-0.5 rounded-lg bg-white border border-[#E8D7B7] text-[#0B1330] shadow-xs">
+                                      Size: <strong className="text-[#0B1330] font-bold">{req.ring_size} ({req.ring_size_standard?.toUpperCase() || 'IN/HK'})</strong>
+                                    </span>
+                                  )}
+                                  {req.target_weight_grams && (
+                                    <span className="px-2.5 py-0.5 rounded-lg bg-white border border-[#E8D7B7] text-[#0B1330] shadow-xs">
+                                      Weight: <strong className="text-[#0B1330] font-bold">{req.target_weight_grams}g</strong>
+                                    </span>
+                                  )}
+                                  {req.budget_range && (
+                                    <span className="px-2.5 py-0.5 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 shadow-xs font-semibold">
+                                      {req.budget_range}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()
+                        )}
                       </div>
 
                       {/* COMPACT PAYMENT PROGRESS BAR / QUOTE STATUS */}
@@ -1402,7 +1783,11 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                             <div className="flex justify-between text-xs font-mono">
                               <span className="text-[#5A6679]">Quote &amp; Order Status</span>
                               <span className="text-[#B88732] font-bold">
-                                {req.status === 'quoted'
+                                {req.status === 'rejected'
+                                  ? 'Order Declined'
+                                  : req.status === 'agreed'
+                                  ? 'Approved & Agreed'
+                                  : req.status === 'quoted'
                                   ? 'Official Quote Ready'
                                   : req.status === 'negotiating'
                                   ? 'Negotiating Price'
@@ -1410,10 +1795,16 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                               </span>
                             </div>
                             <p className="text-[11px] text-[#5A6679] leading-relaxed font-sans">
-                              {req.status === 'quoted'
-                                ? `Official price of ${formatINR(req.agreed_price || req.estimated_price_shown)} quoted. Order confirms upon agreement.`
+                              {req.status === 'rejected'
+                                ? (req.rejection_reason || 'File could not be modified according to specifications.')
+                                : req.status === 'agreed'
+                                ? `Agreed at ${formatINR(req.agreed_price || req.quoted_price || req.estimated_price_shown)}${req.agreed_price_usd ? ` ($${Number(req.agreed_price_usd).toFixed(2)} USD)` : ''}. Production scheduled.`
+                                : req.status === 'quoted'
+                                ? `Official price of ${formatINR(req.quoted_price || req.agreed_price || req.estimated_price_shown)}${req.quoted_price_usd ? ` ($${Number(req.quoted_price_usd).toFixed(2)} USD)` : ''} quoted. Order confirms upon agreement.`
                                 : req.status === 'negotiating'
-                                ? 'Price request/counter-offer is being negotiated with SuperAdmin.'
+                                ? 'Price counter-offer is being negotiated with Studio SuperAdmin.'
+                                : req.is_file_edit
+                                ? 'Official CAD valuation will be issued by Senior Engineer after mesh and geometry check.'
                                 : 'Official CAD valuation will be issued by Senior Engineer after spec review.'}
                             </p>
                           </>
@@ -1503,11 +1894,174 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                         <div className="absolute -left-[31px] sm:-left-[47px] top-0 w-6 h-6 rounded-full bg-[#D4AF37] border-4 border-[#FAF8F5] shadow-[0_0_10px_rgba(212,175,55,0.8)] flex items-center justify-center">
                           <CheckCircle2 className="w-3.5 h-3.5 text-[#0B1330]" />
                         </div>
-                        <div className="space-y-3">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                            <h3 className="font-serif text-xl font-bold text-[#0B1330]">
-                              1. Bespoke Custom Request Submitted
-                            </h3>
+                        {req.is_file_edit ? (
+                          <div className="space-y-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#0B1330] to-[#12204D] border border-[#D4AF37]/50 flex items-center justify-center text-[#F5E7A3]">
+                                  <Wrench className="w-4 h-4 text-[#F5E7A3]" />
+                                </div>
+                                <h3 className="font-serif text-xl font-bold text-[#0B1330]">
+                                  1. CAD File Modification Request Brief
+                                </h3>
+                              </div>
+                              <span className="text-xs font-mono text-[#5A6679]">
+                                {new Date(req.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+
+                            {/* CAD File Requisition Card */}
+                            <div className="rounded-2xl bg-white border border-[#E8D7B7] p-5 space-y-5 shadow-sm">
+                              {/* File Download Banner */}
+                              <div className="p-4 rounded-xl bg-gradient-to-r from-[#0B1330] via-[#12204D] to-[#0B1330] text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-[#D4AF37]/50 shadow-md">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-12 h-12 rounded-xl bg-white/10 border border-[#D4AF37]/60 flex items-center justify-center text-[#F5E7A3] shrink-0">
+                                    <FileCode2 className="w-6 h-6 text-[#F5E7A3]" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="font-bold text-sm text-white truncate">
+                                        {req.original_file_name || 'Uploaded Source 3D CAD File'}
+                                      </span>
+                                      {req.original_file_format && (
+                                        <span className="px-2 py-0.5 rounded bg-[#D4AF37] text-[#070D22] text-[10px] font-mono font-black uppercase">
+                                          .{req.original_file_format}
+                                        </span>
+                                      )}
+                                      {req.storage_provider === 'gdrive' ? (
+                                        <span className="px-2 py-0.5 rounded bg-blue-500/30 text-blue-200 border border-blue-400/40 text-[10px] font-mono font-bold flex items-center gap-1">
+                                          <Cloud className="w-3 h-3 text-blue-300" />
+                                          Google Drive (&gt;50MB)
+                                        </span>
+                                      ) : (
+                                        <span className="px-2 py-0.5 rounded bg-white/15 text-slate-200 text-[10px] font-mono font-bold">
+                                          Direct Upload (≤50MB)
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-slate-300 font-mono mt-0.5">
+                                      {req.file_size_bytes ? `${(req.file_size_bytes / (1024 * 1024)).toFixed(1)} MB` : '3D Geometry File'}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {req.download_url && (
+                                  <a
+                                    href={req.download_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    download
+                                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow hover:brightness-110 transition-all shrink-0 cursor-pointer"
+                                  >
+                                    <Download className="w-4 h-4 text-[#070D22]" />
+                                    <span>Download CAD Model</span>
+                                  </a>
+                                )}
+                              </div>
+
+                              {/* Target Parameters Matrix */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                <div className="p-3.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7]/80 space-y-1 shadow-xs">
+                                  <span className="text-[10px] font-mono text-[#9A6A1A] uppercase font-bold">Target Metal Weight</span>
+                                  <p className="font-bold text-[#0B1330] text-sm">
+                                    {req.target_weight_grams ? `${req.target_weight_grams} grams` : 'Not specified (Preserve original)'}
+                                  </p>
+                                </div>
+
+                                <div className="p-3.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7]/80 space-y-1 shadow-xs">
+                                  <span className="text-[10px] font-mono text-[#9A6A1A] uppercase font-bold">Target Stone Size / Mount</span>
+                                  <p className="font-bold text-[#0B1330] text-sm">
+                                    {req.target_stone_size || 'Not specified (Preserve original)'}
+                                  </p>
+                                </div>
+
+                                <div className="p-3.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7]/80 space-y-1 shadow-xs">
+                                  <span className="text-[10px] font-mono text-[#9A6A1A] uppercase font-bold">CAD Storage Archive</span>
+                                  <p className="font-bold text-[#0B1330] text-sm flex items-center gap-1.5">
+                                    {req.storage_provider === 'gdrive' ? (
+                                      <>
+                                        <Cloud className="w-4 h-4 text-blue-600" />
+                                        <span>Google Drive Cloud Storage</span>
+                                      </>
+                                    ) : (
+                                      <span>Shiuli CAD Local Vault</span>
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Required Modifications */}
+                              {req.modification_type_labels && req.modification_type_labels.length > 0 && (
+                                <div className="space-y-2">
+                                  <span className="text-[10px] font-mono text-[#9A6A1A] uppercase font-bold flex items-center gap-1.5">
+                                    <Wrench className="w-3.5 h-3.5 text-[#B88732]" />
+                                    Requested Modifications ({req.modification_type_labels.length})
+                                  </span>
+                                  <div className="flex flex-wrap gap-2">
+                                    {req.modification_type_labels.map((modLabel: string, idx: number) => (
+                                      <span
+                                        key={idx}
+                                        className="px-3 py-1.5 rounded-xl bg-[#FFF9EE] border border-[#D4AF37]/50 text-[#0B1330] text-xs font-bold flex items-center gap-1.5 shadow-xs"
+                                      >
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-[#B88732]" />
+                                        <span>{modLabel}</span>
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Client Instructions */}
+                              <div className="space-y-1.5">
+                                <span className="text-[10px] font-mono text-[#9A6A1A] uppercase font-bold">Detailed Modification Instructions</span>
+                                <div className="p-4 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7]/80 text-xs text-[#2A3547] leading-relaxed shadow-xs">
+                                  <p>{req.description || 'No detailed instructions entered.'}</p>
+                                </div>
+                              </div>
+
+                              {/* Attached Reference / Inspiration Photo */}
+                              {req.reference_image && (
+                                <div className="space-y-1.5">
+                                  <span className="text-[10px] font-mono text-[#9A6A1A] uppercase font-bold flex items-center gap-1.5">
+                                    <ImageIcon className="w-3.5 h-3.5 text-[#B88732]" /> Reference Markup / Sketch Attached
+                                  </span>
+                                  <div>
+                                    <img
+                                      src={req.reference_image}
+                                      alt="Reference"
+                                      onClick={() => setSelectedSketchUrl(req.reference_image)}
+                                      className="w-24 h-24 rounded-xl object-cover border-2 border-[#E8D7B7] hover:border-[#D4AF37] cursor-pointer shadow-md transition-all hover:scale-105"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Voice Note Player */}
+                              {(req.voice_recording_url || req.voice_recording || req.voice_note) && (
+                                <div className="p-3.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-2 shadow-xs">
+                                  <span className="text-[10px] font-mono text-[#9A6A1A] uppercase font-bold flex items-center gap-1.5">
+                                    <Mic className="w-3.5 h-3.5 text-[#B88732]" /> Voice Instruction Note Attached
+                                  </span>
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-[#FFF8EC] border border-[#E8D7B7] flex items-center justify-center shrink-0">
+                                      <Volume2 className="w-4 h-4 text-[#B88732]" />
+                                    </div>
+                                    <audio
+                                      controls
+                                      src={req.voice_recording_url || req.voice_recording || req.voice_note}
+                                      className="w-full h-8 rounded-lg accent-[#D4AF37]"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <h3 className="font-serif text-xl font-bold text-[#0B1330]">
+                                1. Bespoke Custom Request Submitted
+                              </h3>
                             <div className="flex items-center gap-3">
                               <button
                                 type="button"
@@ -1810,6 +2364,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                             )}
                           </div>
                         </div>
+                        )}
                       </div>
                       )}
 
@@ -1867,6 +2422,11 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                   <span className="font-serif text-2xl font-bold text-[#B88732] block">
                                     {formatINR(currentOfferedPrice)}
                                   </span>
+                                  {req.is_file_edit && (req.agreed_price_usd || req.quoted_price_usd) && (
+                                    <span className="text-xs font-mono font-semibold text-[#5A6679] block">
+                                      ≈ ${Number(req.agreed_price_usd || req.quoted_price_usd).toFixed(2)} USD (1 USD = ₹86.85)
+                                    </span>
+                                  )}
                                   <span className="text-[10px] font-mono text-[#5A6679]">
                                     {isOrderConfirmed
                                       ? 'Agreed Contract Price'
@@ -1908,13 +2468,46 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                           {msg.offered_price && (
                                             <div className={`mt-2 p-2 rounded-xl border flex items-center justify-between text-xs ${isAdmin ? 'bg-[#FFF9EE] border-[#E8D7B7] text-[#0B1330]' : 'bg-white/10 border-[#D4AF37]/40 text-[#F5E7A3]'}`}>
                                               <span className="text-[10px] uppercase font-mono">Official Price Offer:</span>
-                                              <span className="font-mono font-bold text-[#B88732]">{formatINR(msg.offered_price)}</span>
+                                              <span className="font-mono font-bold text-[#B88732]">
+                                                {formatINR(msg.offered_price)}
+                                                {msg.offered_price_usd ? (
+                                                  <span className="text-[10px] font-normal text-[#5A6679] ml-1">
+                                                    (${Number(msg.offered_price_usd).toFixed(2)} USD)
+                                                  </span>
+                                                ) : null}
+                                              </span>
                                             </div>
                                           )}
                                         </div>
                                       </div>
                                     );
                                   })}
+                                </div>
+                              )}
+
+                              {/* STATUS REJECTED / DECLINED BANNER */}
+                              {req.status === 'rejected' && (
+                                <div className="p-5 rounded-2xl bg-rose-50 border-2 border-rose-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm text-xs mt-3">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-rose-100 border border-rose-300 flex items-center justify-center text-rose-700 shrink-0">
+                                      <AlertCircle className="w-5 h-5" />
+                                    </div>
+                                    <div className="space-y-0.5">
+                                      <span className="font-bold text-rose-950 text-sm block">Order Declined by CAD Atelier</span>
+                                      <span className="text-rose-800 text-xs block leading-relaxed">
+                                        <strong>Reason:</strong> {req.rejection_reason || 'File geometry could not be modified to specified requirements.'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <a
+                                    href="https://wa.me/919574787098"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="px-4 py-2 rounded-xl bg-white border border-rose-300 text-rose-800 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 hover:bg-rose-100 transition-colors shrink-0 shadow-xs"
+                                  >
+                                    <Phone className="w-3.5 h-3.5" />
+                                    <span>Contact Support Desk</span>
+                                  </a>
                                 </div>
                               )}
 
@@ -1928,7 +2521,8 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                     <div>
                                       <span className="font-bold text-emerald-950 text-sm block">Quote Accepted &amp; Status AGREED!</span>
                                       <span className="text-emerald-800 text-[11px]">
-                                        Agreed Final Price: <strong>{formatINR(req.agreed_price || req.estimated_price_shown)}</strong>. Payment schedule is active below.
+                                        Agreed Final Price: <strong>{formatINR(req.agreed_price || req.estimated_price_shown)}</strong>
+                                        {req.agreed_price_usd ? <span className="text-emerald-900 font-mono font-normal ml-1">(${Number(req.agreed_price_usd).toFixed(2)} USD)</span> : null}. Payment schedule is active below.
                                       </span>
                                     </div>
                                   </div>
@@ -1972,8 +2566,8 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                       </button>
                                     </div>
                                   ) : (
-                                    /* If admin made the latest offer: Client can accept it! */
-                                    <div className="flex flex-wrap items-center gap-4">
+                                    /* If admin made the latest offer: Client can accept it, counter it, or decline it! */
+                                    <div className="flex flex-wrap items-center gap-3">
                                       {/* Option 1: Accept current admin quote */}
                                       <button
                                         onClick={() => handleAcceptQuote(req.id)}
@@ -1985,17 +2579,32 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                         ) : (
                                           <CheckCircle2 className="w-4 h-4 text-[#0B1330]" />
                                         )}
-                                        <span>Accept Admin Quote ({formatINR(currentOfferedPrice)}) &amp; Confirm Order</span>
+                                        <span>Accept Quote ({formatINR(currentOfferedPrice)}{req.is_file_edit && (req.agreed_price_usd || req.quoted_price_usd) ? ` / $${Number(req.agreed_price_usd || req.quoted_price_usd).toFixed(2)} USD` : ''}) &amp; Confirm Order</span>
                                       </button>
 
                                       {/* Option 2: Propose Counter Price / Send Price Request */}
                                       <button
                                         type="button"
                                         onClick={() => setShowCounterForm((prev) => ({ ...prev, [req.id]: !prev[req.id] }))}
-                                        className="px-6 py-3.5 rounded-2xl text-xs font-extrabold uppercase tracking-wider flex items-center gap-2 border border-[#E8D7B7] bg-white text-[#0B1330] hover:border-[#D4AF37] hover:text-[#B88732] transition-all shadow-xs cursor-pointer"
+                                        className="px-5 py-3.5 rounded-2xl text-xs font-extrabold uppercase tracking-wider flex items-center gap-2 border border-[#E8D7B7] bg-white text-[#0B1330] hover:border-[#D4AF37] hover:text-[#B88732] transition-all shadow-xs cursor-pointer"
                                       >
                                         <MessageSquare className="w-4 h-4 text-[#B88732]" />
                                         <span>{showCounterForm[req.id] ? 'Hide Counter Form' : 'Not Satisfied? Propose Counter Price'}</span>
+                                      </button>
+
+                                      {/* Option 3: Decline / Reject Offer */}
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRejectQuote(req.id)}
+                                        disabled={isSubmitting[req.id]}
+                                        className="px-5 py-3.5 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:border-rose-300 transition-all shadow-xs cursor-pointer"
+                                      >
+                                        {isSubmitting[req.id] ? (
+                                          <Loader2 className="w-4 h-4 text-rose-600 animate-spin" />
+                                        ) : (
+                                          <XCircle className="w-4 h-4 text-rose-600" />
+                                        )}
+                                        <span>Decline Offer</span>
                                       </button>
                                     </div>
                                   )}
@@ -2017,15 +2626,23 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                                         <div className="sm:col-span-1">
                                           <label className="block text-[10px] font-mono text-[#5A6679] uppercase font-bold mb-1">
-                                            Your Target Price (₹)
+                                            Your Target Price (₹ INR)
                                           </label>
-                                          <input
-                                            type="number"
-                                            value={counterPriceInput[req.id] || ''}
-                                            onChange={(e) => setCounterPriceInput({ ...counterPriceInput, [req.id]: e.target.value })}
-                                            placeholder="e.g. 18000"
-                                            className="w-full px-3.5 py-2.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7] text-xs font-mono font-bold text-[#0B1330] focus:outline-none focus:border-[#D4AF37] focus:bg-white"
-                                          />
+                                          <div className="relative">
+                                            <span className="absolute left-3 top-2.5 text-xs font-mono font-bold text-[#9A6A1A]">₹</span>
+                                            <input
+                                              type="number"
+                                              value={counterPriceInput[req.id] || ''}
+                                              onChange={(e) => setCounterPriceInput({ ...counterPriceInput, [req.id]: e.target.value })}
+                                              placeholder={req.is_file_edit ? "e.g. 800" : "e.g. 18000"}
+                                              className="w-full pl-7 pr-3 py-2.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7] text-xs font-mono font-bold text-[#0B1330] focus:outline-none focus:border-[#D4AF37] focus:bg-white"
+                                            />
+                                          </div>
+                                          {counterPriceInput[req.id] && !isNaN(parseFloat(counterPriceInput[req.id])) && parseFloat(counterPriceInput[req.id]) > 0 && (
+                                            <span className="text-[10px] font-mono text-[#5A6679] block mt-1">
+                                              ≈ ${(parseFloat(counterPriceInput[req.id]) / 86.85).toFixed(2)} USD (1 USD = ₹86.85)
+                                            </span>
+                                          )}
                                         </div>
                                         <div className="sm:col-span-2">
                                           <label className="block text-[10px] font-mono text-[#5A6679] uppercase font-bold mb-1">
@@ -2228,12 +2845,19 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                     <span className="text-[10px] font-mono text-slate-300 uppercase block">
                                       {paidVal > 0 ? 'Remaining Balance' : 'Total Order Valuation'}
                                     </span>
-                                    <span className="font-serif text-2xl font-extrabold text-[#F5E7A3]">
-                                      {formatINR(unpaidVal)}
-                                    </span>
+                                    <div className="flex items-baseline gap-2">
+                                      <span className="font-serif text-2xl font-extrabold text-[#F5E7A3]">
+                                        {formatINR(unpaidVal)}
+                                      </span>
+                                      {req.is_file_edit && (req.agreed_price_usd || req.quoted_price_usd) && (
+                                        <span className="text-xs font-mono text-slate-300 font-normal">
+                                          (${((unpaidVal / (totalVal || 1)) * Number(req.agreed_price_usd || req.quoted_price_usd)).toFixed(2)} USD)
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                   <button
-                                    onClick={() => handlePayFullOrder(order, unpaidVal)}
+                                    onClick={() => handlePayFullOrder(order || { id: req.id, is_file_edit: req.is_file_edit }, unpaidVal)}
                                     className="btn-gold-luxury px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-[0_4px_20px_rgba(212,175,55,0.4)] cursor-pointer hover:scale-[1.02] transition-all"
                                   >
                                     <CreditCard className="w-4 h-4 text-[#0B1330]" />
@@ -2291,6 +2915,11 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                       <td className="p-4 font-mono font-medium text-[#0B1330]">10.00%</td>
                                       <td className="p-4 font-serif text-sm font-bold text-[#B88732]">
                                         {hasOfficialQuote ? formatINR(totalVal * 0.1) : 'Quote Pending'}
+                                        {hasOfficialQuote && req.is_file_edit && (req.agreed_price_usd || req.quoted_price_usd) && (
+                                          <span className="text-[11px] font-mono font-normal text-[#5A6679] block">
+                                            (${((totalVal * 0.1) / 86.85).toFixed(2)} USD)
+                                          </span>
+                                        )}
                                       </td>
                                       <td className="p-4 text-xs text-[#5A6679]">Due Immediately upon Order Confirmation</td>
                                       <td className="p-4 text-right">
@@ -2305,6 +2934,11 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                       <td className="p-4 font-mono font-medium text-[#0B1330]">30.00%</td>
                                       <td className="p-4 font-serif text-sm font-bold text-[#B88732]">
                                         {hasOfficialQuote ? formatINR(totalVal * 0.3) : 'Quote Pending'}
+                                        {hasOfficialQuote && req.is_file_edit && (req.agreed_price_usd || req.quoted_price_usd) && (
+                                          <span className="text-[11px] font-mono font-normal text-[#5A6679] block">
+                                            (${((totalVal * 0.3) / 86.85).toFixed(2)} USD)
+                                          </span>
+                                        )}
                                       </td>
                                       <td className="p-4 text-xs text-[#5A6679]">Due on Client 3D Preview Approval</td>
                                       <td className="p-4 text-right">
@@ -2319,6 +2953,11 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                       <td className="p-4 font-mono font-medium text-[#0B1330]">60.00%</td>
                                       <td className="p-4 font-serif text-sm font-bold text-[#B88732]">
                                         {hasOfficialQuote ? formatINR(totalVal * 0.6) : 'Quote Pending'}
+                                        {hasOfficialQuote && req.is_file_edit && (req.agreed_price_usd || req.quoted_price_usd) && (
+                                          <span className="text-[11px] font-mono font-normal text-[#5A6679] block">
+                                            (${((totalVal * 0.6) / 86.85).toFixed(2)} USD)
+                                          </span>
+                                        )}
                                       </td>
                                       <td className="p-4 text-xs text-[#5A6679]">Due Before Final File Release</td>
                                       <td className="p-4 text-right">
@@ -2369,7 +3008,14 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                     <tr className="hover:bg-[#FFFDF9] transition-colors">
                                       <td className="p-4 font-bold text-[#0B1330]">Stage 1: Booking Confirmation</td>
                                       <td className="p-4 font-mono font-medium text-[#0B1330]">10.00%</td>
-                                      <td className="p-4 font-serif text-sm font-bold text-[#B88732]">{formatINR(totalVal * 0.1)}</td>
+                                      <td className="p-4 font-serif text-sm font-bold text-[#B88732]">
+                                        {formatINR(totalVal * 0.1)}
+                                        {req.is_file_edit && (req.agreed_price_usd || req.quoted_price_usd) && (
+                                          <span className="text-[11px] font-mono font-normal text-[#5A6679] block">
+                                            (${((totalVal * 0.1) / 86.85).toFixed(2)} USD)
+                                          </span>
+                                        )}
+                                      </td>
                                       <td className="p-4 text-xs text-[#5A6679]">Due Immediately to Start CAD</td>
                                       <td className="p-4 text-right">
                                         <button
@@ -2383,7 +3029,14 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                     <tr className="hover:bg-[#FFFDF9] transition-colors">
                                       <td className="p-4 font-bold text-[#0B1330]">Stage 2: Design Approval Milestone</td>
                                       <td className="p-4 font-mono font-medium text-[#0B1330]">30.00%</td>
-                                      <td className="p-4 font-serif text-sm font-bold text-[#B88732]">{formatINR(totalVal * 0.3)}</td>
+                                      <td className="p-4 font-serif text-sm font-bold text-[#B88732]">
+                                        {formatINR(totalVal * 0.3)}
+                                        {req.is_file_edit && (req.agreed_price_usd || req.quoted_price_usd) && (
+                                          <span className="text-[11px] font-mono font-normal text-[#5A6679] block">
+                                            (${((totalVal * 0.3) / 86.85).toFixed(2)} USD)
+                                          </span>
+                                        )}
+                                      </td>
                                       <td className="p-4 text-xs text-[#5A6679]">Due on Client 3D Preview Approval</td>
                                       <td className="p-4 text-right">
                                         <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-300 text-[10px] font-mono">
@@ -2395,7 +3048,14 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                     <tr className="hover:bg-[#FFFDF9] transition-colors">
                                       <td className="p-4 font-bold text-[#0B1330]">Stage 3: Final CAD Delivery</td>
                                       <td className="p-4 font-mono font-medium text-[#0B1330]">60.00%</td>
-                                      <td className="p-4 font-serif text-sm font-bold text-[#B88732]">{formatINR(totalVal * 0.6)}</td>
+                                      <td className="p-4 font-serif text-sm font-bold text-[#B88732]">
+                                        {formatINR(totalVal * 0.6)}
+                                        {req.is_file_edit && (req.agreed_price_usd || req.quoted_price_usd) && (
+                                          <span className="text-[11px] font-mono font-normal text-[#5A6679] block">
+                                            (${((totalVal * 0.6) / 86.85).toFixed(2)} USD)
+                                          </span>
+                                        )}
+                                      </td>
                                       <td className="p-4 text-xs text-[#5A6679]">Due Before Final File Release</td>
                                       <td className="p-4 text-right">
                                         <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-300 text-[10px] font-mono">
@@ -2415,6 +3075,11 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                     </td>
                                     <td className="p-4 font-serif font-bold text-[#B88732] text-sm">
                                       {formatINR(totalVal)}
+                                      {req.is_file_edit && (req.agreed_price_usd || req.quoted_price_usd) && (
+                                        <span className="text-[11px] font-mono font-normal text-[#5A6679] block">
+                                          (${Number(req.agreed_price_usd || req.quoted_price_usd).toFixed(2)} USD)
+                                        </span>
+                                      )}
                                     </td>
                                     <td className="p-4 text-xs font-mono text-[#5A6679]">
                                       Paid: <strong className="text-emerald-600">{formatINR(paidVal)}</strong> | Remaining: <strong className="text-[#B88732]">{formatINR(unpaidVal)}</strong>
@@ -2426,7 +3091,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                         </span>
                                       ) : unpaidVal > 0 ? (
                                         <button
-                                          onClick={() => handlePayFullOrder(order, unpaidVal)}
+                                          onClick={() => handlePayFullOrder(order || { id: req.id, is_file_edit: req.is_file_edit }, unpaidVal)}
                                           className="btn-gold-luxury px-3.5 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider cursor-pointer shadow transition-all"
                                         >
                                           Pay Full Balance ({formatINR(unpaidVal)})
@@ -2726,7 +3391,12 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                                   </div>
 
                                   <button
-                                    onClick={() => handleRequestOrderDownload(order.id, req.category_name || 'Bespoke CAD Package')}
+                                    onClick={() => handleRequestOrderDownload(
+                                      order.id,
+                                      req.is_file_edit
+                                        ? (req.original_file_name ? `CAD Modification: ${req.original_file_name}` : `File Edit #${req.id}`)
+                                        : (req.category_name || 'Bespoke CAD Package')
+                                    )}
                                     className="btn-gold-luxury px-8 py-4 rounded-2xl text-xs font-extrabold uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl shrink-0 cursor-pointer"
                                   >
                                     <Download className="w-4 h-4 text-[#0B1330]" />
@@ -3155,7 +3825,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                           ORD #{ord.id}
                         </td>
                         <td className="p-4 capitalize text-[#0B1330] font-medium">
-                          {ord.order_type === 'custom' ? 'Bespoke Custom CAD' : ord.order_type || 'CAD Model'}
+                          {ord.order_type === 'file_edit' || ord.is_file_edit ? 'CAD File Modification' : ord.order_type === 'custom' ? 'Bespoke Custom CAD' : ord.order_type || 'CAD Model'}
                         </td>
                         <td className="p-4 font-mono">
                           {ord.created_at ? new Date(ord.created_at).toLocaleDateString() : 'Recent'}
@@ -3171,13 +3841,28 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                         <td className="p-4 text-right">
                           <button
                             onClick={() => {
-                              if (ord.custom_request?.id) {
+                              if (ord.order_type === 'file_edit' || ord.is_file_edit || ord.file_edit_request) {
+                                const feId = ord.file_edit_request?.id || ord.file_edit_request || (customRequests.find((r: any) => r.is_file_edit && (r.converted_order === ord.id || r.order?.id === ord.id))?.id);
+                                if (feId) {
+                                  setSelectedCustomReqId(feId);
+                                  setSelectedReqKey(`fe-${feId}`);
+                                  setOpenedOrderId(feId);
+                                }
+                              } else if (ord.custom_request?.id) {
                                 setSelectedCustomReqId(ord.custom_request.id);
+                                setSelectedReqKey(`cr-${ord.custom_request.id}`);
+                                setOpenedOrderId(ord.custom_request.id);
                               } else if (ord.custom_request && typeof ord.custom_request === 'number') {
                                 setSelectedCustomReqId(ord.custom_request);
+                                setSelectedReqKey(`cr-${ord.custom_request}`);
+                                setOpenedOrderId(ord.custom_request);
                               } else {
                                 const matched = customRequests.find((r: any) => r.order?.id === ord.id || String(r.id) === String(ord.custom_request));
-                                if (matched) setSelectedCustomReqId(matched.id);
+                                if (matched) {
+                                  setSelectedCustomReqId(matched.id);
+                                  setSelectedReqKey(matched.is_file_edit ? `fe-${matched.id}` : `cr-${matched.id}`);
+                                  setOpenedOrderId(matched.id);
+                                }
                               }
                               setActiveTab('custom');
                             }}
@@ -3959,7 +4644,7 @@ Support Contact: hello@shiulicadstudio.com | Phone: +91 95747 87098`;
                       setResubmitFilePreview(null);
                     }
                   }}
-                  className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#E8EEFF] file:text-[#2856C7] hover:file:bg-[#D4AF37]/20 cursor-pointer"
+                  className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border file:border-[#E8D7B7] file:text-xs file:font-bold file:bg-[#FFF9F0] file:text-[#17345C] hover:file:bg-[#D4AF37]/20 cursor-pointer"
                 />
                 {resubmitFilePreview && (
                   <div className="mt-2 p-1.5 border border-slate-200 rounded-xl bg-slate-50 max-w-[200px]">

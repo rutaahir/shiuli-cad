@@ -562,16 +562,16 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
       )}
 
       {/* COMPACT SAAS HEADER & TOOLBAR */}
-      <div className="bg-white p-3.5 rounded-2xl border border-[#E5E7EF] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="bg-white p-3.5 rounded-2xl border border-[#E8D7B7] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
         {/* Title + Stats Strip */}
         <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="font-serif text-lg font-bold text-[#1E2230] tracking-tight">
+          <h1 className="font-serif text-lg font-bold text-[#17243B] tracking-tight">
             Custom Requests Pipeline
           </h1>
 
           {/* Quick Metrics Chips */}
           <div className="flex items-center gap-1.5 text-[11px] font-mono">
-            <span className="px-2.5 py-0.5 rounded-lg bg-slate-100 text-[#1E2230] font-bold border border-slate-200">
+            <span className="px-2.5 py-0.5 rounded-lg bg-slate-100 text-[#17243B] font-bold border border-slate-200">
               Total: {totalCount}
             </span>
             <span className="px-2.5 py-0.5 rounded-lg bg-blue-50 text-blue-700 font-bold border border-blue-200">
@@ -593,7 +593,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
             <button
               onClick={() => setModeTab('all')}
               className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                modeTab === 'all' ? 'bg-[#09112B] text-white shadow-xs font-bold' : 'text-[#6B7280] hover:text-[#1E2230]'
+                modeTab === 'all' ? 'bg-[#09112B] text-white shadow-xs font-bold' : 'text-[#6B7280] hover:text-[#17243B]'
               }`}
             >
               All ({totalCount})
@@ -601,7 +601,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
             <button
               onClick={() => setModeTab('quick')}
               className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
-                modeTab === 'quick' ? 'bg-[#D4AF37] text-[#09112B] shadow-xs font-bold' : 'text-[#6B7280] hover:text-[#1E2230]'
+                modeTab === 'quick' ? 'bg-[#D4AF37] text-[#09112B] shadow-xs font-bold' : 'text-[#6B7280] hover:text-[#17243B]'
               }`}
             >
               <span>⚡ Quick</span>
@@ -612,7 +612,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
             <button
               onClick={() => setModeTab('step_by_step')}
               className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
-                modeTab === 'step_by_step' ? 'bg-[#1E4FA3] text-white shadow-xs font-bold' : 'text-[#6B7280] hover:text-[#1E2230]'
+                modeTab === 'step_by_step' ? 'bg-[#1E4FA3] text-white shadow-xs font-bold' : 'text-[#6B7280] hover:text-[#17243B]'
               }`}
             >
               <span>📐 Step-by-Step</span>
@@ -629,7 +629,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`px-2 py-1 rounded-lg capitalize transition-all cursor-pointer ${
-                  activeTab === tab ? 'bg-white text-[#09112B] shadow-xs font-bold' : 'text-[#6B7280] hover:text-[#1E2230]'
+                  activeTab === tab ? 'bg-white text-[#09112B] shadow-xs font-bold' : 'text-[#6B7280] hover:text-[#17243B]'
                 }`}
               >
                 {tab}
@@ -645,7 +645,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-36 sm:w-44 pl-7 pr-6 py-1 text-xs rounded-xl bg-slate-50 border border-[#E5E7EF] text-[#1E2230] focus:outline-none focus:border-[#C9A227]"
+              className="w-36 sm:w-44 pl-7 pr-6 py-1 text-xs rounded-xl bg-slate-50 border border-[#E8D7B7] text-[#17243B] focus:outline-none focus:border-[#C9A227]"
             />
             {searchQuery && (
               <button
@@ -670,7 +670,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
           <button
             onClick={fetchRequests}
             title="Refresh List"
-            className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#1E2230] transition-colors cursor-pointer"
+            className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#17243B] transition-colors cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-[#C9A227] ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -679,24 +679,24 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
 
       {/* MAIN WORKSTATION GRID */}
       {loading ? (
-        <div className="py-16 bg-white rounded-2xl border border-[#E5E7EF] flex flex-col items-center justify-center gap-2 text-xs text-[#6B7280]">
+        <div className="py-16 bg-white rounded-2xl border border-[#E8D7B7] flex flex-col items-center justify-center gap-2 text-xs text-[#6B7280]">
           <Loader2 className="w-6 h-6 text-[#C9A227] animate-spin" />
           <span className="font-mono">Syncing Pipeline...</span>
         </div>
       ) : filteredRequests.length === 0 ? (
-        <div className="p-10 bg-white rounded-2xl border border-[#E5E7EF] text-center space-y-2 text-xs text-[#6B7280]">
+        <div className="p-10 bg-white rounded-2xl border border-[#E8D7B7] text-center space-y-2 text-xs text-[#6B7280]">
           <Sparkles className="w-6 h-6 text-[#C9A227] mx-auto opacity-60" />
-          <p className="font-semibold text-[#1E2230]">No Custom Requests</p>
+          <p className="font-semibold text-[#17243B]">No Custom Requests</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
           {/* LEFT COLUMN: QUEUE LIST (Compact Fixed Height) */}
           <div
-            className={`lg:col-span-4 bg-white rounded-2xl border border-[#E5E7EF] p-3 shadow-sm space-y-2 ${
+            className={`lg:col-span-4 bg-white rounded-2xl border border-[#E8D7B7] p-3 shadow-sm space-y-2 ${
               mobileViewDetail ? 'hidden lg:block' : 'block'
             }`}
           >
-            <div className="text-[10px] font-mono font-bold text-[#6B7280] uppercase tracking-wider flex justify-between items-center px-1 pb-1.5 border-b border-[#E5E7EF]">
+            <div className="text-[10px] font-mono font-bold text-[#6B7280] uppercase tracking-wider flex justify-between items-center px-1 pb-1.5 border-b border-[#E8D7B7]">
               <span>Requests ({filteredRequests.length})</span>
               <span>Select to view</span>
             </div>
@@ -719,8 +719,8 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                     }}
                     className={`p-3 rounded-xl border transition-all cursor-pointer relative overflow-hidden ${
                       isSelected
-                        ? 'bg-[#FFFDF5] text-[#1E2230] border-[#D4AF37] shadow-sm border-l-4 border-l-[#C9A227]'
-                        : 'bg-slate-50 hover:bg-white border-[#E5E7EF] hover:border-[#C9A227]/50 text-[#1E2230]'
+                        ? 'bg-[#FFFDF5] text-[#17243B] border-[#D4AF37] shadow-sm border-l-4 border-l-[#C9A227]'
+                        : 'bg-slate-50 hover:bg-white border-[#E8D7B7] hover:border-[#C9A227]/50 text-[#17243B]'
                     }`}
                   >
                     <div className="flex items-center justify-between text-xs mb-1">
@@ -758,7 +758,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                       <span className="truncate max-w-[130px] text-[#6B7280]">
                         {req.category_name || (req.ring_size ? `Ring (${req.ring_size})` : 'Bespoke CAD')}
                       </span>
-                      <span className="font-bold text-[#1E2230]">
+                      <span className="font-bold text-[#17243B]">
                         {req.submission_intent === 'place_order' ? (
                           <span className="text-[#C9A227]">Direct Order</span>
                         ) : (
@@ -818,20 +818,20 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
           {/* RIGHT COLUMN: SAAS ACTIVE WORKSPACE (Light & Space-Efficient) */}
           {activeReq && (
             <div
-              className={`lg:col-span-8 bg-white rounded-2xl border border-[#E5E7EF] p-4.5 shadow-sm space-y-4 ${
+              className={`lg:col-span-8 bg-white rounded-2xl border border-[#E8D7B7] p-4.5 shadow-sm space-y-4 ${
                 mobileViewDetail ? 'block' : 'hidden lg:block'
               }`}
             >
               {/* Mobile Back Button */}
               <button
                 onClick={() => setMobileViewDetail(false)}
-                className="lg:hidden flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 text-[#1E2230] font-bold text-xs mb-2"
+                className="lg:hidden flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 text-[#17243B] font-bold text-xs mb-2"
               >
                 <ArrowLeft className="w-3.5 h-3.5 text-[#C9A227]" /> Back to Queue
               </button>
 
               {/* 1. COMPACT LIGHT SPEC HEADER BANNER */}
-              <div className="p-4 rounded-xl bg-gradient-to-r from-amber-50/90 via-white to-amber-50/50 border border-amber-200/80 shadow-xs border-l-4 border-l-[#C9A227] flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-[#1E2230]">
+              <div className="p-4 rounded-xl bg-gradient-to-r from-amber-50/90 via-white to-amber-50/50 border border-amber-200/80 shadow-xs border-l-4 border-l-[#C9A227] flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-[#17243B]">
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="px-2 py-0.5 rounded bg-[#C9A227] text-white font-mono font-extrabold text-[10px]">
@@ -846,7 +846,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                         <Layers className="w-3 h-3 text-blue-600" /> 📐 Step-by-Step 3D CAD Studio
                       </span>
                     )}
-                    <h2 className="font-serif text-lg font-bold text-[#1E2230]">
+                    <h2 className="font-serif text-lg font-bold text-[#17243B]">
                       {activeReq.category_name || (activeReq.request_mode === 'quick' ? 'Quick Bespoke Brief' : 'Bespoke CAD Request')}
                     </h2>
                     {activeReq.submission_intent === 'place_order' ? (
@@ -867,7 +867,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
 
                   {/* Client Contact Details */}
                   <div className="flex items-center gap-3 text-xs text-[#6B7280] flex-wrap">
-                    <span className="flex items-center gap-1 text-[#1E2230] font-semibold">
+                    <span className="flex items-center gap-1 text-[#17243B] font-semibold">
                       <User className="w-3.5 h-3.5 text-[#C9A227]" /> {activeReq.contact_name || activeReq.client_name}
                     </span>
                     {activeReq.contact_phone && (
@@ -892,7 +892,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                       <span className="text-[9px] uppercase text-[#6B7280] block font-mono flex items-center gap-1">
                         <Calendar className="w-2.5 h-2.5 text-[#C9A227]" /> Needed By
                       </span>
-                      <span className="font-mono text-xs font-bold text-[#1E2230]">
+                      <span className="font-mono text-xs font-bold text-[#17243B]">
                         {activeReq.needed_by_date}
                       </span>
                     </div>
@@ -953,84 +953,84 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
               </div>
 
               {/* 2. SPECIFICATION MATRIX & CONFIGURED PARAMETERS */}
-              <div className="bg-slate-50 border border-[#E5E7EF] p-4 rounded-xl space-y-3">
-                <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-2">
-                  <div className="flex items-center gap-2 font-bold text-[#1E2230] uppercase text-xs tracking-wider">
+              <div className="bg-slate-50 border border-[#E8D7B7] p-4 rounded-xl space-y-3">
+                <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-2">
+                  <div className="flex items-center gap-2 font-bold text-[#17243B] uppercase text-xs tracking-wider">
                     <Sliders className="w-4 h-4 text-[#C9A227]" />
                     <span>Configured Jewelry Specifications</span>
                   </div>
                   {activeReq.ring_size && (
-                    <span className="px-2 py-0.5 rounded bg-white text-[#1E2230] border border-[#E5E7EF] text-[11px] font-mono font-bold">
+                    <span className="px-2 py-0.5 rounded bg-white text-[#17243B] border border-[#E8D7B7] text-[11px] font-mono font-bold">
                       Ring Size: {activeReq.ring_size} ({activeReq.ring_size_standard?.toUpperCase() || 'IN/HK'})
                     </span>
                   )}
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 text-xs">
-                  <div className="bg-white p-2.5 rounded-lg border border-[#E5E7EF] space-y-0.5">
+                  <div className="bg-white p-2.5 rounded-lg border border-[#E8D7B7] space-y-0.5">
                     <span className="text-[10px] text-[#6B7280] uppercase block font-mono">Category</span>
-                    <span className="font-bold text-[#1E2230]">{activeReq.category_name || 'Bespoke Design'}</span>
+                    <span className="font-bold text-[#17243B]">{activeReq.category_name || 'Bespoke Design'}</span>
                   </div>
 
                   {activeReq.ring_size && (
-                    <div className="bg-white p-2.5 rounded-lg border border-[#E5E7EF] space-y-0.5">
+                    <div className="bg-white p-2.5 rounded-lg border border-[#E8D7B7] space-y-0.5">
                       <span className="text-[10px] text-[#6B7280] uppercase block font-mono">Ring Size</span>
-                      <span className="font-bold text-[#1E2230]">
+                      <span className="font-bold text-[#17243B]">
                         {activeReq.ring_size} <span className="text-[10px] text-[#6B7280]">({activeReq.ring_size_standard?.toUpperCase() || 'IN/HK'})</span>
                       </span>
                     </div>
                   )}
 
                   {activeReq.target_weight_grams && (
-                    <div className="bg-white p-2.5 rounded-lg border border-[#E5E7EF] space-y-0.5">
+                    <div className="bg-white p-2.5 rounded-lg border border-[#E8D7B7] space-y-0.5">
                       <span className="text-[10px] text-[#6B7280] uppercase block font-mono">Target Metal Weight</span>
-                      <span className="font-bold text-[#1E2230]">{activeReq.target_weight_grams} grams</span>
+                      <span className="font-bold text-[#17243B]">{activeReq.target_weight_grams} grams</span>
                     </div>
                   )}
 
                   {/* Render dynamic option selections */}
                   {activeReq.selections && activeReq.selections.length > 0 ? (
                     activeReq.selections.map((sel) => (
-                      <div key={sel.id || sel.group_key} className="bg-white p-2.5 rounded-lg border border-[#E5E7EF] space-y-0.5">
+                      <div key={sel.id || sel.group_key} className="bg-white p-2.5 rounded-lg border border-[#E8D7B7] space-y-0.5">
                         <span className="text-[10px] text-[#6B7280] uppercase block font-mono truncate">{sel.group_label}</span>
                         <div className="flex items-center gap-1.5">
                           {sel.swatch_color && (
                             <div className="w-2.5 h-2.5 rounded-full border border-black/20 shrink-0" style={{ backgroundColor: sel.swatch_color }} />
                           )}
-                          <span className="font-bold text-[#1E2230] truncate">{sel.value_label || sel.other_text || 'Standard'}</span>
+                          <span className="font-bold text-[#17243B] truncate">{sel.value_label || sel.other_text || 'Standard'}</span>
                         </div>
                       </div>
                     ))
                   ) : (
                     <>
                       {activeReq.metal_alloy_name && (
-                        <div className="bg-white p-2.5 rounded-lg border border-[#E5E7EF] space-y-0.5">
+                        <div className="bg-white p-2.5 rounded-lg border border-[#E8D7B7] space-y-0.5">
                           <span className="text-[10px] text-[#6B7280] uppercase block font-mono">Metal Alloy</span>
-                          <span className="font-bold text-[#1E2230]">{activeReq.metal_alloy_name}</span>
+                          <span className="font-bold text-[#17243B]">{activeReq.metal_alloy_name}</span>
                         </div>
                       )}
                       {activeReq.aesthetic_style_name && (
-                        <div className="bg-white p-2.5 rounded-lg border border-[#E5E7EF] space-y-0.5">
+                        <div className="bg-white p-2.5 rounded-lg border border-[#E8D7B7] space-y-0.5">
                           <span className="text-[10px] text-[#6B7280] uppercase block font-mono">Design Style</span>
-                          <span className="font-bold text-[#1E2230]">{activeReq.aesthetic_style_name}</span>
+                          <span className="font-bold text-[#17243B]">{activeReq.aesthetic_style_name}</span>
                         </div>
                       )}
                     </>
                   )}
 
                   {activeReq.delivery_speed_name && (
-                    <div className="bg-white p-2.5 rounded-lg border border-[#E5E7EF] space-y-0.5">
+                    <div className="bg-white p-2.5 rounded-lg border border-[#E8D7B7] space-y-0.5">
                       <span className="text-[10px] text-[#6B7280] uppercase block font-mono">Turnaround Speed</span>
-                      <span className="font-bold text-[#1E2230]">{activeReq.delivery_speed_name}</span>
+                      <span className="font-bold text-[#17243B]">{activeReq.delivery_speed_name}</span>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* 3. GEMSTONES & DIAMOND LAYOUT */}
-              <div className="bg-slate-50 border border-[#E5E7EF] p-4 rounded-xl space-y-3">
-                <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-2">
-                  <div className="flex items-center gap-2 font-bold text-[#1E2230] uppercase text-xs tracking-wider">
+              <div className="bg-slate-50 border border-[#E8D7B7] p-4 rounded-xl space-y-3">
+                <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-2">
+                  <div className="flex items-center gap-2 font-bold text-[#17243B] uppercase text-xs tracking-wider">
                     <Gem className="w-4 h-4 text-[#C9A227]" />
                     <span>Gemstone &amp; Diamond Setting Architecture</span>
                   </div>
@@ -1046,14 +1046,14 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                 </div>
 
                 {activeReq.is_metal_only ? (
-                  <div className="p-3 rounded-lg bg-white border border-[#E5E7EF] text-slate-700 text-xs flex items-center gap-2">
+                  <div className="p-3 rounded-lg bg-white border border-[#E8D7B7] text-slate-700 text-xs flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                     <span><strong>Metal Only Model</strong> — No gemstone seats, prongs, or diamond micro-pavé required for this CAD file.</span>
                   </div>
                 ) : activeReq.stones && activeReq.stones.length > 0 ? (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs bg-white rounded-lg border border-[#E5E7EF] overflow-hidden">
-                      <thead className="bg-slate-100/80 text-[10px] uppercase font-mono text-[#6B7280] border-b border-[#E5E7EF]">
+                    <table className="w-full text-left text-xs bg-white rounded-lg border border-[#E8D7B7] overflow-hidden">
+                      <thead className="bg-slate-100/80 text-[10px] uppercase font-mono text-[#6B7280] border-b border-[#E8D7B7]">
                         <tr>
                           <th className="p-2.5">Stone Type</th>
                           <th className="p-2.5">Shape</th>
@@ -1067,10 +1067,10 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                       <tbody className="divide-y divide-slate-100">
                         {activeReq.stones.map((s, idx) => (
                           <tr key={idx} className="hover:bg-slate-50/60">
-                            <td className="p-2.5 font-bold text-[#1E2230]">{s.stone_type}</td>
+                            <td className="p-2.5 font-bold text-[#17243B]">{s.stone_type}</td>
                             <td className="p-2.5 text-slate-700">{s.shape || 'Standard'}</td>
                             <td className="p-2.5 text-slate-700">{s.setting_style || 'Prong'}</td>
-                            <td className="p-2.5 font-mono font-bold text-[#1E2230]">{s.quantity}x</td>
+                            <td className="p-2.5 font-mono font-bold text-[#17243B]">{s.quantity}x</td>
                             <td className="p-2.5 font-mono text-slate-700">{s.size_value ? `${s.size_value} ${s.size_unit || 'ct'}` : '--'}</td>
                             <td className="p-2.5 font-mono text-slate-700">{[s.clarity, s.color].filter(Boolean).join(' • ') || 'Standard'}</td>
                             <td className="p-2.5">
@@ -1090,8 +1090,8 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                 ) : activeReq.gemstones && activeReq.gemstones.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {activeReq.gemstones.map((g, idx) => (
-                      <div key={idx} className="p-2.5 rounded-lg bg-white border border-[#E5E7EF] flex justify-between items-center text-xs">
-                        <span className="font-bold text-[#1E2230]">{g.quantity}x {g.stone_type} ({g.cut_type})</span>
+                      <div key={idx} className="p-2.5 rounded-lg bg-white border border-[#E8D7B7] flex justify-between items-center text-xs">
+                        <span className="font-bold text-[#17243B]">{g.quantity}x {g.stone_type} ({g.cut_type})</span>
                         <span className="font-mono text-slate-500 text-[11px]">{g.carat_size || 'Spec'}</span>
                       </div>
                     ))}
@@ -1101,7 +1101,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                     ✓ Client specified "Let Modeller Decide" (Open Preference for optimum aesthetics).
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-500 italic p-2 bg-white rounded-lg border border-[#E5E7EF]">
+                  <p className="text-xs text-slate-500 italic p-2 bg-white rounded-lg border border-[#E8D7B7]">
                     No specific gemstone rows declared in configurator.
                   </p>
                 )}
@@ -1110,13 +1110,13 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
               {/* 4. PERSONALIZATION, BRANDING & SHOWCASE PERMISSION */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                 {/* Engraving */}
-                <div className="bg-slate-50 border border-[#E5E7EF] p-3 rounded-xl space-y-1.5">
-                  <span className="text-[10px] text-[#6B7280] uppercase block font-mono font-bold flex items-center gap-1 border-b border-[#E5E7EF] pb-1">
+                <div className="bg-slate-50 border border-[#E8D7B7] p-3 rounded-xl space-y-1.5">
+                  <span className="text-[10px] text-[#6B7280] uppercase block font-mono font-bold flex items-center gap-1 border-b border-[#E8D7B7] pb-1">
                     <FileText className="w-3 h-3 text-[#C9A227]" /> Custom Engraving
                   </span>
                   {activeReq.engraving_text ? (
-                    <div className="bg-white p-2 rounded-lg border border-[#E5E7EF] space-y-0.5">
-                      <p className="font-bold text-[#1E2230]">"{activeReq.engraving_text}"</p>
+                    <div className="bg-white p-2 rounded-lg border border-[#E8D7B7] space-y-0.5">
+                      <p className="font-bold text-[#17243B]">"{activeReq.engraving_text}"</p>
                       <p className="text-[10px] text-[#6B7280] font-mono">
                         Font: {activeReq.engraving_font || 'Script'} • {activeReq.engraving_placement || 'Inside Shank'}
                       </p>
@@ -1127,12 +1127,12 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                 </div>
 
                 {/* Brand Logo */}
-                <div className="bg-slate-50 border border-[#E5E7EF] p-3 rounded-xl space-y-1.5">
-                  <span className="text-[10px] text-[#6B7280] uppercase block font-mono font-bold flex items-center gap-1 border-b border-[#E5E7EF] pb-1">
+                <div className="bg-slate-50 border border-[#E8D7B7] p-3 rounded-xl space-y-1.5">
+                  <span className="text-[10px] text-[#6B7280] uppercase block font-mono font-bold flex items-center gap-1 border-b border-[#E8D7B7] pb-1">
                     <Tag className="w-3 h-3 text-[#C9A227]" /> Brand Logo Stamping
                   </span>
                   {activeReq.has_logo ? (
-                    <div className="bg-white p-2 rounded-lg border border-[#E5E7EF] space-y-1">
+                    <div className="bg-white p-2 rounded-lg border border-[#E8D7B7] space-y-1">
                       <span className="text-emerald-700 font-bold text-[11px] block">✓ Logo Stamping Required</span>
                       {activeReq.logo_file ? (
                         <a
@@ -1153,11 +1153,11 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                 </div>
 
                 {/* Portfolio Showcase Consent */}
-                <div className="bg-slate-50 border border-[#E5E7EF] p-3 rounded-xl space-y-1.5">
-                  <span className="text-[10px] text-[#6B7280] uppercase block font-mono font-bold flex items-center gap-1 border-b border-[#E5E7EF] pb-1">
+                <div className="bg-slate-50 border border-[#E8D7B7] p-3 rounded-xl space-y-1.5">
+                  <span className="text-[10px] text-[#6B7280] uppercase block font-mono font-bold flex items-center gap-1 border-b border-[#E8D7B7] pb-1">
                     <ShieldCheck className="w-3 h-3 text-[#C9A227]" /> Portfolio Showcase
                   </span>
-                  <div className="bg-white p-2 rounded-lg border border-[#E5E7EF]">
+                  <div className="bg-white p-2 rounded-lg border border-[#E8D7B7]">
                     {activeReq.client_consent_to_feature ? (
                       <span className="text-emerald-700 font-bold text-[11px] block">
                         ✓ Consent Granted for Portfolio Showcase
@@ -1172,9 +1172,9 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
               </div>
 
               {/* 5. CLIENT WRITTEN BRIEF, REFERENCES, VOICE NOTE & SKETCHES */}
-              <div className="bg-slate-50 border border-[#E5E7EF] p-4 rounded-xl space-y-3">
-                <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-2">
-                  <div className="flex items-center gap-2 font-bold text-[#1E2230] uppercase text-xs tracking-wider">
+              <div className="bg-slate-50 border border-[#E8D7B7] p-4 rounded-xl space-y-3">
+                <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-2">
+                  <div className="flex items-center gap-2 font-bold text-[#17243B] uppercase text-xs tracking-wider">
                     <FileText className="w-4 h-4 text-[#C9A227]" />
                     <span>Client Design Brief, References &amp; Uploaded Artwork</span>
                   </div>
@@ -1211,7 +1211,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
 
                 {/* Chosen Catalog Reference Product (if selected in quick brief) */}
                 {(activeReq.reference_product || activeReq.reference_product_title) && (
-                  <div className="p-3.5 rounded-xl bg-slate-50 border border-[#E5E7EF] space-y-2">
+                  <div className="p-3.5 rounded-xl bg-slate-50 border border-[#E8D7B7] space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-mono text-[#6B7280] uppercase font-bold flex items-center gap-1.5">
                         <ShoppingBag className="w-3.5 h-3.5 text-[#C9A227]" />
@@ -1221,7 +1221,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                         Similar Design Wanted
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-[#E5E7EF]">
+                    <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-[#E8D7B7]">
                       {activeReq.reference_product_image ? (
                         <img
                           src={activeReq.reference_product_image}
@@ -1238,7 +1238,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                         <span className="text-[10px] font-mono text-[#C9A227] font-bold block">
                           REF PRODUCT #{activeReq.reference_product}
                         </span>
-                        <h4 className="font-bold text-xs text-[#1E2230] truncate">
+                        <h4 className="font-bold text-xs text-[#17243B] truncate">
                           {activeReq.reference_product_title || 'Catalog Product'}
                         </h4>
                         {activeReq.reference_product_price && (
@@ -1263,8 +1263,8 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                 )}
 
                 {/* Written Notes */}
-                <div className="bg-white p-3 rounded-lg border border-[#E5E7EF] space-y-2 text-xs">
-                  <p className="text-[#1E2230] whitespace-pre-line leading-relaxed">
+                <div className="bg-white p-3 rounded-lg border border-[#E8D7B7] space-y-2 text-xs">
+                  <p className="text-[#17243B] whitespace-pre-line leading-relaxed">
                     {activeReq.special_instructions || activeReq.description || 'No special written instructions provided.'}
                   </p>
                 </div>
@@ -1281,7 +1281,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                         <div
                           key={cIdx}
                           onClick={() => cRef.image && setLightboxImage(cRef.image)}
-                          className="flex items-center gap-2.5 p-2 rounded-xl bg-white border border-[#E5E7EF] hover:border-[#C9A227] cursor-pointer transition-all hover:shadow-sm"
+                          className="flex items-center gap-2.5 p-2 rounded-xl bg-white border border-[#E8D7B7] hover:border-[#C9A227] cursor-pointer transition-all hover:shadow-sm"
                         >
                           {cRef.image ? (
                             <img src={cRef.image} alt={cRef.title} className="w-12 h-12 rounded-lg object-cover border border-slate-100 shrink-0" />
@@ -1290,7 +1290,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                           )}
                           <div className="min-w-0 flex-1">
                             <span className="text-[10px] font-mono text-[#C9A227] font-bold block">{cRef.sku || `SKU-${cRef.id}`}</span>
-                            <p className="font-bold text-[#1E2230] text-xs truncate">{cRef.title}</p>
+                            <p className="font-bold text-[#17243B] text-xs truncate">{cRef.title}</p>
                             <span className="text-[9px] text-[#6B7280] block">Click to enlarge image</span>
                           </div>
                         </div>
@@ -1312,7 +1312,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                           <div
                             key={sk.id}
                             onClick={() => setLightboxImage(imgUrl)}
-                            className="w-16 h-16 rounded-xl overflow-hidden border border-[#E5E7EF] cursor-pointer shrink-0 hover:border-[#C9A227] hover:shadow-md transition-all relative group"
+                            className="w-16 h-16 rounded-xl overflow-hidden border border-[#E8D7B7] cursor-pointer shrink-0 hover:border-[#C9A227] hover:shadow-md transition-all relative group"
                           >
                             <img src={imgUrl} alt="Sketch" className="w-full h-full object-cover" />
                             <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
@@ -1479,7 +1479,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                       }
                     }}
                     placeholder="Quick Telegram / WhatsApp update (e.g. Client agreed on Platinum 950 via Telegram)..."
-                    className="w-full text-xs font-mono px-3 py-1.5 rounded-lg border border-amber-300 bg-white text-[#1E2230] focus:outline-none focus:ring-1 focus:ring-amber-500 placeholder:text-slate-400"
+                    className="w-full text-xs font-mono px-3 py-1.5 rounded-lg border border-amber-300 bg-white text-[#17243B] focus:outline-none focus:ring-1 focus:ring-amber-500 placeholder:text-slate-400"
                   />
                   <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
                     <button
@@ -1510,7 +1510,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                     value={adminNotesDraft}
                     onChange={(e) => setAdminNotesDraft(e.target.value)}
                     placeholder={`Write private notes about REQ #${activeReq.id} here (e.g. Spoke with ${activeReq.contact_name || activeReq.client_name} on call: wants prong height slightly lower, prefers delivery by Friday, agreed on ₹2,500 total price)...`}
-                    className="w-full text-xs font-mono p-3 rounded-xl border border-amber-300/80 bg-white text-[#1E2230] focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 leading-relaxed placeholder:text-slate-400 resize-y"
+                    className="w-full text-xs font-mono p-3 rounded-xl border border-amber-300/80 bg-white text-[#17243B] focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 leading-relaxed placeholder:text-slate-400 resize-y"
                   />
                 </div>
 
@@ -1534,8 +1534,8 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
 
               {/* 6. NEGOTIATION LOG */}
               {activeReq.messages && activeReq.messages.length > 0 && (
-                <div className="bg-slate-50 border border-[#E5E7EF] p-3 rounded-xl space-y-2">
-                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-[#1E2230] uppercase tracking-wider border-b border-[#E5E7EF] pb-1">
+                <div className="bg-slate-50 border border-[#E8D7B7] p-3 rounded-xl space-y-2">
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-[#17243B] uppercase tracking-wider border-b border-[#E8D7B7] pb-1">
                     <MessageSquare className="w-3.5 h-3.5 text-[#C9A227]" />
                     <span>Negotiation Log</span>
                   </div>
@@ -1548,8 +1548,8 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                           key={m.id}
                           className={`p-2.5 rounded-xl text-[11px] space-y-1 max-w-[88%] ${
                             isAdmin
-                              ? 'bg-amber-50/90 text-[#1E2230] border border-amber-200 ml-auto'
-                              : 'bg-white text-[#1E2230] border border-[#E5E7EF]'
+                              ? 'bg-amber-50/90 text-[#17243B] border border-amber-200 ml-auto'
+                              : 'bg-white text-[#17243B] border border-[#E8D7B7]'
                           }`}
                         >
                           <div className="flex items-center justify-between text-[9px] text-[#6B7280] font-mono font-bold">
@@ -1596,7 +1596,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                 const isClientOffer = latestMsg && latestMsg.sender_type === 'client';
 
                 return (
-                  <div className="bg-slate-50 border border-[#E5E7EF] p-3 rounded-xl space-y-2.5">
+                  <div className="bg-slate-50 border border-[#E8D7B7] p-3 rounded-xl space-y-2.5">
                     {/* Client Counter Offer Banner */}
                     {isClientOffer && (
                       <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-300 flex items-center justify-between gap-2 text-xs">
@@ -1625,7 +1625,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                           value={quoteInput}
                           onChange={(e) => setQuoteInput(e.target.value ? Number(e.target.value) : '')}
                           placeholder={String(activeReq.estimated_price_shown || 25000)}
-                          className="w-full pl-6 pr-2 py-1.5 text-xs rounded-xl bg-white border border-[#E5E7EF] font-mono font-bold text-[#1E2230] focus:outline-none focus:border-[#C9A227]"
+                          className="w-full pl-6 pr-2 py-1.5 text-xs rounded-xl bg-white border border-[#E8D7B7] font-mono font-bold text-[#17243B] focus:outline-none focus:border-[#C9A227]"
                         />
                       </div>
 
@@ -1634,7 +1634,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                         value={textMessageInput}
                         onChange={(e) => setTextMessageInput(e.target.value)}
                         placeholder="Add turnaround notes or terms..."
-                        className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-[#E5E7EF] text-[#1E2230] focus:outline-none focus:border-[#C9A227]"
+                        className="w-full px-3 py-1.5 text-xs rounded-xl bg-white border border-[#E8D7B7] text-[#17243B] focus:outline-none focus:border-[#C9A227]"
                       />
 
                       <button

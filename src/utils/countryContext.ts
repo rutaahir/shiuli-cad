@@ -259,8 +259,40 @@ export interface PriceDisplayResult {
  * - If product is in regional mode: checks Base Country, Tier 1, Tier 2, Tier 3, or Rest of the World,
  *   retrieves the tier USD price, and converts it to current customer currency.
  */
+/**
+ * Format any numeric currency amount into proper localized currency string.
+ */
+export function formatCurrencyAmount(
+  amount: number | string | undefined | null,
+  currencyCode?: string,
+  symbol?: string
+): string {
+  if (amount === undefined || amount === null || amount === '') return '0';
+  const num = typeof amount === 'string' ? parseFloat(amount) : Number(amount);
+  if (isNaN(num)) return '0';
+
+  const cur = (currencyCode || globalCountryState.currency || 'INR').toUpperCase();
+  const sym = symbol !== undefined ? symbol : (globalCountryState.symbol || (cur === 'INR' ? '₹' : '$'));
+
+  if (['INR', 'JPY', 'KRW', 'VND', 'IDR'].includes(cur)) {
+    const rounded = Math.round(num);
+    return `${sym}${rounded.toLocaleString('en-IN')}`;
+  }
+
+  const rounded = Math.round(num * 100) / 100;
+  return `${sym}${rounded.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/**
+ * Resolves product pricing according to 5 groups or global fallback.
+ * Authoritative:
+ * - Admin enters prices in USD.
+ * - Converts USD price into customer country's local currency based on exchange rate.
+ * - In India: shows in Rupee (₹ INR).
+ * - In other countries: shows in local currency (USD, GBP, EUR, CAD, AUD, etc.).
+ */
 export function resolveDisplayPrice(
-  product: Product,
+  product: Product | { price: number | string; originalPrice?: number; compare_at_price?: any; pricing_mode?: string; regional_pricing?: any; [key: string]: any },
   licenseType: 'standard' | 'commercial' | string = 'standard',
   forcedCountryCode?: string,
   forcedRates?: Record<string, number>
@@ -274,27 +306,56 @@ export function resolveDisplayPrice(
   const isCommercial = licenseType === 'commercial';
   const commercialMarkup = 1.8; // +80%
 
-  // ── CASE A: Global Pricing Mode (Default / Legacy) ────────────────────────
+  // ── CASE A: Global Pricing Mode (Default) ─────────────────────────────────
   if (product.pricing_mode !== 'regional') {
-    const baseINR = Number(product.price) || 0;
-    const finalINR = isCommercial ? Math.round(baseINR * commercialMarkup) : baseINR;
-    const rawOrig = product.originalPrice
-      ? isCommercial
-        ? Math.round(product.originalPrice * commercialMarkup)
-        : product.originalPrice
-      : undefined;
+    const usdPrice = Number(product.price) || 0;
+    const finalUsd = isCommercial ? Math.round(usdPrice * commercialMarkup * 100) / 100 : usdPrice;
+    const converted = finalUsd * currentRate;
+
+    let displayStr = '';
+    let finalRaw = 0;
+
+    if (['INR', 'JPY', 'KRW', 'VND', 'IDR'].includes(currentCurrency)) {
+      finalRaw = Math.round(converted);
+      displayStr = `${currentSymbol}${finalRaw.toLocaleString('en-IN')}`;
+    } else {
+      finalRaw = Math.round(converted * 100) / 100;
+      displayStr = `${currentSymbol}${finalRaw.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
+    let origDisplay: string | undefined;
+    let savingsDisplay: string | undefined;
+
+    const rawOrigUsd = Number(product.originalPrice || (product as any).compare_at_price) || 0;
+    if (rawOrigUsd > 0) {
+      const origUsd = isCommercial ? Math.round(rawOrigUsd * commercialMarkup * 100) / 100 : rawOrigUsd;
+      const origConverted = origUsd * currentRate;
+      const origRaw = ['INR', 'JPY', 'KRW', 'VND', 'IDR'].includes(currentCurrency)
+        ? Math.round(origConverted)
+        : Math.round(origConverted * 100) / 100;
+
+      origDisplay = ['INR', 'JPY', 'KRW', 'VND', 'IDR'].includes(currentCurrency)
+        ? `${currentSymbol}${origRaw.toLocaleString('en-IN')}`
+        : `${currentSymbol}${origRaw.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+      if (origRaw > finalRaw) {
+        savingsDisplay = ['INR', 'JPY', 'KRW', 'VND', 'IDR'].includes(currentCurrency)
+          ? `${currentSymbol}${(origRaw - finalRaw).toLocaleString('en-IN')}`
+          : `${currentSymbol}${(origRaw - finalRaw).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      }
+    }
 
     return {
-      display: `₹${formatINR(finalINR)}`,
-      rawAmount: finalINR,
-      amount: finalINR,
-      currency: 'INR',
-      symbol: '₹',
+      display: displayStr,
+      rawAmount: finalRaw,
+      amount: finalRaw,
+      currency: currentCurrency,
+      symbol: currentSymbol,
       tierName: 'Standard Catalog',
       isRegional: false,
-      priceUsd: Math.round((finalINR / 84) * 100) / 100,
-      originalDisplay: rawOrig ? `₹${formatINR(rawOrig)}` : undefined,
-      savingsDisplay: rawOrig && rawOrig > finalINR ? `₹${formatINR(rawOrig - finalINR)}` : undefined,
+      priceUsd: finalUsd,
+      originalDisplay: origDisplay,
+      savingsDisplay: savingsDisplay,
     };
   }
 
@@ -349,8 +410,12 @@ export function resolveDisplayPrice(
     const origRaw = ['INR', 'JPY', 'KRW', 'VND', 'IDR'].includes(currentCurrency)
       ? Math.round(origConverted)
       : Math.round(origConverted * 100) / 100;
-    origDisplay = `${currentSymbol}${origRaw.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
-    savingsDisplay = `${currentSymbol}${Math.max(0, origRaw - finalRaw).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+    origDisplay = ['INR', 'JPY', 'KRW', 'VND', 'IDR'].includes(currentCurrency)
+      ? `${currentSymbol}${origRaw.toLocaleString('en-IN')}`
+      : `${currentSymbol}${origRaw.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    savingsDisplay = ['INR', 'JPY', 'KRW', 'VND', 'IDR'].includes(currentCurrency)
+      ? `${currentSymbol}${Math.max(0, origRaw - finalRaw).toLocaleString('en-IN')}`
+      : `${currentSymbol}${Math.max(0, origRaw - finalRaw).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
 
   return {

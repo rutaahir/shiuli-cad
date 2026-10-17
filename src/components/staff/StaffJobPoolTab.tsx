@@ -16,7 +16,9 @@ import {
   ChevronRight,
   ShieldAlert,
   CheckSquare,
-  Download
+  Download,
+  Wrench,
+  Volume2
 } from 'lucide-react';
 
 interface StaffJobPoolTabProps {
@@ -62,7 +64,7 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
   return (
     <div className="w-full space-y-6">
       {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-[#E5E7EF] shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-[#E8D7B7] shadow-sm">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-mono font-bold uppercase tracking-widest flex items-center gap-1">
@@ -70,7 +72,7 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
             </span>
             <span className="text-xs text-[#6B7280] font-mono">• Open Broadcast Pool</span>
           </div>
-          <h1 className="font-serif text-2xl font-bold text-[#1E2230] tracking-tight">
+          <h1 className="font-serif text-2xl font-bold text-[#17243B] tracking-tight">
             Available Custom CAD Job Pool
           </h1>
           <p className="text-xs text-[#6B7280] max-w-2xl font-light">
@@ -110,9 +112,9 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
 
       {/* Available Job Cards Grid */}
       {availableJobs.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl bg-white border border-[#E5E7EF] space-y-4 shadow-sm">
+        <div className="p-12 text-center rounded-2xl bg-white border border-[#E8D7B7] space-y-4 shadow-sm">
           <Zap className="w-10 h-10 text-[#C9A227] mx-auto opacity-50" />
-          <h3 className="font-serif text-xl font-bold text-[#1E2230]">No Open Orders in Broadcast Pool</h3>
+          <h3 className="font-serif text-xl font-bold text-[#17243B]">No Open Orders in Broadcast Pool</h3>
           <p className="text-xs text-[#6B7280] max-w-md mx-auto">
             All negotiated client orders have been claimed or are awaiting Stage 1 booking confirmation. New approved commissions will appear here live in real-time.
           </p>
@@ -127,14 +129,22 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
               <div
                 key={job.id}
                 onClick={() => setSelectedJobDrawer(job)}
-                className="bg-white border-l-4 border-l-[#C9A227] border border-[#E5E7EF] hover:border-[#C9A227] rounded-2xl p-5 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col justify-between group relative overflow-hidden cursor-pointer"
+                className="bg-white border-l-4 border-l-[#C9A227] border border-[#E8D7B7] hover:border-[#C9A227] rounded-2xl p-5 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col justify-between group relative overflow-hidden cursor-pointer"
               >
                 {/* Release time pill & category */}
                 <div className="flex items-center justify-between gap-2 mb-3">
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-mono font-bold flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-emerald-600" />
-                    Released {job.releasedTimeAgo}
-                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-mono font-bold flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-emerald-600" />
+                      Released {job.releasedTimeAgo}
+                    </span>
+                    {job.isFileEdit && (
+                      <span className="px-2.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-500/50 text-[10px] font-mono font-bold flex items-center gap-1 shadow-sm">
+                        <Wrench className="w-3 h-3 text-cyan-400" />
+                        FILE EDIT: {job.originalFileFormat?.toUpperCase() || '3DM'}
+                      </span>
+                    )}
+                  </div>
                   <span className="px-2 py-0.5 rounded bg-[#09112B] text-[#F5E7A3] text-[10px] font-mono font-bold">
                     {job.orderNumber}
                   </span>
@@ -142,17 +152,17 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
 
                 {/* Reference Image + Title (NO PRICE DISPLAY) */}
                 <div className="space-y-3">
-                  <div className="relative aspect-video rounded-xl overflow-hidden border border-[#E5E7EF] bg-slate-900 group">
+                  <div className="relative aspect-video rounded-xl overflow-hidden border border-[#E8D7B7] bg-slate-900 group">
                     <img
                       src={job.referenceImage}
                       alt={job.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                     <div className="absolute top-2 right-2 px-2.5 py-1 rounded-lg bg-emerald-950/90 border border-emerald-500/40 text-emerald-300 font-mono font-bold text-[10px] shadow">
-                      AVAILABLE COMMISSION
+                      {job.isFileEdit ? 'FILE MODIFICATION JOB' : 'AVAILABLE COMMISSION'}
                     </div>
                     <div className="absolute bottom-2 left-2 px-2.5 py-0.5 rounded bg-black/80 backdrop-blur-md text-white text-[10px] font-mono border border-slate-700">
-                      {job.metalPreference}
+                      {job.isFileEdit ? `Format: .${job.originalFileFormat?.toUpperCase() || '3DM'}` : job.metalPreference}
                     </div>
                   </div>
 
@@ -167,16 +177,25 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
                         </span>
                       )}
                     </div>
-                    <h3 className="font-serif font-bold text-[#1E2230] text-lg mt-0.5 group-hover:text-[#C9A227] transition-colors">
+                    <h3 className="font-serif font-bold text-[#17243B] text-lg mt-0.5 group-hover:text-[#C9A227] transition-colors">
                       {job.title}
                     </h3>
                     <p className="text-xs text-[#6B7280] line-clamp-2 mt-1">
                       {job.description}
                     </p>
+                    {job.isFileEdit && job.modificationTypes && job.modificationTypes.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-2">
+                        {job.modificationTypes.map((mod: string, mIdx: number) => (
+                          <span key={mIdx} className="px-2 py-0.5 rounded-md bg-cyan-50 text-cyan-800 border border-cyan-200 text-[10px] font-mono font-semibold">
+                            🔧 {mod}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Technical Specs Summary */}
-                  <div className="grid grid-cols-2 gap-2 text-[11px] bg-[#F8FAFC] p-3 rounded-xl border border-[#E5E7EF] font-mono text-[#1E2230]">
+                  <div className="grid grid-cols-2 gap-2 text-[11px] bg-[#F8FAFC] p-3 rounded-xl border border-[#E8D7B7] font-mono text-[#17243B]">
                     <div>
                       <span className="text-[#6B7280] block text-[9px] uppercase font-semibold">Stones</span>
                       {job.specsSummary.diamondCount > 0 ? `${job.specsSummary.diamondCount} stones` : 'Metal Only'}
@@ -218,7 +237,7 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
                 </div>
 
                 {/* Action Button: First-Accept-Wins */}
-                <div className="mt-4 pt-3 border-t border-[#E5E7EF]">
+                <div className="mt-4 pt-3 border-t border-[#E8D7B7]">
                   <button
                     disabled={isSecuringThis}
                     onClick={(e) => {
@@ -301,6 +320,62 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
                 </span>
               </div>
             </div>
+
+            {/* Customer's Original CAD File Box (For File Editing Jobs) */}
+            {selectedJobDrawer.isFileEdit && (
+              <div className="p-4 rounded-2xl bg-[#06122C] border-2 border-cyan-500/40 space-y-3 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span className="p-2 rounded-xl bg-cyan-950 text-cyan-400 border border-cyan-500/40">
+                      <Wrench className="w-5 h-5" />
+                    </span>
+                    <div>
+                      <span className="text-xs font-mono font-bold text-cyan-300 uppercase tracking-wider block">
+                        Customer's Original CAD Model
+                      </span>
+                      <span className="text-[11px] text-slate-300 font-mono">
+                        Format: .{selectedJobDrawer.originalFileFormat?.toUpperCase() || '3DM'} • {selectedJobDrawer.originalFileName || 'Customer_Model'}
+                      </span>
+                    </div>
+                  </div>
+                  {selectedJobDrawer.originalFileUrl && (
+                    <a
+                      href={selectedJobDrawer.originalFileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold font-mono flex items-center gap-1.5 shadow transition-all cursor-pointer"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Download File</span>
+                    </a>
+                  )}
+                </div>
+
+                {selectedJobDrawer.modificationTypes && selectedJobDrawer.modificationTypes.length > 0 && (
+                  <div>
+                    <span className="text-[10px] font-mono text-[#F5E7A3] uppercase font-bold block mb-1.5">
+                      Required Modifications:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedJobDrawer.modificationTypes.map((mod: string, mIdx: number) => (
+                        <span key={mIdx} className="px-2.5 py-1 rounded-lg bg-cyan-900/60 text-cyan-200 border border-cyan-600/40 text-[11px] font-mono font-medium">
+                          ✓ {mod}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {selectedJobDrawer.voiceNoteUrl && (
+                  <div className="p-3 rounded-xl bg-[#03091A] border border-cyan-500/30 space-y-1.5">
+                    <span className="text-[10px] font-mono text-cyan-300 flex items-center gap-1.5 font-bold">
+                      <Volume2 className="w-4 h-4" /> Customer Audio Instructions:
+                    </span>
+                    <audio controls src={selectedJobDrawer.voiceNoteUrl} className="w-full h-8" />
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Primary Visual Preview */}
             <div className="space-y-2">

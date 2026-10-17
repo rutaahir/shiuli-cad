@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Product, PageId } from '../types';
-import { X, Check, ShoppingBag, Heart, ExternalLink, ShieldCheck, Sparkles, Layers } from 'lucide-react';
+import { X, Check, ShoppingBag, Heart, ExternalLink, ShieldCheck, Sparkles, Layers, Lock } from 'lucide-react';
 import { getOptimizedImageUrl, handleImgError } from '../utils/imageHelper';
 import { useCustomerCountry, resolveDisplayPrice } from '../utils/countryContext';
+import { useAuth } from '../context/AuthContext';
 
 interface QuickViewModalProps {
   product: Product | null;
@@ -21,6 +22,7 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
   isWishlisted,
   onNavigateToDetail,
 }) => {
+  const { isLoggedIn, requireAuth } = useAuth();
   const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
   const [addedNotice, setAddedNotice] = useState<boolean>(false);
   const { currentCountry, exchangeRates } = useCustomerCountry();
@@ -178,13 +180,33 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({
               <div className="flex gap-2">
                 <button
                   onClick={() => {
+                    if (!isLoggedIn) {
+                      requireAuth(() => {
+                        onAddToCart(product, 'standard');
+                        onClose();
+                      }, {
+                        intent: 'purchase',
+                        message: 'Sign in to add CAD files to your bag',
+                        productId: product.id,
+                      });
+                      return;
+                    }
                     onAddToCart(product, 'standard');
                     onClose();
                   }}
                   className="flex-1 py-3 px-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#DFB35A] via-[#ECC976] to-[#C99834] hover:from-[#E6BC64] hover:to-[#D4A33F] text-[#0C2340] font-serif font-bold text-xs sm:text-[13px] tracking-wider uppercase flex items-center justify-center gap-2 shadow-[0_6px_20px_rgba(209,161,54,0.32)] transition-all hover:-translate-y-0.5 active:scale-[0.98] border border-[#FFF0BA] cursor-pointer"
                 >
-                  <ShoppingBag className="w-4 h-4 stroke-[2.2]" />
-                  <span>Add To CAD Bag ({resolved.display})</span>
+                  {!isLoggedIn ? (
+                    <>
+                      <Lock className="w-4 h-4 stroke-[2.2]" />
+                      <span>Sign In to Add ({resolved.display})</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingBag className="w-4 h-4 stroke-[2.2]" />
+                      <span>Add To CAD Bag ({resolved.display})</span>
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={() => onToggleWishlist(product)}

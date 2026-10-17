@@ -464,22 +464,10 @@ class ApiClient {
   }
 
   async submitCustomRequest(formData: FormData | Record<string, any>) {
-    if (formData instanceof FormData) {
-      const token = localStorage.getItem('shiuli_access_token');
-      const response = await fetch('/api/custom-requests/', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-      return await this.handleResponse<any>(response);
-    } else {
-      return this.request<any>('/custom-requests/', {
-        method: 'POST',
-        body: JSON.stringify(formData),
-      });
-    }
+    return this.request<any>('/custom-requests/', {
+      method: 'POST',
+      body: formData instanceof FormData ? formData : JSON.stringify(formData),
+    });
   }
 
   async submitRevisionRequest(orderId: number | string, data: FormData | Record<string, any>) {
@@ -588,6 +576,14 @@ class ApiClient {
   async togglePurchaseDownloadPermission(purchaseId: number | string, enabled?: boolean) {
     this.ensureAdminToken();
     return await this.request<any>(`/payments/purchases/${purchaseId}/toggle-download-permission/`, {
+      method: 'POST',
+      body: JSON.stringify(enabled !== undefined ? { enabled } : {}),
+    });
+  }
+
+  async toggleOrderDownloadPermission(orderId: number | string, enabled?: boolean) {
+    this.ensureAdminToken();
+    return await this.request<any>(`/orders/${orderId}/toggle-download-permission/`, {
       method: 'POST',
       body: JSON.stringify(enabled !== undefined ? { enabled } : {}),
     });
@@ -1485,22 +1481,9 @@ class ApiClient {
   }
 
   async createCustomRequest(data: any): Promise<any> {
-    if (data instanceof FormData) {
-      const token = localStorage.getItem('shiuli_access_token') || localStorage.getItem('access_token');
-      const headers: Record<string, string> = {};
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      const response = await fetch('/api/custom-requests/', {
-        method: 'POST',
-        headers,
-        body: data,
-      });
-      return await this.handleResponse<any>(response);
-    }
     return this.request<any>('/custom-requests/', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: data instanceof FormData ? data : JSON.stringify(data),
     });
   }
 
@@ -1568,6 +1551,117 @@ class ApiClient {
       body: JSON.stringify(data),
     });
   }
+
+  async createFileEditGDriveSession(file: File): Promise<{ session_uri: string; filename: string }> {
+    return this.request<{ session_uri: string; filename: string }>(
+      '/file-edits/requests/gdrive-upload-session/',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: file.name,
+          file_size: file.size,
+          mime_type: file.type || 'application/octet-stream',
+        }),
+      }
+    );
+  }
+
+  async uploadFileEditToGDrive(
+    file: File,
+    onProgress?: (percent: number) => void
+  ): Promise<{ drive_file_id: string; webViewLink?: string }> {
+    const sessionData = await this.createFileEditGDriveSession(file);
+    const sessionUri = sessionData.session_uri;
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable && onProgress) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          onProgress(percent);
+        }
+      });
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status === 200 || xhr.status === 201) {
+          try {
+            const driveData = JSON.parse(xhr.responseText || '{}');
+            const driveFileId = driveData.id;
+            if (!driveFileId) {
+              throw new Error('Google Drive upload response did not include a valid file ID.');
+            }
+            resolve({
+              drive_file_id: driveFileId,
+              webViewLink: driveData.webViewLink,
+            });
+          } catch (err) {
+            reject(err);
+          }
+        } else {
+          reject(new Error(`Google Drive upload failed with status ${xhr.status}: ${xhr.responseText}`));
+        }
+      });
+
+      xhr.addEventListener('error', () =>
+        reject(new Error(`Network error uploading "${file.name}" to Google Drive.`))
+      );
+      xhr.addEventListener('timeout', () =>
+        reject(new Error(`Upload timed out for "${file.name}" to Google Drive.`))
+      );
+      xhr.timeout = 60 * 60 * 1000; // 1 hour timeout for large CAD files
+
+      xhr.open('PUT', sessionUri);
+      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+      xhr.send(file);
+    });
+  }
+
+  async quoteFileEditRequest(id: number, price: number, message?: string, currency?: string): Promise<any> {
+    await this.ensureAdminToken();
+    return this.request<any>(`/file-edits/requests/${id}/quote/`, {
+      method: 'POST',
+      body: JSON.stringify({ price, message: message || '', currency: currency || 'USD' }),
+    });
+  }
+
+  async negotiateFileEditRequest(id: number, payload: { price?: number; message?: string; currency?: string }): Promise<any> {
+    return this.request<any>(`/file-edits/requests/${id}/negotiate/`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async acceptFileEditQuote(id: number): Promise<any> {
+    return this.request<any>(`/file-edits/requests/${id}/accept-quote/`, {
+      method: 'POST',
+    });
+  }
+
+  async approveFileEditRequest(id: number): Promise<any> {
+    await this.ensureAdminToken();
+    return this.request<any>(`/file-edits/requests/${id}/approve/`, {
+      method: 'POST',
+    });
+  }
+
+  async rejectFileEditRequest(id: number, reason?: string): Promise<any> {
+    await this.ensureAdminToken();
+    return this.request<any>(`/file-edits/requests/${id}/reject/`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason || '' }),
+    });
+  }
+
+  async updateFileEditNotes(id: number, notes: string): Promise<any> {
+    await this.ensureAdminToken();
+    return this.request<any>(`/file-edits/requests/${id}/update-notes/`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    });
+  }
+
 
   async getContactMessages(): Promise<any[]> {
     await this.ensureAdminToken();

@@ -1052,9 +1052,9 @@ def download_cad_file(request, token):
                 "error": "Download permission has been locked by administration for this purchase. Please contact support."
             }, status=status.HTTP_403_FORBIDDEN)
 
-        if token_obj.order and not token_obj.order.download_enabled_by_admin:
+        if token_obj.order and token_obj.order.status == 'cancelled':
             return Response({
-                "error": "Download permission has been locked by administration for this order. Please contact support."
+                "error": "This order has been cancelled. Please contact support."
             }, status=status.HTTP_403_FORBIDDEN)
 
         # 2. Check revoked status
@@ -1141,7 +1141,16 @@ def download_cad_file(request, token):
         from apps.catalog.models import protected_cad_storage
         from apps.core.gdrive_service import GoogleDriveQuotaError, GoogleDriveError
 
-        deliverables = list(OrderDeliverable.objects.filter(order=order))
+        # Filter by order's active/current version to ensure customer gets the latest uploaded/edited deliverables
+        deliverables = list(OrderDeliverable.objects.filter(order=order, version=order.current_version))
+        if not deliverables:
+            # Fallback to latest version that has deliverables
+            latest_version = OrderDeliverable.objects.filter(order=order).order_by('-version').values_list('version', flat=True).first()
+            if latest_version:
+                deliverables = list(OrderDeliverable.objects.filter(order=order, version=latest_version))
+            else:
+                deliverables = list(OrderDeliverable.objects.filter(order=order))
+
         valid_deliverables = [
             d for d in deliverables
             if (d.storage_provider == 'gdrive' and d.drive_file_id) or d.file
@@ -1156,13 +1165,32 @@ def download_cad_file(request, token):
             if deliv.original_filename:
                 return deliv.original_filename
             raw_filename = os.path.basename(deliv.file.name) if deliv.file else f"ord_{order.id}_{deliv.file_type}.{deliv.file_type}"
-            clean_filename = raw_filename
-            prefix = f"ord_{order.id}_{deliv.file_type}_"
-            if clean_filename.startswith(prefix):
-                clean_filename = clean_filename[len(prefix):]
-            elif clean_filename.startswith(f"ord_{order.id}_"):
-                clean_filename = clean_filename[len(f"ord_{order.id}_"):]
-            return clean_filename
+            import re
+            cleaned = re.sub(rf"^ord_{order.id}_(v\d+_)?({deliv.file_type}_)?", "", raw_filename)
+            return cleaned or raw_filename
+
+        def open_deliverable_file(deliv):
+            if not deliv.file:
+                return None
+            try:
+                if protected_cad_storage.exists(deliv.file.name):
+                    return protected_cad_storage.open(deliv.file.name, 'rb')
+            except Exception:
+                pass
+            try:
+                if hasattr(deliv.file, 'storage') and deliv.file.storage.exists(deliv.file.name):
+                    return deliv.file.storage.open(deliv.file.name, 'rb')
+            except Exception:
+                pass
+            try:
+                if hasattr(deliv.file, 'path') and os.path.exists(deliv.file.path):
+                    return open(deliv.file.path, 'rb')
+            except Exception:
+                pass
+            try:
+                return deliv.file.open('rb')
+            except Exception:
+                return None
 
         try:
             if len(valid_deliverables) == 1:
@@ -1173,6 +1201,8 @@ def download_cad_file(request, token):
                     content_type = 'video/mp4'
                 elif clean_filename.lower().endswith('.stl'):
                     content_type = 'model/stl'
+                elif clean_filename.lower().endswith('.zip'):
+                    content_type = 'application/zip'
 
                 if deliv.storage_provider == 'gdrive' and deliv.drive_file_id:
                     response = StreamingHttpResponse(
@@ -1185,10 +1215,9 @@ def download_cad_file(request, token):
                     response['Access-Control-Expose-Headers'] = 'Content-Disposition, Content-Length'
                     return response
                 else:
-                    if protected_cad_storage.exists(deliv.file.name):
-                        file_handle = protected_cad_storage.open(deliv.file.name, 'rb')
-                    else:
-                        file_handle = deliv.file.open('rb')
+                    file_handle = open_deliverable_file(deliv)
+                    if not file_handle:
+                        return Response({"error": "Deliverable file not found on storage. Please contact studio support."}, status=status.HTTP_404_NOT_FOUND)
 
                     file_size = None
                     try:
@@ -1208,19 +1237,28 @@ def download_cad_file(request, token):
             else:
                 # Package all deliverables into a disk-backed ZIP (Zero RAM buffering)
                 file_items = []
+                seen_names = {}
                 for deliv in valid_deliverables:
-                    clean_name = get_clean_name(deliv)
+                    base_clean = get_clean_name(deliv)
+                    if base_clean in seen_names:
+                        seen_names[base_clean] += 1
+                        name_root, ext = os.path.splitext(base_clean)
+                        clean_name = f"{name_root}_{seen_names[base_clean]}{ext}"
+                    else:
+                        seen_names[base_clean] = 1
+                        clean_name = base_clean
+
                     if deliv.storage_provider == 'gdrive' and deliv.drive_file_id:
                         file_items.append((clean_name, deliv.drive_file_id, True))
                     else:
-                        try:
-                            if protected_cad_storage.exists(deliv.file.name):
-                                f_h = protected_cad_storage.open(deliv.file.name, 'rb')
-                            else:
-                                f_h = deliv.file.open('rb')
+                        f_h = open_deliverable_file(deliv)
+                        if f_h:
                             file_items.append((clean_name, f_h, False))
-                        except Exception as file_err:
-                            logger.warning("Could not open deliverable %s: %s", deliv.id, file_err)
+                        else:
+                            logger.warning("Could not open deliverable %s on disk", deliv.id)
+
+                if not file_items:
+                    return Response({"error": "No accessible production deliverables found on storage."}, status=status.HTTP_404_NOT_FOUND)
 
                 temp_zip_path = build_disk_backed_zip(file_items)
                 zip_filename = f"order_{order.id}_cad_production_package.zip"
@@ -1254,8 +1292,32 @@ def download_cad_file(request, token):
     product = token_obj.purchase.product
     cad_file_objs = list(ProductFile.objects.filter(
         product=product,
-        file_type__in=[ProductFile.FileType.FILE_3DM, ProductFile.FileType.STL]
+        file_type__in=[ProductFile.FileType.FILE_3DM, ProductFile.FileType.STL, ProductFile.FileType.ZIP]
     ))
+
+    def open_product_file(cf):
+        if not cf.file:
+            return None
+        from apps.catalog.models import protected_cad_storage
+        try:
+            if protected_cad_storage.exists(cf.file.name):
+                return protected_cad_storage.open(cf.file.name, 'rb')
+        except Exception:
+            pass
+        try:
+            if hasattr(cf.file, 'storage') and cf.file.storage.exists(cf.file.name):
+                return cf.file.storage.open(cf.file.name, 'rb')
+        except Exception:
+            pass
+        try:
+            if hasattr(cf.file, 'path') and os.path.exists(cf.file.path):
+                return open(cf.file.path, 'rb')
+        except Exception:
+            pass
+        try:
+            return cf.file.open('rb')
+        except Exception:
+            return None
 
     # Filter only those that actually exist on disk or in storage
     valid_cad_files = []
@@ -1264,15 +1326,17 @@ def download_cad_file(request, token):
         if cf.storage_provider == ProductFile.StorageProvider.GDRIVE and cf.drive_file_id:
             valid_cad_files.append(cf)
         elif cf.file:
-            try:
-                if protected_cad_storage.exists(cf.file.name) or cf.file.storage.exists(cf.file.name):
-                    valid_cad_files.append(cf)
-            except Exception:
-                pass
+            fh = open_product_file(cf)
+            if fh:
+                try:
+                    fh.close()
+                except Exception:
+                    pass
+                valid_cad_files.append(cf)
 
-    # Fallback to authentic Rhino & STL assets from cad_demo_files if no ProductFiles exist on disk
+    # Fallback to authentic Rhino & STL assets from cad_demo_files ONLY IF no ProductFiles were configured in DB
     fallback_dir = getattr(settings, 'BASE_DIR') / 'cad_demo_files'
-    if not valid_cad_files and os.path.exists(fallback_dir):
+    if not valid_cad_files and not cad_file_objs and os.path.exists(fallback_dir):
         demo_3dm = os.path.join(fallback_dir, 'diamond_solitaire_ring.3dm')
         demo_stl = os.path.join(fallback_dir, 'diamond_solitaire_ring.stl')
         demo_files = [f for f in [demo_3dm, demo_stl] if os.path.exists(f)]
@@ -1305,7 +1369,7 @@ def download_cad_file(request, token):
         if len(valid_cad_files) == 1:
             cad_file_obj = valid_cad_files[0]
             raw_name = cad_file_obj.original_filename or (os.path.basename(cad_file_obj.file.name) if cad_file_obj.file else f"{product.slug}.{cad_file_obj.file_type}")
-            content_type = 'model/stl' if raw_name.lower().endswith('.stl') else 'application/octet-stream'
+            content_type = 'model/stl' if raw_name.lower().endswith('.stl') else 'application/zip' if raw_name.lower().endswith('.zip') else 'application/octet-stream'
 
             if cad_file_obj.storage_provider == ProductFile.StorageProvider.GDRIVE and cad_file_obj.drive_file_id:
                 response = StreamingHttpResponse(
@@ -1318,10 +1382,9 @@ def download_cad_file(request, token):
                 response['Access-Control-Expose-Headers'] = 'Content-Disposition, Content-Length'
                 return response
             else:
-                if protected_cad_storage.exists(cad_file_obj.file.name):
-                    file_handle = protected_cad_storage.open(cad_file_obj.file.name, 'rb')
-                else:
-                    file_handle = cad_file_obj.file.open('rb')
+                file_handle = open_product_file(cad_file_obj)
+                if not file_handle:
+                    return Response({"error": "Product CAD file not accessible on storage."}, status=status.HTTP_404_NOT_FOUND)
 
                 file_size = None
                 try:
@@ -1339,18 +1402,16 @@ def download_cad_file(request, token):
                 response['Access-Control-Expose-Headers'] = 'Content-Disposition, Content-Length'
                 return response
         else:
-            # Package multiple CAD files (.3dm + .stl) into a single zip archive with zero memory buffering
+            # Package multiple CAD files (.3dm + .stl + .zip) into a single zip archive with zero memory buffering
             file_items = []
             for cf in valid_cad_files:
                 clean_name = cf.original_filename or (os.path.basename(cf.file.name) if cf.file else f"{product.slug}.{cf.file_type}")
                 if cf.storage_provider == ProductFile.StorageProvider.GDRIVE and cf.drive_file_id:
                     file_items.append((clean_name, cf.drive_file_id, True))
                 else:
-                    if protected_cad_storage.exists(cf.file.name):
-                        f_in = protected_cad_storage.open(cf.file.name, 'rb')
-                    else:
-                        f_in = cf.file.open('rb')
-                    file_items.append((clean_name, f_in, False))
+                    f_in = open_product_file(cf)
+                    if f_in:
+                        file_items.append((clean_name, f_in, False))
 
             temp_zip_path = build_disk_backed_zip(file_items)
             zip_filename = f"{product.slug}_cad_production_package.zip"

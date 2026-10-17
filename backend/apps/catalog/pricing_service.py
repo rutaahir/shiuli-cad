@@ -418,21 +418,38 @@ def resolve_product_pricing(
     is_commercial = str(license_type).lower() == "commercial"
     commercial_markup_pct = float(getattr(product, "commercial_price_markup", 80.0) or 80.0)
 
-    # ── CASE A: Global Pricing Mode (Legacy & Default) ───────────────────────
+    # ── CASE A: Global Pricing Mode (Default) ───────────────────────────────
     if pricing_mode != "regional":
-        base_price_val = float(getattr(product, "price", 0.0) or 0.0)
-        compare_val = float(getattr(product, "compare_at_price", 0.0) or 0.0) if getattr(product, "compare_at_price", None) else None
+        base_usd_price = float(getattr(product, "price", 0.0) or 0.0)
+        compare_usd_price = float(getattr(product, "compare_at_price", 0.0) or 0.0) if getattr(product, "compare_at_price", None) else None
 
         if is_commercial:
-            unit_price = round(base_price_val * (1.0 + (commercial_markup_pct / 100.0)), 2)
-            compare_price = round(compare_val * (1.0 + (commercial_markup_pct / 100.0)), 2) if compare_val else None
+            final_usd_price = round(base_usd_price * (1.0 + (commercial_markup_pct / 100.0)), 2)
+            final_compare_usd = round(compare_usd_price * (1.0 + (commercial_markup_pct / 100.0)), 2) if compare_usd_price else None
         else:
-            unit_price = base_price_val
-            compare_price = compare_val
+            final_usd_price = round(base_usd_price, 2)
+            final_compare_usd = round(compare_usd_price, 2) if compare_usd_price else None
 
-        # Reference USD equivalent for snapshots (using historical 84 or live rate)
-        rate_to_inr = get_exchange_rate("INR") or 86.85
-        unit_price_usd = round(unit_price / rate_to_inr, 2) if rate_to_inr > 0 else unit_price
+        exchange_rate = get_exchange_rate(target_currency)
+        converted_amount = Decimal(str(final_usd_price)) * Decimal(str(exchange_rate))
+
+        if target_currency in ["INR", "JPY", "KRW", "VND", "IDR"]:
+            final_unit_price = float(converted_amount.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+            formatted_display = f"{currency_symbol}{int(final_unit_price):,}"
+        else:
+            final_unit_price = float(converted_amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+            formatted_display = f"{currency_symbol}{final_unit_price:,.2f}"
+
+        formatted_compare = None
+        compare_unit_price = None
+        if final_compare_usd:
+            converted_compare = Decimal(str(final_compare_usd)) * Decimal(str(exchange_rate))
+            if target_currency in ["INR", "JPY", "KRW", "VND", "IDR"]:
+                compare_unit_price = float(converted_compare.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+                formatted_compare = f"{currency_symbol}{int(compare_unit_price):,}"
+            else:
+                compare_unit_price = float(converted_compare.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+                formatted_compare = f"{currency_symbol}{compare_unit_price:,.2f}"
 
         return {
             "pricing_mode": "global",
@@ -440,16 +457,16 @@ def resolve_product_pricing(
             "tier_name": "Standard Catalog Price",
             "country_code": country,
             "country_name": country_name,
-            "currency": "INR",
-            "currency_symbol": "₹",
-            "exchange_rate": 1.0,
-            "price_usd": unit_price_usd,
-            "unit_price": unit_price,
-            "compare_at_price": compare_price,
+            "currency": target_currency,
+            "currency_symbol": currency_symbol,
+            "exchange_rate": round(exchange_rate, 6),
+            "price_usd": final_usd_price,
+            "unit_price": final_unit_price,
+            "compare_at_price": compare_unit_price,
             "license_type": license_type,
             "commercial_markup_pct": commercial_markup_pct if is_commercial else 0.0,
-            "formatted": f"₹{int(round(unit_price)):,}",
-            "formatted_compare": f"₹{int(round(compare_price)):,}" if compare_price else None,
+            "formatted": formatted_display,
+            "formatted_compare": formatted_compare,
         }
 
     # ── CASE B: Country-Based Tier Pricing (5 Groups) ───────────────────────

@@ -24,39 +24,7 @@ export const ProductPriceTag: React.FC<ProductPriceTagProps> = ({
 }) => {
   const { currentCountry, exchangeRates } = useCustomerCountry();
 
-  // If product is in global mode or has no regional pricing, render traditional INR display
-  if (product.pricing_mode !== 'regional' || !product.regional_pricing) {
-    const rawPrice =
-      licenseType === 'commercial' ? Math.round(product.price * 1.8) : product.price;
-    const rawOrig =
-      product.originalPrice &&
-      (licenseType === 'commercial'
-        ? Math.round(product.originalPrice * 1.8)
-        : product.originalPrice);
-
-    const sizeClasses = {
-      xs: 'text-xs',
-      sm: 'text-sm font-semibold',
-      md: 'text-base font-bold',
-      lg: 'text-lg font-bold',
-      xl: 'text-2xl font-bold',
-    }[size];
-
-    return (
-      <div className={`inline-flex items-baseline gap-1.5 ${className}`}>
-        <span className={`font-serif ${sizeClasses} ${primaryColorClass}`}>
-          ₹{formatINR(rawPrice)}
-        </span>
-        {showOriginalPrice && rawOrig && rawOrig > rawPrice && (
-          <span className="text-xs text-[#687386] line-through font-normal">
-            ₹{formatINR(rawOrig)}
-          </span>
-        )}
-      </div>
-    );
-  }
-
-  // Regional pricing mode: resolve tier + local converted price
+  // Authoritatively resolve price converted from admin USD to customer currency
   const resolved = resolveDisplayPrice(
     product,
     licenseType,
@@ -82,7 +50,7 @@ export const ProductPriceTag: React.FC<ProductPriceTagProps> = ({
           {resolved.originalDisplay}
         </span>
       )}
-      {showTierBadge && resolved.tierName && (
+      {showTierBadge && resolved.isRegional && resolved.tierName && (
         <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#FFF9F0] border border-[#E8D7B7] text-[#B88732] font-medium tracking-wide">
           {resolved.tierName}
         </span>

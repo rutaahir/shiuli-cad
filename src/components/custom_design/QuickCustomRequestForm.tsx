@@ -18,7 +18,8 @@ import {
   FileAudio,
   ShoppingBag,
   HelpCircle,
-  X
+  X,
+  Lock
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { api } from '../../services/api';
@@ -36,7 +37,7 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
   onNavigate,
   onSwitchToStepByStep
 }) => {
-  const { user, isLoggedIn } = useAuth();
+  const { user, isLoggedIn, requireAuth, openAuthModal } = useAuth();
   const catalogState = useCatalog();
 
   // 1. Photos State
@@ -220,6 +221,16 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
     e.preventDefault();
     setSubmissionError('');
 
+    if (!isLoggedIn) {
+      requireAuth(() => {
+        handleSubmit(e);
+      }, {
+        intent: 'custom-request',
+        message: 'Please sign in or create an account to submit your custom CAD request.',
+      });
+      return;
+    }
+
     if (photoFiles.length === 0 && !description.trim() && !voiceAudioFile && !selectedProduct) {
       setSubmissionError('Please provide at least one photo, a reference product, a voice note, or a design description.');
       return;
@@ -301,14 +312,19 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
       try {
         res = await api.createCustomRequest(formData);
       } catch (apiErr: any) {
-        console.warn('API error, falling back to local session store:', apiErr);
+        console.error('API custom-requests submission error:', apiErr);
+        setSubmissionError(apiErr?.message || 'Failed to submit custom request to studio. Please try again.');
+        setIsSubmitting(false);
+        return;
       }
 
-      const ticketId = String(res?.id || 'quick_' + Date.now());
+      const ticketId = String(res?.id || '');
       if (contactEmail.trim()) {
         localStorage.setItem('shiuli_contact_email', contactEmail.trim());
       }
-      localStorage.setItem('shiuli_last_submitted_req_id', ticketId);
+      if (ticketId) {
+        localStorage.setItem('shiuli_last_submitted_req_id', ticketId);
+      }
 
       // Offline & fallback store persistence
       const savedLocal = appStore.addCustomRequest({
@@ -323,7 +339,7 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
         currentQuote: 0,
         status: 'new',
         description: fullDescription || 'Quick Custom Jewelry Request',
-        createdAt: new Date().toISOString(),
+        createdAt: res?.created_at || new Date().toISOString(),
         referenceImage: res?.reference_image || selectedProduct?.primary_image || photoPreviews[0] || '',
         voice_recording_url: res?.voice_recording_url || voiceAudioUrl || '',
         messages: []
@@ -953,6 +969,12 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
               <span>Submitting Brief...</span>
+            </>
+          ) : !isLoggedIn ? (
+            <>
+              <Lock className="w-5 h-5" />
+              <span>Sign In to Submit Order</span>
+              <ArrowRight className="w-5 h-5" />
             </>
           ) : (
             <>

@@ -68,30 +68,170 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const [pendingPaymentsCount, setPendingPaymentsCount] = useState<number>(0);
+  // Real-time pending notification counts for all admin tabs
+  const [counts, setCounts] = useState<{
+    approvals: number;
+    'custom-requests': number;
+    'file-edits': number;
+    'contact-inquiries': number;
+    orders: number;
+    payments: number;
+  }>({
+    approvals: 0,
+    'custom-requests': 0,
+    'file-edits': 0,
+    'contact-inquiries': 0,
+    orders: 0,
+    payments: 0,
+  });
+
+  // Track checked / seen counts per module in localStorage
+  const [checkedCounts, setCheckedCounts] = useState<{ [key: string]: number }>(() => {
+    try {
+      const saved = localStorage.getItem('shiuli_admin_checked_tabs');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const markTabAsChecked = (modId: AdminModuleId, countToStore?: number) => {
+    const val = countToStore !== undefined ? countToStore : (counts[modId as keyof typeof counts] || 0);
+    setCheckedCounts((prev) => {
+      const updated = { ...prev, [modId]: val };
+      try {
+        localStorage.setItem('shiuli_admin_checked_tabs', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  };
+
+  const fetchAllCounts = async () => {
+    try {
+      // 1. Payments pending verification
+      let paymentsCount = 0;
+      try {
+        const logs = await api.getGatewayLogs();
+        paymentsCount = (logs || []).filter((p: any) => p.can_approve || p.raw_status === 'pending').length;
+      } catch {}
+
+      // 2. Custom Requests pending review or negotiation
+      let customRequestsCount = 0;
+      try {
+        const reqs = await api.request<any>('/custom-requests/');
+        const list = Array.isArray(reqs) ? reqs : reqs?.results || [];
+        customRequestsCount = list.filter((r: any) => r.status === 'new' || r.status === 'negotiating').length;
+      } catch {}
+
+      // 3. Design Approvals queue (pending custom order review + pending designer applications)
+      let approvalsCount = 0;
+      try {
+        const [ordersRes, appsRes] = await Promise.allSettled([
+          api.request<any>('/orders/'),
+          api.getDesignerApplications('pending'),
+        ]);
+        if (ordersRes.status === 'fulfilled') {
+          const ordVal: any = ordersRes.value;
+          const ordList = Array.isArray(ordVal) ? ordVal : ordVal?.results || [];
+          approvalsCount += ordList.filter((o: any) => o.status === 'pending_review' || o.status === 'revision_requested').length;
+        }
+        if (appsRes.status === 'fulfilled') {
+          const appVal: any = appsRes.value;
+          const appList = Array.isArray(appVal) ? appVal : appVal?.results || [];
+          approvalsCount += appList.length;
+        }
+      } catch {}
+
+      // 4. File Modifications pending
+      let fileEditsCount = 0;
+      try {
+        const edits = await api.getFileEditRequests();
+        fileEditsCount = (edits || []).filter((e: any) => e.status === 'pending' || e.status === 'new' || e.status === 'negotiating').length;
+      } catch {}
+
+      // 5. Contact Inquiries unread
+      let contactCount = 0;
+      try {
+        const msgs = await api.getContactMessages();
+        contactCount = (msgs || []).filter((m: any) => !m.is_read).length;
+      } catch {}
+
+      // 6. Master Orders needing attention (new / unassigned)
+      let ordersCount = 0;
+      try {
+        const ords = await api.request<any>('/orders/');
+        const oList = Array.isArray(ords) ? ords : ords?.results || [];
+        ordersCount = oList.filter((o: any) => o.status === 'new' || !o.assigned_staff).length;
+      } catch {}
+
+      setCounts({
+        approvals: approvalsCount,
+        'custom-requests': customRequestsCount,
+        'file-edits': fileEditsCount,
+        'contact-inquiries': contactCount,
+        orders: ordersCount,
+        payments: paymentsCount,
+      });
+    } catch (err) {
+      console.warn('Admin badge counts fetch notice:', err);
+    }
+  };
 
   useEffect(() => {
-    api.getGatewayLogs().then((logs) => {
-      const pCount = (logs || []).filter((p: any) => p.can_approve || p.raw_status === 'pending').length;
-      setPendingPaymentsCount(pCount);
-    }).catch(() => {});
-  }, [activeModule]);
+    fetchAllCounts();
+    const interval = setInterval(fetchAllCounts, 8000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // When activeModule changes or counts update, mark the active module as checked so its badge disappears
+  useEffect(() => {
+    if (activeModule) {
+      const current = counts[activeModule as keyof typeof counts] || 0;
+      markTabAsChecked(activeModule, current);
+    }
+  }, [activeModule, counts]);
+
+  const getBadgeNumber = (id: AdminModuleId): number | undefined => {
+    if (id === 'notifications') {
+      return unreadCount > 0 ? unreadCount : undefined;
+    }
+
+    const total = counts[id as keyof typeof counts] || 0;
+    if (total <= 0) return undefined;
+
+    // Disappear if admin is currently active on this module
+    if (activeModule === id) return undefined;
+
+    // Disappear if admin already checked this module and no new items arrived
+    const checked = checkedCounts[id];
+    if (checked !== undefined) {
+      const unseen = total - checked;
+      return unseen > 0 ? unseen : undefined;
+    }
+
+    return total > 0 ? total : undefined;
+  };
+
+  const handleSelectModule = (id: AdminModuleId) => {
+    markTabAsChecked(id);
+    onSelectModule(id);
+  };
 
   const navItems: { id: AdminModuleId; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: 'overview', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
     { id: 'catalog', label: 'Categories & Products', icon: <FolderKanban className="w-4 h-4" /> },
-    { id: 'file-edits', label: 'File Modifications', icon: <Sliders className="w-4 h-4" /> },
+    { id: 'file-edits', label: 'File Modifications', icon: <Sliders className="w-4 h-4" />, badge: getBadgeNumber('file-edits') },
     { id: 'portfolio', label: 'Portfolio Showcase', icon: <FolderKanban className="w-4 h-4" /> },
-    { id: 'approvals', label: 'Design Approvals', icon: <CheckCircle2 className="w-4 h-4" />, badge: 3 },
-    { id: 'custom-requests', label: 'Custom Requests', icon: <MessageSquare className="w-4 h-4" />, badge: 2 },
+    { id: 'approvals', label: 'Design Approvals', icon: <CheckCircle2 className="w-4 h-4" />, badge: getBadgeNumber('approvals') },
+    { id: 'custom-requests', label: 'Custom Requests', icon: <MessageSquare className="w-4 h-4" />, badge: getBadgeNumber('custom-requests') },
     { id: 'custom-options', label: 'Custom Design Options', icon: <Sliders className="w-4 h-4" /> },
-    { id: 'contact-inquiries', label: 'Contact Inquiries', icon: <Mail className="w-4 h-4" /> },
-    { id: 'orders', label: 'Master Orders', icon: <ShoppingBag className="w-4 h-4" /> },
+    { id: 'contact-inquiries', label: 'Contact Inquiries', icon: <Mail className="w-4 h-4" />, badge: getBadgeNumber('contact-inquiries') },
+    { id: 'orders', label: 'Master Orders', icon: <ShoppingBag className="w-4 h-4" />, badge: getBadgeNumber('orders') },
     { id: 'staff', label: 'Staff & Job Limits', icon: <Users className="w-4 h-4" /> },
-    { id: 'payments', label: 'Payments & Gateway', icon: <CreditCard className="w-4 h-4" />, badge: pendingPaymentsCount > 0 ? pendingPaymentsCount : undefined },
+    { id: 'payments', label: 'Payments & Gateway', icon: <CreditCard className="w-4 h-4" />, badge: getBadgeNumber('payments') },
     { id: 'clients', label: 'Client Base', icon: <UserCheck className="w-4 h-4" /> },
     { id: 'analytics', label: 'Reports & Analytics', icon: <BarChart3 className="w-4 h-4" /> },
-    { id: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" />, badge: unreadCount },
+    { id: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" />, badge: getBadgeNumber('notifications') },
     { id: 'settings', label: 'Studio Settings', icon: <Settings className="w-4 h-4" /> },
   ];
 
@@ -131,7 +271,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                   <button
                     key={item.id}
                     onClick={() => {
-                      onSelectModule(item.id);
+                      handleSelectModule(item.id);
                       setIsMobileSidebarOpen(false);
                     }}
                     className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-medium transition-all ${isActive
@@ -195,7 +335,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                 return (
                   <button
                     key={item.id}
-                    onClick={() => onSelectModule(item.id)}
+                    onClick={() => handleSelectModule(item.id)}
                     title={isSidebarCollapsed ? item.label : undefined}
                     className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all relative cursor-pointer ${isActive
                         ? 'bg-[#FFF9F0] text-[#17345C] font-bold border-l-[3px] border-[#B88732] pl-3 shadow-2xs'
@@ -212,6 +352,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                       <span className="px-2 py-0.5 rounded-full bg-[#17345C] text-[#FFF9F0] font-mono text-[10px] font-bold shadow-2xs">
                         {item.badge}
                       </span>
+                    ) : null}
+                    {isSidebarCollapsed && item.badge && item.badge > 0 ? (
+                      <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#D4AF37] ring-2 ring-white animate-pulse" />
                     ) : null}
                   </button>
                 );
@@ -446,7 +589,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
 
               <button
                 onClick={() => setShowCommandPalette(false)}
-                className="p-1 rounded-lg text-[#6B7280] hover:text-[#1E2230]"
+                className="p-1 rounded-lg text-[#6B7280] hover:text-[#17243B]"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -465,10 +608,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                       onSelectModule(item.id);
                       setShowCommandPalette(false);
                     }}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-[#F6F7FB] text-left text-[#1E2230] transition-colors"
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-[#FAF8F5] text-left text-[#17243B] transition-colors"
                   >
                     <div className="flex items-center gap-2.5">
-                      <span className="text-[#2856C7]">{item.icon}</span>
+                      <span className="text-[#17345C]">{item.icon}</span>
                       <span className="font-medium">{item.label}</span>
                     </div>
                     <span className="text-[10px] font-mono text-[#6B7280]">Jump to</span>
@@ -476,7 +619,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                 ))}
             </div>
 
-            <div className="p-3 border-t border-[#E5E7EF] bg-[#F6F7FB] flex items-center justify-between text-[11px] text-[#6B7280]">
+            <div className="p-3 border-t border-[#E8D7B7] bg-[#FAF8F5] flex items-center justify-between text-[11px] text-[#6B7280]">
               <span>Tip: Press `Esc` to exit command search</span>
               <span className="font-mono">Shiuli Admin OS v2.4</span>
             </div>

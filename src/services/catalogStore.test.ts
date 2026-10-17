@@ -56,7 +56,7 @@ const mockProducts: BackendProduct[] = [
     description: 'Watertight Rhino 3DM native CAD file',
     is_bestseller: true,
     is_new: true,
-    status: 'ACTIVE',
+    status: 'approved',
     created_at: new Date().toISOString(),
   },
 ];

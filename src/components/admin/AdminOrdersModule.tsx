@@ -35,7 +35,9 @@ import {
   Edit2,
   Trash2,
   XCircle,
-  Send
+  Send,
+  Volume2,
+  Wrench
 } from 'lucide-react';
 import { AdminCreateOrderModal, AdminEditOrderModal } from './AdminOrderModals';
 
@@ -350,7 +352,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-[#E5E7EF] shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-[#E8D7B7] shadow-sm">
         <div>
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-[#12204D] text-[#F5E7A3] text-[10px] font-mono font-bold uppercase tracking-wider">
@@ -358,7 +360,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
             </span>
             <span className="text-xs text-[#6B7280] font-mono">• Production &amp; Delivery Management</span>
           </div>
-          <h1 className="font-serif text-2xl font-bold text-[#1E2230] tracking-tight mt-1">
+          <h1 className="font-serif text-2xl font-bold text-[#17243B] tracking-tight mt-1">
             Master Orders &amp; Quality Control Directory
           </h1>
           <p className="text-xs text-[#6B7280] mt-0.5">
@@ -378,7 +380,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
           <button
             onClick={fetchOrders}
             disabled={loading}
-            className="px-4 py-2 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] text-xs font-semibold text-[#1E2230] hover:bg-[#E5E7EF] flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="px-4 py-2 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] text-xs font-semibold text-[#17243B] hover:bg-[#E8D7B7] flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             <span>Refresh Orders</span>
@@ -402,7 +404,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
             className={`px-4 py-2 rounded-xl font-medium transition-all ${
               statusFilter === t.key
                 ? 'bg-[#09112B] text-[#F5E7A3] font-bold shadow-md'
-                : 'bg-white border border-[#E5E7EF] text-[#6B7280] hover:bg-[#F6F7FB]'
+                : 'bg-white border border-[#E8D7B7] text-[#6B7280] hover:bg-[#FAF8F5]'
             }`}
           >
             {t.label}
@@ -411,7 +413,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
       </div>
 
       {/* Orders Table */}
-      <div className="bg-white rounded-2xl border border-[#E5E7EF] shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-[#E8D7B7] shadow-sm overflow-hidden">
         {loading && orders.length === 0 ? (
           <div className="py-20 text-center flex flex-col items-center justify-center gap-3">
             <Loader2 className="w-8 h-8 text-[#C9A227] animate-spin" />
@@ -424,7 +426,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
         ) : (
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#F6F7FB] border-b border-[#E5E7EF] text-[11px] font-mono uppercase text-[#6B7280]">
+              <tr className="bg-[#FAF8F5] border-b border-[#E8D7B7] text-[11px] font-mono uppercase text-[#6B7280]">
                 <th className="p-4 font-medium">Order &amp; Client</th>
                 <th className="p-4 font-medium">Design Brief</th>
                 <th className="p-4 font-medium">Assigned Modeller</th>
@@ -434,19 +436,32 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                 <th className="p-4 font-medium text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E5E7EF] text-xs">
+            <tbody className="divide-y divide-[#E8D7B7] text-xs">
               {filteredOrders.map((ord) => {
                 const req = ord.custom_request;
                 const assignedStaff = ord.assigned_staff;
                 const isFullyPaid = ord.is_fully_paid;
 
                 return (
-                  <tr key={ord.id} className="hover:bg-[#F6F7FB] transition-colors">
+                  <tr key={ord.id} className="hover:bg-[#FAF8F5] transition-colors">
                     {/* Order & Client */}
                     <td className="p-4 font-mono">
-                      <div className="font-bold text-[#2856C7]">ORD-{ord.id}</div>
-                      <div className="text-[11px] text-[#1E2230] font-sans font-semibold">
-                        {ord.client?.username || req?.client_name || 'Client'}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-[#17345C]">ORD-{ord.id}</span>
+                        {ord.is_file_edit && (
+                          <span className="px-1.5 py-0.5 rounded bg-amber-100 text-[#9A6A1A] border border-amber-300 text-[9px] font-bold uppercase flex items-center gap-0.5">
+                            <Wrench className="w-2.5 h-2.5" />
+                            File Edit
+                          </span>
+                        )}
+                        {ord.is_file_edit && ord.file_edit_request?.original_file_format && (
+                          <span className="px-1 py-0.5 rounded bg-slate-100 text-slate-700 text-[9px] font-mono font-bold uppercase">
+                            .{ord.file_edit_request.original_file_format}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-[#17243B] font-sans font-semibold">
+                        {ord.client?.username || ord.file_edit_request?.client_name || req?.client_name || 'Client'}
                       </div>
                       <div className="text-[10px] text-[#6B7280]">
                         {new Date(ord.created_at).toLocaleDateString()}
@@ -455,11 +470,15 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
 
                     {/* Design Brief */}
                     <td className="p-4">
-                      <div className="font-semibold text-[#1E2230]">
-                        {req?.category_name ? `Bespoke ${req.category_name}` : 'Custom Jewellery CAD'}
+                      <div className="font-semibold text-[#17243B]">
+                        {ord.is_file_edit
+                          ? (ord.file_edit_request?.original_file_name || `CAD Modification (.${ord.file_edit_request?.original_file_format || '3dm'})`)
+                          : (req?.category_name ? `Bespoke ${req.category_name}` : 'Custom Jewellery CAD')}
                       </div>
                       <div className="text-[11px] text-[#6B7280]">
-                        {req?.metal_alloy_name || '18K Gold'} &bull; {req?.aesthetic_style_name || 'Bespoke'}
+                        {ord.is_file_edit
+                          ? (ord.file_edit_request?.modification_types?.join(', ') || 'Mesh & Geometry Modification')
+                          : `${req?.metal_alloy_name || '18K Gold'} • ${req?.aesthetic_style_name || 'Bespoke'}`}
                       </div>
                     </td>
 
@@ -471,7 +490,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                             {assignedStaff.first_name?.[0] || assignedStaff.username?.[0] || 'M'}
                           </div>
                           <div>
-                            <div className="font-semibold text-[#1E2230]">
+                            <div className="font-semibold text-[#17243B]">
                               {assignedStaff.first_name ? `${assignedStaff.first_name} ${assignedStaff.last_name || ''}`.trim() : assignedStaff.username}
                             </div>
                             <span className="text-[10px] text-emerald-700 font-mono font-semibold">
@@ -523,7 +542,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
 
                     {/* Price & Admin Commission & Staff Payout */}
                     <td className="p-4 font-mono">
-                      <div className="font-bold text-[#1E2230] text-sm">
+                      <div className="font-bold text-[#17243B] text-sm">
                         {formatUSD(ord.total_price || req?.agreed_price)}
                       </div>
                       <div className="flex items-center gap-1.5 text-[10px] mt-0.5">
@@ -534,11 +553,22 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                           Staff: {formatUSD(ord.staff_payout_price || (Number(ord.total_price || req?.agreed_price || 0) * 0.8))}
                         </span>
                       </div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">
+                      <div className="mt-1">
                         {isFullyPaid ? (
-                          <span className="text-emerald-700 font-bold">100% Paid</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1">
+                            ✓ 100% Fully Paid
+                          </span>
+                        ) : ord.payment_stages && ord.payment_stages.length > 0 ? (
+                          <div className="space-y-0.5">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-1">
+                              ⏳ Part Paid: ₹{Math.round(ord.paid_amount || 0).toLocaleString('en-IN')} / ₹{Math.round(Number(ord.total_price || 0)).toLocaleString('en-IN')} ({ord.paid_percentage || 0}%)
+                            </span>
+                            <span className="text-[9px] text-[#6B7280] block font-mono">
+                              {ord.paid_stages_count || 0} of {ord.total_stages_count || ord.payment_stages.length} stage(s) cleared
+                            </span>
+                          </div>
                         ) : (
-                          <span className="text-amber-700 font-semibold">Milestones Active</span>
+                          <span className="text-[10px] text-slate-500 font-mono">Standard Billing</span>
                         )}
                       </div>
                     </td>
@@ -546,30 +576,42 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                     {/* Download Toggle Switch */}
                     <td className="p-4">
                       <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleToggleDownload(ord.id)}
-                          disabled={togglingDownloadId === ord.id}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-mono font-bold transition-all shadow-sm ${
-                            ord.download_enabled_by_admin
-                              ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                              : 'bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-200'
-                          }`}
-                        >
-                          {ord.download_enabled_by_admin ? (
-                            <>
-                              <ToggleRight className="w-4 h-4 text-white" />
-                              <span>ENABLED</span>
-                            </>
-                          ) : (
-                            <>
-                              <ToggleLeft className="w-4 h-4 text-slate-400" />
-                              <span>DISABLED</span>
-                            </>
-                          )}
-                        </button>
+                        {isFullyPaid ? (
+                          <button
+                            onClick={() => handleToggleDownload(ord.id)}
+                            disabled={togglingDownloadId === ord.id}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-mono font-bold transition-all shadow-sm cursor-pointer ${
+                              ord.download_enabled_by_admin
+                                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                : 'bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-200'
+                            }`}
+                          >
+                            {ord.download_enabled_by_admin ? (
+                              <>
+                                <ToggleRight className="w-4 h-4 text-white" />
+                                <span>ENABLED</span>
+                              </>
+                            ) : (
+                              <>
+                                <ToggleLeft className="w-4 h-4 text-slate-400" />
+                                <span>DISABLED</span>
+                              </>
+                            )}
+                          </button>
+                        ) : (
+                          <div
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[10px] font-mono font-bold bg-slate-100 text-slate-500 border border-slate-200 cursor-not-allowed"
+                            title="Customer must complete 100% full payment across all milestone stages before download authorization can be enabled."
+                          >
+                            <Lock className="w-3 h-3 text-amber-600" />
+                            <span>LOCKED (Part Paid)</span>
+                          </div>
+                        )}
                       </div>
                       <span className="text-[9px] text-[#6B7280] block mt-0.5">
-                        {ord.download_count ? `${ord.download_count} download(s)` : 'Not downloaded yet'}
+                        {isFullyPaid
+                          ? (ord.download_count ? `${ord.download_count} download(s)` : 'Ready to authorize')
+                          : 'Requires 100% payment'}
                       </span>
                     </td>
 
@@ -578,7 +620,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                       <div className="flex items-center justify-end gap-1.5 flex-wrap">
                         <button
                           onClick={() => setSelectedOrderDrawer(ord)}
-                          className="px-2.5 py-1.5 rounded-lg bg-[#F6F7FB] border border-[#E5E7EF] text-[#1E2230] hover:bg-[#E5E7EF] font-semibold text-xs transition-colors cursor-pointer"
+                          className="px-2.5 py-1.5 rounded-lg bg-[#FAF8F5] border border-[#E8D7B7] text-[#17243B] hover:bg-[#E8D7B7] font-semibold text-xs transition-colors cursor-pointer"
                           title="Inspect Full Brief"
                         >
                           Inspect
@@ -624,13 +666,21 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-end">
           <div className="w-full max-w-2xl bg-white h-full shadow-2xl p-6 sm:p-8 overflow-y-auto space-y-6 animate-in slide-in-from-right duration-250">
             
-            <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-4">
+            <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-4">
               <div>
-                <span className="font-mono text-xs font-bold text-[#2856C7]">
-                  ORDER #{selectedOrderDrawer.id} &bull; REQ #{selectedOrderDrawer.custom_request?.id}
+                <span className="font-mono text-xs font-bold text-[#17345C] flex items-center gap-1.5 flex-wrap">
+                  <span>ORDER #{selectedOrderDrawer.id}</span>
+                  {selectedOrderDrawer.is_file_edit ? (
+                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-[#9A6A1A] border border-amber-300 text-[10px] uppercase font-bold flex items-center gap-1">
+                      <Wrench className="w-3 h-3" />
+                      FILE EDIT #{selectedOrderDrawer.file_edit_request?.id || ''}
+                    </span>
+                  ) : (
+                    <span>• REQ #{selectedOrderDrawer.custom_request?.id}</span>
+                  )}
                 </span>
-                <h3 className="font-serif text-xl font-bold text-[#1E2230]">
-                  Master CAD Order &amp; Quality Record
+                <h3 className="font-serif text-xl font-bold text-[#17243B]">
+                  {selectedOrderDrawer.is_file_edit ? 'CAD File Modification & QC Record' : 'Master CAD Order & Quality Record'}
                 </h3>
               </div>
               <div className="flex items-center gap-1.5">
@@ -662,7 +712,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                 </button>
                 <button
                   onClick={() => setSelectedOrderDrawer(null)}
-                  className="p-1.5 rounded-xl text-[#6B7280] hover:text-[#1E2230] hover:bg-[#F6F7FB]"
+                  className="p-1.5 rounded-xl text-[#6B7280] hover:text-[#17243B] hover:bg-[#FAF8F5]"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -773,52 +823,71 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
             </div>
 
             {/* Download Toggle Banner */}
-            <div className="p-4 rounded-2xl bg-[#F6F7FB] border border-[#E5E7EF] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div>
+            <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#E8D7B7] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <Download className="w-4 h-4 text-[#C9A227]" />
-                  <span className="font-bold text-[#1E2230] text-xs">Customer CAD Download Authorization</span>
+                  <span className="font-bold text-[#17243B] text-xs">Customer CAD Download Authorization</span>
                 </div>
-                <p className="text-[11px] text-[#6B7280] mt-0.5">
-                  When enabled, client can click "Download CAD Package" and verify via registered email OTP. Button will self-disable after OTP verification.
+                <p className="text-[11px] text-[#6B7280]">
+                  When enabled, client can click "Download CAD Package" and verify via registered email OTP.
                 </p>
-                <div className="text-[10px] font-mono mt-1">
+                <div className="text-[11px] font-mono">
                   Payment Status: {selectedOrderDrawer.is_fully_paid ? (
-                    <strong className="text-emerald-700">100% FULLY PAID</strong>
+                    <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      ✓ 100% FULLY PAID (₹{Math.round(selectedOrderDrawer.paid_amount || Number(selectedOrderDrawer.total_price || 0)).toLocaleString('en-IN')})
+                    </span>
                   ) : (
-                    <strong className="text-amber-700">PARTIAL PAYMENT (Stages Active)</strong>
+                    <span className="text-amber-800 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-300">
+                      🔒 PARTIAL PAYMENT: Paid ₹{Math.round(selectedOrderDrawer.paid_amount || 0).toLocaleString('en-IN')} of ₹{Math.round(Number(selectedOrderDrawer.total_price || 0)).toLocaleString('en-IN')} ({selectedOrderDrawer.paid_percentage || 0}%)
+                    </span>
                   )}
                 </div>
+                {!selectedOrderDrawer.is_fully_paid && (
+                  <p className="text-[10px] text-amber-800 font-medium">
+                    Download access is strictly locked until customer settles the remaining balance of ₹{Math.round(selectedOrderDrawer.remaining_amount || 0).toLocaleString('en-IN')}.
+                  </p>
+                )}
               </div>
 
-              <button
-                onClick={() => handleToggleDownload(selectedOrderDrawer.id)}
-                disabled={togglingDownloadId === selectedOrderDrawer.id}
-                className={`px-4 py-2 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 transition-all shadow shrink-0 ${
-                  selectedOrderDrawer.download_enabled_by_admin
-                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                    : 'bg-[#09112B] text-[#F5E7A3] hover:bg-[#12204D]'
-                }`}
-              >
-                {selectedOrderDrawer.download_enabled_by_admin ? (
-                  <>
-                    <ToggleRight className="w-4 h-4" />
-                    <span>AUTHORIZED (ON)</span>
-                  </>
-                ) : (
-                  <>
-                    <ToggleLeft className="w-4 h-4" />
-                    <span>ENABLE DOWNLOAD</span>
-                  </>
-                )}
-              </button>
+              {selectedOrderDrawer.is_fully_paid ? (
+                <button
+                  onClick={() => handleToggleDownload(selectedOrderDrawer.id)}
+                  disabled={togglingDownloadId === selectedOrderDrawer.id}
+                  className={`px-4 py-2 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 transition-all shadow shrink-0 cursor-pointer ${
+                    selectedOrderDrawer.download_enabled_by_admin
+                      ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                      : 'bg-[#09112B] text-[#F5E7A3] hover:bg-[#12204D]'
+                  }`}
+                >
+                  {selectedOrderDrawer.download_enabled_by_admin ? (
+                    <>
+                      <ToggleRight className="w-4 h-4" />
+                      <span>AUTHORIZED (ON)</span>
+                    </>
+                  ) : (
+                    <>
+                      <ToggleLeft className="w-4 h-4" />
+                      <span>ENABLE DOWNLOAD</span>
+                    </>
+                  )}
+                </button>
+              ) : (
+                <div
+                  className="px-4 py-2 rounded-xl text-xs font-mono font-bold flex items-center gap-1.5 bg-slate-200 text-slate-500 border border-slate-300 cursor-not-allowed shrink-0"
+                  title="Client must complete 100% full payment across all milestone stages before download authorization can be enabled."
+                >
+                  <Lock className="w-3.5 h-3.5 text-amber-700" />
+                  <span>LOCKED (100% PAYMENT REQUIRED)</span>
+                </div>
+              )}
             </div>
 
             {/* Preview Image if available */}
             {selectedOrderDrawer.preview_image && (
               <div className="space-y-2">
                 <span className="text-xs font-mono font-bold uppercase text-[#C9A227]">Uploaded 3D Preview Render</span>
-                <div className="relative aspect-video rounded-2xl overflow-hidden border border-[#E5E7EF] bg-slate-900">
+                <div className="relative aspect-video rounded-2xl overflow-hidden border border-[#E8D7B7] bg-slate-900">
                   <img
                     src={selectedOrderDrawer.preview_image}
                     alt="CAD Preview"
@@ -834,22 +903,22 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                 <span className="text-xs font-mono font-bold uppercase text-[#C9A227]">CAD Deliverables on File</span>
                 <div className="space-y-1.5">
                   {selectedOrderDrawer.deliverables.map((d: any) => (
-                    <div key={d.id} className="p-3 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] flex items-center justify-between text-xs">
+                    <div key={d.id} className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] flex items-center justify-between text-xs">
                       <div>
-                        <span className="font-mono font-bold uppercase text-[#2856C7] mr-2">.{d.file_type}</span>
-                        <span className="font-semibold text-[#1E2230]">{d.filename}</span>
+                        <span className="font-mono font-bold uppercase text-[#17345C] mr-2">.{d.file_type}</span>
+                        <span className="font-semibold text-[#17243B]">{d.filename}</span>
                         <span className="text-[10px] text-[#6B7280] ml-2">({d.file_size})</span>
                       </div>
                       <button
                         type="button"
                         disabled={downloadingDelId === d.id}
                         onClick={() => handleDownloadDeliverable(d, selectedOrderDrawer.id)}
-                        className="text-[#2856C7] hover:underline font-bold text-[11px] flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                        className="text-[#17345C] hover:underline font-bold text-[11px] flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                       >
                         {downloadingDelId === d.id ? (
-                          <Loader2 className="w-3 h-3 animate-spin text-[#2856C7]" />
+                          <Loader2 className="w-3 h-3 animate-spin text-[#17345C]" />
                         ) : (
-                          <Download className="w-3 h-3 text-[#2856C7]" />
+                          <Download className="w-3 h-3 text-[#17345C]" />
                         )}
                         <span>{downloadingDelId === d.id ? 'Downloading...' : 'Download File'}</span>
                       </button>
@@ -859,46 +928,143 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
               </div>
             )}
 
+            {/* File Edit Technical Specifications & Original Model */}
+            {(selectedOrderDrawer.is_file_edit || selectedOrderDrawer.file_edit_request) && (
+              <div className="space-y-4 pt-2 border-t border-[#E8D7B7]">
+                <span className="text-xs font-mono font-bold uppercase text-[#C9A227] flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-[#C9A227]" />
+                  <span>CAD File Modification Specifications</span>
+                </span>
+
+                {/* Original CAD File Download Banner */}
+                <div className="p-4 rounded-xl bg-gradient-to-r from-[#09112B] via-[#12204D] to-[#09112B] text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-[#D4AF37]/50 shadow-md">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-white/10 border border-[#D4AF37]/60 flex items-center justify-center text-[#F5E7A3] shrink-0">
+                      <Layers className="w-6 h-6 text-[#F5E7A3]" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-sm text-white truncate">
+                          {selectedOrderDrawer.file_edit_request?.original_file_name || 'Customer Original CAD Model'}
+                        </span>
+                        {selectedOrderDrawer.file_edit_request?.original_file_format && (
+                          <span className="px-2 py-0.5 rounded bg-[#D4AF37] text-[#070D22] text-[10px] font-mono font-black uppercase">
+                            .{selectedOrderDrawer.file_edit_request.original_file_format}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-300 font-mono mt-0.5">
+                        {selectedOrderDrawer.file_edit_request?.file_size_bytes
+                          ? `${(selectedOrderDrawer.file_edit_request.file_size_bytes / (1024 * 1024)).toFixed(1)} MB`
+                          : 'Source Geometry Model'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {selectedOrderDrawer.file_edit_request?.download_url && (
+                    <a
+                      href={selectedOrderDrawer.file_edit_request.download_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      download
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow hover:brightness-110 transition-all shrink-0 cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5 text-[#070D22]" />
+                      <span>Download Original CAD</span>
+                    </a>
+                  )}
+                </div>
+
+                {/* Target Parameters */}
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7]">
+                    <span className="text-[10px] font-mono text-[#6B7280] uppercase block">Target Metal Weight</span>
+                    <strong className="text-[#17243B]">
+                      {selectedOrderDrawer.file_edit_request?.target_weight_grams
+                        ? `${selectedOrderDrawer.file_edit_request.target_weight_grams} grams`
+                        : 'Preserve Original'}
+                    </strong>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7]">
+                    <span className="text-[10px] font-mono text-[#6B7280] uppercase block">Target Stone Size / Mount</span>
+                    <strong className="text-[#17243B]">
+                      {selectedOrderDrawer.file_edit_request?.target_stone_size || 'Preserve Original'}
+                    </strong>
+                  </div>
+                </div>
+
+                {/* Modification Checklist */}
+                {selectedOrderDrawer.file_edit_request?.modification_types && selectedOrderDrawer.file_edit_request.modification_types.length > 0 && (
+                  <div className="p-3.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] space-y-2">
+                    <span className="text-[10px] font-mono uppercase text-[#6B7280] block font-bold">Requested Modifications</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedOrderDrawer.file_edit_request.modification_types.map((type: string, idx: number) => (
+                        <span key={idx} className="px-2.5 py-1 rounded-lg bg-white border border-[#E8D7B7] text-[11px] font-mono text-[#17243B] font-bold shadow-xs">
+                          ✓ {type}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Voice Note Audio */}
+                {selectedOrderDrawer.file_edit_request?.voice_note && (
+                  <div className="p-3.5 rounded-xl bg-amber-50/60 border border-amber-200/80 space-y-2">
+                    <span className="text-[10px] font-mono uppercase text-[#9A6A1A] block font-bold flex items-center gap-1.5">
+                      <Volume2 className="w-3.5 h-3.5 text-[#B88732]" />
+                      <span>Customer Voice Brief</span>
+                    </span>
+                    <audio
+                      controls
+                      src={selectedOrderDrawer.file_edit_request.voice_note}
+                      className="w-full h-8"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Custom Request Technical Specifications */}
             {selectedOrderDrawer.custom_request && (
-              <div className="space-y-3 pt-2 border-t border-[#E5E7EF]">
+              <div className="space-y-3 pt-2 border-t border-[#E8D7B7]">
                 <span className="text-xs font-mono font-bold uppercase text-[#C9A227]">Bespoke CAD Specifications</span>
                 
                 <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="p-3 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF]">
+                  <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7]">
                     <span className="text-[10px] font-mono text-[#6B7280] uppercase block">Category</span>
-                    <strong className="text-[#1E2230]">{selectedOrderDrawer.custom_request.category_name || 'Bespoke Piece'}</strong>
+                    <strong className="text-[#17243B]">{selectedOrderDrawer.custom_request.category_name || 'Bespoke Piece'}</strong>
                   </div>
                   {/* Metal Alloy */}
                   {(() => {
                     const selMetal = selectedOrderDrawer.custom_request.selections?.find((s: any) => s.group_key === 'metal' || s.group_label?.toLowerCase().includes('metal'));
                     const metalName = selMetal?.value_label || selectedOrderDrawer.custom_request.metal_alloy_name;
                     return metalName ? (
-                      <div className="p-3 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF]">
+                      <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7]">
                         <span className="text-[10px] font-mono text-[#6B7280] uppercase block">Metal Alloy</span>
-                        <strong className="text-[#1E2230]">{metalName}</strong>
+                        <strong className="text-[#17243B]">{metalName}</strong>
                       </div>
                     ) : null;
                   })()}
                   {/* Ring Sizing */}
                   {selectedOrderDrawer.custom_request.ring_size && (
-                    <div className="p-3 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF]">
+                    <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7]">
                       <span className="text-[10px] font-mono text-[#6B7280] uppercase block">Ring Sizing</span>
-                      <strong className="text-[#1E2230]">Size {selectedOrderDrawer.custom_request.ring_size} ({selectedOrderDrawer.custom_request.ring_size_standard?.toUpperCase() || 'US'})</strong>
+                      <strong className="text-[#17243B]">Size {selectedOrderDrawer.custom_request.ring_size} ({selectedOrderDrawer.custom_request.ring_size_standard?.toUpperCase() || 'US'})</strong>
                     </div>
                   )}
                   {/* Target Weight */}
                   {selectedOrderDrawer.custom_request.target_weight_grams && (
-                    <div className="p-3 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF]">
+                    <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7]">
                       <span className="text-[10px] font-mono text-[#6B7280] uppercase block">Target Weight</span>
-                      <strong className="text-[#1E2230]">{selectedOrderDrawer.custom_request.target_weight_grams} grams</strong>
+                      <strong className="text-[#17243B]">{selectedOrderDrawer.custom_request.target_weight_grams} grams</strong>
                     </div>
                   )}
                   {/* Target Completion Date */}
                   {selectedOrderDrawer.custom_request.needed_by_date && (
-                    <div className="p-3 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF]">
+                    <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7]">
                       <span className="text-[10px] font-mono text-[#6B7280] uppercase block">Target Completion Date</span>
-                      <strong className="text-[#1E2230]">{new Date(selectedOrderDrawer.custom_request.needed_by_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</strong>
+                      <strong className="text-[#17243B]">{new Date(selectedOrderDrawer.custom_request.needed_by_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</strong>
                     </div>
                   )}
                 </div>
@@ -909,9 +1075,9 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                     <span className="text-[10px] font-mono uppercase text-[#6B7280] block font-bold">Atelier Option Selections</span>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       {selectedOrderDrawer.custom_request.selections.map((sel: any, idx: number) => (
-                        <div key={idx} className="p-2.5 rounded-lg bg-[#F6F7FB] border border-[#E5E7EF] flex justify-between">
+                        <div key={idx} className="p-2.5 rounded-lg bg-[#FAF8F5] border border-[#E8D7B7] flex justify-between">
                           <span className="text-[#6B7280]">{sel.group_label}:</span>
-                          <span className="font-bold text-[#1E2230]">{sel.value_label || sel.other_text}</span>
+                          <span className="font-bold text-[#17243B]">{sel.value_label || sel.other_text}</span>
                         </div>
                       ))}
                     </div>
@@ -924,9 +1090,9 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                     <span className="text-[10px] font-mono uppercase text-[#6B7280] block font-bold">Gemstones &amp; Diamonds ({selectedOrderDrawer.custom_request.stones.length})</span>
                     <div className="space-y-1 text-xs">
                       {selectedOrderDrawer.custom_request.stones.map((st: any, idx: number) => (
-                        <div key={idx} className="p-2 rounded-lg bg-[#F6F7FB] border border-[#E5E7EF] flex justify-between">
-                          <span className="font-semibold text-[#1E2230]">{st.shape} {st.stone_type} ({st.quantity}x)</span>
-                          <span className="font-mono text-[#2856C7]">{st.size_value} {st.size_unit} • {st.setting_style}</span>
+                        <div key={idx} className="p-2 rounded-lg bg-[#FAF8F5] border border-[#E8D7B7] flex justify-between">
+                          <span className="font-semibold text-[#17243B]">{st.shape} {st.stone_type} ({st.quantity}x)</span>
+                          <span className="font-mono text-[#17345C]">{st.size_value} {st.size_unit} • {st.setting_style}</span>
                         </div>
                       ))}
                     </div>
@@ -935,9 +1101,9 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
 
                 {/* Engraving */}
                 {selectedOrderDrawer.custom_request.engraving_text && (
-                  <div className="p-3 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] text-xs space-y-1">
+                  <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] text-xs space-y-1">
                     <span className="text-[10px] font-mono uppercase text-[#6B7280] block font-bold">Laser Engraving</span>
-                    <p className="font-serif italic text-[#1E2230] font-bold">"{selectedOrderDrawer.custom_request.engraving_text}"</p>
+                    <p className="font-serif italic text-[#17243B] font-bold">"{selectedOrderDrawer.custom_request.engraving_text}"</p>
                     <p className="text-[10px] text-[#6B7280]">Font: {selectedOrderDrawer.custom_request.engraving_font || 'Script'} • Placement: {selectedOrderDrawer.custom_request.engraving_placement || 'Inside Shank'}</p>
                   </div>
                 )}
@@ -952,7 +1118,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                           key={sk.id}
                           src={sk.image_url || sk.image}
                           alt="Sketch"
-                          className="w-16 h-16 rounded-xl object-cover border border-[#E5E7EF] shadow-sm"
+                          className="w-16 h-16 rounded-xl object-cover border border-[#E8D7B7] shadow-sm"
                         />
                       ))}
                     </div>
@@ -960,7 +1126,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                 )}
 
                 {/* Brief */}
-                <div className="p-4 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] text-xs text-[#1E2230] space-y-1">
+                <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] text-xs text-[#17243B] space-y-1">
                   <span className="text-[10px] font-mono text-[#6B7280] uppercase block">Client Brief Description:</span>
                   <p>{selectedOrderDrawer.custom_request.description}</p>
                 </div>
@@ -1089,31 +1255,135 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                 value={drawerAdminNotes}
                 onChange={(e) => setDrawerAdminNotes(e.target.value)}
                 placeholder="Log customer phone calls, WhatsApp messages, or special order agreements here..."
-                className="w-full text-xs font-mono p-2.5 rounded-lg border border-amber-300 bg-white text-[#1E2230] focus:outline-none focus:ring-1 focus:ring-amber-500 placeholder:text-slate-400 resize-y"
+                className="w-full text-xs font-mono p-2.5 rounded-lg border border-amber-300 bg-white text-[#17243B] focus:outline-none focus:ring-1 focus:ring-amber-500 placeholder:text-slate-400 resize-y"
               />
             </div>
 
             {/* Payment Schedule Breakdown */}
             {selectedOrderDrawer.payment_stages && selectedOrderDrawer.payment_stages.length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-[#E5E7EF]">
-                <span className="text-xs font-mono font-bold uppercase text-[#C9A227]">10/30/60 Milestone Payment Schedule</span>
-                <div className="space-y-1.5">
-                  {selectedOrderDrawer.payment_stages.map((st: any) => (
-                    <div key={st.id} className="p-3 rounded-xl border border-[#E5E7EF] flex justify-between items-center text-xs">
-                      <div>
-                        <span className="font-bold text-[#1E2230]">{st.label}</span>
-                        <span className="text-[10px] text-[#6B7280] ml-2">({st.percentage}%)</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="font-mono font-bold text-[#1E2230]">{formatUSD(st.amount)}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                          st.status === 'paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
-                        }`}>
-                          {st.status.toUpperCase()}
-                        </span>
-                      </div>
+              <div className="space-y-3 pt-3 border-t border-[#E8D7B7]">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono font-bold uppercase text-[#C9A227] flex items-center gap-1.5">
+                    <DollarSign className="w-4 h-4 text-[#C9A227]" />
+                    <span>Customer Milestone Part-Payment Schedule (10/30/60)</span>
+                  </span>
+                  <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full ${
+                    selectedOrderDrawer.is_fully_paid
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                      : 'bg-amber-100 text-amber-900 border border-amber-300'
+                  }`}>
+                    {selectedOrderDrawer.is_fully_paid ? '✓ 100% Cleared' : `${selectedOrderDrawer.paid_percentage || 0}% Cleared`}
+                  </span>
+                </div>
+
+                {/* Financial Summary Progress Card */}
+                <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-50 to-[#FAF8F5] border border-[#E8D7B7] space-y-2.5">
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div className="p-2 rounded-xl bg-white border border-slate-200">
+                      <span className="text-[10px] font-mono text-slate-400 uppercase block">Total Agreed</span>
+                      <strong className="text-slate-800 font-mono text-sm">
+                        ₹{Math.round(Number(selectedOrderDrawer.total_price || 0)).toLocaleString('en-IN')}
+                      </strong>
                     </div>
-                  ))}
+                    <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200">
+                      <span className="text-[10px] font-mono text-emerald-600 uppercase block">Total Paid</span>
+                      <strong className="text-emerald-800 font-mono text-sm">
+                        ₹{Math.round(selectedOrderDrawer.paid_amount || 0).toLocaleString('en-IN')}
+                      </strong>
+                    </div>
+                    <div className="p-2 rounded-xl bg-amber-50 border border-amber-200">
+                      <span className="text-[10px] font-mono text-amber-700 uppercase block">Remaining</span>
+                      <strong className="text-amber-900 font-mono text-sm">
+                        ₹{Math.round(selectedOrderDrawer.remaining_amount || 0).toLocaleString('en-IN')}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center text-[10px] font-mono text-slate-500 mb-1">
+                      <span>Customer Milestone Fulfillment</span>
+                      <span className="font-bold text-slate-700">{selectedOrderDrawer.paid_percentage || 0}% Cleared</span>
+                    </div>
+                    <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(100, Math.max(0, selectedOrderDrawer.paid_percentage || 0))}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stage by stage cards */}
+                <div className="space-y-1.5">
+                  {selectedOrderDrawer.payment_stages.map((st: any) => {
+                    const isPaid = st.status === 'paid';
+                    const isLocked = st.status === 'locked';
+                    const isPending = st.status === 'pending';
+                    const inrAmt = Math.round(Number(st.amount || 0));
+
+                    return (
+                      <div
+                        key={st.id}
+                        className={`p-3 rounded-xl border flex justify-between items-center text-xs transition-all ${
+                          isPaid
+                            ? 'bg-emerald-50/60 border-emerald-200 text-emerald-950'
+                            : isPending
+                            ? 'bg-amber-50/60 border-amber-300 text-amber-950'
+                            : 'bg-white border-slate-200 text-slate-700'
+                        }`}
+                      >
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-[#17243B]">{st.label}</span>
+                            <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                              {st.percentage}% Split
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-[#6B7280] block">
+                            {st.order_index === 0
+                              ? 'Due immediately to start CAD production'
+                              : st.order_index === 1
+                              ? 'Due on client 3D preview approval'
+                              : 'Due prior to final release'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <span className="font-mono font-bold text-sm text-[#17243B] block">
+                              ₹{inrAmt.toLocaleString('en-IN')}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              {formatUSD(st.amount ? Number(st.amount) / 86.85 : 0)}
+                            </span>
+                          </div>
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-bold flex items-center gap-1 ${
+                            isPaid
+                              ? 'bg-emerald-600 text-white shadow-xs'
+                              : isPending
+                              ? 'bg-amber-500 text-white shadow-xs'
+                              : 'bg-slate-100 text-slate-500 border border-slate-300'
+                          }`}>
+                            {isPaid ? (
+                              <>
+                                <CheckCircle2 className="w-3 h-3 text-white" />
+                                <span>PAID</span>
+                              </>
+                            ) : isPending ? (
+                              <>
+                                <Clock className="w-3 h-3 text-white" />
+                                <span>AWAITING APPROVAL</span>
+                              </>
+                            ) : (
+                              <>
+                                <Lock className="w-3 h-3 text-slate-400" />
+                                <span>LOCKED</span>
+                              </>
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -1125,8 +1395,8 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
       {/* QC REJECTION MODAL */}
       {rejectingOrderId && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-[#E5E7EF] p-6 max-w-md w-full space-y-4 text-xs">
-            <h3 className="font-serif text-base font-bold text-[#1E2230]">
+          <div className="bg-white rounded-2xl shadow-2xl border border-[#E8D7B7] p-6 max-w-md w-full space-y-4 text-xs">
+            <h3 className="font-serif text-base font-bold text-[#17243B]">
               Reject Order #{rejectingOrderId} &bull; Request Modeller Revisions
             </h3>
             <p className="text-[#6B7280]">
@@ -1138,7 +1408,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
               value={rejectionNotes}
               onChange={(e) => setRejectionNotes(e.target.value)}
               placeholder="e.g. Prongs on the center diamond need 0.1mm extra stock for setting, and shank thickness should be at least 1.6mm."
-              className="w-full p-3 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+              className="w-full p-3 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
             />
 
             <div className="flex justify-end gap-2 pt-2">
@@ -1147,7 +1417,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                   setRejectingOrderId(null);
                   setRejectionNotes('');
                 }}
-                className="px-4 py-2 rounded-xl border border-[#E5E7EF] text-[#1E2230]"
+                className="px-4 py-2 rounded-xl border border-[#E8D7B7] text-[#17243B]"
               >
                 Cancel
               </button>

@@ -30,6 +30,8 @@ import {
   FileAudio,
   Square,
   ShieldCheck,
+  Cloud,
+  Sparkles,
   X
 } from 'lucide-react';
 import { api } from '../services/api';
@@ -43,10 +45,25 @@ interface FileEditingPageProps {
 const STUDIO_WHATSAPP_NUMBER = '919574787098';
 const STUDIO_TELEGRAM_LINK = 'https://t.me/+919574787098';
 
+const DEFAULT_MODIFICATION_TYPES: ModificationTypeData[] = [
+  { id: 1, key: '3dm-file-editing', label: '3DM File Editing', description: 'Rhino 8 native NURBS surface modification, layer organization, and feature adjustments.', base_price: 150, icon: 'Layers', is_active: true, display_order: 1 },
+  { id: 2, key: 'stl-file-editing', label: 'STL File Editing', description: 'Triangle mesh repairing, watertight topological fixes, and polygon sculpting.', base_price: 120, icon: 'Box', is_active: true, display_order: 2 },
+  { id: 3, key: 'size-modification', label: 'Size Modification', description: 'Ring size resizing (US, UK, Indian, EU), inner diameter scaling, and shank re-balancing.', base_price: 50, icon: 'Ruler', is_active: true, display_order: 3 },
+  { id: 4, key: 'weight-adjustment', label: 'Weight Adjustment', description: 'Gold/Metal gram weight calibration, under-gallery hollowing, and thickness optimization.', base_price: 75, icon: 'Scale', is_active: true, display_order: 4 },
+  { id: 5, key: 'stone-size-modification', label: 'Stone Size Modification', description: 'Adjusting stone seat dimensions, bezel boundaries, and table depths.', base_price: 80, icon: 'Gem', is_active: true, display_order: 5 },
+  { id: 6, key: 'stone-setting-modification', label: 'Stone Setting Modification', description: 'Switching setting styles (e.g. Prong to Bezel, Pave to Channel, Flush to Micro-Pave).', base_price: 100, icon: 'Sparkles', is_active: true, display_order: 6 },
+  { id: 7, key: 'shape-modification', label: 'Shape Modification', description: 'Altering ring shank profiles, halo contours, and motif outlines.', base_price: 110, icon: 'Edit', is_active: true, display_order: 7 },
+  { id: 8, key: 'add-remove-stones', label: 'Add / Remove Stones', description: 'Adding accent halo stones, side baguettes, or converting to solid metal band.', base_price: 90, icon: 'Plus', is_active: true, display_order: 8 },
+  { id: 9, key: 'name-initial-logo', label: 'Name / Initial / Logo', description: 'Embossing studio logos, hallmarks, initials, or 3D relief emblems.', base_price: 65, icon: 'ShieldCheck', is_active: true, display_order: 9 },
+  { id: 10, key: 'engraving', label: 'Engraving Correction', description: 'Calibrating 3D relief text, script fonts, and inside shank calligraphy.', base_price: 45, icon: 'FileText', is_active: true, display_order: 10 },
+  { id: 11, key: 'manufacturing-correction', label: 'Manufacturing Correction', description: 'Fixing cold-shuts, thin wall warnings, sprue gates, and prong clearance.', base_price: 130, icon: 'CheckCircle2', is_active: true, display_order: 11 },
+  { id: 12, key: 'casting-3d-printing-prep', label: 'Casting & 3D Printing Prep', description: 'Adding sprue feeders, shrinkage allowance (+1.25%), and Formlabs STL export.', base_price: 95, icon: 'Printer', is_active: true, display_order: 12 },
+];
+
 export const FileEditingPage: React.FC<FileEditingPageProps> = ({ onNavigate }) => {
-  const { user, isLoggedIn, openAuthModal } = useAuth();
-  const [modificationTypes, setModificationTypes] = useState<ModificationTypeData[]>([]);
-  const [loadingTypes, setLoadingTypes] = useState<boolean>(true);
+  const { user, isLoggedIn, openAuthModal, requireAuth } = useAuth();
+  const [modificationTypes, setModificationTypes] = useState<ModificationTypeData[]>(DEFAULT_MODIFICATION_TYPES);
+  const [loadingTypes, setLoadingTypes] = useState<boolean>(false);
 
   // Form State
   const [clientName, setClientName] = useState<string>('');
@@ -73,6 +90,26 @@ export const FileEditingPage: React.FC<FileEditingPageProps> = ({ onNavigate }) 
   const audioFileInputRef = useRef<HTMLInputElement>(null);
   const cadFileInputRef = useRef<HTMLInputElement>(null);
   const refImageInputRef = useRef<HTMLInputElement>(null);
+
+  // Section Refs for smooth scrolling on validation error
+  const step1Ref = useRef<HTMLDivElement>(null);
+  const step2Ref = useRef<HTMLDivElement>(null);
+  const step3Ref = useRef<HTMLDivElement>(null);
+  const step4Ref = useRef<HTMLDivElement>(null);
+  const clientNameInputRef = useRef<HTMLInputElement>(null);
+  const clientPhoneInputRef = useRef<HTMLInputElement>(null);
+  const clientEmailInputRef = useRef<HTMLInputElement>(null);
+
+  // Inline Validation & Upload Progress State
+  const [fieldErrors, setFieldErrors] = useState<{
+    cadFile?: string;
+    modTypes?: string;
+    description?: string;
+    clientName?: string;
+    clientPhone?: string;
+    clientEmail?: string;
+  }>({});
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   // Status state
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -230,18 +267,18 @@ Please confirm feasibility and provide the production quotation.`;
 
   useEffect(() => {
     let mounted = true;
-    setLoadingTypes(true);
     api.getModificationTypes()
-      .then((data) => {
+      .then((data: any) => {
         if (mounted) {
-          setModificationTypes(data.filter((m: any) => m.is_active));
+          const list = Array.isArray(data) ? data : (data?.results || data?.data || []);
+          const active = list.filter((m: any) => m.is_active);
+          if (active.length > 0) {
+            setModificationTypes(active);
+          }
         }
       })
       .catch((err) => {
-        console.error('Failed to load modification types:', err);
-      })
-      .finally(() => {
-        if (mounted) setLoadingTypes(false);
+        console.warn('Backend modification types fetch notice:', err);
       });
 
     return () => {
@@ -253,6 +290,9 @@ Please confirm feasibility and provide the production quotation.`;
     setSelectedModTypeIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
+    if (fieldErrors.modTypes) {
+      setFieldErrors((prev) => ({ ...prev, modTypes: undefined }));
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -260,9 +300,13 @@ Please confirm feasibility and provide the production quotation.`;
       const file = e.target.files[0];
       const ext = file.name.split('.').pop()?.toLowerCase();
       if (!['3dm', 'stl', 'obj', 'step'].includes(ext || '')) {
-        setErrorMsg('Invalid file type. Please upload a .3dm, .stl, .obj, or .step file.');
+        setFieldErrors((prev) => ({
+          ...prev,
+          cadFile: 'Invalid file format. Please upload a .3dm, .stl, .obj, or .step file.'
+        }));
         return;
       }
+      setFieldErrors((prev) => ({ ...prev, cadFile: undefined }));
       setErrorMsg(null);
       setCadFile(file);
     }
@@ -288,41 +332,116 @@ Please confirm feasibility and provide the production quotation.`;
 
   const handleSubmit = async () => {
     if (!isLoggedIn) {
-      setErrorMsg('Only logged in users can submit CAD file edit requests. Please log in or create an account.');
-      openAuthModal('Please log in to submit your CAD file modification request.');
+      setErrorMsg('Only logged-in clients can submit CAD file edit requests. Please sign in or register.');
+      requireAuth(() => {
+        handleSubmit();
+      }, {
+        intent: 'custom-request',
+        message: 'Please sign in or create an account to submit your CAD file modification request.',
+      });
       return;
     }
 
+    // Comprehensive contextual validation
+    const errors: typeof fieldErrors = {};
     if (!cadFile) {
-      setErrorMsg('Please upload your source CAD file (.3dm, .stl, .obj, or .step).');
-      return;
+      errors.cadFile = 'Source CAD file (.3dm, .stl, .obj, or .step) is required.';
     }
     if (selectedModTypeIds.length === 0) {
-      setErrorMsg('Please select at least one modification required.');
-      return;
+      errors.modTypes = 'Please select at least one modification required for your model.';
     }
     if (!description.trim()) {
-      setErrorMsg('Please enter detailed modification instructions.');
+      errors.description = 'Please provide detailed modification instructions.';
+    }
+    if (!clientName.trim()) {
+      errors.clientName = 'Full name is required.';
+    }
+    if (!clientPhone.trim()) {
+      errors.clientPhone = 'WhatsApp / phone number is required.';
+    }
+    if (!clientEmail.trim()) {
+      errors.clientEmail = 'Email address is required.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setErrorMsg('Please review and complete all highlighted required fields below.');
+
+      // Smoothly scroll and center on the first invalid field
+      if (errors.cadFile && step1Ref.current) {
+        step1Ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else if (errors.modTypes && step2Ref.current) {
+        step2Ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else if (errors.description && step3Ref.current) {
+        step3Ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else if (errors.clientName && clientNameInputRef.current) {
+        clientNameInputRef.current.focus();
+        clientNameInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else if (errors.clientPhone && clientPhoneInputRef.current) {
+        clientPhoneInputRef.current.focus();
+        clientPhoneInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else if (errors.clientEmail && clientEmailInputRef.current) {
+        clientEmailInputRef.current.focus();
+        clientEmailInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
       return;
     }
 
     setIsSubmitting(true);
     setErrorMsg(null);
+    setFieldErrors({});
 
     try {
+      const isLargeFile = cadFile.size > 50 * 1024 * 1024; // >50MB
+      let driveFileId: string | null = null;
+
+      if (isLargeFile) {
+        setUploadProgress(0);
+        try {
+          const driveUploadRes = await api.uploadFileEditToGDrive(cadFile, (pct) => {
+            setUploadProgress(pct);
+          });
+          driveFileId = driveUploadRes?.drive_file_id || null;
+          setUploadProgress(100);
+        } catch (gdriveErr: any) {
+          console.warn('Google Drive direct streaming unavailable or OAuth token not yet linked. Falling back to secure studio server storage:', gdriveErr);
+          driveFileId = null;
+          setUploadProgress(null);
+        }
+      }
+
       const formData = new FormData();
-      formData.append('original_file', cadFile);
+      if (isLargeFile && driveFileId) {
+        formData.append('drive_file_id', driveFileId);
+        formData.append('storage_provider', 'gdrive');
+        formData.append('original_file_name', cadFile.name);
+        formData.append('file_size_bytes', String(cadFile.size));
+      } else {
+        formData.append('original_file', cadFile);
+        formData.append('original_file_name', cadFile.name);
+        formData.append('file_size_bytes', String(cadFile.size));
+        formData.append('storage_provider', 'local');
+      }
+
       formData.append('original_file_format', cadFile.name.split('.').pop()?.toLowerCase() || '3dm');
-      formData.append('contact_name', clientName || user?.username || 'Client User');
-      formData.append('contact_email', clientEmail || user?.email || '');
-      formData.append('contact_phone', clientPhone || user?.phone_number || '');
+      formData.append('contact_name', clientName.trim() || user?.username || 'Client User');
+      formData.append('contact_email', clientEmail.trim() || user?.email || '');
+      formData.append('contact_phone', clientPhone.trim() || user?.phone_number || '');
       formData.append('modification_types', JSON.stringify(selectedModTypeIds));
 
-      let fullDescription = description;
+      if (targetWeightGrams) {
+        formData.append('target_weight_grams', targetWeightGrams);
+      }
+      if (targetStoneSizeMm) {
+        formData.append('target_stone_size', targetStoneSizeMm);
+      }
+
+      let fullDescription = description.trim();
       if (targetWeightGrams || targetStoneSizeMm) {
         fullDescription += `\n\n[Specs]\nTarget Weight: ${targetWeightGrams || 'N/A'}g\nTarget Stone Size: ${targetStoneSizeMm || 'N/A'}`;
       }
       formData.append('description', fullDescription);
+
       if (referenceFile) formData.append('reference_image', referenceFile);
       if (voiceAudioBlob) {
         const audioFile =
@@ -338,15 +457,17 @@ Please confirm feasibility and provide the production quotation.`;
 
       setSubmitSuccess(true);
       setSubmitMessage(
-        'Your CAD modification details have been saved and sent directly to the Admin. Our master team will review your file and specifications shortly.'
+        'Your CAD modification details and source model have been saved and sent directly to the Admin. Our master team will review your file and issue an official quotation shortly.'
       );
     } catch (err: any) {
       console.error('File edit submission error:', err);
       setErrorMsg(err.message || 'Failed to submit file modification request. Please try again.');
     } finally {
       setIsSubmitting(false);
+      setUploadProgress(null);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-[#FCFAF6] text-[#17243B] pt-24 sm:pt-28 pb-16 px-4 sm:px-6 lg:px-8">
@@ -361,8 +482,8 @@ Please confirm feasibility and provide the production quotation.`;
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif font-bold text-[#17345C] tracking-tight">
             CAD File Editing &amp; Modification Studio
           </h1>
-          <p className="text-xs sm:text-sm text-[#626875] max-w-xl mx-auto">
-            Upload your existing 3D jewelry CAD file (<span className="text-[#B88735] font-semibold">.3dm, .stl, .obj, .step</span>) for precision resizing, prong adjustment, weight optimization, or mesh repair.
+          <p className="text-xs sm:text-sm text-[#475569] font-medium max-w-xl mx-auto leading-relaxed">
+            Upload your existing 3D jewelry CAD file (<span className="text-[#B88732] font-bold">.3dm, .stl, .obj, .step</span>) for precision resizing, prong adjustment, weight optimization, or mesh repair.
           </p>
         </div>
 
@@ -376,7 +497,7 @@ Please confirm feasibility and provide the production quotation.`;
               <h2 className="text-2xl sm:text-3xl font-serif font-bold text-[#17345C]">
                 Modification Request Received!
               </h2>
-              <p className="text-xs sm:text-sm text-[#626875] max-w-lg mx-auto">
+              <p className="text-xs sm:text-sm text-[#475569] font-medium max-w-lg mx-auto">
                 {submitMessage}
               </p>
             </div>
@@ -476,36 +597,69 @@ Please confirm feasibility and provide the production quotation.`;
             )}
 
             {/* STEP 1: UPLOAD SOURCE CAD FILE */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between border-b border-[#E8D7B7]/80 pb-2.5">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-6 h-6 rounded-full bg-[#17345C] text-[#FFFDF9] font-bold flex items-center justify-center text-xs shadow-2xs">
+            <div ref={step1Ref} className={`space-y-3 p-4 sm:p-5 rounded-2xl transition-all ${
+              fieldErrors.cadFile ? 'bg-rose-50/20 border-2 border-rose-400 ring-2 ring-rose-200 shadow-sm' : ''
+            }`}>
+              <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-3">
+                <div className="flex items-center gap-3">
+                  <span className={`w-7 h-7 rounded-full font-bold flex items-center justify-center text-xs shadow-xs ${
+                    fieldErrors.cadFile ? 'bg-rose-600 text-white' : 'bg-[#17345C] text-[#FFFDF9]'
+                  }`}>
                     1
                   </span>
-                  <h3 className="text-sm sm:text-base font-bold text-[#17345C]">
-                    Upload Your Source CAD File <span className="text-[#B88735]">*</span>
+                  <h3 className="text-base sm:text-lg font-bold text-[#0B1330] tracking-tight">
+                    Upload Your Source CAD File <span className="text-rose-600 font-bold">*</span>
                   </h3>
                 </div>
-                <span className="text-[11px] font-mono text-[#7A8699]">Max 50MB</span>
+                {cadFile && cadFile.size > 50 * 1024 * 1024 ? (
+                  <span className="px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold flex items-center gap-1.5 shadow-2xs">
+                    <Cloud className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Google Drive Cloud Storage ({(cadFile.size / (1024 * 1024)).toFixed(1)} MB)</span>
+                  </span>
+                ) : cadFile ? (
+                  <span className="px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-1.5 shadow-2xs">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    <span>{(cadFile.size / (1024 * 1024)).toFixed(2)} MB Attached</span>
+                  </span>
+                ) : (
+                  <span className="text-xs text-[#475569] font-medium flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>High-Capacity Cloud &amp; Direct CAD Storage</span>
+                  </span>
+                )}
               </div>
 
               {cadFile ? (
                 /* Selected File Preview Box */
-                <div className="p-4 rounded-2xl bg-[#FFF9F0]/80 border border-[#D6AD62] flex items-center justify-between gap-3 shadow-2xs">
+                <div className={`p-4 rounded-2xl bg-[#FFF9F0]/80 border flex items-center justify-between gap-3 shadow-2xs ${
+                  cadFile.size > 50 * 1024 * 1024 ? 'border-blue-300 ring-1 ring-blue-200' : 'border-[#D6AD62]'
+                }`}>
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-[#17345C] text-white flex items-center justify-center shrink-0 shadow-2xs">
-                      <FileCode className="w-5 h-5 text-[#D6AD62]" />
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-2xs ${
+                      cadFile.size > 50 * 1024 * 1024 ? 'bg-blue-900 text-blue-200' : 'bg-[#17345C] text-white'
+                    }`}>
+                      {cadFile.size > 50 * 1024 * 1024 ? (
+                        <Cloud className="w-5 h-5 text-blue-300" />
+                      ) : (
+                        <FileCode className="w-5 h-5 text-[#D6AD62]" />
+                      )}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs sm:text-sm font-bold text-[#17345C] truncate">{cadFile.name}</p>
-                      <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-[#626875] mt-0.5">
-                        <span className="font-semibold text-[#17345C]">{(cadFile.size / (1024 * 1024)).toFixed(2)} MB</span>
+                      <p className="text-xs sm:text-sm font-bold text-[#0B1330] truncate">{cadFile.name}</p>
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs text-[#475569] font-medium mt-0.5">
+                        <span className="font-semibold text-[#0B1330]">{(cadFile.size / (1024 * 1024)).toFixed(2)} MB</span>
                         <span>•</span>
-                        <span className="uppercase font-mono text-[#B88735] font-bold">.{cadFile.name.split('.').pop()}</span>
+                        <span className="uppercase font-mono text-[#B88732] font-bold">.{cadFile.name.split('.').pop()}</span>
                         <span>•</span>
-                        <span className="text-emerald-700 font-semibold flex items-center gap-0.5">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Attached
-                        </span>
+                        {cadFile.size > 50 * 1024 * 1024 ? (
+                          <span className="text-blue-700 font-semibold flex items-center gap-0.5">
+                            <Cloud className="w-3 h-3 text-blue-600" /> Direct Google Drive Storage (&gt;50MB)
+                          </span>
+                        ) : (
+                          <span className="text-emerald-700 font-semibold flex items-center gap-0.5">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Attached
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -531,16 +685,24 @@ Please confirm feasibility and provide the production quotation.`;
                 /* Compact Drag & Drop Zone */
                 <div
                   onClick={() => cadFileInputRef.current?.click()}
-                  className="border-2 border-dashed border-[#E8D7B7] hover:border-[#B88735] bg-[#FFFDF9] hover:bg-[#FFF9F0]/60 rounded-2xl p-5 sm:p-6 transition-all text-center cursor-pointer group shadow-2xs"
+                  className={`border-2 border-dashed rounded-2xl p-5 sm:p-6 transition-all text-center cursor-pointer group shadow-2xs ${
+                    fieldErrors.cadFile
+                      ? 'border-rose-400 bg-rose-50/30 hover:bg-rose-50/50'
+                      : 'border-[#E8D7B7] hover:border-[#B88735] bg-[#FFFDF9] hover:bg-[#FFF9F0]/60'
+                  }`}
                 >
-                  <div className="w-11 h-11 bg-white border border-[#E8D7B7] group-hover:border-[#B88735] group-hover:text-[#B88735] text-[#17345C] rounded-xl flex items-center justify-center mx-auto transition-transform group-hover:scale-105 shadow-2xs">
+                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center mx-auto transition-transform group-hover:scale-105 shadow-2xs ${
+                    fieldErrors.cadFile
+                      ? 'bg-rose-100 text-rose-600 border border-rose-300'
+                      : 'bg-white border border-[#E8D7B7] group-hover:border-[#B88735] group-hover:text-[#B88735] text-[#17345C]'
+                  }`}>
                     <FileUp className="w-5 h-5" />
                   </div>
-                  <p className="text-xs sm:text-sm font-bold text-[#17345C] mt-2.5">
+                  <p className={`text-sm sm:text-base font-bold mt-2.5 ${fieldErrors.cadFile ? 'text-rose-700' : 'text-[#0B1330]'}`}>
                     Drag &amp; drop or click to upload your CAD file
                   </p>
-                  <p className="text-[11px] text-[#7A8699] mt-1">
-                    Accepts Rhino 3DM, STL watertight mesh, OBJ polygon, or STEP solid files
+                  <p className="text-xs text-[#475569] font-medium mt-1">
+                    Accepts Rhino 3DM, STL watertight mesh, OBJ polygon, or STEP solid files &bull; Files over 50MB securely saved to Google Drive
                   </p>
                   <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2.5">
                     {['.3DM', '.STL', '.OBJ', '.STEP'].map((ext) => (
@@ -551,6 +713,34 @@ Please confirm feasibility and provide the production quotation.`;
                   </div>
                 </div>
               )}
+
+              {/* Inline Error Badge for Step 1 */}
+              {fieldErrors.cadFile && (
+                <div className="flex items-center gap-1.5 text-xs text-rose-600 font-semibold bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-200 w-fit">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                  <span>{fieldErrors.cadFile}</span>
+                </div>
+              )}
+
+              {/* Live Upload Progress Indicator */}
+              {uploadProgress !== null && (
+                <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs space-y-2 animate-fadeIn">
+                  <div className="flex items-center justify-between font-semibold">
+                    <span className="flex items-center gap-1.5">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-600" />
+                      Streaming CAD file to Google Drive Cloud Storage...
+                    </span>
+                    <span className="font-mono">{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-blue-200 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-blue-600 h-2 transition-all duration-300 rounded-full"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
               <input
                 ref={cadFileInputRef}
                 type="file"
@@ -561,25 +751,29 @@ Please confirm feasibility and provide the production quotation.`;
             </div>
 
             {/* STEP 2: SELECT MODIFICATIONS REQUIRED */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between border-b border-[#E8D7B7]/80 pb-2.5">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-6 h-6 rounded-full bg-[#17345C] text-[#FFFDF9] font-bold flex items-center justify-center text-xs shadow-2xs">
+            <div ref={step2Ref} className={`space-y-3 p-4 sm:p-5 rounded-2xl transition-all ${
+              fieldErrors.modTypes ? 'bg-rose-50/20 border-2 border-rose-400 ring-2 ring-rose-200 shadow-sm' : ''
+            }`}>
+              <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-3">
+                <div className="flex items-center gap-3">
+                  <span className={`w-7 h-7 rounded-full font-bold flex items-center justify-center text-xs shadow-xs ${
+                    fieldErrors.modTypes ? 'bg-rose-600 text-white' : 'bg-[#17345C] text-[#FFFDF9]'
+                  }`}>
                     2
                   </span>
-                  <h3 className="text-sm sm:text-base font-bold text-[#17345C]">
-                    Select Modifications Required <span className="text-[#B88735]">*</span>
+                  <h3 className="text-base sm:text-lg font-bold text-[#0B1330] tracking-tight">
+                    Select Modifications Required <span className="text-rose-600 font-bold">*</span>
                   </h3>
                 </div>
                 {selectedModTypeIds.length > 0 && (
-                  <span className="px-2.5 py-0.5 rounded-full bg-[#FFF9F0] border border-[#D6AD62] text-[11px] font-bold text-[#B88735]">
+                  <span className="px-2.5 py-0.5 rounded-full bg-[#FFF9F0] border border-[#D6AD62] text-xs font-bold text-[#B88732]">
                     {selectedModTypeIds.length} selected
                   </span>
                 )}
               </div>
 
               {loadingTypes ? (
-                <div className="py-6 text-center text-[#7A8699] text-xs flex items-center justify-center gap-2">
+                <div className="py-6 text-center text-[#475569] text-xs font-medium flex items-center justify-center gap-2">
                   <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#B88735]" />
                   <span>Loading studio modification services...</span>
                 </div>
@@ -608,7 +802,7 @@ Please confirm feasibility and provide the production quotation.`;
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
-                            <h4 className={`text-xs sm:text-sm font-bold truncate ${isSelected ? 'text-[#17345C]' : 'text-[#17243B]'}`}>
+                            <h4 className={`text-xs sm:text-sm font-bold truncate ${isSelected ? 'text-[#17345C]' : 'text-[#0B1330]'}`}>
                               {mod.label}
                             </h4>
                             {mod.base_price && Number(mod.base_price) > 0 ? (
@@ -617,7 +811,7 @@ Please confirm feasibility and provide the production quotation.`;
                               </span>
                             ) : null}
                           </div>
-                          <p className="text-[11px] text-[#626875] mt-0.5 line-clamp-2 leading-relaxed">
+                          <p className="text-xs text-[#475569] font-medium mt-0.5 line-clamp-2 leading-relaxed">
                             {mod.description}
                           </p>
                         </div>
@@ -626,26 +820,42 @@ Please confirm feasibility and provide the production quotation.`;
                   })}
                 </div>
               )}
+
+              {/* Inline Error Badge for Step 2 */}
+              {fieldErrors.modTypes && (
+                <div className="flex items-center gap-1.5 text-xs text-rose-600 font-semibold bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-200 w-fit">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                  <span>{fieldErrors.modTypes}</span>
+                </div>
+              )}
             </div>
 
             {/* STEP 3: MODIFICATION DETAILS & SPECS */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2.5 border-b border-[#E8D7B7]/80 pb-2.5">
-                <span className="w-6 h-6 rounded-full bg-[#17345C] text-[#FFFDF9] font-bold flex items-center justify-center text-xs shadow-2xs">
+            <div ref={step3Ref} className={`space-y-4 p-4 sm:p-5 rounded-2xl transition-all ${
+              fieldErrors.description ? 'bg-rose-50/20 border-2 border-rose-400 ring-2 ring-rose-200 shadow-sm' : ''
+            }`}>
+              <div className="flex items-center gap-3 border-b border-[#E8D7B7] pb-3">
+                <span className={`w-7 h-7 rounded-full font-bold flex items-center justify-center text-xs shadow-xs ${
+                  fieldErrors.description ? 'bg-rose-600 text-white' : 'bg-[#17345C] text-[#FFFDF9]'
+                }`}>
                   3
                 </span>
-                <h3 className="text-sm sm:text-base font-bold text-[#17345C]">
+                <h3 className="text-base sm:text-lg font-bold text-[#0B1330] tracking-tight">
                   Modification Details &amp; Specs
                 </h3>
               </div>
 
               {/* Target Metal Weight & Stone Size Inputs */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#626875] mb-1 flex items-center gap-1.5">
-                    <Scale className="w-3.5 h-3.5 text-[#B88735]" />
-                    <span>Target Metal Weight (Grams)</span>
-                    <span className="text-[10px] text-[#7A8699] font-normal">(Optional)</span>
+                  <label className="block text-xs sm:text-sm font-bold text-[#0B1330] mb-1.5 flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <Scale className="w-4 h-4 text-[#B88732]" />
+                      <span>Target Metal Weight (Grams)</span>
+                    </span>
+                    <span className="text-[11px] text-[#64748B] font-semibold bg-[#F1F5F9] px-2 py-0.5 rounded-md border border-[#E2E8F0]">
+                      Optional
+                    </span>
                   </label>
                   <div className="relative">
                     <input
@@ -654,48 +864,63 @@ Please confirm feasibility and provide the production quotation.`;
                       placeholder="e.g. 5.5"
                       value={targetWeightGrams}
                       onChange={(e) => setTargetWeightGrams(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8D7B7] focus:border-[#D6AD62] bg-[#FFFDF9] text-xs sm:text-sm text-[#17243B] focus:outline-hidden pr-14"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8D7B7] focus:border-[#B88732] focus:ring-1 focus:ring-[#B88732]/25 bg-[#FFFDF9] text-xs sm:text-sm font-medium text-[#0B1330] placeholder-[#94A3B8] focus:outline-hidden pr-14"
                     />
-                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-[#7A8699]">
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#475569]">
                       grams
                     </span>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#626875] mb-1 flex items-center gap-1.5">
-                    <Gem className="w-3.5 h-3.5 text-[#B88735]" />
-                    <span>Target Stone Size (mm / ct)</span>
-                    <span className="text-[10px] text-[#7A8699] font-normal">(Optional)</span>
+                  <label className="block text-xs sm:text-sm font-bold text-[#0B1330] mb-1.5 flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <Gem className="w-4 h-4 text-[#B88732]" />
+                      <span>Target Stone Size (mm / ct)</span>
+                    </span>
+                    <span className="text-[11px] text-[#64748B] font-semibold bg-[#F1F5F9] px-2 py-0.5 rounded-md border border-[#E2E8F0]">
+                      Optional
+                    </span>
                   </label>
                   <input
                     type="text"
                     placeholder="e.g. Center 6.5mm / 1.0ct diamond"
                     value={targetStoneSizeMm}
                     onChange={(e) => setTargetStoneSizeMm(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8D7B7] focus:border-[#D6AD62] bg-[#FFFDF9] text-xs sm:text-sm text-[#17243B] focus:outline-hidden"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8D7B7] focus:border-[#B88732] focus:ring-1 focus:ring-[#B88732]/25 bg-[#FFFDF9] text-xs sm:text-sm font-medium text-[#0B1330] placeholder-[#94A3B8] focus:outline-hidden"
                   />
                 </div>
               </div>
 
               {/* Detailed Modification Instructions + Voice Note (Unified Studio Container) */}
               <div>
-                <label className="block text-[11px] font-semibold text-[#626875] mb-1">
-                  Detailed Modification Instructions <span className="text-[#B88735]">*</span>
+                <label className="block text-xs sm:text-sm font-bold text-[#0B1330] mb-1.5 flex items-center gap-1.5">
+                  <span>Detailed Modification Instructions</span>
+                  <span className="text-rose-600 font-bold">*</span>
                 </label>
-                <div className="relative rounded-2xl border border-[#E8D7B7] bg-[#FFFDF9] focus-within:border-[#D6AD62] transition-colors p-4 space-y-3">
+                <div className={`relative rounded-2xl border bg-[#FFFDF9] transition-colors p-4 space-y-3 ${
+                  fieldErrors.description
+                    ? 'border-rose-400 ring-2 ring-rose-200'
+                    : 'border-[#E8D7B7] focus-within:border-[#B88732] focus-within:ring-1 focus-within:ring-[#B88732]/25'
+                }`}>
                   <textarea
                     rows={4}
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
+                    onChange={(e) => {
+                      setDescription(e.target.value);
+                      if (fieldErrors.description) {
+                        setFieldErrors((prev) => ({ ...prev, description: undefined }));
+                      }
+                    }}
                     placeholder="Describe your design, specifications, requirements, gemstone details, finger ring size, weight constraints, or any special casting preferences..."
-                    className="w-full bg-transparent text-xs sm:text-sm text-[#17243B] focus:outline-hidden resize-none placeholder-[#626875]/70"
+                    className="w-full bg-transparent text-xs sm:text-sm font-medium text-[#0B1330] focus:outline-hidden resize-none placeholder-[#64748B]/70 leading-relaxed"
                   />
 
                   {/* Voice Actions Row */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#E8D7B7]/60">
-                    <div className="text-[11px] text-[#626875]">
-                      Record live voice instructions or upload an audio file:
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-[#E8D7B7]/80">
+                    <div className="text-xs font-semibold text-[#17345C] flex items-center gap-1.5">
+                      <Volume2 className="w-3.5 h-3.5 text-[#B88732]" />
+                      <span>Record live voice instructions or upload an audio file:</span>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -703,10 +928,10 @@ Please confirm feasibility and provide the production quotation.`;
                       <button
                         type="button"
                         onClick={() => audioFileInputRef.current?.click()}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#E8D7B7] hover:border-[#D6AD62] bg-white text-xs font-semibold text-[#17345C] transition-all cursor-pointer shadow-2xs"
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-[#E8D7B7] hover:border-[#B88732] bg-white text-xs font-bold text-[#17345C] transition-all cursor-pointer shadow-2xs"
                         title="Upload existing audio file"
                       >
-                        <FileAudio className="w-3.5 h-3.5 text-[#B88735]" />
+                        <FileAudio className="w-3.5 h-3.5 text-[#B88732]" />
                         <span>Upload Recording</span>
                       </button>
                       <input
@@ -735,7 +960,7 @@ Please confirm feasibility and provide the production quotation.`;
                         <button
                           type="button"
                           onClick={startRecording}
-                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#17345C] hover:bg-[#122b4a] text-white text-xs font-semibold transition-all shadow-sm cursor-pointer"
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#17345C] hover:bg-[#0f2440] text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
                           title="Record Voice Note"
                         >
                           <Mic className="w-3.5 h-3.5 text-white" />
@@ -746,11 +971,19 @@ Please confirm feasibility and provide the production quotation.`;
                   </div>
                 </div>
 
+                {/* Inline Error Badge for Step 3 */}
+                {fieldErrors.description && (
+                  <div className="flex items-center gap-1.5 text-xs text-rose-600 font-semibold bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-200 w-fit mt-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                    <span>{fieldErrors.description}</span>
+                  </div>
+                )}
+
                 {/* Voice Note Audio Player */}
                 {voiceAudioUrl && (
                   <div className="mt-2.5 p-3 rounded-2xl bg-white border border-[#D6AD62] flex items-center justify-between gap-3 shadow-2xs">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-[#17345C]">
-                      <Volume2 className="w-4 h-4 text-[#B88735]" />
+                    <div className="flex items-center gap-2 text-xs font-bold text-[#17345C]">
+                      <Volume2 className="w-4 h-4 text-[#B88732]" />
                       <span>
                         {uploadedAudioFile ? `Audio File: ${uploadedAudioFile.name}` : `Voice Note Recorded (${recordingSeconds}s)`}
                       </span>
@@ -772,16 +1005,20 @@ Please confirm feasibility and provide the production quotation.`;
 
               {/* Reference Sketch / Markup Upload */}
               <div>
-                <label className="block text-[11px] font-semibold text-[#626875] mb-1">
-                  Add Reference Sketch or Mark-up Image <span className="text-[10px] text-[#7A8699] font-normal">(Optional)</span>
+                <label className="block text-xs sm:text-sm font-bold text-[#0B1330] mb-1.5 flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4 text-[#B88732]" />
+                  <span>Add Reference Sketch or Mark-up Image</span>
+                  <span className="text-[11px] text-[#64748B] font-semibold bg-[#F1F5F9] px-2 py-0.5 rounded-md border border-[#E2E8F0]">
+                    Optional
+                  </span>
                 </label>
                 <div className="flex flex-wrap items-center gap-3">
                   <button
                     type="button"
                     onClick={() => refImageInputRef.current?.click()}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#E8D7B7] hover:border-[#D6AD62] bg-[#FFFDF9] hover:bg-[#FFF9F0] text-xs font-semibold text-[#17345C] transition-all cursor-pointer shadow-2xs"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#E8D7B7] hover:border-[#B88732] bg-white hover:bg-[#FFF9F0] text-xs sm:text-sm font-bold text-[#17345C] transition-all cursor-pointer shadow-2xs"
                   >
-                    <ImageIcon className="w-4 h-4 text-[#B88735]" />
+                    <ImageIcon className="w-4 h-4 text-[#B88732]" />
                     <span>Upload Reference Image / Mark-up Sketch</span>
                   </button>
                   <input
@@ -815,62 +1052,116 @@ Please confirm feasibility and provide the production quotation.`;
             </div>
 
             {/* STEP 4: CONTACT METHOD (MATCHING STUDIO DESIGN) */}
-            <div className="space-y-3 pt-2 border-t border-[#E8D7B7]/80">
-              <div className="flex items-center gap-2.5">
-                <span className="w-6 h-6 rounded-full bg-[#17345C] text-[#FFFDF9] font-bold flex items-center justify-center text-xs shadow-2xs">
+            <div ref={step4Ref} className="space-y-4 pt-4 border-t border-[#E8D7B7]">
+              <div className="flex items-center gap-3">
+                <span className={`w-7 h-7 rounded-full font-bold flex items-center justify-center text-xs shadow-xs ${
+                  (fieldErrors.clientName || fieldErrors.clientPhone || fieldErrors.clientEmail)
+                    ? 'bg-rose-600 text-white'
+                    : 'bg-[#17345C] text-[#FFFDF9]'
+                }`}>
                   4
                 </span>
-                <h3 className="text-sm sm:text-base font-bold text-[#17345C]">
+                <h3 className="text-base sm:text-lg font-bold text-[#0B1330] tracking-tight">
                   Contact Method:
                 </h3>
               </div>
 
-              {/* Customer Inputs: Name, Phone, Email with clear labels */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Customer Inputs: Name, Phone, Email with clear labels and error feedback */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#626875] mb-1">
-                    Your Full Name *
+                  <label className="block text-xs sm:text-sm font-bold text-[#0B1330] mb-1.5">
+                    Your Full Name <span className="text-rose-600 font-bold">*</span>
                   </label>
                   <input
+                    ref={clientNameInputRef}
                     type="text"
                     value={clientName}
-                    onChange={(e) => setClientName(e.target.value)}
+                    onChange={(e) => {
+                      setClientName(e.target.value);
+                      if (fieldErrors.clientName) {
+                        setFieldErrors((prev) => ({ ...prev, clientName: undefined }));
+                      }
+                    }}
                     placeholder="E.g. Sarah Jenkins"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8D7B7] focus:border-[#D6AD62] bg-[#FFFDF9] text-xs sm:text-sm text-[#17243B] focus:outline-hidden"
+                    className={`w-full px-3.5 py-2.5 rounded-xl border bg-[#FFFDF9] text-xs sm:text-sm font-medium text-[#0B1330] placeholder-[#94A3B8] focus:outline-hidden transition-all ${
+                      fieldErrors.clientName
+                        ? 'border-rose-400 ring-2 ring-rose-200 bg-rose-50/20'
+                        : 'border-[#E8D7B7] focus:border-[#B88732] focus:ring-1 focus:ring-[#B88732]/25'
+                    }`}
                   />
+                  {fieldErrors.clientName && (
+                    <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{fieldErrors.clientName}</span>
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#626875] mb-1">
-                    WhatsApp / Phone Number *
+                  <label className="block text-xs sm:text-sm font-bold text-[#0B1330] mb-1.5">
+                    WhatsApp / Phone Number <span className="text-rose-600 font-bold">*</span>
                   </label>
                   <input
+                    ref={clientPhoneInputRef}
                     type="text"
                     value={clientPhone}
-                    onChange={(e) => setClientPhone(e.target.value)}
+                    onChange={(e) => {
+                      setClientPhone(e.target.value);
+                      if (fieldErrors.clientPhone) {
+                        setFieldErrors((prev) => ({ ...prev, clientPhone: undefined }));
+                      }
+                    }}
                     placeholder="+91 98765 43210"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8D7B7] focus:border-[#D6AD62] bg-[#FFFDF9] text-xs sm:text-sm text-[#17243B] focus:outline-hidden font-medium"
+                    className={`w-full px-3.5 py-2.5 rounded-xl border bg-[#FFFDF9] text-xs sm:text-sm font-medium text-[#0B1330] placeholder-[#94A3B8] focus:outline-hidden font-medium transition-all ${
+                      fieldErrors.clientPhone
+                        ? 'border-rose-400 ring-2 ring-rose-200 bg-rose-50/20'
+                        : 'border-[#E8D7B7] focus:border-[#B88732] focus:ring-1 focus:ring-[#B88732]/25'
+                    }`}
                   />
+                  {fieldErrors.clientPhone && (
+                    <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{fieldErrors.clientPhone}</span>
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#626875] mb-1">
-                    Email Address *
+                  <label className="block text-xs sm:text-sm font-bold text-[#0B1330] mb-1.5">
+                    Email Address <span className="text-rose-600 font-bold">*</span>
                   </label>
                   <input
+                    ref={clientEmailInputRef}
                     type="email"
                     value={clientEmail}
-                    onChange={(e) => setClientEmail(e.target.value)}
+                    onChange={(e) => {
+                      setClientEmail(e.target.value);
+                      if (fieldErrors.clientEmail) {
+                        setFieldErrors((prev) => ({ ...prev, clientEmail: undefined }));
+                      }
+                    }}
                     placeholder="sarah@example.com"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8D7B7] focus:border-[#D6AD62] bg-[#FFFDF9] text-xs sm:text-sm text-[#17243B] focus:outline-hidden"
+                    className={`w-full px-3.5 py-2.5 rounded-xl border bg-[#FFFDF9] text-xs sm:text-sm font-medium text-[#0B1330] placeholder-[#94A3B8] focus:outline-hidden transition-all ${
+                      fieldErrors.clientEmail
+                        ? 'border-rose-400 ring-2 ring-rose-200 bg-rose-50/20'
+                        : 'border-[#E8D7B7] focus:border-[#B88732] focus:ring-1 focus:ring-[#B88732]/25'
+                    }`}
                   />
+                  {fieldErrors.clientEmail && (
+                    <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{fieldErrors.clientEmail}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
+
               {/* Direct Communication Buttons: WhatsApp / Telegram */}
               <div className="pt-2">
-                <div className="text-[11px] font-bold text-[#626875] mb-2 uppercase tracking-wider">
-                  Or Connect Directly With Pre-Filled Details:
+                <div className="text-xs font-bold text-[#0B1330] mb-2.5 uppercase tracking-wider flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5 text-[#B88732]" />
+                  <span>Or Connect Directly With Pre-Filled Details:</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <button
@@ -898,6 +1189,28 @@ Please confirm feasibility and provide the production quotation.`;
               </div>
             </div>
 
+            {/* Login Notice Banner when not logged in */}
+            {!isLoggedIn && (
+              <div className="p-4 rounded-2xl bg-[#FFF9F0] border border-[#E8D7B7] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-[#17345C] shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-[#17345C] text-[#D9B66F] flex items-center justify-center shrink-0 shadow-xs">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-[#17345C] text-sm">Account Login Required to Place Order</p>
+                    <p className="text-xs text-[#475569] font-medium">Sign in to upload and submit your CAD file modification specifications to our atelier.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openAuthModal('Please sign in to submit your CAD file modification request.')}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#C99A45] via-[#D6AD62] to-[#B88735] text-[#17345C] font-bold text-xs shrink-0 shadow-sm hover:opacity-95 transition-all text-center cursor-pointer"
+                >
+                  Sign In / Register
+                </button>
+              </div>
+            )}
+
             {/* PRIMARY SAVE / PLACE ORDER BUTTON (At Bottom — With Luxury Gradient & Assurance) */}
             <div className="pt-4 border-t border-[#E8D7B7] space-y-3">
               <button
@@ -911,6 +1224,12 @@ Please confirm feasibility and provide the production quotation.`;
                     <RefreshCw className="w-5 h-5 animate-spin text-[#17345C]" />
                     <span>Saving to Admin Panel...</span>
                   </>
+                ) : !isLoggedIn ? (
+                  <>
+                    <Lock className="w-5 h-5 text-[#17345C]" />
+                    <span>Sign In to Place Order</span>
+                    <ArrowRight className="w-5 h-5 text-[#17345C]" />
+                  </>
                 ) : (
                   <>
                     <span>Place Order</span>
@@ -919,8 +1238,8 @@ Please confirm feasibility and provide the production quotation.`;
                 )}
               </button>
 
-              <div className="flex items-center justify-center gap-2 text-xs text-[#626875] text-center">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <div className="flex items-center justify-center gap-2 text-xs text-[#475569] font-medium text-center">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>Your CAD file &amp; modification specifications are directly sent to Shiuli CAD Admin Panel &bull; No upfront payment required</span>
               </div>
             </div>

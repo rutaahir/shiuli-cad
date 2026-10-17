@@ -259,12 +259,12 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-[#E5E7EF] shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-[#E8D7B7] shadow-sm">
         <div>
           <span className="px-2.5 py-0.5 rounded-full bg-[#09112B] text-[#F5E7A3] text-[10px] uppercase font-bold tracking-widest font-mono">
             Certified CAD Craftsman
           </span>
-          <h1 className="font-serif text-2xl font-bold text-[#1E2230] tracking-tight mt-1">
+          <h1 className="font-serif text-2xl font-bold text-[#17243B] tracking-tight mt-1">
             Artisan Profile & Credentials
           </h1>
         </div>
@@ -284,8 +284,8 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
         </div>
       </div>
 
-      <div className="bg-white border-l-4 border-l-[#C9A227] border border-[#E5E7EF] p-8 rounded-2xl shadow-sm space-y-6">
-        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 border-b border-[#E5E7EF] pb-6">
+      <div className="bg-white border-l-4 border-l-[#C9A227] border border-[#E8D7B7] p-8 rounded-2xl shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 border-b border-[#E8D7B7] pb-6">
           <div className="relative group">
             <img
               src={getOptimizedImageUrl(staff.avatar)}
@@ -304,7 +304,7 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
           </div>
           <div className="space-y-1 text-center sm:text-left">
             <div className="flex items-center justify-center sm:justify-start gap-2">
-              <h3 className="text-2xl font-serif font-bold text-[#1E2230]">{staff.name}</h3>
+              <h3 className="text-2xl font-serif font-bold text-[#17243B]">{staff.name}</h3>
               <ShieldCheck className="w-5 h-5 text-[#C9A227]" />
             </div>
             <p className="text-xs font-mono text-[#09112B] font-bold uppercase tracking-wider">
@@ -322,19 +322,19 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E5E7EF] space-y-1">
+          <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E8D7B7] space-y-1">
             <div className="text-[10px] font-mono text-[#6B7280] uppercase font-semibold">Workbench Capacity</div>
-            <div className="font-serif text-xl font-bold text-[#1E2230]">{staff.maxJobLimit} Jobs Max</div>
+            <div className="font-serif text-xl font-bold text-[#17243B]">{staff.maxJobLimit} Jobs Max</div>
             <p className="text-[10px] text-slate-400">Strict quality control limit</p>
           </div>
 
-          <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E5E7EF] space-y-1">
+          <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E8D7B7] space-y-1">
             <div className="text-[10px] font-mono text-[#6B7280] uppercase font-semibold">Lifetime Rating</div>
             <div className="font-serif text-xl font-bold text-amber-700">★ {staff.rating} / 5.0</div>
             <p className="text-[10px] text-slate-400">SOW tolerance compliance score</p>
           </div>
 
-          <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E5E7EF] space-y-1">
+          <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E8D7B7] space-y-1">
             <div className="text-[10px] font-mono text-[#6B7280] uppercase font-semibold">Commissions Delivered</div>
             <div className="font-serif text-xl font-bold text-emerald-700">{staff.jobsCompleted} Pieces</div>
             <p className="text-[10px] text-slate-400">Zero return rate</p>
@@ -342,7 +342,7 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
         </div>
 
         <div className="space-y-3">
-          <h4 className="font-serif font-bold text-[#1E2230] text-sm">Primary CAD Mastery</h4>
+          <h4 className="font-serif font-bold text-[#17243B] text-sm">Primary CAD Mastery</h4>
           <div className="flex flex-wrap gap-2 text-xs font-mono">
             <span className="px-3 py-1.5 rounded-lg bg-[#09112B] text-[#F5E7A3] border border-[#D4AF37]/30 font-bold">
               Rhino 7 3D Architecture
@@ -363,9 +363,9 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
       {/* Edit Profile Modal */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn overflow-y-auto">
-          <div className="bg-white rounded-2xl border border-[#E5E7EF] max-w-lg w-full p-6 space-y-5 shadow-2xl my-8">
-            <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-3">
-              <h3 className="font-serif font-bold text-lg text-[#1E2230]">Edit Artisan Credentials</h3>
+          <div className="bg-white rounded-2xl border border-[#E8D7B7] max-w-lg w-full p-6 space-y-5 shadow-2xl my-8">
+            <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-3">
+              <h3 className="font-serif font-bold text-lg text-[#17243B]">Edit Artisan Credentials</h3>
               <button onClick={() => setShowEditModal(false)} className="p-1 rounded text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
@@ -373,8 +373,8 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
 
             <form onSubmit={handleSaveProfile} className="space-y-4 text-xs">
               {/* Photo Upload & Preview Section */}
-              <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E5E7EF] space-y-3">
-                <label className="font-semibold text-[#1E2230] block">Artisan Profile Photo</label>
+              <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E8D7B7] space-y-3">
+                <label className="font-semibold text-[#17243B] block">Artisan Profile Photo</label>
                 <div className="flex items-center gap-4">
                   <img
                     src={getOptimizedImageUrl(avatar || staff.avatar)}
@@ -400,7 +400,7 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
                       value={avatar}
                       onChange={(e) => setAvatar(e.target.value)}
                       placeholder="Or enter Image URL..."
-                      className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E5E7EF] text-[11px]"
+                      className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E8D7B7] text-[11px]"
                     />
                   </div>
                 </div>
@@ -409,37 +409,37 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
               {/* Name Fields */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-semibold text-[#1E2230] block mb-1">First Name</label>
+                  <label className="font-semibold text-[#17243B] block mb-1">First Name</label>
                   <input
                     type="text"
                     required
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF]"
+                    className="w-full px-3 py-2 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7]"
                   />
                 </div>
                 <div>
-                  <label className="font-semibold text-[#1E2230] block mb-1">Last Name</label>
+                  <label className="font-semibold text-[#17243B] block mb-1">Last Name</label>
                   <input
                     type="text"
                     required
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF]"
+                    className="w-full px-3 py-2 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7]"
                   />
                 </div>
               </div>
 
               {/* Email Address & Password Reset Action */}
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Email Address</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Email Address</label>
                 <div className="flex gap-2">
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF]"
+                    className="w-full px-3 py-2 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7]"
                   />
                   <button
                     type="button"
@@ -464,41 +464,41 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
 
               {/* Phone Number */}
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Phone Number</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Phone Number</label>
                 <input
                   type="text"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF]"
+                  className="w-full px-3 py-2 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7]"
                 />
               </div>
 
               {/* Role / Specialty */}
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Specialty Role / Tags</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Specialty Role / Tags</label>
                 <input
                   type="text"
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
                   placeholder="e.g. MatrixGold Specialist & Diamond Setter"
-                  className="w-full px-3 py-2 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF]"
+                  className="w-full px-3 py-2 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7]"
                 />
               </div>
 
               {/* Bio */}
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Artisan Bio / Notes</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Artisan Bio / Notes</label>
                 <textarea
                   rows={2}
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                   placeholder="Brief summary of CAD modeling background..."
-                  className="w-full px-3 py-2 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF]"
+                  className="w-full px-3 py-2 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7]"
                 />
               </div>
 
               {/* Expandable Direct Password Change Accordion */}
-              <div className="pt-2 border-t border-[#E5E7EF]">
+              <div className="pt-2 border-t border-[#E8D7B7]">
                 <button
                   type="button"
                   onClick={() => setShowPasswordChange(!showPasswordChange)}
@@ -509,9 +509,9 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
                 </button>
 
                 {showPasswordChange && (
-                  <div className="mt-3 p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E5E7EF] space-y-3 animate-fadeIn">
+                  <div className="mt-3 p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E8D7B7] space-y-3 animate-fadeIn">
                     {/* Mode Toggle: OTP vs Direct */}
-                    <div className="flex items-center gap-2 p-1 bg-white rounded-lg border border-[#E5E7EF] text-xs font-semibold">
+                    <div className="flex items-center gap-2 p-1 bg-white rounded-lg border border-[#E8D7B7] text-xs font-semibold">
                       <button
                         type="button"
                         onClick={() => setPasswordMode('otp')}
@@ -581,7 +581,7 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
                         {otpSent && (
                           <div className="space-y-3 animate-fadeIn">
                             <div>
-                              <label className="font-semibold text-[#1E2230] block mb-1 text-xs">
+                              <label className="font-semibold text-[#17243B] block mb-1 text-xs">
                                 6-Digit Email Verification Code
                               </label>
                               <input
@@ -590,29 +590,29 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
                                 value={otpCode}
                                 onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
                                 placeholder="Enter 6-digit code"
-                                className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E5E7EF] font-mono tracking-widest text-sm text-center"
+                                className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E8D7B7] font-mono tracking-widest text-sm text-center"
                               />
                             </div>
 
                             <div className="grid grid-cols-2 gap-2 text-xs">
                               <div>
-                                <label className="font-semibold text-[#1E2230] block mb-1">New Password</label>
+                                <label className="font-semibold text-[#17243B] block mb-1">New Password</label>
                                 <input
                                   type="password"
                                   value={newPassword}
                                   onChange={(e) => setNewPassword(e.target.value)}
                                   placeholder="Min 6 chars"
-                                  className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E5E7EF]"
+                                  className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E8D7B7]"
                                 />
                               </div>
                               <div>
-                                <label className="font-semibold text-[#1E2230] block mb-1">Confirm New</label>
+                                <label className="font-semibold text-[#17243B] block mb-1">Confirm New</label>
                                 <input
                                   type="password"
                                   value={confirmPassword}
                                   onChange={(e) => setConfirmPassword(e.target.value)}
                                   placeholder="Repeat new"
-                                  className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E5E7EF]"
+                                  className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E8D7B7]"
                                 />
                               </div>
                             </div>
@@ -637,35 +637,35 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
                       /* DIRECT WITH OLD PASSWORD WORKFLOW */
                       <div className="space-y-3">
                         <div>
-                          <label className="font-semibold text-[#1E2230] block mb-1 text-xs">Current Password</label>
+                          <label className="font-semibold text-[#17243B] block mb-1 text-xs">Current Password</label>
                           <input
                             type="password"
                             value={oldPassword}
                             onChange={(e) => setOldPassword(e.target.value)}
                             placeholder="••••••••"
-                            className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E5E7EF] text-xs"
+                            className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E8D7B7] text-xs"
                           />
                         </div>
 
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div>
-                            <label className="font-semibold text-[#1E2230] block mb-1">New Password</label>
+                            <label className="font-semibold text-[#17243B] block mb-1">New Password</label>
                             <input
                               type="password"
                               value={newPassword}
                               onChange={(e) => setNewPassword(e.target.value)}
                               placeholder="Min 6 chars"
-                              className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E5E7EF]"
+                              className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E8D7B7]"
                             />
                           </div>
                           <div>
-                            <label className="font-semibold text-[#1E2230] block mb-1">Confirm New</label>
+                            <label className="font-semibold text-[#17243B] block mb-1">Confirm New</label>
                             <input
                               type="password"
                               value={confirmPassword}
                               onChange={(e) => setConfirmPassword(e.target.value)}
                               placeholder="Repeat new"
-                              className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E5E7EF]"
+                              className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E8D7B7]"
                             />
                           </div>
                         </div>
@@ -690,7 +690,7 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
               </div>
 
               {/* Modal Action Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#E5E7EF]">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#E8D7B7]">
                 <button
                   type="button"
                   onClick={() => setShowEditModal(false)}

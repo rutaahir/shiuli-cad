@@ -154,7 +154,7 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
       )}
 
       {/* Top Banner Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-[#E5E7EF] shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-[#E8D7B7] shadow-sm">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-[#09112B] text-[#F5E7A3] text-[10px] font-mono font-bold uppercase tracking-widest">
@@ -162,7 +162,7 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
             </span>
             <span className="text-xs text-[#6B7280] font-mono">• My Uploaded CAD Designs</span>
           </div>
-          <h1 className="font-serif text-2xl font-bold text-[#1E2230] tracking-tight">
+          <h1 className="font-serif text-2xl font-bold text-[#17243B] tracking-tight">
             My Designs & Storefront Catalog
           </h1>
           <p className="text-xs text-[#6B7280] max-w-2xl font-light">
@@ -180,9 +180,9 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
       </div>
 
       {/* Main Container */}
-      <div className="bg-white rounded-2xl border border-[#E5E7EF] shadow-sm overflow-hidden space-y-4">
+      <div className="bg-white rounded-2xl border border-[#E8D7B7] shadow-sm overflow-hidden space-y-4">
         {/* Search & Filter Bar */}
-        <div className="p-4 border-b border-[#E5E7EF] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#FAF9F5]">
+        <div className="p-4 border-b border-[#E8D7B7] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#FAF9F5]">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B7280]" />
             <input
@@ -190,7 +190,7 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
               placeholder="Search products by title, SKU, or category..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 rounded-xl bg-white border border-[#E5E7EF] text-xs text-[#1E2230] focus:outline-none focus:border-[#C9A227]"
+              className="w-full pl-9 pr-3 py-2 rounded-xl bg-white border border-[#E8D7B7] text-xs text-[#17243B] focus:outline-none focus:border-[#C9A227]"
             />
           </div>
 
@@ -200,7 +200,7 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="px-3 py-1.5 rounded-xl bg-white border border-[#E5E7EF] text-xs text-[#1E2230] focus:outline-none font-medium"
+              className="px-3 py-1.5 rounded-xl bg-white border border-[#E8D7B7] text-xs text-[#17243B] focus:outline-none font-medium"
             >
               <option value="all">All Designs ({products.length})</option>
               <option value="approved">Approved &amp; Live ({products.filter((p) => p.status === 'approved').length})</option>
@@ -230,7 +230,7 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
                   <th className="p-4 font-medium text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E5E7EF] text-xs">
+              <tbody className="divide-y divide-[#E8D7B7] text-xs">
                 {filteredProducts.map((prod) => (
                   <tr key={prod.id || prod.slug} className="hover:bg-slate-50 transition-colors">
                     {/* Thumbnail & Title */}
@@ -240,7 +240,7 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
                           <img
                             src={prod.primary_image}
                             alt={prod.title}
-                            className="w-12 h-12 rounded-xl object-cover border border-[#E5E7EF] shadow-sm"
+                            className="w-12 h-12 rounded-xl object-cover border border-[#E8D7B7] shadow-sm"
                           />
                         ) : (
                           <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 font-mono text-[10px]">
@@ -248,14 +248,14 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
                           </div>
                         )}
                         <div>
-                          <div className="font-serif font-bold text-[#1E2230] text-sm">{prod.title}</div>
+                          <div className="font-serif font-bold text-[#17243B] text-sm">{prod.title}</div>
                           <div className="text-[10px] text-[#6B7280] font-mono">SKU: {prod.slug}</div>
                         </div>
                       </div>
                     </td>
 
                     {/* Category */}
-                    <td className="p-4 font-medium text-[#1E2230]">
+                    <td className="p-4 font-medium text-[#17243B]">
                       <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 font-mono">
                         {prod.category_name || (typeof prod.category === 'object' ? prod.category?.name : 'Jewellery')}
                       </span>
@@ -263,7 +263,7 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
 
                     {/* Pricing & Net Payout */}
                     <td className="p-4 font-mono text-xs">
-                      <div className="font-bold text-[#1E2230] flex items-center gap-1">
+                      <div className="font-bold text-[#17243B] flex items-center gap-1">
                         <span>${prod.price}</span>
                         {prod.compare_at_price && (
                           <span className="text-[10px] text-[#9CA3AF] line-through">
@@ -364,7 +364,7 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
                   <tr>
                     <td colSpan={6} className="p-12 text-center text-[#6B7280]">
                       <Sparkles className="w-8 h-8 text-[#C9A227] mx-auto opacity-50 mb-2" />
-                      <div className="font-serif font-bold text-base text-[#1E2230]">No Products Found</div>
+                      <div className="font-serif font-bold text-base text-[#17243B]">No Products Found</div>
                       <p className="text-xs text-slate-500 mt-1">
                         Try searching for another term or click "+ Add New Product" to publish a new jewellery CAD design.
                       </p>

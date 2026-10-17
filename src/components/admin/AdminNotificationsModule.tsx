@@ -27,9 +27,9 @@ export const AdminNotificationsModule: React.FC<AdminNotificationsModuleProps> =
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-[#E5E7EF] shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-[#E8D7B7] shadow-sm">
         <div>
-          <h1 className="font-serif text-2xl font-bold text-[#1E2230] tracking-tight">
+          <h1 className="font-serif text-2xl font-bold text-[#17243B] tracking-tight">
             Notifications & Broadcast Center
           </h1>
           <p className="text-xs text-[#6B7280] mt-0.5">
@@ -39,7 +39,7 @@ export const AdminNotificationsModule: React.FC<AdminNotificationsModuleProps> =
 
         <button
           onClick={onMarkAllRead}
-          className="px-3.5 py-2 rounded-xl bg-white border border-[#E5E7EF] text-xs font-semibold text-[#2856C7]"
+          className="px-3.5 py-2 rounded-xl bg-white border border-[#E8D7B7] text-xs font-semibold text-[#17345C]"
         >
           Mark All Read
         </button>
@@ -47,17 +47,17 @@ export const AdminNotificationsModule: React.FC<AdminNotificationsModuleProps> =
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Notifications Feed */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-[#E5E7EF] p-5 shadow-sm space-y-4">
-          <h3 className="font-serif text-base font-bold text-[#1E2230]">System Notifications Feed</h3>
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-[#E8D7B7] p-5 shadow-sm space-y-4">
+          <h3 className="font-serif text-base font-bold text-[#17243B]">System Notifications Feed</h3>
           <div className="space-y-3 text-xs">
             {notifications.map((n) => (
               <div
                 key={n.id}
                 className={`p-4 rounded-xl border ${
-                  n.read ? 'bg-[#F6F7FB] border-[#E5E7EF]' : 'bg-white border-[#C9A227] shadow-sm'
+                  n.read ? 'bg-[#FAF8F5] border-[#E8D7B7]' : 'bg-white border-[#C9A227] shadow-sm'
                 }`}
               >
-                <div className="flex justify-between font-bold text-[#1E2230]">
+                <div className="flex justify-between font-bold text-[#17243B]">
                   <span>{n.title}</span>
                   <span className="text-[10px] text-[#6B7280] font-mono">{n.timestamp}</span>
                 </div>
@@ -68,34 +68,34 @@ export const AdminNotificationsModule: React.FC<AdminNotificationsModuleProps> =
         </div>
 
         {/* Post Announcement Form */}
-        <div className="bg-white rounded-2xl border border-[#E5E7EF] p-5 shadow-sm space-y-4">
-          <h3 className="font-serif text-base font-bold text-[#1E2230] flex items-center gap-2">
+        <div className="bg-white rounded-2xl border border-[#E8D7B7] p-5 shadow-sm space-y-4">
+          <h3 className="font-serif text-base font-bold text-[#17243B] flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-[#C9A227]" />
             <span>Broadcast Staff Announcement</span>
           </h3>
 
           <form onSubmit={handleSubmitAnnouncement} className="space-y-3 text-xs">
             <div>
-              <label className="font-semibold text-[#1E2230] block mb-1">Notice Title</label>
+              <label className="font-semibold text-[#17243B] block mb-1">Notice Title</label>
               <input
                 type="text"
                 required
                 value={announcementTitle}
                 onChange={(e) => setAnnouncementTitle(e.target.value)}
                 placeholder="e.g. Diwali Rush Priority Order Rates"
-                className="w-full px-3 py-2 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] focus:outline-none"
+                className="w-full px-3 py-2 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="font-semibold text-[#1E2230] block mb-1">Message Content</label>
+              <label className="font-semibold text-[#17243B] block mb-1">Message Content</label>
               <textarea
                 rows={4}
                 required
                 value={announcementMsg}
                 onChange={(e) => setAnnouncementMsg(e.target.value)}
                 placeholder="Message will be displayed on all modellers' dashboards..."
-                className="w-full px-3 py-2 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] focus:outline-none"
+                className="w-full px-3 py-2 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] focus:outline-none"
               />
             </div>
 
@@ -103,7 +103,7 @@ export const AdminNotificationsModule: React.FC<AdminNotificationsModuleProps> =
               type="submit"
               className="w-full btn-gold-luxury py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-1.5"
             >
-              <Send className="w-3.5 h-3.5 text-[#0D1B4C]" />
+              <Send className="w-3.5 h-3.5 text-[#17345C]" />
               <span>Broadcast Notice</span>
             </button>
           </form>

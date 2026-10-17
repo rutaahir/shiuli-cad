@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { CartItem, PageId } from '../types';
-import { X, Trash2, ShieldCheck, Download, Sparkles, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { X, Trash2, ShieldCheck, Download, Sparkles, ArrowRight, CheckCircle2, Lock } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { PaymentGatewayModal } from './payment/PaymentGatewayModal';
 import { OTPVerificationModal } from './delivery/OTPVerificationModal';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { sendCadDownloadEmail } from '../services/emailService';
-import { formatINR } from '../utils/currencyHelper';
-import { useCustomerCountry, resolveDisplayPrice } from '../utils/countryContext';
+import { useCustomerCountry, resolveDisplayPrice, formatCurrencyAmount } from '../utils/countryContext';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -29,7 +28,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onClearCart,
   onNavigate,
 }) => {
-  const { user } = useAuth();
+  const { user, isLoggedIn, openAuthModal, requireAuth } = useAuth();
   const [promoCode, setPromoCode] = useState('');
   const [discountPercent, setDiscountPercent] = useState(0);
   const [promoMessage, setPromoMessage] = useState('');
@@ -103,8 +102,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
       setPromoMessage('Invalid code. Try "ROYAL10"');
     }
   };
-
-  const { requireAuth } = useAuth();
 
   const handleCheckout = () => {
     requireAuth(() => {
@@ -297,6 +294,27 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   </button>
                 </div>
               </div>
+            ) : !isLoggedIn ? (
+              <div className="text-center py-16 px-4 space-y-4">
+                <div className="w-16 h-16 mx-auto rounded-full bg-white border border-[#EADAC0] flex items-center justify-center text-[#B88732] shadow-2xs">
+                  <Lock className="w-7 h-7 text-[#B88732]" />
+                </div>
+                <div className="space-y-1.5">
+                  <p className="font-serif text-lg font-bold text-[#0F264A]">Sign In to View Bag &amp; Order</p>
+                  <p className="text-xs text-[#697A91] max-w-xs mx-auto leading-relaxed">
+                    Only registered clients can place CAD orders, save designs to their bag, and download production files.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    onClose();
+                    openAuthModal('Sign in to view your bag and place CAD orders.');
+                  }}
+                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#DFB35A] via-[#ECC976] to-[#C99834] text-[#0C2340] font-serif font-bold text-xs uppercase tracking-wider shadow-sm hover:shadow-md transition-all cursor-pointer border border-[#FFF0BA]"
+                >
+                  Sign In / Register
+                </button>
+              </div>
             ) : items.length === 0 ? (
               <div className="text-center py-16 space-y-4">
                 <div className="w-14 h-14 mx-auto rounded-full bg-white border border-[#EADAC0] flex items-center justify-center text-[#B88732] shadow-2xs">
@@ -403,17 +421,23 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               <div className="space-y-1.5 text-xs">
                 <div className="flex justify-between text-[#697A91]">
                   <span>Subtotal:</span>
-                  <span className="font-medium text-[#0F264A]">₹{formatINR(subtotal)}</span>
+                  <span className="font-medium text-[#0F264A]">
+                    {formatCurrencyAmount(subtotal, currentCountry.currency, currentCountry.symbol)}
+                  </span>
                 </div>
                 {discountAmount > 0 && (
                   <div className="flex justify-between text-emerald-700 font-semibold">
                     <span>Discount (10%):</span>
-                    <span>-₹{formatINR(discountAmount)}</span>
+                    <span>
+                      -{formatCurrencyAmount(discountAmount, currentCountry.currency, currentCountry.symbol)}
+                    </span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm font-bold text-[#0F264A] pt-2 border-t border-[#EADAC0]">
                   <span className="font-serif">Total Payable:</span>
-                  <span className="font-serif text-base text-[#0F264A]">₹{formatINR(total)}</span>
+                  <span className="font-serif text-base text-[#0F264A]">
+                    {formatCurrencyAmount(total, currentCountry.currency, currentCountry.symbol)}
+                  </span>
                 </div>
               </div>
 
@@ -428,6 +452,12 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     <span className="w-3.5 h-3.5 border-2 border-[#0C2340] border-t-transparent rounded-full animate-spin" />
                     Generating Instant CAD Links...
                   </span>
+                ) : !isLoggedIn ? (
+                  <>
+                    <Lock className="w-4 h-4 text-[#0C2340]" />
+                    <span>Sign In to Place Order</span>
+                    <ArrowRight className="w-4 h-4 text-[#0C2340]" />
+                  </>
                 ) : (
                   <>
                     <span>Confirm &amp; Download Files</span>
@@ -452,7 +482,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         title={`CAD File Bag Checkout (${items.length} design${items.length > 1 ? 's' : ''})`}
         subtitle="Watertight 3DM & STL Mesh Bundle with Atelier Guarantee"
         amount={total}
-        currency="USD"
+        currency={currentCountry.currency === 'INR' ? 'INR' : 'USD'}
         itemType="cart"
         orderDetails={{
           itemsCount: items.length,

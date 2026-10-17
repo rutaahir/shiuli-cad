@@ -126,7 +126,7 @@ class Product(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.title} (₹{self.price})"
+        return f"{self.title} (${self.price})"
 
     def save(self, *args, **kwargs):
         if not self.slug:

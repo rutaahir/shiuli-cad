@@ -1137,8 +1137,8 @@ export const AdminCatalogModule: React.FC = () => {
       {showAddCategoryDrawer && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-end">
           <div className="w-full max-w-md bg-white h-full shadow-2xl p-6 overflow-y-auto space-y-6 animate-in slide-in-from-right duration-200">
-            <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-4">
-              <h3 className="font-serif text-lg font-bold text-[#1E2230]">Create Top-Level Category</h3>
+            <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-4">
+              <h3 className="font-serif text-lg font-bold text-[#17243B]">Create Top-Level Category</h3>
               <button onClick={() => setShowAddCategoryDrawer(false)} className="p-1 text-slate-400 hover:text-slate-700">
                 <X className="w-5 h-5" />
               </button>
@@ -1152,35 +1152,35 @@ export const AdminCatalogModule: React.FC = () => {
 
             <form onSubmit={handleCreateTopCategory} className="space-y-4 text-xs">
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Category Name *</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Category Name *</label>
                 <input
                   type="text"
                   required
                   value={newCatName}
                   onChange={(e) => handleCatNameChange(e.target.value)}
                   placeholder="e.g. Nose Pins"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Slug (URL Keyword)</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Slug (URL Keyword)</label>
                 <input
                   type="text"
                   value={newCatSlug}
                   onChange={(e) => setNewCatSlug(e.target.value)}
                   placeholder="nose-pins"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Display Order (Homepage Priority)</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Display Order (Homepage Priority)</label>
                 <input
                   type="number"
                   value={newCatDisplayOrder}
                   onChange={(e) => setNewCatDisplayOrder(Number(e.target.value))}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] focus:outline-none focus:border-[#C9A227]"
                 />
                 <span className="text-[10px] text-slate-500 mt-1 block">
                   Determines card sequence on Homepage showcase (1 = first, 2 = second, etc.).
@@ -1188,18 +1188,18 @@ export const AdminCatalogModule: React.FC = () => {
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Tagline</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Tagline</label>
                 <input
                   type="text"
                   value={newCatTagline}
                   onChange={(e) => setNewCatTagline(e.target.value)}
                   placeholder="e.g. Solitaires, Bands & Halos"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">
+                <label className="font-semibold text-[#17243B] block mb-1">
                   Category Cover Image
                 </label>
                 <p className="text-xs text-slate-500 mb-2">
@@ -1274,7 +1274,7 @@ export const AdminCatalogModule: React.FC = () => {
                     <div className="w-12 h-12 rounded-full bg-[#C9A227]/10 group-hover:bg-[#C9A227]/20 text-[#C9A227] flex items-center justify-center mx-auto mb-2 transition-all">
                       <UploadCloud className="w-6 h-6" />
                     </div>
-                    <span className="text-xs font-bold text-[#1E2230] block">
+                    <span className="text-xs font-bold text-[#17243B] block">
                       Click to upload category image
                     </span>
                     <span className="text-[11px] text-slate-500 mt-1 block">
@@ -1298,14 +1298,14 @@ export const AdminCatalogModule: React.FC = () => {
                         }
                       }}
                       placeholder="https://images.unsplash.com/..."
-                      className="w-full px-3 py-2 text-xs rounded-lg bg-white border border-[#E5E7EF] focus:outline-none focus:border-[#C9A227]"
+                      className="w-full px-3 py-2 text-xs rounded-lg bg-white border border-[#E8D7B7] focus:outline-none focus:border-[#C9A227]"
                     />
                   </div>
                 </details>
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Platform Commission Rate (%) *</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Platform Commission Rate (%) *</label>
                 <input
                   type="number"
                   step="0.5"
@@ -1315,18 +1315,18 @@ export const AdminCatalogModule: React.FC = () => {
                   value={newCatCommission}
                   onChange={(e) => setNewCatCommission(e.target.value)}
                   placeholder="e.g. 20.00"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] font-mono font-bold focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] font-mono font-bold focus:outline-none focus:border-[#C9A227]"
                 />
                 <span className="text-[10px] text-slate-500 mt-1 block">
                   Deducted dynamically from staff uploads in this category (e.g. Rings: 20%, Necklaces: 25%).
                 </span>
               </div>
 
-              <div className="pt-4 flex justify-end gap-2 border-t border-[#E5E7EF]">
+              <div className="pt-4 flex justify-end gap-2 border-t border-[#E8D7B7]">
                 <button
                   type="button"
                   onClick={() => setShowAddCategoryDrawer(false)}
-                  className="px-4 py-2 rounded-xl border border-[#E5E7EF] text-[#1E2230]"
+                  className="px-4 py-2 rounded-xl border border-[#E8D7B7] text-[#17243B]"
                 >
                   Cancel
                 </button>
@@ -1343,10 +1343,10 @@ export const AdminCatalogModule: React.FC = () => {
       {editingCategory && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-end">
           <div className="w-full max-w-md bg-white h-full shadow-2xl p-6 overflow-y-auto space-y-6 animate-in slide-in-from-right duration-200">
-            <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-4">
+            <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-4">
               <div>
                 <span className="text-[10px] font-mono uppercase text-[#C9A227] font-bold">Category #{editingCategory.id}</span>
-                <h3 className="font-serif text-lg font-bold text-[#1E2230]">Edit Category</h3>
+                <h3 className="font-serif text-lg font-bold text-[#17243B]">Edit Category</h3>
               </div>
               <button onClick={() => setEditingCategory(null)} className="p-1 text-slate-400 hover:text-slate-700">
                 <X className="w-5 h-5" />
@@ -1361,36 +1361,36 @@ export const AdminCatalogModule: React.FC = () => {
 
             <form onSubmit={handleSaveEditCategory} className="space-y-4 text-xs">
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Category Name *</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Category Name *</label>
                 <input
                   type="text"
                   required
                   value={editCatName}
                   onChange={(e) => setEditCatName(e.target.value)}
                   placeholder="e.g. Rings"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Slug (URL Keyword)</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Slug (URL Keyword)</label>
                 <input
                   type="text"
                   value={editCatSlug}
                   onChange={(e) => setEditCatSlug(e.target.value)}
                   placeholder="rings"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Display Order (Homepage Priority)</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Display Order (Homepage Priority)</label>
                 <input
                   type="number"
                   value={editCatDisplayOrder}
                   onChange={(e) => setEditCatDisplayOrder(Number(e.target.value))}
                   placeholder="1, 2, 3..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] focus:outline-none focus:border-[#C9A227]"
                 />
                 <span className="text-[10px] text-slate-500 mt-1 block">
                   Determines the card sequence on the Homepage showcase. Change to 1, 2, 3 to reorder categories live!
@@ -1398,18 +1398,18 @@ export const AdminCatalogModule: React.FC = () => {
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Tagline</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Tagline</label>
                 <input
                   type="text"
                   value={editCatTagline}
                   onChange={(e) => setEditCatTagline(e.target.value)}
                   placeholder="e.g. Solitaires, Bands & Halos"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">
+                <label className="font-semibold text-[#17243B] block mb-1">
                   Category Cover Image
                 </label>
                 <p className="text-xs text-slate-500 mb-2">
@@ -1488,7 +1488,7 @@ export const AdminCatalogModule: React.FC = () => {
                     <div className="w-12 h-12 rounded-full bg-[#C9A227]/10 group-hover:bg-[#C9A227]/20 text-[#C9A227] flex items-center justify-center mx-auto mb-2 transition-all">
                       <UploadCloud className="w-6 h-6" />
                     </div>
-                    <span className="text-xs font-bold text-[#1E2230] block">
+                    <span className="text-xs font-bold text-[#17243B] block">
                       Click to upload category image
                     </span>
                     <span className="text-[11px] text-slate-500 mt-1 block">
@@ -1512,14 +1512,14 @@ export const AdminCatalogModule: React.FC = () => {
                         }
                       }}
                       placeholder="https://images.unsplash.com/..."
-                      className="w-full px-3 py-2 text-xs rounded-lg bg-white border border-[#E5E7EF] focus:outline-none focus:border-[#C9A227]"
+                      className="w-full px-3 py-2 text-xs rounded-lg bg-white border border-[#E8D7B7] focus:outline-none focus:border-[#C9A227]"
                     />
                   </div>
                 </details>
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Platform Commission Rate (%) *</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Platform Commission Rate (%) *</label>
                 <input
                   type="number"
                   step="0.5"
@@ -1528,15 +1528,15 @@ export const AdminCatalogModule: React.FC = () => {
                   required
                   value={editCatCommission}
                   onChange={(e) => setEditCatCommission(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] font-mono font-bold focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] font-mono font-bold focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
 
-              <div className="pt-4 flex justify-end gap-2 border-t border-[#E5E7EF]">
+              <div className="pt-4 flex justify-end gap-2 border-t border-[#E8D7B7]">
                 <button
                   type="button"
                   onClick={() => setEditingCategory(null)}
-                  className="px-4 py-2 rounded-xl border border-[#E5E7EF] text-[#1E2230]"
+                  className="px-4 py-2 rounded-xl border border-[#E8D7B7] text-[#17243B]"
                 >
                   Cancel
                 </button>
@@ -1556,14 +1556,14 @@ export const AdminCatalogModule: React.FC = () => {
       {/* 4-STEP ADD PRODUCT STEPPER MODAL */}
       {showProductStepper && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white border border-[#E5E7EF] rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl space-y-6 text-[#1E2230] max-h-[90vh] overflow-y-auto relative animate-fadeIn">
+          <div className="bg-white border border-[#E8D7B7] rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl space-y-6 text-[#17243B] max-h-[90vh] overflow-y-auto relative animate-fadeIn">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-4">
+            <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-4">
               <div>
                 <span className="px-2.5 py-0.5 rounded-full bg-[#09112B] text-[#F5E7A3] text-[10px] font-mono font-bold uppercase tracking-wider">
                   Create-Then-Attach Stepper
                 </span>
-                <h2 className="font-serif text-xl font-bold text-[#1E2230] tracking-tight mt-1">
+                <h2 className="font-serif text-xl font-bold text-[#17243B] tracking-tight mt-1">
                   Publish New Jewellery CAD Product
                 </h2>
               </div>
@@ -1616,20 +1616,20 @@ export const AdminCatalogModule: React.FC = () => {
             {currentStep === 1 && (
               <div className="space-y-4 text-xs">
                 <div>
-                  <label className="font-semibold text-[#1E2230] block mb-1">Product Title *</label>
+                  <label className="font-semibold text-[#17243B] block mb-1">Product Title *</label>
                   <input
                     type="text"
                     required
                     value={prodTitle}
                     onChange={(e) => setProdTitle(e.target.value)}
                     placeholder="e.g. Royal Nizam Solitaire Emerald Ring"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="font-semibold text-[#1E2230] block mb-1">Top Category *</label>
+                    <label className="font-semibold text-[#17243B] block mb-1">Top Category *</label>
                     <select
                       value={selectedParentCatId}
                       onChange={(e) => {
@@ -1637,7 +1637,7 @@ export const AdminCatalogModule: React.FC = () => {
                         setSelectedParentCatId(val);
                         setSelectedSubCatId('');
                       }}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none"
                     >
                       <option value="">Select Top Category...</option>
                       {parentCategories.map((c) => (
@@ -1649,12 +1649,12 @@ export const AdminCatalogModule: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="font-semibold text-[#1E2230] block mb-1">Sub-category</label>
+                    <label className="font-semibold text-[#17243B] block mb-1">Sub-category</label>
                     <select
                       disabled={!selectedParentCatId}
                       value={selectedSubCatId}
                       onChange={(e) => setSelectedSubCatId(Number(e.target.value))}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none disabled:opacity-50"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none disabled:opacity-50"
                     >
                       <option value="">Select Sub-category (Optional)...</option>
                       {activeSubcategories.map((sub) => (
@@ -1669,11 +1669,11 @@ export const AdminCatalogModule: React.FC = () => {
                 {/* Design Style Tags */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="font-semibold text-[#1E2230]">Design Style Tags</label>
+                    <label className="font-semibold text-[#17243B]">Design Style Tags</label>
                     <button
                       type="button"
                       onClick={() => setShowAddStyleInput(!showAddStyleInput)}
-                      className="text-[#2856C7] font-semibold text-[11px] hover:underline flex items-center gap-1"
+                      className="text-[#17345C] font-semibold text-[11px] hover:underline flex items-center gap-1"
                     >
                       <Plus className="w-3 h-3" /> + New Style
                     </button>
@@ -1686,7 +1686,7 @@ export const AdminCatalogModule: React.FC = () => {
                         placeholder="e.g. Filigree Art"
                         value={newStyleName}
                         onChange={(e) => setNewStyleName(e.target.value)}
-                        className="flex-1 px-3 py-1 rounded-lg bg-white border border-[#E5E7EF] text-xs"
+                        className="flex-1 px-3 py-1 rounded-lg bg-white border border-[#E8D7B7] text-xs"
                       />
                       <button
                         type="button"
@@ -1726,14 +1726,14 @@ export const AdminCatalogModule: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="font-semibold text-[#1E2230] block mb-1">Short Description *</label>
+                  <label className="font-semibold text-[#17243B] block mb-1">Short Description *</label>
                   <textarea
                     rows={3}
                     required
                     value={prodDescription}
                     onChange={(e) => setProdDescription(e.target.value)}
                     placeholder="Technical description of CAD model, stone settings, azures, metal tolerances..."
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                   />
                 </div>
 
@@ -1743,7 +1743,7 @@ export const AdminCatalogModule: React.FC = () => {
                       type="checkbox"
                       checked={isBestseller}
                       onChange={(e) => setIsBestseller(e.target.checked)}
-                      className="rounded border-[#E5E7EF] text-[#C9A227] focus:ring-0"
+                      className="rounded border-[#E8D7B7] text-[#C9A227] focus:ring-0"
                     />
                     <span>Mark as Bestseller</span>
                   </label>
@@ -1753,7 +1753,7 @@ export const AdminCatalogModule: React.FC = () => {
                       type="checkbox"
                       checked={isNew}
                       onChange={(e) => setIsNew(e.target.checked)}
-                      className="rounded border-[#E5E7EF] text-[#C9A227] focus:ring-0"
+                      className="rounded border-[#E8D7B7] text-[#C9A227] focus:ring-0"
                     />
                     <span>Mark with "NEW" Badge</span>
                   </label>
@@ -1766,74 +1766,74 @@ export const AdminCatalogModule: React.FC = () => {
               <div className="space-y-4 text-xs">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="font-semibold text-[#1E2230] block mb-1">Standard Price ($) *</label>
+                    <label className="font-semibold text-[#17243B] block mb-1">Standard Price ($) *</label>
                     <input
                       type="number"
                       required
                       value={prodPrice}
                       onChange={(e) => setProdPrice(e.target.value)}
                       placeholder="250.00"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                     />
                   </div>
 
                   <div>
-                    <label className="font-semibold text-[#1E2230] block mb-1">Compare-at Price ($)</label>
+                    <label className="font-semibold text-[#17243B] block mb-1">Compare-at Price ($)</label>
                     <input
                       type="number"
                       value={prodComparePrice}
                       onChange={(e) => setProdComparePrice(e.target.value)}
                       placeholder="350.00 (Must be greater than Price)"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="font-semibold text-[#1E2230] block mb-1">Metal Weight (Grams)</label>
+                    <label className="font-semibold text-[#17243B] block mb-1">Metal Weight (Grams)</label>
                     <input
                       type="number"
                       step="0.01"
                       value={prodMetalWeight}
                       onChange={(e) => setProdMetalWeight(e.target.value)}
                       placeholder="e.g. 14.50"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                     />
                   </div>
 
                   <div>
-                    <label className="font-semibold text-[#1E2230] block mb-1">Stone Count</label>
+                    <label className="font-semibold text-[#17243B] block mb-1">Stone Count</label>
                     <input
                       type="number"
                       value={prodStoneCount}
                       onChange={(e) => setProdStoneCount(e.target.value)}
                       placeholder="24"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="font-semibold text-[#1E2230] block mb-1">Ring Size / Dimensions</label>
+                    <label className="font-semibold text-[#17243B] block mb-1">Ring Size / Dimensions</label>
                     <input
                       type="text"
                       value={prodDimensions}
                       onChange={(e) => setProdDimensions(e.target.value)}
                       placeholder="US 7 (17.3mm) / 22 x 18 mm"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                     />
                   </div>
 
                   <div>
-                    <label className="font-semibold text-[#1E2230] block mb-1">Tolerance Spec</label>
+                    <label className="font-semibold text-[#17243B] block mb-1">Tolerance Spec</label>
                     <input
                       type="text"
                       value={prodTolerance}
                       onChange={(e) => setProdTolerance(e.target.value)}
                       placeholder="±0.01 mm"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                     />
                   </div>
                 </div>
@@ -1844,7 +1844,7 @@ export const AdminCatalogModule: React.FC = () => {
             {currentStep === 3 && (
               <div className="space-y-5 text-xs">
                 {/* Images Upload Section */}
-                <div className="p-4 rounded-2xl bg-[#FAF9F5] border border-[#E5E7EF] space-y-3">
+                <div className="p-4 rounded-2xl bg-[#FAF9F5] border border-[#E8D7B7] space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="font-bold text-[#09112B]">Product Photos & Render Gallery</label>
                     <span className="text-[10px] font-mono text-slate-500">Select primary image</span>
@@ -1956,7 +1956,7 @@ export const AdminCatalogModule: React.FC = () => {
             {/* STEP 4: Review & Publish */}
             {currentStep === 4 && (
               <div className="space-y-4 text-xs">
-                <div className="p-5 rounded-2xl bg-[#FAF9F5] border border-[#E5E7EF] space-y-3">
+                <div className="p-5 rounded-2xl bg-[#FAF9F5] border border-[#E8D7B7] space-y-3">
                   <h4 className="font-serif font-bold text-base text-[#09112B]">Product Card Summary Preview</h4>
                   <div className="grid grid-cols-2 gap-4 text-xs font-mono">
                     <div>
@@ -1989,7 +1989,7 @@ export const AdminCatalogModule: React.FC = () => {
             )}
 
             {/* Stepper Footer Action Buttons */}
-            <div className="flex items-center justify-between pt-4 border-t border-[#E5E7EF]">
+            <div className="flex items-center justify-between pt-4 border-t border-[#E8D7B7]">
               {currentStep > 1 ? (
                 <button
                   type="button"

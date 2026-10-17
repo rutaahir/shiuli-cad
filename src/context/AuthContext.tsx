@@ -10,6 +10,8 @@ export interface UserProfile {
   role: 'client' | 'staff' | 'admin';
   phone_number?: string;
   profile_photo?: string | null;
+  is_staff?: boolean;
+  is_superuser?: boolean;
 }
 
 export type AuthIntentType = 'wishlist' | 'purchase' | 'custom-request' | 'general';

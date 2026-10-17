@@ -261,4 +261,8 @@ GDRIVE_OAUTH_CLIENT_ID = config('GDRIVE_OAUTH_CLIENT_ID', default='').strip()
 GDRIVE_OAUTH_CLIENT_SECRET = config('GDRIVE_OAUTH_CLIENT_SECRET', default='').strip()
 GDRIVE_REFRESH_TOKEN = config('GDRIVE_REFRESH_TOKEN', default='').strip()
 
+# Large CAD file uploads up to 500MB (local disk storage or fallback)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 524288000  # 500 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 524288000  # 500 MB
+
 

@@ -215,14 +215,14 @@ export const AdminDesignerApplicationsSection: React.FC = () => {
               onClick={() => setActiveFilter(tab.id as any)}
               className={`px-4 py-2 rounded-xl transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer ${
                 activeFilter === tab.id
-                  ? 'bg-[#0D1B4C] text-white shadow-sm font-bold'
-                  : 'bg-white text-[#6B7280] hover:text-[#1E2230] border border-[#E5E7EF]'
+                  ? 'bg-[#17345C] text-white shadow-sm font-bold'
+                  : 'bg-white text-[#6B7280] hover:text-[#17243B] border border-[#E8D7B7]'
               }`}
             >
               <span>{tab.label}</span>
               <span
                 className={`px-1.5 py-0.5 rounded-full font-mono text-[10px] ${
-                  activeFilter === tab.id ? 'bg-[#C9A227] text-[#0D1B4C]' : 'bg-slate-100 text-slate-700'
+                  activeFilter === tab.id ? 'bg-[#C9A227] text-[#17345C]' : 'bg-slate-100 text-slate-700'
                 }`}
               >
                 {tab.count}
@@ -240,13 +240,13 @@ export const AdminDesignerApplicationsSection: React.FC = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by name, email, city..."
-              className="pl-9 pr-4 py-2 rounded-xl bg-white border border-[#E5E7EF] text-xs text-[#1E2230] placeholder:text-slate-400 focus:outline-none focus:border-[#C9A227] w-64"
+              className="pl-9 pr-4 py-2 rounded-xl bg-white border border-[#E8D7B7] text-xs text-[#17243B] placeholder:text-slate-400 focus:outline-none focus:border-[#C9A227] w-64"
             />
           </div>
           <button
             onClick={fetchApplications}
             disabled={loading}
-            className="p-2 rounded-xl bg-white border border-[#E5E7EF] text-slate-600 hover:text-[#0D1B4C] hover:border-slate-300 transition-colors cursor-pointer"
+            className="p-2 rounded-xl bg-white border border-[#E8D7B7] text-slate-600 hover:text-[#17345C] hover:border-slate-300 transition-colors cursor-pointer"
             title="Refresh applications"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -256,14 +256,14 @@ export const AdminDesignerApplicationsSection: React.FC = () => {
 
       {/* Grid of Applicants */}
       {loading ? (
-        <div className="py-16 bg-white rounded-2xl border border-[#E5E7EF] flex flex-col items-center justify-center gap-3">
+        <div className="py-16 bg-white rounded-2xl border border-[#E8D7B7] flex flex-col items-center justify-center gap-3">
           <Loader2 className="w-8 h-8 text-[#C9A227] animate-spin" />
           <span className="text-xs font-mono text-[#6B7280]">Loading CAD Designer applicants...</span>
         </div>
       ) : filteredApps.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl bg-white border border-[#E5E7EF] space-y-3">
+        <div className="p-12 text-center rounded-2xl bg-white border border-[#E8D7B7] space-y-3">
           <Users className="w-10 h-10 text-[#C9A227] mx-auto opacity-50" />
-          <h3 className="font-serif text-lg font-bold text-[#1E2230]">No Applications Found</h3>
+          <h3 className="font-serif text-lg font-bold text-[#17243B]">No Applications Found</h3>
           <p className="text-xs text-[#6B7280]">
             {activeFilter === 'pending'
               ? 'No CAD designer applicants are currently waiting for approval.'
@@ -275,13 +275,13 @@ export const AdminDesignerApplicationsSection: React.FC = () => {
           {filteredApps.map((app) => (
             <div
               key={app.id}
-              className="bg-white rounded-2xl border border-[#E5E7EF] p-5 shadow-sm hover:shadow-md hover:border-[#C9A227]/50 transition-all flex flex-col justify-between space-y-4"
+              className="bg-white rounded-2xl border border-[#E8D7B7] p-5 shadow-sm hover:shadow-md hover:border-[#C9A227]/50 transition-all flex flex-col justify-between space-y-4"
             >
               {/* Top Row: Name, Status Badge */}
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h3 className="font-bold text-sm text-[#0D1B4C] flex items-center gap-1.5">
+                    <h3 className="font-bold text-sm text-[#17345C] flex items-center gap-1.5">
                       <span>{app.first_name} {app.last_name}</span>
                       <span className="text-[10px] font-mono text-slate-400 font-normal">#{app.id}</span>
                     </h3>
@@ -354,7 +354,7 @@ export const AdminDesignerApplicationsSection: React.FC = () => {
               </div>
 
               {/* Action Buttons */}
-              <div className="pt-3 border-t border-[#E5E7EF] flex items-center justify-between gap-2">
+              <div className="pt-3 border-t border-[#E8D7B7] flex items-center justify-between gap-2">
                 <button
                   type="button"
                   onClick={() => setInspectingApp(app)}
@@ -432,7 +432,7 @@ export const AdminDesignerApplicationsSection: React.FC = () => {
                 <span className="text-[10px] font-mono uppercase tracking-widest text-[#C9A227] font-bold">
                   Applicant Dossier #{inspectingApp.id}
                 </span>
-                <h2 className="font-serif text-2xl font-bold text-[#0D1B4C]">
+                <h2 className="font-serif text-2xl font-bold text-[#17345C]">
                   {inspectingApp.first_name} {inspectingApp.last_name}
                 </h2>
               </div>
@@ -550,7 +550,7 @@ export const AdminDesignerApplicationsSection: React.FC = () => {
       {decliningApp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl space-y-4">
-            <h3 className="font-serif text-xl font-bold text-[#0D1B4C]">
+            <h3 className="font-serif text-xl font-bold text-[#17345C]">
               Decline Application
             </h3>
             <p className="text-xs text-slate-600">
@@ -602,7 +602,7 @@ export const AdminDesignerApplicationsSection: React.FC = () => {
             </div>
 
             <div className="space-y-1">
-              <h3 className="font-serif text-2xl font-bold text-[#0D1B4C]">
+              <h3 className="font-serif text-2xl font-bold text-[#17345C]">
                 CAD Designer Approved!
               </h3>
               {approvedDetails.email_sent === false ? (
@@ -639,7 +639,7 @@ export const AdminDesignerApplicationsSection: React.FC = () => {
               <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200">
                 <span className="text-slate-500 font-medium">Auto-Generated Password:</span>
                 <div className="flex items-center gap-1.5">
-                  <span className="font-mono font-bold text-[#0D1B4C] bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                  <span className="font-mono font-bold text-[#17345C] bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                     {approvedDetails.password}
                   </span>
                   <button

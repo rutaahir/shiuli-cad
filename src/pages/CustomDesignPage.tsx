@@ -32,7 +32,8 @@ import {
   FileAudio,
   Camera,
   RotateCcw,
-  RefreshCw
+  RefreshCw,
+  Lock
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { PageId } from '../types';
@@ -58,7 +59,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
   initialProductId,
   onNavigate,
 }) => {
-  const { user, isLoggedIn } = useAuth();
+  const { user, isLoggedIn, requireAuth, openAuthModal } = useAuth();
   const { products: catalogProducts, categories: catalogCategories } = useCatalog();
 
   // 1. "What you want to order:"
@@ -141,9 +142,24 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
   const audioChunksRef = useRef<Blob[]>([]);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 5. Delivery Date Section
+  // Helper to get YYYY-MM-DD in local time
+  const getLocalDateString = (date: Date = new Date()): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const getDateAfterDays = (days: number): string => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return getLocalDateString(d);
+  };
+
+  // 5. Delivery Date Section - defaults to 5 days standard with initial calculated date
   const [deliveryDays, setDeliveryDays] = useState<number>(5);
-  const [customDate, setCustomDate] = useState<string>('');
+  const [customDate, setCustomDate] = useState<string>(() => getDateAfterDays(5));
+  const dateInputRef = useRef<HTMLInputElement>(null);
 
   // 6. Contact Method & Client Details
   const [clientName, setClientName] = useState<string>(() => {
@@ -151,6 +167,16 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
   });
   const [contactPhone, setContactPhone] = useState<string>(() => user?.phone_number || '');
   const [contactEmail, setContactEmail] = useState<string>(() => user?.email || '');
+
+  // Keep client details in sync when authenticated user profile updates
+  useEffect(() => {
+    if (user) {
+      const name = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || '';
+      if (name && !clientName) setClientName(name);
+      if (user.phone_number && !contactPhone) setContactPhone(user.phone_number);
+      if (user.email && !contactEmail) setContactEmail(user.email);
+    }
+  }, [user]);
 
   // Submission state
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -186,9 +212,15 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
   const expectedDateString = useMemo(() => {
     if (customDate) {
       try {
-        const d = new Date(customDate);
-        if (!isNaN(d.getTime())) {
-          return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        const parts = customDate.split('-');
+        if (parts.length === 3) {
+          const y = parseInt(parts[0], 10);
+          const m = parseInt(parts[1], 10) - 1;
+          const d = parseInt(parts[2], 10);
+          const dateObj = new Date(y, m, d);
+          if (!isNaN(dateObj.getTime())) {
+            return dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+          }
         }
       } catch {}
     }
@@ -196,6 +228,10 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
     target.setDate(target.getDate() + deliveryDays);
     return target.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   }, [deliveryDays, customDate]);
+
+  const neededByIsoDate = useMemo(() => {
+    return customDate || getDateAfterDays(deliveryDays || 5);
+  }, [customDate, deliveryDays]);
 
   // Handle Picture Uploads (from device)
   const handlePictureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -545,6 +581,17 @@ Please confirm feasibility and provide the production CAD quotation.`;
   const handlePlaceOrder = async () => {
     setSubmitError('');
 
+    // Authentication Guard: Customers MUST be logged in to place any custom order
+    if (!isLoggedIn) {
+      requireAuth(() => {
+        handlePlaceOrder();
+      }, {
+        intent: 'custom-request',
+        message: 'Please sign in or create an account to place your custom CAD order.',
+      });
+      return;
+    }
+
     if (!clientName.trim()) {
       setSubmitError('Please enter your Full Name so our CAD studio can register your order.');
       return;
@@ -573,6 +620,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
       const fullOrderDetails = generateCompleteOrderText();
 
       const formData = new FormData();
+      formData.append('request_mode', 'step_by_step');
       formData.append('client_name', clientName.trim());
       formData.append('contact_name', clientName.trim());
       formData.append('contact_phone', contactPhone.trim());
@@ -582,9 +630,8 @@ Please confirm feasibility and provide the production CAD quotation.`;
       formData.append('special_instructions', additionalDetails.trim());
       formData.append('metal_alloy_name', `${effectiveCarat} ${effectiveMaterial}`);
       formData.append('timeline', `${deliveryDays} Days`);
-      formData.append('needed_by_date', expectedDateString);
+      formData.append('needed_by_date', neededByIsoDate);
       formData.append('submission_intent', 'place_order');
-      formData.append('status', 'pending_review');
 
       if (selectedCatalogItem) {
         formData.append('reference_product', String(selectedCatalogItem.id));
@@ -610,18 +657,25 @@ Please confirm feasibility and provide the production CAD quotation.`;
       let apiResult;
       try {
         apiResult = await api.submitCustomRequest(formData);
-      } catch (err) {
-        console.warn('API custom-requests submission fallback:', err);
-        apiResult = {
-          id: Math.floor(100000 + Math.random() * 900000),
-          client_name: clientName.trim(),
-          title: designTitle,
-          status: 'pending_review',
-        };
+      } catch (err: any) {
+        console.error('API custom-requests submission error:', err);
+        const errMsg = err?.message || 'Failed to submit custom order to server.';
+        setSubmitError(`Order submission error: ${errMsg}. Please try again.`);
+        setIsSubmitting(false);
+        return;
       }
 
-      // 2. Register into appStore so Admin Panel & Client Dashboard see it immediately
+      // 2. Track in local session & appStore with the verified backend ID
+      const numericId = apiResult?.id;
+      if (numericId) {
+        localStorage.setItem('shiuli_last_submitted_req_id', String(numericId));
+      }
+      if (contactEmail.trim()) {
+        localStorage.setItem('shiuli_contact_email', contactEmail.trim());
+      }
+
       appStore.createCustomRequest({
+        id: numericId,
         title: designTitle,
         client_name: clientName.trim(),
         contact_name: clientName.trim(),
@@ -630,13 +684,14 @@ Please confirm feasibility and provide the production CAD quotation.`;
         metal_alloy_name: `${effectiveCarat} ${effectiveMaterial}`,
         description: fullOrderDetails,
         special_instructions: additionalDetails.trim(),
-        needed_by_date: expectedDateString,
+        needed_by_date: neededByIsoDate,
         timeline: `${deliveryDays} Days`,
-        status: 'pending_review',
+        status: 'new',
         submission_intent: 'place_order',
         reference_product_title: selectedCatalogItem?.title,
         reference_product_image: selectedCatalogItem?.image || selectedCatalogItem?.primaryImage,
         voice_recording_url: voiceAudioUrl,
+        createdAt: apiResult?.created_at || new Date().toISOString(),
       });
 
       setSubmissionSuccess(apiResult);
@@ -680,7 +735,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
           <h1 className="text-3xl sm:text-4xl lg:text-[42px] font-serif font-bold text-[#17345C] tracking-tight">
             Place Order
           </h1>
-          <p className="text-xs sm:text-sm text-[#626875] max-w-xl mx-auto">
+          <p className="text-xs sm:text-sm text-[#475569] font-medium max-w-xl mx-auto leading-relaxed">
             Configure your bespoke jewellery CAD requirements. All details will be sent directly to our atelier &amp; admin panel.
           </p>
         </div>
@@ -703,7 +758,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
               <div className="inline-block px-4 py-1.5 rounded-full bg-[#FFF9F0] border border-[#E8D7B7] text-xs font-mono font-bold text-[#17345C]">
                 Order Reference: #{submissionSuccess.id || 'CAD-892401'}
               </div>
-              <p className="text-xs sm:text-sm text-[#626875] max-w-lg mx-auto pt-1">
+              <p className="text-xs sm:text-sm text-[#475569] font-medium max-w-lg mx-auto pt-1">
                 Your order details, material specifications, and references have been transmitted directly to the Shiuli CAD Admin Panel.
               </p>
             </div>
@@ -759,7 +814,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
 
             {/* SECTION 1: WHAT YOU WANT TO ORDER */}
             <div className="space-y-3">
-              <label className="block text-sm sm:text-base font-bold text-[#17345C]">
+              <label className="block text-base sm:text-lg font-bold text-[#0B1330] tracking-tight">
                 What you want to order:
               </label>
 
@@ -791,7 +846,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
                       }}
                       onFocus={() => setIsCategoryDropdownOpen(true)}
                       placeholder="Select a category or type what you want to order..."
-                      className="w-full bg-transparent text-sm sm:text-base text-[#17243B] font-semibold placeholder-[#7A8699] focus:outline-hidden outline-none border-0 p-0 m-0"
+                      className="w-full bg-transparent text-sm sm:text-base text-[#17243B] font-semibold placeholder-[#94A3B8] focus:outline-hidden outline-none border-0 p-0 m-0"
                     />
                   </div>
 
@@ -896,7 +951,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
                                 ? `Order custom item: "${customDesignText.trim()}"`
                                 : "Can't find your choice? Type anything you want directly in the box above"}
                             </p>
-                            <p className="text-[10px] text-[#626875]">
+                            <p className="text-xs text-[#475569] font-medium">
                               Our master CAD designers will model any bespoke requirement
                             </p>
                           </div>
@@ -925,7 +980,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
 
                 {/* Quick Select Category Chips below box */}
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-2 no-scrollbar text-xs">
-                  <span className="text-[11px] font-semibold text-[#7A8699] shrink-0 mr-0.5">
+                  <span className="text-xs font-bold text-[#0B1330] shrink-0 mr-1">
                     Main Categories:
                   </span>
                   {mainCategories.map((cat) => {
@@ -963,7 +1018,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
                   />
                   <div className="flex-1 min-w-0">
                     <div className="font-bold truncate">{selectedCatalogItem.title}</div>
-                    <div className="text-[11px] text-[#626875]">Catalogue Reference Template</div>
+                    <div className="text-xs text-[#475569] font-medium">Catalogue Reference Template</div>
                   </div>
                   <button
                     type="button"
@@ -982,7 +1037,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
 
             {/* SECTION 2: SELECT MATERIAL & CARAT */}
             <div className="space-y-3 pt-1">
-              <label className="block text-sm sm:text-base font-bold text-[#17345C]">
+              <label className="block text-base sm:text-lg font-bold text-[#0B1330] tracking-tight">
                 Select Material
               </label>
 
@@ -990,11 +1045,11 @@ Please confirm feasibility and provide the production CAD quotation.`;
                 {/* Material Selection Card */}
                 <div className="p-4 rounded-2xl border border-[#E8D7B7] bg-[#FFFDF9] space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-bold text-[#17345C]">
-                      <Gem className="w-4 h-4 text-[#B88735]" />
+                    <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-[#0B1330]">
+                      <Gem className="w-4 h-4 text-[#B88732]" />
                       <span>Material Selection</span>
                     </div>
-                    <span className="text-[11px] text-[#B88735] font-semibold">{effectiveMaterial}</span>
+                    <span className="text-xs text-[#B88732] font-bold">{effectiveMaterial}</span>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1">
@@ -1003,7 +1058,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
                         key={mat}
                         type="button"
                         onClick={() => setMaterial(mat)}
-                        className={`py-2 text-xs font-medium rounded-xl border transition-all cursor-pointer ${
+                        className={`py-2 text-xs font-semibold rounded-xl border transition-all cursor-pointer ${
                           material === mat
                             ? 'bg-[#17345C] text-white border-[#17345C] shadow-xs'
                             : 'bg-white text-[#17345C] border-[#E8D7B7] hover:border-[#D6AD62]'
@@ -1022,10 +1077,10 @@ Please confirm feasibility and provide the production CAD quotation.`;
                           key={hue}
                           type="button"
                           onClick={() => setGoldColor(hue)}
-                          className={`flex-1 py-1.5 text-[11px] font-medium rounded-lg border transition-all cursor-pointer ${
+                          className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
                             goldColor === hue
                               ? 'bg-[#D6AD62]/25 border-[#D6AD62] text-[#B88735] font-bold'
-                              : 'bg-white/90 border-[#E8D7B7] text-[#626875] hover:border-[#D6AD62]'
+                              : 'bg-white/90 border-[#E8D7B7] text-[#475569] font-medium hover:border-[#D6AD62]'
                           }`}
                         >
                           {hue}
@@ -1042,7 +1097,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
                         value={customMaterial}
                         onChange={(e) => setCustomMaterial(e.target.value)}
                         placeholder="Type custom metal (e.g. Titanium, Brass, Palladium, Bronze)..."
-                        className="w-full px-3 py-2 rounded-xl border border-[#D6AD62] bg-white text-xs text-[#17243B] focus:outline-hidden"
+                        className="w-full px-3 py-2 rounded-xl border border-[#D6AD62] bg-white text-xs font-medium text-[#17243B] focus:outline-hidden"
                       />
                     </div>
                   )}
@@ -1051,11 +1106,11 @@ Please confirm feasibility and provide the production CAD quotation.`;
                 {/* Carat Select Card */}
                 <div className="p-4 rounded-2xl border border-[#E8D7B7] bg-[#FFFDF9] space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-bold text-[#17345C]">
-                      <Sparkles className="w-4 h-4 text-[#B88735]" />
+                    <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-[#0B1330]">
+                      <Sparkles className="w-4 h-4 text-[#B88732]" />
                       <span>Carat Select</span>
                     </div>
-                    <span className="text-[11px] text-[#B88735] font-semibold">{effectiveCarat}</span>
+                    <span className="text-xs text-[#B88732] font-bold">{effectiveCarat}</span>
                   </div>
 
                   {/* Carat Buttons */}
@@ -1070,7 +1125,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
                         key={c}
                         type="button"
                         onClick={() => setCarat(c)}
-                        className={`py-2 text-xs font-medium rounded-xl border transition-all cursor-pointer ${
+                        className={`py-2 text-xs font-semibold rounded-xl border transition-all cursor-pointer ${
                           carat === c
                             ? 'bg-[#17345C] text-white border-[#17345C] shadow-xs'
                             : 'bg-white text-[#17345C] border-[#E8D7B7] hover:border-[#D6AD62]'
@@ -1089,7 +1144,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
                         value={customCarat}
                         onChange={(e) => setCustomCarat(e.target.value)}
                         placeholder="Type custom purity (e.g. 21K, 19K, 916 Hallmark, 10K)..."
-                        className="w-full px-3 py-2 rounded-xl border border-[#D6AD62] bg-white text-xs text-[#17243B] focus:outline-hidden"
+                        className="w-full px-3 py-2 rounded-xl border border-[#D6AD62] bg-white text-xs font-medium text-[#17243B] focus:outline-hidden"
                       />
                     </div>
                   )}
@@ -1099,7 +1154,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
 
             {/* SECTION 3: ADD REFERENCE (Pictures & CAD Files) */}
             <div className="space-y-3 pt-1">
-              <label className="block text-sm sm:text-base font-bold text-[#17345C]">
+              <label className="block text-base sm:text-lg font-bold text-[#0B1330] tracking-tight">
                 Add Reference
               </label>
 
@@ -1109,10 +1164,10 @@ Please confirm feasibility and provide the production CAD quotation.`;
                 <button
                   type="button"
                   onClick={() => pictureInputRef.current?.click()}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#E8D7B7] hover:border-[#D6AD62] bg-[#FFFDF9] hover:bg-[#FFF9F0] text-xs font-semibold text-[#17345C] transition-all cursor-pointer shadow-2xs"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#E8D7B7] hover:border-[#B88732] bg-[#FFFDF9] hover:bg-[#FFF9F0] text-xs sm:text-sm font-bold text-[#17345C] transition-all cursor-pointer shadow-2xs"
                   title="Upload picture from your device storage or gallery"
                 >
-                  <Upload className="w-4 h-4 text-[#B88735]" />
+                  <Upload className="w-4 h-4 text-[#B88732]" />
                   <span>Upload from Device</span>
                 </button>
                 <input
@@ -1128,10 +1183,10 @@ Please confirm feasibility and provide the production CAD quotation.`;
                 <button
                   type="button"
                   onClick={openCameraModal}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#E8D7B7] hover:border-[#D6AD62] bg-[#FFFDF9] hover:bg-[#FFF9F0] text-xs font-semibold text-[#17345C] transition-all cursor-pointer shadow-2xs group"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#E8D7B7] hover:border-[#B88732] bg-[#FFFDF9] hover:bg-[#FFF9F0] text-xs sm:text-sm font-bold text-[#17345C] transition-all cursor-pointer shadow-2xs group"
                   title="Capture reference photo directly using your camera"
                 >
-                  <Camera className="w-4 h-4 text-[#B88735] group-hover:scale-110 transition-transform" />
+                  <Camera className="w-4 h-4 text-[#B88732] group-hover:scale-110 transition-transform" />
                   <span>Take Photo (Camera)</span>
                 </button>
                 <input
@@ -1147,9 +1202,9 @@ Please confirm feasibility and provide the production CAD quotation.`;
                 <button
                   type="button"
                   onClick={() => cadInputRef.current?.click()}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#E8D7B7] hover:border-[#D6AD62] bg-[#FFFDF9] hover:bg-[#FFF9F0] text-xs font-semibold text-[#17345C] transition-all cursor-pointer shadow-2xs"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#E8D7B7] hover:border-[#B88732] bg-[#FFFDF9] hover:bg-[#FFF9F0] text-xs sm:text-sm font-bold text-[#17345C] transition-all cursor-pointer shadow-2xs"
                 >
-                  <FileText className="w-4 h-4 text-[#B88735]" />
+                  <FileText className="w-4 h-4 text-[#B88732]" />
                   <span>Upload File (.3DM, .STL, .PDF)</span>
                 </button>
                 <input
@@ -1165,7 +1220,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
               {/* Uploaded Reference List Preview */}
               {(picturePreviews.length > 0 || cadFiles.length > 0) && (
                 <div className="p-3.5 rounded-2xl bg-[#FFF9F0]/70 border border-[#E8D7B7] space-y-2.5">
-                  <div className="text-[11px] font-bold text-[#B88735] uppercase tracking-wider">
+                  <div className="text-xs font-bold text-[#B88732] uppercase tracking-wider">
                     Attached Files ({pictureFiles.length + cadFiles.length}):
                   </div>
 
@@ -1206,24 +1261,25 @@ Please confirm feasibility and provide the production CAD quotation.`;
 
             {/* SECTION 4: ADDITIONAL DETAILS + VOICE NOTE */}
             <div className="space-y-3 pt-1">
-              <label className="block text-sm sm:text-base font-bold text-[#17345C]">
+              <label className="block text-base sm:text-lg font-bold text-[#0B1330] tracking-tight">
                 Additional Details + Voice Note
               </label>
 
               {/* Textarea with voice buttons */}
-              <div className="relative rounded-2xl border border-[#E8D7B7] bg-[#FFFDF9] focus-within:border-[#D6AD62] transition-colors p-4 space-y-3">
+              <div className="relative rounded-2xl border border-[#E8D7B7] bg-[#FFFDF9] focus-within:border-[#B88732] focus-within:ring-1 focus-within:ring-[#B88732]/25 transition-colors p-4 space-y-3">
                 <textarea
                   rows={4}
                   value={additionalDetails}
                   onChange={(e) => setAdditionalDetails(e.target.value)}
                   placeholder="Describe your design, specifications, requirements, gemstone details, finger ring size, weight constraints, or any special casting preferences..."
-                  className="w-full bg-transparent text-xs sm:text-sm text-[#17243B] focus:outline-hidden resize-none placeholder-[#626875]/70"
+                  className="w-full bg-transparent text-xs sm:text-sm font-medium text-[#0B1330] focus:outline-hidden resize-none placeholder-[#64748B]/70 leading-relaxed"
                 />
 
                 {/* Voice Actions Row */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#E8D7B7]/60">
-                  <div className="text-[11px] text-[#626875]">
-                    Record live voice instructions or upload an audio file:
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-[#E8D7B7]/80">
+                  <div className="text-xs font-semibold text-[#17345C] flex items-center gap-1.5">
+                    <Volume2 className="w-3.5 h-3.5 text-[#B88732]" />
+                    <span>Record live voice instructions or upload an audio file:</span>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -1231,10 +1287,10 @@ Please confirm feasibility and provide the production CAD quotation.`;
                     <button
                       type="button"
                       onClick={() => audioFileInputRef.current?.click()}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#E8D7B7] hover:border-[#D6AD62] bg-white text-xs font-semibold text-[#17345C] transition-all cursor-pointer"
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-[#E8D7B7] hover:border-[#B88732] bg-white text-xs font-bold text-[#17345C] transition-all cursor-pointer shadow-2xs"
                       title="Upload existing audio file"
                     >
-                      <FileAudio className="w-3.5 h-3.5 text-[#B88735]" />
+                      <FileAudio className="w-3.5 h-3.5 text-[#B88732]" />
                       <span>Upload Recording</span>
                     </button>
                     <input
@@ -1263,7 +1319,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
                       <button
                         type="button"
                         onClick={startRecording}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#17345C] hover:bg-[#122b4a] text-white text-xs font-semibold transition-all shadow-sm cursor-pointer"
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#17345C] hover:bg-[#122b4a] text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
                         title="Record Voice Note"
                       >
                         <Mic className="w-3.5 h-3.5 text-white" />
@@ -1277,8 +1333,8 @@ Please confirm feasibility and provide the production CAD quotation.`;
               {/* Voice Note Audio Player */}
               {voiceAudioUrl && (
                 <div className="p-3 rounded-2xl bg-white border border-[#D6AD62] flex items-center justify-between gap-3 shadow-2xs">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-[#17345C]">
-                    <Volume2 className="w-4 h-4 text-[#B88735]" />
+                  <div className="flex items-center gap-2 text-xs font-bold text-[#17345C]">
+                    <Volume2 className="w-4 h-4 text-[#B88732]" />
                     <span>
                       {uploadedAudioFile ? `Audio File: ${uploadedAudioFile.name}` : `Voice Note Recorded (${recordingSeconds}s)`}
                     </span>
@@ -1300,19 +1356,52 @@ Please confirm feasibility and provide the production CAD quotation.`;
 
             {/* SECTION 5: DELIVERY DATE REQUIREMENT */}
             <div className="space-y-3 pt-1">
-              <label className="block text-sm sm:text-base font-bold text-[#17345C]">
+              <label className="block text-base sm:text-lg font-bold text-[#0B1330] tracking-tight">
                 Delivery Date Requirement:
               </label>
 
               <div className="flex flex-wrap items-center gap-3">
-                {/* Date Picker Input */}
-                <div className="relative">
+                {/* Clickable Date Picker Input Box */}
+                <div
+                  onClick={() => {
+                    if (dateInputRef.current) {
+                      try {
+                        dateInputRef.current.showPicker();
+                      } catch {
+                        dateInputRef.current.focus();
+                      }
+                    }
+                  }}
+                  className="relative inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl border border-[#E8D7B7] hover:border-[#D6AD62] focus-within:border-[#D6AD62] focus-within:ring-2 focus-within:ring-[#D6AD62]/20 bg-[#FFFDF9] transition-all cursor-pointer shadow-xs group"
+                >
+                  <Calendar className="w-5 h-5 text-[#B88735] shrink-0 transition-transform group-hover:scale-105 pointer-events-none" />
                   <input
+                    ref={dateInputRef}
                     type="date"
                     value={customDate}
-                    onChange={(e) => setCustomDate(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                    className="px-3.5 py-2.5 rounded-xl border border-[#E8D7B7] hover:border-[#D6AD62] bg-[#FFFDF9] text-xs font-semibold text-[#17345C] focus:outline-hidden cursor-pointer"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCustomDate(val);
+                      if (val) {
+                        try {
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          const parts = val.split('-');
+                          const picked = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+                          picked.setHours(0, 0, 0, 0);
+                          const diffTime = picked.getTime() - today.getTime();
+                          const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+                          setDeliveryDays(diffDays > 0 ? diffDays : 1);
+                        } catch {}
+                      }
+                    }}
+                    min={getLocalDateString()}
+                    onClick={(e) => {
+                      try {
+                        (e.currentTarget as HTMLInputElement).showPicker();
+                      } catch {}
+                    }}
+                    className="bg-transparent text-sm sm:text-base font-semibold text-[#17345C] focus:outline-hidden cursor-pointer tracking-wide [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-80 hover:[&::-webkit-calendar-picker-indicator]:opacity-100"
                   />
                 </div>
 
@@ -1321,84 +1410,82 @@ Please confirm feasibility and provide the production CAD quotation.`;
                   { days: 3, label: '3 Days (Express)' },
                   { days: 5, label: '5 Days (Standard)' },
                   { days: 7, label: '7 Days (Relaxed)' },
-                ].map((preset) => (
-                  <button
-                    key={preset.days}
-                    type="button"
-                    onClick={() => {
-                      setDeliveryDays(preset.days);
-                      setCustomDate('');
-                    }}
-                    className={`px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${
-                      !customDate && deliveryDays === preset.days
-                        ? 'bg-[#17345C] text-white border-[#17345C] shadow-xs'
-                        : 'bg-[#FFFDF9] text-[#17345C] border-[#E8D7B7] hover:border-[#D6AD62]'
-                    }`}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-
-                {/* Expected Delivery Badge */}
-                <div className="p-2.5 rounded-xl bg-[#FFF9F0] border border-[#E8D7B7] flex items-center gap-2 text-xs font-semibold text-[#B88735]">
-                  <Calendar className="w-4 h-4 text-[#B88735]" />
-                  <span>Target Date: {expectedDateString}</span>
-                </div>
+                ].map((preset) => {
+                  const isActive = customDate === getDateAfterDays(preset.days);
+                  return (
+                    <button
+                      key={preset.days}
+                      type="button"
+                      onClick={() => {
+                        setDeliveryDays(preset.days);
+                        setCustomDate(getDateAfterDays(preset.days));
+                      }}
+                      className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer border ${
+                        isActive
+                          ? 'bg-[#17345C] text-white border-[#17345C] shadow-xs'
+                          : 'bg-[#FFFDF9] text-[#17345C] border-[#E8D7B7] hover:border-[#D6AD62] hover:bg-[#FFF9F0]'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             {/* SECTION 6: CONTACT METHOD (LAST SECTION BEFORE PLACE ORDER) */}
-            <div className="space-y-3 pt-2 border-t border-[#E8D7B7]/80">
-              <label className="block text-sm sm:text-base font-bold text-[#17345C]">
+            <div className="space-y-4 pt-4 border-t border-[#E8D7B7]">
+              <label className="block text-base sm:text-lg font-bold text-[#0B1330] tracking-tight">
                 Contact Method:
               </label>
 
               {/* Customer Inputs: Name, Phone, Email */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#626875] mb-1">
-                    Your Full Name *
+                  <label className="block text-xs sm:text-sm font-bold text-[#0B1330] mb-1.5">
+                    Your Full Name <span className="text-rose-600 font-bold">*</span>
                   </label>
                   <input
                     type="text"
                     value={clientName}
                     onChange={(e) => setClientName(e.target.value)}
                     placeholder="E.g. Sarah Jenkins"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8D7B7] focus:border-[#D6AD62] bg-[#FFFDF9] text-xs sm:text-sm text-[#17243B] focus:outline-hidden"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8D7B7] focus:border-[#B88732] focus:ring-1 focus:ring-[#B88732]/25 bg-[#FFFDF9] text-xs sm:text-sm font-medium text-[#0B1330] placeholder-[#94A3B8] focus:outline-hidden"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#626875] mb-1">
-                    WhatsApp / Phone Number *
+                  <label className="block text-xs sm:text-sm font-bold text-[#0B1330] mb-1.5">
+                    WhatsApp / Phone Number <span className="text-rose-600 font-bold">*</span>
                   </label>
                   <input
                     type="text"
                     value={contactPhone}
                     onChange={(e) => setContactPhone(e.target.value)}
                     placeholder="+91 98765 43210"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8D7B7] focus:border-[#D6AD62] bg-[#FFFDF9] text-xs sm:text-sm text-[#17243B] focus:outline-hidden font-medium"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8D7B7] focus:border-[#B88732] focus:ring-1 focus:ring-[#B88732]/25 bg-[#FFFDF9] text-xs sm:text-sm font-medium text-[#0B1330] placeholder-[#94A3B8] focus:outline-hidden font-medium"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#626875] mb-1">
-                    Email Address *
+                  <label className="block text-xs sm:text-sm font-bold text-[#0B1330] mb-1.5">
+                    Email Address <span className="text-rose-600 font-bold">*</span>
                   </label>
                   <input
                     type="email"
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
                     placeholder="sarah@example.com"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8D7B7] focus:border-[#D6AD62] bg-[#FFFDF9] text-xs sm:text-sm text-[#17243B] focus:outline-hidden"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E8D7B7] focus:border-[#B88732] focus:ring-1 focus:ring-[#B88732]/25 bg-[#FFFDF9] text-xs sm:text-sm font-medium text-[#0B1330] placeholder-[#94A3B8] focus:outline-hidden"
                   />
                 </div>
               </div>
 
               {/* Direct Communication Buttons: WhatsApp / Telegram / Email */}
               <div className="pt-2">
-                <div className="text-[11px] font-bold text-[#626875] mb-2 uppercase tracking-wider">
-                  Or Connect Directly With Pre-Filled Details:
+                <div className="text-xs font-bold text-[#0B1330] mb-2.5 uppercase tracking-wider flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5 text-[#B88732]" />
+                  <span>Or Connect Directly With Pre-Filled Details:</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   {/* WhatsApp redirect button */}
@@ -1447,6 +1534,28 @@ Please confirm feasibility and provide the production CAD quotation.`;
               </div>
             )}
 
+            {/* Login Notice Banner when not logged in */}
+            {!isLoggedIn && (
+              <div className="p-4 rounded-2xl bg-[#FFF9F0] border border-[#E8D7B7] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-[#17345C] shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-[#17345C] text-[#D9B66F] flex items-center justify-center shrink-0 shadow-xs">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-[#17345C] text-sm">Account Login Required to Place Order</p>
+                    <p className="text-xs text-[#475569] font-medium">You can configure your design freely, but must sign in or register to submit your order to our atelier.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openAuthModal('Sign in to submit your custom design order.')}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#C99A45] via-[#D6AD62] to-[#B88735] text-[#17345C] font-bold text-xs shrink-0 shadow-sm hover:opacity-95 transition-all text-center cursor-pointer"
+                >
+                  Sign In / Register
+                </button>
+              </div>
+            )}
+
             {/* PRIMARY PLACE ORDER BUTTON (At Bottom — No Order Summary Sidebar) */}
             <div className="pt-4 border-t border-[#E8D7B7] space-y-3">
               <button
@@ -1460,6 +1569,12 @@ Please confirm feasibility and provide the production CAD quotation.`;
                     <Loader2 className="w-5 h-5 animate-spin text-[#17345C]" />
                     <span>Submitting Order to Admin Panel...</span>
                   </>
+                ) : !isLoggedIn ? (
+                  <>
+                    <Lock className="w-5 h-5 text-[#17345C]" />
+                    <span>Sign In to Place Order</span>
+                    <ArrowRight className="w-5 h-5 text-[#17345C]" />
+                  </>
                 ) : (
                   <>
                     <span>Place Order</span>
@@ -1468,8 +1583,8 @@ Please confirm feasibility and provide the production CAD quotation.`;
                 )}
               </button>
 
-              <div className="flex items-center justify-center gap-2 text-xs text-[#626875] text-center">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <div className="flex items-center justify-center gap-2 text-xs text-[#475569] font-medium text-center">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>Your order &amp; files are directly sent to Shiuli CAD Admin Panel &bull; No upfront payment required</span>
               </div>
             </div>
@@ -1495,7 +1610,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
                   <h3 className="font-serif font-bold text-base sm:text-lg text-[#17345C]">
                     Choose from Catalogue Templates
                   </h3>
-                  <p className="text-[11px] text-[#626875]">
+                  <p className="text-xs text-[#475569] font-medium">
                     Select a ready reference design to customize with your own metal, gemstones, and measurements.
                   </p>
                 </div>
@@ -1511,7 +1626,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
               {/* Search & Filter Bar */}
               <div className="p-4 border-b border-[#E8D7B7] space-y-2.5">
                 <div className="relative">
-                  <Search className="w-4 h-4 text-[#626875] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <Search className="w-4 h-4 text-[#B88732] absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     value={catalogSearch}
@@ -1565,7 +1680,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
                     </div>
                     <div className="space-y-0.5">
                       <div className="text-xs font-bold text-[#17345C] line-clamp-1">{item.title}</div>
-                      <div className="text-[10px] text-[#626875] capitalize">
+                      <div className="text-xs text-[#475569] font-medium capitalize">
                         {item.category_name || 'Jewellery CAD'}
                       </div>
                       <div className="text-xs font-semibold text-[#B88735]">
@@ -1606,7 +1721,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
                     <h3 className="font-serif text-base sm:text-lg font-bold text-[#17345C]">
                       Take Reference Photo
                     </h3>
-                    <p className="text-[11px] text-[#626875]">
+                    <p className="text-xs text-[#475569] font-medium">
                       Capture your jewellery reference, sketch, or physical sample
                     </p>
                   </div>
@@ -1697,7 +1812,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
                       Photo captured! Click "Attach Photo" below to use it.
                     </span>
                   ) : (
-                    <p className="text-[11px] text-[#626875]">
+                    <p className="text-xs text-[#475569] font-medium">
                       Position your jewellery design or sketch inside the frame and click Capture.
                     </p>
                   )}

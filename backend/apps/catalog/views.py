@@ -702,13 +702,21 @@ class ProductViewSet(viewsets.ModelViewSet):
         elif product_file.file_type in ['render', 'video']:
             has_access = True
         else:
-            # Check purchase via custom orders app Order model
+            # Check purchase via custom orders app Order model or payments app Purchase model
             from apps.custom_orders.models import Order
-            has_access = Order.objects.filter(
-                client=user,
-                product=product,
-                balance_paid=True
-            ).exists()
+            from apps.payments.models import Purchase
+            has_access = (
+                Order.objects.filter(
+                    client=user,
+                    product=product,
+                    balance_paid=True
+                ).exists() or
+                Purchase.objects.filter(
+                    buyer=user,
+                    product=product,
+                    status=Purchase.Status.PAID
+                ).exists()
+            )
 
         if not has_access:
             return Response(
@@ -741,9 +749,18 @@ class ProductViewSet(viewsets.ModelViewSet):
         if not product_file.file:
             raise Http404("File content is not available.")
 
-        file_handle = product_file.file.open('rb')
-        response = FileResponse(file_handle, content_type='application/octet-stream')
+        from apps.catalog.models import protected_cad_storage
+        try:
+            if protected_cad_storage.exists(product_file.file.name):
+                file_handle = protected_cad_storage.open(product_file.file.name, 'rb')
+            else:
+                file_handle = product_file.file.open('rb')
+        except Exception:
+            raise Http404("File content is not accessible on storage.")
+
         file_name = product_file.original_filename or os.path.basename(product_file.file.name)
+        content_type = 'model/stl' if file_name.lower().endswith('.stl') else 'application/zip' if file_name.lower().endswith('.zip') else 'application/octet-stream'
+        response = FileResponse(file_handle, content_type=content_type)
         response['Content-Disposition'] = f'attachment; filename="{file_name}"'
         return response
 

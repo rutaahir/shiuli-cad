@@ -19,6 +19,7 @@ import {
   Clock
 } from 'lucide-react';
 import { api } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 export interface PaymentSuccessResult {
   transactionId: string;
@@ -67,6 +68,7 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
   orderDetails,
   onPaymentSuccess,
 }) => {
+  const { isLoggedIn, openAuthModal } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('upi');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStage, setProcessingStage] = useState('');
@@ -94,14 +96,15 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
 
   // Currency amounts
   const isUSD = currency === 'USD';
-  const amountINR = isUSD ? Math.round(amount * 84) : amount;
-  const amountUSD = isUSD ? amount : Math.round(amount / 84);
+  const usdToInrRate = 86.85;
+  const amountINR = isUSD ? Math.round(amount * usdToInrRate) : Math.round(amount);
+  const amountUSD = isUSD ? amount : Math.round((amount / usdToInrRate) * 100) / 100;
 
   const formatCurrency = (val: number, cur: 'INR' | 'USD') => {
     if (cur === 'USD') {
-      return `$${val.toLocaleString('en-US')}`;
+      return `$${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
-    return `₹${val.toLocaleString('en-IN')}`;
+    return `₹${Math.round(val).toLocaleString('en-IN')}`;
   };
 
   // Load Dynamic Studio Payment Settings
@@ -186,6 +189,12 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
 
   const handleSubmitProof = async () => {
     setErrorMessage('');
+
+    if (!isLoggedIn) {
+      setErrorMessage('You must be signed in to place an order or complete payment.');
+      openAuthModal('Please sign in to complete your payment.');
+      return;
+    }
 
     // Validation
     if (activeTab === 'cash_check') {
@@ -275,32 +284,32 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
       <div
-        className="relative w-full max-w-2xl bg-gradient-to-b from-[#09112B] via-[#070D22] to-[#040817] border border-[#D4AF37]/40 rounded-3xl shadow-[0_25px_70px_rgba(0,0,0,0.85)] overflow-hidden text-[#FAF8F3]"
+        className="relative w-full max-w-2xl bg-gradient-to-b from-[#FFFDF9] via-[#FAF8F5] to-[#FFF9F0] border border-[#E8D7B7] rounded-3xl shadow-[0_25px_80px_rgba(23,52,92,0.22)] overflow-hidden text-[#17243B]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Luxury Gold Top Trim */}
-        <div className="h-1.5 w-full bg-gradient-to-r from-[#B8860B] via-[#F5E7A3] via-[#D4AF37] to-[#B8860B]" />
+        <div className="h-1.5 w-full bg-gradient-to-r from-[#B88732] via-[#F3DE9C] via-[#D4AF37] to-[#B88732]" />
 
         {/* Modal Header */}
-        <div className="flex items-center justify-between p-5 sm:p-6 border-b border-white/10 bg-[#0B1436]/60 backdrop-blur-sm">
+        <div className="flex items-center justify-between p-5 sm:p-6 border-b border-[#E8D7B7] bg-white backdrop-blur-sm">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#D4AF37] to-[#8C6D1F] p-[1.5px] shadow-lg shadow-[#D4AF37]/20 flex items-center justify-center">
-              <div className="w-full h-full rounded-[14px] bg-[#060B1E] flex items-center justify-center">
-                <ShieldCheck className="w-5 h-5 text-[#F5E7A3]" />
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#D4AF37] to-[#B88732] p-[1.5px] shadow-sm flex items-center justify-center">
+              <div className="w-full h-full rounded-[14px] bg-[#FFF9F0] flex items-center justify-center">
+                <ShieldCheck className="w-5 h-5 text-[#B88732]" />
               </div>
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-serif font-bold tracking-widest text-[#F5E7A3] uppercase">
+                <span className="text-xs font-serif font-bold tracking-widest text-[#8C6218] uppercase">
                   Shiuli CAD Atelier
                 </span>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-400/30 text-[9px] font-mono text-emerald-300 flex items-center gap-1 font-semibold">
-                  <Lock className="w-2.5 h-2.5" /> 256-BIT SECURE
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-300 text-[10px] font-mono text-emerald-800 flex items-center gap-1 font-bold shadow-2xs">
+                  <Lock className="w-2.5 h-2.5 text-emerald-700" /> 256-BIT SECURE
                 </span>
               </div>
-              <h2 className="text-base sm:text-lg font-serif font-bold text-white leading-tight">
+              <h2 className="text-base sm:text-xl font-serif font-bold text-[#0B1330] leading-tight">
                 Studio Checkout Gateway
               </h2>
             </div>
@@ -309,29 +318,52 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
           <button
             onClick={onClose}
             disabled={isProcessing}
-            className="p-2 text-[#C9C2A6] hover:text-white hover:bg-white/10 rounded-full transition-colors disabled:opacity-40 cursor-pointer"
+            className="p-2 text-[#475569] hover:text-[#0B1330] hover:bg-[#FFF9F0] rounded-full border border-transparent hover:border-[#E8D7B7] transition-all disabled:opacity-40 cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* SUBMITTED / CONFIRMATION VIEW */}
-        {isSubmitted && submissionResult ? (
-          <div className="p-8 sm:p-10 text-center space-y-6 animate-in zoom-in-95 duration-300">
-            <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-[#D4AF37] via-[#F5E7A3] to-[#B8860B] p-[2px] shadow-[0_0_35px_rgba(212,175,55,0.4)] flex items-center justify-center">
-              <div className="w-full h-full rounded-full bg-[#060B1E] flex items-center justify-center">
-                <Clock className="w-10 h-10 text-[#F5E7A3] animate-pulse" />
+        {/* UNAUTHENTICATED GUARD VIEW */}
+        {!isLoggedIn ? (
+          <div className="p-8 sm:p-10 text-center space-y-6 bg-[#FFFDF9]">
+            <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-[#D4AF37] to-[#B88732] p-[2px] shadow-sm flex items-center justify-center">
+              <div className="w-full h-full rounded-full bg-[#FFF9F0] flex items-center justify-center">
+                <Lock className="w-8 h-8 text-[#B88732]" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-serif font-bold text-[#0B1330]">Sign In Required to Complete Order</h3>
+              <p className="text-xs text-[#475569] max-w-md mx-auto leading-relaxed">
+                Orders and CAD downloads are securely linked to your customer account. Please sign in or create an account to proceed with this payment.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                onClose();
+                openAuthModal('Please sign in to complete your CAD file purchase.');
+              }}
+              className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#F3DE9C] to-[#B88732] text-[#070D22] font-serif font-black text-xs uppercase tracking-widest shadow-md hover:brightness-105 transition-all cursor-pointer"
+            >
+              Sign In / Register
+            </button>
+          </div>
+        ) : isSubmitted && submissionResult ? (
+          <div className="p-8 sm:p-10 text-center space-y-6 animate-in zoom-in-95 duration-300 bg-[#FFFDF9]">
+            <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-[#D4AF37] via-[#F3DE9C] to-[#B88732] p-[2px] shadow-[0_0_35px_rgba(212,175,55,0.3)] flex items-center justify-center">
+              <div className="w-full h-full rounded-full bg-[#FFF9F0] flex items-center justify-center">
+                <Clock className="w-10 h-10 text-[#B88732] animate-pulse" />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <span className="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-400/30 text-xs font-mono text-amber-300 tracking-wider uppercase font-bold inline-block">
+              <span className="px-3 py-1 rounded-full bg-amber-50 border border-amber-300 text-xs font-mono text-amber-800 tracking-wider uppercase font-bold inline-block">
                 Pending Admin Confirmation
               </span>
-              <h3 className="text-2xl sm:text-3xl font-serif font-bold text-white">
+              <h3 className="text-2xl sm:text-3xl font-serif font-bold text-[#0B1330]">
                 Payment Proof Transferred to Atelier
               </h3>
-              <p className="text-xs text-[#C9C2A6] max-w-lg mx-auto leading-relaxed">
+              <p className="text-xs text-[#475569] max-w-lg mx-auto leading-relaxed">
                 Your payment request has been securely recorded and sent to the Atelier Accounts desk.
                 As soon as the admin confirms that the payment is collected, your download option will be enabled.
                 You can then verify your email via 6-digit OTP and receive your one-time secure download link.
@@ -339,38 +371,38 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
             </div>
 
             {/* Receipt Summary Card */}
-            <div className="p-4 rounded-2xl bg-[#0B1436] border border-[#D4AF37]/30 text-left text-xs space-y-2.5 max-w-md mx-auto font-mono">
-              <div className="flex justify-between items-center pb-2 border-b border-white/10">
-                <span className="text-[#C9C2A6]">Transaction Ref:</span>
-                <span className="text-[#F5E7A3] font-bold">{submissionResult.transactionId}</span>
+            <div className="p-4 rounded-2xl bg-white border border-[#E8D7B7] text-left text-xs space-y-2.5 max-w-md mx-auto font-mono shadow-xs">
+              <div className="flex justify-between items-center pb-2 border-b border-[#E8D7B7]/60">
+                <span className="text-[#475569]">Transaction Ref:</span>
+                <span className="text-[#0B1330] font-extrabold">{submissionResult.transactionId}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-[#C9C2A6]">Amount:</span>
-                <span className="text-white font-bold">{formatCurrency(submissionResult.amount, submissionResult.currency as 'INR' | 'USD')}</span>
+                <span className="text-[#475569]">Amount:</span>
+                <span className="text-[#0B1330] font-black">{formatCurrency(submissionResult.amount, submissionResult.currency as 'INR' | 'USD')}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-[#C9C2A6]">Payment Channel:</span>
-                <span className="text-white font-semibold">{submissionResult.method}</span>
+                <span className="text-[#475569]">Payment Channel:</span>
+                <span className="text-[#0B1330] font-bold">{submissionResult.method}</span>
               </div>
               {submissionResult.paymentDetails && (
-                <div className="flex justify-between items-start pt-1 border-t border-white/5">
-                  <span className="text-[#C9C2A6]">Details / Note:</span>
-                  <span className="text-white truncate max-w-[220px] text-right">{submissionResult.paymentDetails}</span>
+                <div className="flex justify-between items-start pt-1 border-t border-[#E8D7B7]/60">
+                  <span className="text-[#475569]">Details / Note:</span>
+                  <span className="text-[#0B1330] font-medium truncate max-w-[220px] text-right">{submissionResult.paymentDetails}</span>
                 </div>
               )}
-              <div className="flex justify-between items-center pt-2 border-t border-white/10 text-amber-300 font-bold">
+              <div className="flex justify-between items-center pt-2 border-t border-[#E8D7B7] text-amber-800 font-bold">
                 <span>CAD Delivery Status:</span>
-                <span>Awaiting Admin Verification</span>
+                <span className="bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded font-mono text-[10px]">Awaiting Admin Verification</span>
               </div>
             </div>
 
             {/* Step-by-Step Flow Explanation */}
-            <div className="p-3.5 rounded-2xl bg-[#060B1E] border border-white/10 text-left max-w-md mx-auto space-y-2">
-              <div className="text-[11px] font-mono text-[#D4AF37] font-bold uppercase tracking-wider flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-[#D4AF37]" />
+            <div className="p-4 rounded-2xl bg-[#FFF9F0] border border-[#E8D7B7] text-left max-w-md mx-auto space-y-2">
+              <div className="text-[11px] font-mono text-[#8C6218] font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-[#B88732]" />
                 <span>Next Steps to Download Your File:</span>
               </div>
-              <ol className="text-xs text-[#C9C2A6] space-y-1.5 list-decimal list-inside">
+              <ol className="text-xs text-[#475569] space-y-1.5 list-decimal list-inside font-medium">
                 <li>Admin inspects and verifies receipt of payment at studio desk.</li>
                 <li>Download authorization is enabled for your account.</li>
                 <li>Verify your registered email with a 6-digit OTP code.</li>
@@ -381,7 +413,7 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
             <div className="pt-2">
               <button
                 onClick={onClose}
-                className="btn-gold-luxury px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-wider inline-flex items-center gap-2 shadow-lg cursor-pointer"
+                className="btn-gold-luxury px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-wider inline-flex items-center gap-2 shadow-md cursor-pointer"
               >
                 <span>Understood • View in My Dashboard</span>
                 <ArrowRight className="w-4 h-4 text-[#0B1330]" />
@@ -390,35 +422,35 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
           </div>
         ) : isProcessing ? (
           /* Processing State */
-          <div className="p-12 text-center space-y-6">
-            <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-tr from-[#1E4FA3] via-[#D4AF37] to-[#F5E7A3] p-1 flex items-center justify-center animate-spin">
-              <div className="w-full h-full rounded-full bg-[#070D22] flex items-center justify-center">
-                <RefreshCw className="w-8 h-8 text-[#D4AF37]" />
+          <div className="p-12 text-center space-y-6 bg-[#FFFDF9]">
+            <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-tr from-[#B88732] via-[#F3DE9C] to-[#D4AF37] p-1 flex items-center justify-center animate-spin shadow-md">
+              <div className="w-full h-full rounded-full bg-[#FFF9F0] flex items-center justify-center">
+                <RefreshCw className="w-8 h-8 text-[#B88732]" />
               </div>
             </div>
             <div className="space-y-2">
-              <h3 className="text-xl font-serif font-bold text-white">
+              <h3 className="text-2xl font-serif font-bold text-[#0B1330]">
                 Submitting Payment Proof
               </h3>
-              <p className="text-xs text-[#F5E7A3] font-mono animate-pulse">
+              <p className="text-xs text-[#8C6218] font-mono font-bold animate-pulse">
                 {processingStage}
               </p>
-              <p className="text-[11px] text-[#C9C2A6]">
+              <p className="text-xs text-[#475569]">
                 Please do not close or refresh this window while we secure your submission.
               </p>
             </div>
 
-            <div className="w-48 mx-auto bg-white/10 rounded-full h-1.5 overflow-hidden">
-              <div className="bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] h-full rounded-full animate-[pulse_1.5s_infinite]" />
+            <div className="w-52 mx-auto bg-[#E8D7B7]/40 rounded-full h-2 overflow-hidden">
+              <div className="bg-gradient-to-r from-[#B88732] via-[#D4AF37] to-[#F3DE9C] h-full rounded-full animate-[pulse_1.5s_infinite]" />
             </div>
           </div>
         ) : (
           /* Active Gateway Form */
           <div>
             {/* Order Brief Banner */}
-            <div className="px-6 py-4 bg-[#080F29] border-b border-[#D4AF37]/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="px-6 py-4 bg-[#FAF8F5] border-b border-[#E8D7B7] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="space-y-0.5">
-                <span className="text-[10px] font-mono uppercase tracking-widest text-[#D4AF37] font-bold">
+                <span className="text-[10px] font-mono uppercase tracking-widest text-[#8C6218] font-bold">
                   {itemType === 'ready_cad'
                     ? 'READY-TO-CAST CAD DOWNLOAD'
                     : itemType === 'custom_advance'
@@ -427,34 +459,34 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                     ? 'CAD DEVELOPMENT MILESTONE'
                     : 'STUDIO CAD BAG CHECKOUT'}
                 </span>
-                <h3 className="font-serif text-base text-white font-bold truncate max-w-sm">
+                <h3 className="font-serif text-base sm:text-lg text-[#0B1330] font-bold truncate max-w-sm">
                   {title}
                 </h3>
-                {subtitle && <p className="text-xs text-[#C9C2A6]">{subtitle}</p>}
+                {subtitle && <p className="text-xs text-[#475569]">{subtitle}</p>}
               </div>
 
-              <div className="text-right shrink-0 bg-[#0B1436] px-4 py-2 rounded-xl border border-[#D4AF37]/30">
-                <span className="text-[10px] text-[#C9C2A6] block font-mono">Amount Payable</span>
-                <div className="font-serif text-xl sm:text-2xl font-extrabold text-[#F5E7A3]">
-                  {formatCurrency(amountINR, 'INR')}
+              <div className="text-right shrink-0 bg-white px-4 py-2.5 rounded-2xl border border-[#E8D7B7] shadow-xs">
+                <span className="text-[10px] text-[#64748B] block font-mono font-semibold uppercase tracking-wider">Amount Payable</span>
+                <div className="font-serif text-xl sm:text-2xl font-black text-[#0B1330]">
+                  {isUSD ? formatCurrency(amountUSD, 'USD') : formatCurrency(amountINR, 'INR')}
                 </div>
-                {isUSD && (
-                  <span className="text-[10px] text-[#C9C2A6] block font-mono">
-                    approx {formatCurrency(amountUSD, 'USD')}
-                  </span>
-                )}
+                <span className="text-[10px] text-[#8C6218] block font-mono font-semibold">
+                  {isUSD
+                    ? `approx ${formatCurrency(amountINR, 'INR')}`
+                    : `approx ${formatCurrency(amountUSD, 'USD')}`}
+                </span>
               </div>
             </div>
 
             {errorMessage && (
-              <div className="mx-6 mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
+              <div className="mx-6 mt-4 p-3 rounded-xl bg-rose-50 border border-rose-300 text-rose-800 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
                 <span>{errorMessage}</span>
               </div>
             )}
 
             {/* ONLY TWO PAYMENT OPTIONS: UPI / QR and CASH / Check */}
-            <div className="px-6 pt-4 pb-2 border-b border-[#D4AF37]/15">
+            <div className="px-6 pt-4 pb-3 border-b border-[#E8D7B7] bg-white">
               <div className="grid grid-cols-2 gap-3 text-xs font-serif">
                 <button
                   type="button"
@@ -464,8 +496,8 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                   }}
                   className={`py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-bold transition-all cursor-pointer ${
                     activeTab === 'upi'
-                      ? 'bg-gradient-to-r from-[#D4AF37]/25 to-[#F5E7A3]/20 border border-[#D4AF37] text-[#F5E7A3] shadow-md ring-1 ring-[#D4AF37]/40'
-                      : 'bg-white/5 border border-white/5 text-[#C9C2A6] hover:bg-white/10 hover:text-white'
+                      ? 'bg-[#0B1330] text-[#F5E7A3] border border-[#D4AF37]/50 shadow-md ring-1 ring-[#D4AF37]/40'
+                      : 'bg-[#FAF8F5] border border-[#E8D7B7] text-[#475569] hover:text-[#0B1330] hover:bg-[#FFF9F0]'
                   }`}
                 >
                   <Smartphone className="w-4 h-4 text-[#D4AF37]" />
@@ -480,8 +512,8 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                   }}
                   className={`py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-bold transition-all cursor-pointer ${
                     activeTab === 'cash_check'
-                      ? 'bg-gradient-to-r from-[#D4AF37]/25 to-[#F5E7A3]/20 border border-[#D4AF37] text-[#F5E7A3] shadow-md ring-1 ring-[#D4AF37]/40'
-                      : 'bg-white/5 border border-white/5 text-[#C9C2A6] hover:bg-white/10 hover:text-white'
+                      ? 'bg-[#0B1330] text-[#F5E7A3] border border-[#D4AF37]/50 shadow-md ring-1 ring-[#D4AF37]/40'
+                      : 'bg-[#FAF8F5] border border-[#E8D7B7] text-[#475569] hover:text-[#0B1330] hover:bg-[#FFF9F0]'
                   }`}
                 >
                   <Banknote className="w-4 h-4 text-[#D4AF37]" />
@@ -491,14 +523,14 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
             </div>
 
             {/* Tab Contents */}
-            <div className="p-6 space-y-5">
+            <div className="p-6 space-y-5 bg-[#FFFDF9]">
               {/* 1. UPI / QR CODE TAB */}
               {activeTab === 'upi' && (
                 <div className="space-y-5 animate-in fade-in-50">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
                     {/* Dynamic QR Code Card */}
-                    <div className="bg-[#050B1E] border border-[#D4AF37]/30 rounded-2xl p-5 text-center space-y-3 relative group">
-                      <div className="w-48 h-48 mx-auto bg-white p-2.5 rounded-xl shadow-lg border border-[#D4AF37]/40 flex items-center justify-center relative overflow-hidden">
+                    <div className="bg-[#FFF9F0] border border-[#E8D7B7] rounded-2xl p-5 text-center space-y-3.5 shadow-xs relative group">
+                      <div className="w-48 h-48 mx-auto bg-white p-3 rounded-2xl shadow-sm border border-[#E8D7B7] flex items-center justify-center relative overflow-hidden">
                         {studioQrCodeUrl ? (
                           <img
                             src={studioQrCodeUrl}
@@ -532,7 +564,7 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                             <rect x="8" y="46" width="6" height="6" fill="#0B1330" />
                             <rect x="18" y="56" width="6" height="6" fill="#0B1330" />
 
-                            <rect x="34" y="34" width="32" height="32" rx="4" fill="#F5E7A3" />
+                            <rect x="34" y="34" width="32" height="32" rx="4" fill="#F3DE9C" />
                             <circle cx="50" cy="50" r="8" fill="#0B1330" />
 
                             <rect x="70" y="36" width="6" height="6" fill="#0B1330" />
@@ -556,22 +588,22 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                       </div>
 
                       <div className="space-y-1">
-                        <div className="flex items-center justify-center gap-1 text-xs text-[#F5E7A3] font-medium">
-                          <QrCode className="w-3.5 h-3.5 text-[#D4AF37]" />
+                        <div className="flex items-center justify-center gap-1.5 text-xs text-[#0B1330] font-bold">
+                          <QrCode className="w-3.5 h-3.5 text-[#B88732]" />
                           <span>Scan with Any UPI App</span>
                         </div>
-                        <p className="text-[10px] text-[#C9C2A6]">
+                        <p className="text-[11px] text-[#475569] font-medium">
                           Google Pay • PhonePe • Paytm • BHIM • Cred
                         </p>
                       </div>
 
                       {/* Copy UPI ID */}
-                      <div className="flex items-center justify-between bg-[#080E24] p-2.5 rounded-xl border border-white/5 text-[11px] font-mono">
-                        <span className="text-[#C9C2A6] truncate">{studioUpiId}</span>
+                      <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-[#E8D7B7] text-xs font-mono shadow-2xs">
+                        <span className="text-[#0B1330] font-bold truncate">{studioUpiId}</span>
                         <button
                           type="button"
                           onClick={handleCopyUPI}
-                          className="px-2.5 py-1 rounded bg-[#121F4D] hover:bg-[#1C3278] text-[#F5E7A3] flex items-center gap-1 font-bold text-[10px] transition-colors cursor-pointer"
+                          className="px-2.5 py-1 rounded-lg bg-[#0B1330] hover:bg-[#17345C] text-[#F5E7A3] flex items-center gap-1 font-bold text-[11px] transition-colors cursor-pointer shadow-xs"
                         >
                           {copiedUpi ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-[#D4AF37]" />}
                           <span>{copiedUpi ? 'Copied' : 'Copy'}</span>
@@ -583,7 +615,7 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                     <div className="space-y-4">
                       {/* UPI Reference / UTR Input */}
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-mono text-[#C9C2A6] uppercase tracking-wider block font-semibold">
+                        <label className="text-xs font-mono text-[#0B1330] uppercase tracking-wider block font-bold">
                           UPI Ref / UTR / Transaction ID (Optional if Screenshot Attached)
                         </label>
                         <input
@@ -591,31 +623,31 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                           placeholder="e.g. 423981765412 or payer@upi"
                           value={upiRefId}
                           onChange={(e) => setUpiRefId(e.target.value)}
-                          className="w-full bg-[#060B1E] border border-white/15 focus:border-[#D4AF37] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 outline-none font-mono"
+                          className="w-full bg-white border border-[#E8D7B7] focus:border-[#B88732] focus:ring-1 focus:ring-[#B88732] rounded-xl px-4 py-2.5 text-xs text-[#0B1330] placeholder-slate-400 outline-none font-mono shadow-2xs transition-all"
                         />
                       </div>
 
                       {/* Screenshot Upload Box */}
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-mono text-[#C9C2A6] uppercase tracking-wider block font-semibold flex items-center justify-between">
+                        <label className="text-xs font-mono text-[#0B1330] uppercase tracking-wider block font-bold flex items-center justify-between">
                           <span>Upload Payment Screenshot</span>
-                          <span className="text-[9px] text-[#D4AF37] font-normal">PNG, JPG, WEBP (Max 10MB)</span>
+                          <span className="text-[10px] text-[#8C6218] font-semibold">PNG, JPG, WEBP (Max 10MB)</span>
                         </label>
 
                         {upiScreenshotPreview ? (
-                          <div className="p-3 rounded-xl bg-[#060B1E] border border-[#D4AF37]/50 flex items-center justify-between gap-3">
+                          <div className="p-3 rounded-xl bg-white border border-[#E8D7B7] flex items-center justify-between gap-3 shadow-xs">
                             <div className="flex items-center gap-2.5 min-w-0">
                               <img
                                 src={upiScreenshotPreview}
                                 alt="Payment Proof"
-                                className="w-12 h-12 object-cover rounded-lg border border-white/10 shrink-0"
+                                className="w-12 h-12 object-cover rounded-lg border border-[#E8D7B7] shrink-0"
                               />
                               <div className="truncate">
-                                <span className="text-xs font-mono text-white block truncate">
+                                <span className="text-xs font-mono text-[#0B1330] font-bold block truncate">
                                   {upiScreenshot?.name || 'Payment_Screenshot.png'}
                                 </span>
-                                <span className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
-                                  <CheckCircle2 className="w-3 h-3" /> Ready for verification
+                                <span className="text-[10px] text-emerald-700 font-mono font-bold flex items-center gap-1">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Ready for verification
                                 </span>
                               </div>
                             </div>
@@ -625,19 +657,19 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                                 setUpiScreenshot(null);
                                 setUpiScreenshotPreview('');
                               }}
-                              className="p-1.5 rounded-lg text-rose-400 hover:text-white hover:bg-rose-500/20 transition-colors cursor-pointer"
+                              className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
                               title="Remove image"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         ) : (
-                          <label className="border-2 border-dashed border-white/20 hover:border-[#D4AF37]/60 rounded-xl p-4 flex flex-col items-center justify-center gap-1.5 text-center cursor-pointer transition-colors bg-[#060B1E]/60 hover:bg-[#0B1436]">
-                            <UploadCloud className="w-6 h-6 text-[#D4AF37]" />
-                            <span className="text-xs font-serif text-white font-medium">
+                          <label className="border-2 border-dashed border-[#E8D7B7] hover:border-[#B88732] rounded-2xl p-5 flex flex-col items-center justify-center gap-1.5 text-center cursor-pointer transition-all bg-white hover:bg-[#FFF9F0] shadow-2xs">
+                            <UploadCloud className="w-7 h-7 text-[#B88732]" />
+                            <span className="text-xs font-serif text-[#0B1330] font-bold">
                               Click or drop payment screenshot here
                             </span>
-                            <span className="text-[10px] text-[#C9C2A6] font-mono">
+                            <span className="text-[11px] text-[#475569] font-mono">
                               Attach UPI success screen or bank debit SMS slip
                             </span>
                             <input
@@ -651,8 +683,8 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                       </div>
 
                       {/* Advisory Notice */}
-                      <div className="p-3 rounded-xl bg-[#070D22] border border-white/10 text-[11px] text-[#C9C2A6] flex items-start gap-2">
-                        <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                      <div className="p-3.5 rounded-xl bg-[#FFF9F0] border border-[#E8D7B7] text-xs text-[#475569] flex items-start gap-2.5 leading-relaxed">
+                        <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
                         <span>
                           After submitting, your payment request transfers directly to Atelier Administration. Once confirmed, you can verify your email to unlock your one-time CAD download.
                         </span>
@@ -661,9 +693,9 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                       <button
                         type="button"
                         onClick={handleSubmitProof}
-                        className="btn-gold-luxury w-full py-3.5 rounded-xl font-serif text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg cursor-pointer"
+                        className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#F3DE9C] to-[#B88732] text-[#070D22] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md hover:brightness-105 active:scale-[0.99] transition-all cursor-pointer w-full"
                       >
-                        <Sparkles className="w-4 h-4 text-[#0B1330]" />
+                        <Sparkles className="w-4 h-4 text-[#070D22]" />
                         <span>Submit UPI Payment for Verification</span>
                       </button>
                     </div>
@@ -674,52 +706,52 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
               {/* 2. CASH / CHECK TAB */}
               {activeTab === 'cash_check' && (
                 <div className="space-y-4 animate-in fade-in-50">
-                  <div className="p-3.5 rounded-2xl bg-[#070D22] border border-[#D4AF37]/30 text-xs text-[#C9C2A6] space-y-1">
-                    <div className="flex items-center gap-2 text-[#F5E7A3] font-serif font-bold">
-                      <Banknote className="w-4 h-4 text-[#D4AF37]" />
+                  <div className="p-4 rounded-2xl bg-[#FFF9F0] border border-[#E8D7B7] text-xs text-[#475569] space-y-1">
+                    <div className="flex items-center gap-2 text-[#0B1330] font-serif font-bold">
+                      <Banknote className="w-4 h-4 text-[#B88732]" />
                       <span>Studio Cash Counter &amp; Cheque Collection</span>
                     </div>
-                    <p className="text-[11px] leading-relaxed">
+                    <p className="text-xs leading-relaxed text-[#475569]">
                       {cashCheckInstructions}
                     </p>
                   </div>
 
                   {/* ONE TEXT BOX FOR DETAILS */}
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-mono text-[#C9C2A6] uppercase tracking-wider block font-semibold flex items-center justify-between">
+                    <label className="text-xs font-mono text-[#0B1330] uppercase tracking-wider block font-bold flex items-center justify-between">
                       <span>Transaction &amp; Cheque Details (Required)</span>
-                      <span className="text-[9px] text-[#D4AF37] font-normal">Cash / Cheque / Bank details</span>
+                      <span className="text-[10px] text-[#8C6218] font-semibold">Cash / Cheque / Bank details</span>
                     </label>
                     <textarea
                       rows={3}
                       value={cashCheckDetails}
                       onChange={(e) => setCashCheckDetails(e.target.value)}
                       placeholder="Write details: e.g. Cash handed at studio counter (Slip #1042), or Cheque No. 445210, HDFC Bank, Surat Branch, dated 23-Sep, Payer: Royal Jewellers"
-                      className="w-full bg-[#060B1E] border border-white/15 focus:border-[#D4AF37] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 outline-none font-mono resize-none leading-relaxed"
+                      className="w-full bg-white border border-[#E8D7B7] focus:border-[#B88732] focus:ring-1 focus:ring-[#B88732] rounded-xl px-4 py-2.5 text-xs text-[#0B1330] placeholder-slate-400 outline-none font-mono resize-none leading-relaxed shadow-2xs transition-all"
                     />
                   </div>
 
                   {/* UPLOAD SCREENSHOT / RECEIPT / CHEQUE PHOTO */}
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-mono text-[#C9C2A6] uppercase tracking-wider block font-semibold flex items-center justify-between">
+                    <label className="text-xs font-mono text-[#0B1330] uppercase tracking-wider block font-bold flex items-center justify-between">
                       <span>Upload Screenshot / Cheque Photo / Receipt</span>
-                      <span className="text-[9px] text-[#D4AF37] font-normal">PNG, JPG, WEBP (Max 10MB)</span>
+                      <span className="text-[10px] text-[#8C6218] font-semibold">PNG, JPG, WEBP (Max 10MB)</span>
                     </label>
 
                     {cashCheckScreenshotPreview ? (
-                      <div className="p-3 rounded-xl bg-[#060B1E] border border-[#D4AF37]/50 flex items-center justify-between gap-3">
+                      <div className="p-3 rounded-xl bg-white border border-[#E8D7B7] flex items-center justify-between gap-3 shadow-xs">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <img
                             src={cashCheckScreenshotPreview}
                             alt="Cash/Cheque Proof"
-                            className="w-14 h-14 object-cover rounded-lg border border-white/10 shrink-0"
+                            className="w-14 h-14 object-cover rounded-lg border border-[#E8D7B7] shrink-0"
                           />
                           <div className="truncate">
-                            <span className="text-xs font-mono text-white block truncate">
+                            <span className="text-xs font-mono text-[#0B1330] font-bold block truncate">
                               {cashCheckScreenshot?.name || 'Cheque_Receipt_Proof.png'}
                             </span>
-                            <span className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3" /> Attached for studio accounts review
+                            <span className="text-[10px] text-emerald-700 font-mono font-bold flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Attached for studio accounts review
                             </span>
                           </div>
                         </div>
@@ -729,19 +761,19 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                             setCashCheckScreenshot(null);
                             setCashCheckScreenshotPreview('');
                           }}
-                          className="p-1.5 rounded-lg text-rose-400 hover:text-white hover:bg-rose-500/20 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
                           title="Remove file"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     ) : (
-                      <label className="border-2 border-dashed border-white/20 hover:border-[#D4AF37]/60 rounded-xl p-5 flex flex-col items-center justify-center gap-1.5 text-center cursor-pointer transition-colors bg-[#060B1E]/60 hover:bg-[#0B1436]">
-                        <UploadCloud className="w-6 h-6 text-[#D4AF37]" />
-                        <span className="text-xs font-serif text-white font-medium">
+                      <label className="border-2 border-dashed border-[#E8D7B7] hover:border-[#B88732] rounded-2xl p-5 flex flex-col items-center justify-center gap-1.5 text-center cursor-pointer transition-all bg-white hover:bg-[#FFF9F0] shadow-2xs">
+                        <UploadCloud className="w-7 h-7 text-[#B88732]" />
+                        <span className="text-xs font-serif text-[#0B1330] font-bold">
                           Click or drag cheque photo / cash receipt slip here
                         </span>
-                        <span className="text-[10px] text-[#C9C2A6] font-mono">
+                        <span className="text-[11px] text-[#475569] font-mono">
                           Attach clear photo of signed cheque or studio counter deposit voucher
                         </span>
                         <input
@@ -755,8 +787,8 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                   </div>
 
                   {/* Submission Assurance */}
-                  <div className="p-3 rounded-xl bg-[#070D22] border border-white/10 text-[11px] text-[#C9C2A6] flex items-start gap-2">
-                    <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <div className="p-3.5 rounded-xl bg-[#FFF9F0] border border-[#E8D7B7] text-xs text-[#475569] flex items-start gap-2.5 leading-relaxed">
+                    <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
                     <span>
                       Upon submission, your offline payment request is recorded in the studio financial log. When the administration confirms the funds are collected, the download option will be enabled for your account.
                     </span>
@@ -765,9 +797,9 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                   <button
                     type="button"
                     onClick={handleSubmitProof}
-                    className="btn-gold-luxury w-full py-3.5 rounded-xl font-serif text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg cursor-pointer"
+                    className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#F3DE9C] to-[#B88732] text-[#070D22] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md hover:brightness-105 active:scale-[0.99] transition-all cursor-pointer w-full"
                   >
-                    <FileText className="w-4 h-4 text-[#0B1330]" />
+                    <FileText className="w-4 h-4 text-[#070D22]" />
                     <span>Submit Cash / Cheque Proof for Verification</span>
                   </button>
                 </div>
@@ -775,9 +807,9 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
             </div>
 
             {/* Footer Assurances */}
-            <div className="px-6 py-3.5 bg-[#050A1C] border-t border-[#D4AF37]/20 flex flex-wrap items-center justify-between text-[10px] text-[#C9C2A6] font-mono gap-2">
+            <div className="px-6 py-3.5 bg-white border-t border-[#E8D7B7] flex flex-wrap items-center justify-between text-[11px] text-[#475569] font-mono gap-2">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                 <span>PCI-DSS Level 1 Security • Atelier Verified Delivery</span>
               </div>
               <div className="flex items-center gap-3">

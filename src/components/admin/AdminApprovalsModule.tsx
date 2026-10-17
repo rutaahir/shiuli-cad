@@ -129,27 +129,32 @@ export const AdminApprovalsModule: React.FC = () => {
 
           if (isPendingReview || isApproved || isRejected || isRevision) {
             const req = ord.custom_request || {};
+            const fe = ord.file_edit_request || {};
             const staff = ord.assigned_staff || {};
             const localStaff = appStore.getStaffList().find((s) => s.id === staff.id?.toString() || s.name === (staff.first_name ? `${staff.first_name} ${staff.last_name || ''}`.trim() : staff.username));
             items.push({
               id: `ORD-${ord.id}`,
-              title: req.category_name ? `Bespoke ${req.category_name} (Order #${ord.id})` : `Custom Order #${ord.id}`,
+              title: ord.is_file_edit
+                ? `CAD Edit: ${fe.original_file_name || `Model .${fe.original_file_format || '3dm'}`} (Order #${ord.id})`
+                : (req.category_name ? `Bespoke ${req.category_name} (Order #${ord.id})` : `Custom Order #${ord.id}`),
               designerName: staff.first_name ? `${staff.first_name} ${staff.last_name || ''}`.trim() : (staff.username || 'CAD Modeller'),
               designerAvatar: staff.profile_photo || localStaff?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
-              category: req.category_name || 'Bespoke Order',
+              category: ord.is_file_edit ? 'CAD File Modification' : (req.category_name || 'Bespoke Order'),
               uploadedDate: ord.assigned_at ? new Date(ord.assigned_at).toISOString().split('T')[0] : 'Recently',
               thumbnail: ord.preview_image || req.sketches?.[0]?.image_url || req.sketches?.[0]?.image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&q=80&w=600',
               status: isRevision ? 'revision' : isPendingReview ? 'pending' : isApproved ? 'approved' : 'rejected',
               fileFormats: ['3DM', 'STL', 'Render'],
               suggestedPrice: Math.round(parseFloat(ord.total_price || '200') * 0.4),
               specs: {
-                metalWeight18k: req.metal_alloy_name || '18K Gold',
-                diamondCount: req.gemstones?.length ? `${req.gemstones.length} Pcs` : 'As per brief',
-                dimensions: 'Watertight SOW',
+                metalWeight18k: ord.is_file_edit ? (fe.target_weight_grams ? `${fe.target_weight_grams}g` : 'Original') : (req.metal_alloy_name || '18K Gold'),
+                diamondCount: ord.is_file_edit ? (fe.target_stone_size || 'Original') : (req.gemstones?.length ? `${req.gemstones.length} Pcs` : 'As per brief'),
+                dimensions: ord.is_file_edit ? (fe.original_file_format ? `.${fe.original_file_format.toUpperCase()} Mesh` : 'Watertight Mesh') : 'Watertight SOW',
               },
               // Metadata for API execution
               rawId: ord.id,
               isCustomOrder: true,
+              isFileEdit: Boolean(ord.is_file_edit),
+              fileEditRequest: fe,
               deliverables: ord.deliverables || [],
               currentVersion: ord.current_version || 1,
               revisionRequests: ord.revision_requests || [],
@@ -322,9 +327,9 @@ export const AdminApprovalsModule: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-[#E5E7EF] shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-[#E8D7B7] shadow-sm">
         <div>
-          <h1 className="font-serif text-2xl font-bold text-[#1E2230] tracking-tight">
+          <h1 className="font-serif text-2xl font-bold text-[#17243B] tracking-tight">
             Staff Design Approvals Queue
           </h1>
           <p className="text-xs text-[#6B7280] mt-0.5">
@@ -338,7 +343,7 @@ export const AdminApprovalsModule: React.FC = () => {
               onClick={() => setRapidReviewIndex(0)}
               className="btn-gold-luxury px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider flex items-center gap-2 shadow-lg animate-pulse"
             >
-              <Zap className="w-4 h-4 text-[#0D1B4C]" />
+              <Zap className="w-4 h-4 text-[#17345C]" />
               <span>Launch Rapid Review Mode ({pendingList.length})</span>
             </button>
           )}
@@ -346,12 +351,12 @@ export const AdminApprovalsModule: React.FC = () => {
       </div>
 
       {/* Category Tabs: CAD Designs QC vs CAD Designer Applications */}
-      <div className="flex items-center gap-4 border-b border-[#E5E7EF] pb-1">
+      <div className="flex items-center gap-4 border-b border-[#E8D7B7] pb-1">
         <button
           onClick={() => setApprovalCategory('designs')}
           className={`pb-3 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
             approvalCategory === 'designs'
-              ? 'border-[#C9A227] text-[#0D1B4C]'
+              ? 'border-[#C9A227] text-[#17345C]'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
@@ -368,7 +373,7 @@ export const AdminApprovalsModule: React.FC = () => {
           onClick={() => setApprovalCategory('applications')}
           className={`pb-3 px-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
             approvalCategory === 'applications'
-              ? 'border-[#C9A227] text-[#0D1B4C]'
+              ? 'border-[#C9A227] text-[#17345C]'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
@@ -387,7 +392,7 @@ export const AdminApprovalsModule: React.FC = () => {
       ) : (
         <>
           {/* Filter Tabs */}
-          <div className="flex items-center gap-2 border-b border-[#E5E7EF] pb-3 text-xs font-semibold overflow-x-auto">
+          <div className="flex items-center gap-2 border-b border-[#E8D7B7] pb-3 text-xs font-semibold overflow-x-auto">
             {(['pending', 'revision', 'approved', 'rejected', 'all'] as const).map((tab) => {
           const count =
             tab === 'pending'
@@ -417,15 +422,15 @@ export const AdminApprovalsModule: React.FC = () => {
               onClick={() => setActiveFilter(tab)}
               className={`px-4 py-2 rounded-xl transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
                 activeFilter === tab
-                  ? 'bg-[#0D1B4C] text-white shadow-sm font-bold'
-                  : 'bg-white text-[#6B7280] hover:text-[#1E2230] border border-[#E5E7EF]'
+                  ? 'bg-[#17345C] text-white shadow-sm font-bold'
+                  : 'bg-white text-[#6B7280] hover:text-[#17243B] border border-[#E8D7B7]'
               }`}
             >
               <span>{label}</span>
               {count > 0 && (
                 <span className={`px-1.5 py-0.5 rounded-full font-mono font-bold text-[10px] ${
                   activeFilter === tab
-                    ? 'bg-[#C9A227] text-[#0D1B4C]'
+                    ? 'bg-[#C9A227] text-[#17345C]'
                     : tab === 'revision'
                     ? 'bg-amber-100 text-amber-900 border border-amber-300'
                     : 'bg-slate-100 text-slate-700'
@@ -440,14 +445,14 @@ export const AdminApprovalsModule: React.FC = () => {
 
       {/* Grid of Approval Cards */}
       {loading ? (
-        <div className="w-full py-16 bg-white rounded-2xl border border-[#E5E7EF] flex flex-col items-center justify-center gap-3">
+        <div className="w-full py-16 bg-white rounded-2xl border border-[#E8D7B7] flex flex-col items-center justify-center gap-3">
           <Loader2 className="w-8 h-8 text-[#C9A227] animate-spin" />
           <span className="text-xs font-mono text-[#6B7280]">Loading approvals queue from Django database...</span>
         </div>
       ) : filteredList.length === 0 ? (
-        <div className="p-12 text-center rounded-2xl bg-white border border-[#E5E7EF] space-y-3">
+        <div className="p-12 text-center rounded-2xl bg-white border border-[#E8D7B7] space-y-3">
           <ShieldCheck className="w-10 h-10 text-[#C9A227] mx-auto opacity-50" />
-          <h3 className="font-serif text-lg font-bold text-[#1E2230]">No Items in {activeFilter} Queue</h3>
+          <h3 className="font-serif text-lg font-bold text-[#17243B]">No Items in {activeFilter} Queue</h3>
           <p className="text-xs text-[#6B7280]">Submitted CAD deliverables and catalog designs awaiting QC approval will appear here.</p>
         </div>
       ) : (
@@ -455,12 +460,12 @@ export const AdminApprovalsModule: React.FC = () => {
           {filteredList.map((item) => (
             <div
               key={item.id}
-              className="bg-white rounded-2xl border border-[#E5E7EF] overflow-hidden shadow-sm hover:shadow-md hover:border-[#C9A227]/50 transition-all flex flex-col justify-between"
+              className="bg-white rounded-2xl border border-[#E8D7B7] overflow-hidden shadow-sm hover:shadow-md hover:border-[#C9A227]/50 transition-all flex flex-col justify-between"
             >
               <div>
                 <div 
                   onClick={() => setInspectingItem(item)}
-                  className="relative aspect-[16/10] bg-[#F6F7FB] overflow-hidden group cursor-pointer"
+                  className="relative aspect-[16/10] bg-[#FAF8F5] overflow-hidden group cursor-pointer"
                   title="Click to Enlarge and Inspect 3D Render"
                 >
                   <img
@@ -474,7 +479,7 @@ export const AdminApprovalsModule: React.FC = () => {
                     <span>Click to Inspect 3D Render</span>
                   </div>
 
-                  <div className="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-[#0D1B4C]/80 backdrop-blur text-[10px] font-mono text-white uppercase border border-[#C9A227]/40 pointer-events-none">
+                  <div className="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-[#17345C]/80 backdrop-blur text-[10px] font-mono text-white uppercase border border-[#C9A227]/40 pointer-events-none">
                     {item.category}
                   </div>
 
@@ -485,7 +490,7 @@ export const AdminApprovalsModule: React.FC = () => {
                       </span>
                     )}
                     {item.status === 'pending' && (
-                      <span className="px-2.5 py-1 rounded-full bg-[#E8A93B] text-[#0D1B4C] font-bold text-[10px] uppercase shadow-md flex items-center gap-1">
+                      <span className="px-2.5 py-1 rounded-full bg-[#E8A93B] text-[#17345C] font-bold text-[10px] uppercase shadow-md flex items-center gap-1">
                         <Clock className="w-3 h-3" /> QC Review
                       </span>
                     )}
@@ -516,9 +521,9 @@ export const AdminApprovalsModule: React.FC = () => {
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200';
                         }}
-                        className="w-6 h-6 rounded-full object-cover border border-[#E5E7EF]"
+                        className="w-6 h-6 rounded-full object-cover border border-[#E8D7B7]"
                       />
-                      <span className="text-xs font-semibold text-[#1E2230]">
+                      <span className="text-xs font-semibold text-[#17243B]">
                         {item.designerName}
                       </span>
                     </div>
@@ -526,7 +531,7 @@ export const AdminApprovalsModule: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <h3 className="font-serif text-base font-bold text-[#1E2230] leading-snug">
+                    <h3 className="font-serif text-base font-bold text-[#17243B] leading-snug">
                       {item.title}
                     </h3>
                     {(item as any).currentVersion && (item as any).currentVersion > 1 && (
@@ -553,18 +558,18 @@ export const AdminApprovalsModule: React.FC = () => {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-2 text-[11px] font-mono text-[#6B7280] bg-[#F6F7FB] p-2.5 rounded-xl">
+                  <div className="grid grid-cols-2 gap-2 text-[11px] font-mono text-[#6B7280] bg-[#FAF8F5] p-2.5 rounded-xl">
                     <div>Spec: {item.specs.metalWeight18k}</div>
                     <div>Stone: {item.specs.diamondCount}</div>
                   </div>
 
                   {(item as any).deliverables && (item as any).deliverables.length > 0 ? (
-                    <div className="space-y-1.5 pt-1 border-t border-[#E5E7EF]">
+                    <div className="space-y-1.5 pt-1 border-t border-[#E8D7B7]">
                       <div className="flex items-center justify-between text-[10px] font-mono text-[#6B7280]">
-                        <span className="font-bold flex items-center gap-1 text-[#0D1B4C]">
+                        <span className="font-bold flex items-center gap-1 text-[#17345C]">
                           <FileCode className="w-3 h-3 text-[#C9A227]" /> Attached CAD Deliverables:
                         </span>
-                        <span className="font-bold text-xs text-[#1E2230]">
+                        <span className="font-bold text-xs text-[#17243B]">
                           Value: ₹{item.suggestedPrice.toLocaleString('en-IN')}
                         </span>
                       </div>
@@ -575,7 +580,7 @@ export const AdminApprovalsModule: React.FC = () => {
                             key={del.id}
                             disabled={downloadingDelId === del.id}
                             onClick={(e) => handleDownloadDeliverable(e, del, item.rawId)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#0D1B4C] text-[#F5E7A3] text-[10px] font-mono hover:bg-[#1A2E60] transition-colors border border-[#C9A227]/30 shadow-sm cursor-pointer disabled:opacity-50"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#17345C] text-[#F5E7A3] text-[10px] font-mono hover:bg-[#1A2E60] transition-colors border border-[#C9A227]/30 shadow-sm cursor-pointer disabled:opacity-50"
                             title={`Download & inspect ${del.filename}`}
                           >
                             {downloadingDelId === del.id ? (
@@ -597,12 +602,12 @@ export const AdminApprovalsModule: React.FC = () => {
                       {item.fileFormats.map((f) => (
                         <span
                           key={f}
-                          className="px-2 py-0.5 rounded bg-[#0D1B4C]/5 text-[#0D1B4C] font-bold border border-[#0D1B4C]/10"
+                          className="px-2 py-0.5 rounded bg-[#17345C]/5 text-[#17345C] font-bold border border-[#17345C]/10"
                         >
                           {f}
                         </span>
                       ))}
-                      <span className="ml-auto font-bold text-xs text-[#1E2230]">
+                      <span className="ml-auto font-bold text-xs text-[#17243B]">
                         Value: ₹{item.suggestedPrice.toLocaleString('en-IN')}
                       </span>
                     </div>
@@ -612,13 +617,13 @@ export const AdminApprovalsModule: React.FC = () => {
 
               {/* Actions */}
               {item.status === 'pending' ? (
-                <div className="p-4 border-t border-[#E5E7EF] bg-[#F6F7FB] flex items-center justify-between gap-2">
+                <div className="p-4 border-t border-[#E8D7B7] bg-[#FAF8F5] flex items-center justify-between gap-2">
                   <button
                     onClick={() => setInspectingItem(item)}
-                    className="p-2 rounded-xl bg-white border border-[#E5E7EF] text-[#1E2230] hover:bg-slate-100 hover:border-[#0D1B4C]/40 cursor-pointer shadow-sm transition-all"
+                    className="p-2 rounded-xl bg-white border border-[#E8D7B7] text-[#17243B] hover:bg-slate-100 hover:border-[#17345C]/40 cursor-pointer shadow-sm transition-all"
                     title="Enlarge & Inspect 3D Render"
                   >
-                    <Maximize2 className="w-4 h-4 text-[#0D1B4C]" />
+                    <Maximize2 className="w-4 h-4 text-[#17345C]" />
                   </button>
                   <button
                     disabled={processingId === item.id}
@@ -642,12 +647,12 @@ export const AdminApprovalsModule: React.FC = () => {
                   </button>
                 </div>
               ) : (
-                <div className="p-4 border-t border-[#E5E7EF] bg-[#F6F7FB]">
+                <div className="p-4 border-t border-[#E8D7B7] bg-[#FAF8F5]">
                   <button
                     onClick={() => setInspectingItem(item)}
-                    className="w-full py-2 rounded-xl bg-white border border-[#E5E7EF] hover:border-[#0D1B4C]/40 text-[#1E2230] font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                    className="w-full py-2 rounded-xl bg-white border border-[#E8D7B7] hover:border-[#17345C]/40 text-[#17243B] font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
                   >
-                    <Eye className="w-4 h-4 text-[#0D1B4C]" />
+                    <Eye className="w-4 h-4 text-[#17345C]" />
                     <span>Inspect 3D Render &amp; Specifications</span>
                   </button>
                 </div>
@@ -660,8 +665,8 @@ export const AdminApprovalsModule: React.FC = () => {
       {/* Reject Reason Modal */}
       {rejectingItem && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-[#E5E7EF] p-6 max-w-md w-full space-y-4">
-            <h3 className="font-serif text-base font-bold text-[#1E2230]">
+          <div className="bg-white rounded-2xl shadow-2xl border border-[#E8D7B7] p-6 max-w-md w-full space-y-4">
+            <h3 className="font-serif text-base font-bold text-[#17243B]">
               Request Revision: {rejectingItem.title}
             </h3>
             <p className="text-xs text-[#6B7280]">
@@ -672,12 +677,12 @@ export const AdminApprovalsModule: React.FC = () => {
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
               placeholder="e.g. Stone seat angles are 90° instead of 42°; metal thickness is below 0.8mm minimum wall tolerance..."
-              className="w-full p-3 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#D14343]"
+              className="w-full p-3 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#D14343]"
             />
             <div className="flex justify-end gap-3 pt-2">
               <button
                 onClick={() => setRejectingItem(null)}
-                className="px-4 py-2 rounded-xl border border-[#E5E7EF] text-xs text-[#1E2230]"
+                className="px-4 py-2 rounded-xl border border-[#E8D7B7] text-xs text-[#17243B]"
               >
                 Cancel
               </button>
@@ -698,11 +703,11 @@ export const AdminApprovalsModule: React.FC = () => {
 
       {/* Rapid Reviewer Mode Full-Screen Overlay */}
       {rapidReviewIndex !== null && pendingList[rapidReviewIndex] && (
-        <div className="fixed inset-0 z-50 bg-[#0D1B4C] text-white p-6 flex flex-col justify-between animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 bg-[#17345C] text-white p-6 flex flex-col justify-between animate-in fade-in duration-200">
           {/* Top Bar */}
           <div className="flex items-center justify-between border-b border-white/10 pb-4">
             <div className="flex items-center gap-3">
-              <div className="px-3 py-1 rounded-full bg-[#C9A227] text-[#0D1B4C] font-mono font-bold text-xs">
+              <div className="px-3 py-1 rounded-full bg-[#C9A227] text-[#17345C] font-mono font-bold text-xs">
                 RAPID REVIEW MODE
               </div>
               <span className="text-xs text-white/70">
@@ -802,7 +807,7 @@ export const AdminApprovalsModule: React.FC = () => {
           {/* Header */}
           <div className="flex items-center justify-between border-b border-white/10 pb-4 text-white">
             <div className="flex items-center gap-3">
-              <span className="px-3 py-1 rounded-md bg-[#C9A227] text-[#0D1B4C] font-mono font-bold text-xs uppercase">
+              <span className="px-3 py-1 rounded-md bg-[#C9A227] text-[#17345C] font-mono font-bold text-xs uppercase">
                 {inspectingItem.category}
               </span>
               <div>
@@ -823,7 +828,7 @@ export const AdminApprovalsModule: React.FC = () => {
                     onClick={() => setModalTab('render')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                       modalTab === 'render'
-                        ? 'bg-[#C9A227] text-[#0D1B4C] shadow-md'
+                        ? 'bg-[#C9A227] text-[#17345C] shadow-md'
                         : 'text-white/80 hover:text-white'
                     }`}
                   >
@@ -835,7 +840,7 @@ export const AdminApprovalsModule: React.FC = () => {
                     onClick={() => setModalTab('video')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                       modalTab === 'video'
-                        ? 'bg-[#C9A227] text-[#0D1B4C] shadow-md'
+                        ? 'bg-[#C9A227] text-[#17345C] shadow-md'
                         : 'text-white/80 hover:text-white'
                     }`}
                   >
@@ -886,6 +891,49 @@ export const AdminApprovalsModule: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* File Edit Customer Original CAD File & Brief */}
+          {(inspectingItem as any).isFileEdit && (inspectingItem as any).fileEditRequest && (
+            <div className="w-full bg-[#09112B]/90 border border-[#D4AF37]/40 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xl">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-2 py-0.5 rounded bg-amber-100 text-[#9A6A1A] font-bold text-[10px] uppercase font-mono">
+                    Customer's Original CAD
+                  </span>
+                  <span className="text-xs font-bold text-white truncate max-w-xs">
+                    {(inspectingItem as any).fileEditRequest.original_file_name || 'Original 3D Model'}
+                  </span>
+                  {(inspectingItem as any).fileEditRequest.original_file_format && (
+                    <span className="px-1.5 py-0.5 rounded bg-white/10 text-[#F5E7A3] text-[10px] font-mono uppercase">
+                      .{(inspectingItem as any).fileEditRequest.original_file_format}
+                    </span>
+                  )}
+                </div>
+                {(inspectingItem as any).fileEditRequest.modification_types && (
+                  <div className="flex flex-wrap gap-1 text-[10px] text-slate-300 font-mono">
+                    <span>Modifications:</span>
+                    {(inspectingItem as any).fileEditRequest.modification_types.map((m: string, i: number) => (
+                      <span key={i} className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-amber-200">
+                        {m}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {(inspectingItem as any).fileEditRequest.download_url && (
+                <a
+                  href={(inspectingItem as any).fileEditRequest.download_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  download
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow hover:brightness-110 transition-all shrink-0 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5 text-[#070D22]" />
+                  <span>Download Original CAD</span>
+                </a>
+              )}
+            </div>
+          )}
 
           {/* Attached CAD Deliverables List for QC Review */}
           {(inspectingItem as any).deliverables && (inspectingItem as any).deliverables.length > 0 && (

@@ -53,10 +53,9 @@ export function getOptimizedImageUrl(src?: string | null, category?: string): st
     return trimmed;
   }
 
-  // Handle /unsplash-img/ proxy path
-  // Let the Vite proxy handle it to add the required Referer headers and avoid hotlinking blocks
+  // Handle /unsplash-img/ proxy path -> rewrite directly to Unsplash CDN for immediate delivery
   if (trimmed.startsWith('/unsplash-img/')) {
-    return trimmed;
+    return trimmed.replace(/^\/unsplash-img\//, 'https://images.unsplash.com/');
   }
 
   // Handle django media files

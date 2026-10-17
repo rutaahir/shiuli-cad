@@ -64,9 +64,9 @@ export const AdminClientsModule: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-[#E5E7EF] shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-[#E8D7B7] shadow-sm">
         <div>
-          <h1 className="font-serif text-2xl font-bold text-[#1E2230] tracking-tight">
+          <h1 className="font-serif text-2xl font-bold text-[#17243B] tracking-tight">
             Client CRM & Order Histories
           </h1>
           <p className="text-xs text-[#6B7280] mt-0.5">
@@ -82,14 +82,14 @@ export const AdminClientsModule: React.FC = () => {
               placeholder="Search clients by name, email, phone..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-4 py-2 bg-[#F6F7FB] border border-[#E5E7EF] rounded-xl text-xs focus:outline-none focus:border-[#2856C7] w-64 transition-all"
+              className="pl-9 pr-4 py-2 bg-[#FAF8F5] border border-[#E8D7B7] rounded-xl text-xs focus:outline-none focus:border-[#B88732] w-64 transition-all"
             />
           </div>
 
           <button
             onClick={fetchClients}
             disabled={loading}
-            className="p-2 rounded-xl border border-[#E5E7EF] text-[#6B7280] hover:text-[#1E2230] hover:bg-[#F6F7FB] transition-colors"
+            className="p-2 rounded-xl border border-[#E8D7B7] text-[#6B7280] hover:text-[#17243B] hover:bg-[#FAF8F5] transition-colors"
             title="Refresh Client List"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -98,10 +98,10 @@ export const AdminClientsModule: React.FC = () => {
       </div>
 
       {/* Main Table Container */}
-      <div className="bg-white rounded-2xl border border-[#E5E7EF] shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-[#E8D7B7] shadow-sm overflow-hidden">
         {loading ? (
           <div className="py-20 text-center flex flex-col items-center justify-center space-y-3">
-            <Loader2 className="w-8 h-8 text-[#2856C7] animate-spin" />
+            <Loader2 className="w-8 h-8 text-[#17345C] animate-spin" />
             <p className="text-xs font-mono text-[#6B7280]">Loading live client records...</p>
           </div>
         ) : error ? (
@@ -111,7 +111,7 @@ export const AdminClientsModule: React.FC = () => {
             </p>
             <button
               onClick={fetchClients}
-              className="px-4 py-2 rounded-xl bg-[#0D1B4C] text-white text-xs font-semibold hover:bg-[#1E2230]"
+              className="px-4 py-2 rounded-xl bg-[#17345C] text-white text-xs font-semibold hover:bg-[#17243B]"
             >
               Retry Loading
             </button>
@@ -119,7 +119,7 @@ export const AdminClientsModule: React.FC = () => {
         ) : filteredClients.length === 0 ? (
           <div className="py-16 text-center space-y-2">
             <UserCheck className="w-10 h-10 text-[#9CA3AF] mx-auto" />
-            <p className="text-sm font-semibold text-[#1E2230]">No Clients Found</p>
+            <p className="text-sm font-semibold text-[#17243B]">No Clients Found</p>
             <p className="text-xs text-[#6B7280]">
               {searchTerm ? 'No client accounts match your search filter.' : 'No registered clients found in system.'}
             </p>
@@ -127,7 +127,7 @@ export const AdminClientsModule: React.FC = () => {
         ) : (
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#F6F7FB] border-b border-[#E5E7EF] text-[11px] font-mono uppercase text-[#6B7280]">
+              <tr className="bg-[#FAF8F5] border-b border-[#E8D7B7] text-[11px] font-mono uppercase text-[#6B7280]">
                 <th className="p-4 font-medium">Client Name & Email</th>
                 <th className="p-4 font-medium">Country / Phone</th>
                 <th className="p-4 font-medium">Total Orders</th>
@@ -136,18 +136,18 @@ export const AdminClientsModule: React.FC = () => {
                 <th className="p-4 font-medium text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E5E7EF] text-xs">
+            <tbody className="divide-y divide-[#E8D7B7] text-xs">
               {filteredClients.map((c) => (
-                <tr key={c.id} className="hover:bg-[#F6F7FB] transition-colors">
+                <tr key={c.id} className="hover:bg-[#FAF8F5] transition-colors">
                   <td className="p-4">
-                    <div className="font-semibold text-[#1E2230]">{c.name}</div>
+                    <div className="font-semibold text-[#17243B]">{c.name}</div>
                     <div className="text-[10px] text-[#6B7280] font-mono">{c.email}</div>
                   </td>
-                  <td className="p-4 text-[#1E2230]">
+                  <td className="p-4 text-[#17243B]">
                     <div className="font-medium">{c.country}</div>
                     <div className="text-[10px] text-[#6B7280] font-mono">{c.phone}</div>
                   </td>
-                  <td className="p-4 font-mono font-bold text-[#2856C7]">
+                  <td className="p-4 font-mono font-bold text-[#17345C]">
                     {c.orders_count} {c.orders_count === 1 ? 'order' : 'orders'}
                   </td>
                   <td className="p-4 font-mono font-bold text-[#1F9D66]">{c.total_spend}</td>
@@ -155,7 +155,7 @@ export const AdminClientsModule: React.FC = () => {
                   <td className="p-4 text-right">
                     <button
                       onClick={() => setSelectedClientDrawer(c)}
-                      className="px-3.5 py-1.5 rounded-lg bg-[#0D1B4C] text-white text-xs font-semibold hover:bg-[#1E2230] transition-colors shadow-sm"
+                      className="px-3.5 py-1.5 rounded-lg bg-[#17345C] text-white text-xs font-semibold hover:bg-[#17243B] transition-colors shadow-sm"
                     >
                       View Profile
                     </button>
@@ -171,32 +171,32 @@ export const AdminClientsModule: React.FC = () => {
       {selectedClientDrawer && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-end">
           <div className="w-full max-w-lg bg-white h-full shadow-2xl p-6 overflow-y-auto space-y-6 animate-in slide-in-from-right duration-250">
-            <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-4">
+            <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-4">
               <div>
-                <h3 className="font-serif text-lg font-bold text-[#1E2230]">Client Profile & History</h3>
+                <h3 className="font-serif text-lg font-bold text-[#17243B]">Client Profile & History</h3>
                 <p className="text-[11px] text-[#6B7280] font-mono">ID: #{selectedClientDrawer.id}</p>
               </div>
               <button
                 onClick={() => setSelectedClientDrawer(null)}
-                className="p-1.5 rounded-lg text-[#6B7280] hover:text-[#1E2230] hover:bg-[#F6F7FB]"
+                className="p-1.5 rounded-lg text-[#6B7280] hover:text-[#17243B] hover:bg-[#FAF8F5]"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Client Bio & Info */}
-            <div className="bg-[#F6F7FB] p-4 rounded-xl border border-[#E5E7EF] space-y-3 text-xs">
+            <div className="bg-[#FAF8F5] p-4 rounded-xl border border-[#E8D7B7] space-y-3 text-xs">
               <div className="flex justify-between items-start">
                 <div>
-                  <div className="font-bold text-sm text-[#1E2230]">{selectedClientDrawer.name}</div>
+                  <div className="font-bold text-sm text-[#17243B]">{selectedClientDrawer.name}</div>
                   <div className="text-[11px] text-[#6B7280] font-mono">@{selectedClientDrawer.username}</div>
                 </div>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-[#E8EEFF] text-[#2856C7] font-semibold">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-[#FFF9F0] border border-[#E8D7B7] text-[#17345C] font-semibold">
                   Registered Client
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[#4B5563] pt-1 border-t border-[#E5E7EF]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[#4B5563] pt-1 border-t border-[#E8D7B7]">
                 <div className="flex items-center gap-1.5">
                   <Mail className="w-3.5 h-3.5 text-[#6B7280]" />
                   <span className="truncate">{selectedClientDrawer.email}</span>
@@ -213,15 +213,15 @@ export const AdminClientsModule: React.FC = () => {
 
               {/* Financial Breakdown */}
               <div className="grid grid-cols-2 gap-3 pt-2">
-                <div className="bg-white p-3 rounded-lg border border-[#E5E7EF]">
+                <div className="bg-white p-3 rounded-lg border border-[#E8D7B7]">
                   <div className="text-[10px] uppercase font-mono text-[#6B7280]">Total Lifetime Spend</div>
                   <div className="font-mono font-bold text-base text-[#1F9D66]">
                     {selectedClientDrawer.total_spend}
                   </div>
                 </div>
-                <div className="bg-white p-3 rounded-lg border border-[#E5E7EF]">
+                <div className="bg-white p-3 rounded-lg border border-[#E8D7B7]">
                   <div className="text-[10px] uppercase font-mono text-[#6B7280]">Total Executed Orders</div>
-                  <div className="font-mono font-bold text-base text-[#2856C7]">
+                  <div className="font-mono font-bold text-base text-[#17345C]">
                     {selectedClientDrawer.orders_count}
                   </div>
                 </div>
@@ -230,8 +230,8 @@ export const AdminClientsModule: React.FC = () => {
 
             {/* Recent Orders Timeline */}
             <div className="space-y-3">
-              <h4 className="font-serif font-bold text-sm text-[#1E2230] flex items-center gap-2">
-                <ShoppingBag className="w-4 h-4 text-[#2856C7]" />
+              <h4 className="font-serif font-bold text-sm text-[#17243B] flex items-center gap-2">
+                <ShoppingBag className="w-4 h-4 text-[#17345C]" />
                 Recent Orders & Activity History
               </h4>
 
@@ -240,21 +240,21 @@ export const AdminClientsModule: React.FC = () => {
                   {selectedClientDrawer.history.map((item, idx) => (
                     <div
                       key={idx}
-                      className="p-3 bg-white rounded-xl border border-[#E5E7EF] hover:border-[#2856C7]/30 transition-colors space-y-1"
+                      className="p-3 bg-white rounded-xl border border-[#E8D7B7] hover:border-[#D4AF37]/50 transition-colors space-y-1"
                     >
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-semibold text-[#1E2230]">{item.title}</span>
+                        <span className="font-semibold text-[#17243B]">{item.title}</span>
                         <span className="font-mono font-bold text-[#1F9D66]">
                           ${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </span>
                       </div>
 
                       <div className="flex items-center justify-between text-[11px] text-[#6B7280]">
-                        <span className="font-mono text-[10px] bg-[#F6F7FB] px-2 py-0.5 rounded border border-[#E5E7EF]">
+                        <span className="font-mono text-[10px] bg-[#FAF8F5] px-2 py-0.5 rounded border border-[#E8D7B7]">
                           {item.type}
                         </span>
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-[10px] text-[#2856C7] bg-[#E8EEFF] px-2 py-0.5 rounded font-semibold">
+                          <span className="font-mono text-[10px] text-[#17345C] bg-[#FFF9F0] border border-[#E8D7B7] px-2 py-0.5 rounded font-semibold">
                             {item.status}
                           </span>
                           <span className="font-mono text-[10px]">{item.date}</span>
@@ -264,7 +264,7 @@ export const AdminClientsModule: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-[#6B7280] italic bg-[#F6F7FB] p-4 rounded-xl text-center">
+                <p className="text-xs text-[#6B7280] italic bg-[#FAF8F5] p-4 rounded-xl text-center">
                   No previous order history recorded for this client yet.
                 </p>
               )}

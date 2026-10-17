@@ -89,18 +89,18 @@ export const AdminAnalyticsModule: React.FC = () => {
         <head>
           <title>Shiuli CAD Studio - Executive Analytics Report</title>
           <style>
-            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1E2230; background: #fff; }
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #17243B; background: #fff; }
             .header { border-bottom: 2px solid #D4AF37; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; }
             .logo { font-size: 24px; font-weight: bold; color: #0B1330; letter-spacing: 1px; }
             .date { font-size: 12px; color: #666; font-family: monospace; }
             .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
-            .card { background: #F8F9FC; border: 1px solid #E5E7EF; border-radius: 12px; padding: 15px; }
+            .card { background: #F8F9FC; border: 1px solid #E8D7B7; border-radius: 12px; padding: 15px; }
             .card-label { font-size: 11px; text-transform: uppercase; color: #666; font-weight: bold; }
             .card-val { font-size: 22px; font-weight: bold; color: #0B1330; margin-top: 5px; }
             .section { margin-bottom: 30px; }
             .section-title { font-size: 16px; font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 15px; color: #0B1330; }
             table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-            th, td { padding: 10px; border: 1px solid #E5E7EF; text-align: left; }
+            th, td { padding: 10px; border: 1px solid #E8D7B7; text-align: left; }
             th { background: #0B1330; color: #F5E7A3; font-weight: bold; }
             .footer { margin-top: 40px; padding-top: 15px; border-top: 1px solid #eee; font-size: 10px; color: #888; text-align: center; }
           </style>
@@ -191,13 +191,13 @@ export const AdminAnalyticsModule: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-[#E5E7EF] shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-[#E8D7B7] shadow-sm">
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0B1330]/5 text-[#0B1330] text-xs font-semibold uppercase tracking-wider mb-2">
             <BarChart3 className="w-3.5 h-3.5 text-[#D4AF37]" />
             Real-Time Analytics Dashboard
           </div>
-          <h1 className="font-serif text-2xl font-bold text-[#1E2230] tracking-tight">
+          <h1 className="font-serif text-2xl font-bold text-[#17243B] tracking-tight">
             Reports & Business Intelligence
           </h1>
           <p className="text-xs text-[#6B7280] mt-0.5">
@@ -219,7 +219,7 @@ export const AdminAnalyticsModule: React.FC = () => {
             disabled={loading || !data}
             className="btn-gold-luxury px-4 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 shadow-md transition-all hover:scale-105 active:scale-95"
           >
-            <Download className="w-3.5 h-3.5 text-[#0D1B4C]" />
+            <Download className="w-3.5 h-3.5 text-[#17345C]" />
             <span>Export Analytics PDF</span>
           </button>
         </div>
@@ -240,31 +240,31 @@ export const AdminAnalyticsModule: React.FC = () => {
         <>
           {/* Top KPI Metric Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-2xl border border-[#E5E7EF] shadow-sm flex items-center justify-between">
+            <div className="bg-white p-5 rounded-2xl border border-[#E8D7B7] shadow-sm flex items-center justify-between">
               <div>
                 <span className="text-[#6B7280] text-[10px] font-bold uppercase tracking-wider">Gross Studio Revenue</span>
-                <div className="text-2xl font-extrabold text-[#0D1B4C] mt-1 font-mono">
+                <div className="text-2xl font-extrabold text-[#17345C] mt-1 font-mono">
                   ${(data.total_revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
               </div>
-              <div className="w-12 h-12 rounded-2xl bg-[#0D1B4C]/5 flex items-center justify-center text-[#0D1B4C]">
+              <div className="w-12 h-12 rounded-2xl bg-[#17345C]/5 flex items-center justify-center text-[#17345C]">
                 <DollarSign className="w-6 h-6 text-[#D4AF37]" />
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-[#E5E7EF] shadow-sm flex items-center justify-between">
+            <div className="bg-white p-5 rounded-2xl border border-[#E8D7B7] shadow-sm flex items-center justify-between">
               <div>
                 <span className="text-[#6B7280] text-[10px] font-bold uppercase tracking-wider">Total Orders Executed</span>
-                <div className="text-2xl font-extrabold text-[#0D1B4C] mt-1 font-mono">
+                <div className="text-2xl font-extrabold text-[#17345C] mt-1 font-mono">
                   {data.total_orders_count || 0}
                 </div>
               </div>
-              <div className="w-12 h-12 rounded-2xl bg-[#2856C7]/10 flex items-center justify-center text-[#2856C7]">
+              <div className="w-12 h-12 rounded-2xl bg-[#17345C]/10 flex items-center justify-center text-[#17345C]">
                 <ShoppingBag className="w-6 h-6" />
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-[#E5E7EF] shadow-sm flex items-center justify-between">
+            <div className="bg-white p-5 rounded-2xl border border-[#E8D7B7] shadow-sm flex items-center justify-between">
               <div>
                 <span className="text-[#6B7280] text-[10px] font-bold uppercase tracking-wider">Active CAD Commissions</span>
                 <div className="text-2xl font-extrabold text-[#C9A227] mt-1 font-mono">
@@ -276,7 +276,7 @@ export const AdminAnalyticsModule: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-[#E5E7EF] shadow-sm flex items-center justify-between">
+            <div className="bg-white p-5 rounded-2xl border border-[#E8D7B7] shadow-sm flex items-center justify-between">
               <div>
                 <span className="text-[#6B7280] text-[10px] font-bold uppercase tracking-wider">Avg Turnaround Time</span>
                 <div className="text-2xl font-extrabold text-emerald-600 mt-1 font-mono">
@@ -292,9 +292,9 @@ export const AdminAnalyticsModule: React.FC = () => {
           {/* Charts Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Category Breakdown */}
-            <div className="bg-white rounded-2xl border border-[#E5E7EF] p-6 shadow-sm space-y-5">
+            <div className="bg-white rounded-2xl border border-[#E8D7B7] p-6 shadow-sm space-y-5">
               <div className="flex items-center justify-between">
-                <h3 className="font-serif text-base font-bold text-[#1E2230] flex items-center gap-2">
+                <h3 className="font-serif text-base font-bold text-[#17243B] flex items-center gap-2">
                   <PieChart className="w-4 h-4 text-[#C9A227]" />
                   <span>Orders by Jewellery Category</span>
                 </h3>
@@ -304,13 +304,13 @@ export const AdminAnalyticsModule: React.FC = () => {
               <div className="space-y-4 text-xs font-mono">
                 {(data.category_breakdown || []).map((c) => (
                   <div key={c.category} className="space-y-1.5">
-                    <div className="flex justify-between text-[#1E2230]">
+                    <div className="flex justify-between text-[#17243B]">
                       <span className="font-semibold text-slate-800">{c.category} ({c.count} orders)</span>
-                      <span className="font-bold text-[#0D1B4C]">{c.percent}%</span>
+                      <span className="font-bold text-[#17345C]">{c.percent}%</span>
                     </div>
-                    <div className="h-3 w-full bg-[#F6F7FB] rounded-full overflow-hidden border border-[#E5E7EF]">
+                    <div className="h-3 w-full bg-[#FAF8F5] rounded-full overflow-hidden border border-[#E8D7B7]">
                       <div
-                        className={`h-full ${c.color || 'bg-[#0D1B4C]'} rounded-full transition-all duration-500`}
+                        className={`h-full ${c.color || 'bg-[#17345C]'} rounded-full transition-all duration-500`}
                         style={{ width: `${Math.max(c.percent, 4)}%` }}
                       />
                     </div>
@@ -320,21 +320,21 @@ export const AdminAnalyticsModule: React.FC = () => {
             </div>
 
             {/* Turnaround Performance Trend */}
-            <div className="bg-white rounded-2xl border border-[#E5E7EF] p-6 shadow-sm space-y-5 flex flex-col justify-between">
+            <div className="bg-white rounded-2xl border border-[#E8D7B7] p-6 shadow-sm space-y-5 flex flex-col justify-between">
               <div className="flex items-center justify-between">
-                <h3 className="font-serif text-base font-bold text-[#1E2230] flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-[#2856C7]" />
+                <h3 className="font-serif text-base font-bold text-[#17243B] flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-[#17345C]" />
                   <span>Turnaround Time Optimization (Hours)</span>
                 </h3>
                 <span className="text-[11px] font-mono text-emerald-600 font-bold">▼ Optimization Trend</span>
               </div>
 
-              <div className="h-56 flex items-end justify-between gap-4 pt-6 border-b border-[#E5E7EF] pb-3 text-xs font-mono">
+              <div className="h-56 flex items-end justify-between gap-4 pt-6 border-b border-[#E8D7B7] pb-3 text-xs font-mono">
                 {(data.turnaround_trend || []).map((m) => (
                   <div key={m.month} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
-                    <span className="font-bold text-[#0D1B4C] text-xs">{m.hrs}h</span>
+                    <span className="font-bold text-[#17345C] text-xs">{m.hrs}h</span>
                     <div
-                      className="w-full bg-[#0D1B4C] rounded-t-xl transition-all duration-500 hover:bg-[#C9A227]"
+                      className="w-full bg-[#17345C] rounded-t-xl transition-all duration-500 hover:bg-[#C9A227]"
                       style={{ height: `${Math.min((m.hrs / 10) * 100, 100)}%` }}
                     />
                     <span className="text-[#6B7280] font-bold">{m.month}</span>
@@ -346,16 +346,16 @@ export const AdminAnalyticsModule: React.FC = () => {
 
           {/* Staff Modeller Efficiency & Workload */}
           {data.staff_efficiency && data.staff_efficiency.length > 0 && (
-            <div className="bg-white rounded-2xl border border-[#E5E7EF] p-6 shadow-sm space-y-4">
-              <h3 className="font-serif text-base font-bold text-[#1E2230] flex items-center gap-2">
-                <Users className="w-4 h-4 text-[#0D1B4C]" />
+            <div className="bg-white rounded-2xl border border-[#E8D7B7] p-6 shadow-sm space-y-4">
+              <h3 className="font-serif text-base font-bold text-[#17243B] flex items-center gap-2">
+                <Users className="w-4 h-4 text-[#17345C]" />
                 <span>Modeller Staff Efficiency & Active Workloads</span>
               </h3>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-[#F6F7FB] border-b border-[#E5E7EF] text-[10px] font-mono uppercase text-[#6B7280]">
+                    <tr className="bg-[#FAF8F5] border-b border-[#E8D7B7] text-[10px] font-mono uppercase text-[#6B7280]">
                       <th className="p-3.5 font-bold">Modeller Name</th>
                       <th className="p-3.5 font-bold">Email</th>
                       <th className="p-3.5 font-bold">Total Assigned</th>
@@ -364,12 +364,12 @@ export const AdminAnalyticsModule: React.FC = () => {
                       <th className="p-3.5 font-bold">Avg Turnaround</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#E5E7EF]">
+                  <tbody className="divide-y divide-[#E8D7B7]">
                     {data.staff_efficiency.map((staff) => (
-                      <tr key={staff.id} className="hover:bg-[#F6F7FB] transition-colors font-mono">
-                        <td className="p-3.5 font-bold text-[#1E2230]">{staff.name}</td>
+                      <tr key={staff.id} className="hover:bg-[#FAF8F5] transition-colors font-mono">
+                        <td className="p-3.5 font-bold text-[#17243B]">{staff.name}</td>
                         <td className="p-3.5 text-[#6B7280]">{staff.email}</td>
-                        <td className="p-3.5 font-bold text-[#0D1B4C]">{staff.assigned_total} orders</td>
+                        <td className="p-3.5 font-bold text-[#17345C]">{staff.assigned_total} orders</td>
                         <td className="p-3.5 font-bold text-emerald-600">{staff.completed}</td>
                         <td className="p-3.5 font-bold text-[#C9A227]">{staff.active}</td>
                         <td className="p-3.5 font-bold text-slate-700">{staff.avg_turnaround}</td>

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from apps.accounts.serializers import UserSerializer
 from apps.catalog.serializers import ProductListSerializer, CategorySerializer
+from apps.file_edits.models import FileEditRequest
 from .models import (
     CustomRequest,
     NegotiationMessage,
@@ -311,6 +312,19 @@ class CustomRequestSerializer(serializers.ModelSerializer):
         elif isinstance(data, dict):
             data = dict(data)
 
+        # Remove status if passed from frontend (status is controlled server-side)
+        data.pop('status', None)
+
+        # Normalize request_mode choices (step_by_step, quick)
+        raw_mode = str(data.get('request_mode') or '').strip().lower()
+        if raw_mode not in ['step_by_step', 'quick']:
+            data['request_mode'] = 'step_by_step'
+
+        # Normalize submission_intent choices (quote_only, place_order)
+        raw_intent = str(data.get('submission_intent') or '').strip().lower()
+        if raw_intent not in ['quote_only', 'place_order']:
+            data['submission_intent'] = 'place_order'
+
         # Map client_name / client_phone / client_email to contact fields
         if data.get('client_name') and not data.get('contact_name'):
             data['contact_name'] = data['client_name']
@@ -319,6 +333,36 @@ class CustomRequestSerializer(serializers.ModelSerializer):
         if data.get('client_email') and not data.get('contact_email'):
             data['contact_email'] = data['client_email']
 
+        # Parse and sanitize needed_by_date into ISO format YYYY-MM-DD
+        raw_date = data.get('needed_by_date')
+        if raw_date:
+            import datetime
+            import re
+            cleaned_date = None
+            if isinstance(raw_date, datetime.date):
+                cleaned_date = raw_date.strftime('%Y-%m-%d')
+            else:
+                str_date = str(raw_date).strip()
+                if re.match(r'^\d{4}-\d{2}-\d{2}$', str_date):
+                    cleaned_date = str_date
+                else:
+                    try:
+                        from dateutil import parser as date_parser
+                        parsed = date_parser.parse(str_date)
+                        cleaned_date = parsed.strftime('%Y-%m-%d')
+                    except Exception:
+                        for fmt in ('%d %b %Y', '%d %B %Y', '%d/%m/%Y', '%d-%m-%Y', '%m/%d/%Y'):
+                            try:
+                                parsed = datetime.datetime.strptime(str_date, fmt)
+                                cleaned_date = parsed.strftime('%Y-%m-%d')
+                                break
+                            except Exception:
+                                pass
+            if cleaned_date:
+                data['needed_by_date'] = cleaned_date
+            else:
+                data.pop('needed_by_date', None)
+
         # Map stones, selected_options, and catalog_references if sent with frontend names
         if data.get('stones') and not data.get('stones_data'):
             data['stones_data'] = data['stones']
@@ -326,12 +370,47 @@ class CustomRequestSerializer(serializers.ModelSerializer):
             data['selections_data'] = data['selected_options']
         if data.get('catalog_references') and not data.get('catalog_references_data'):
             data['catalog_references_data'] = data['catalog_references']
-        if data.get('reference_product_id') and not data.get('reference_product'):
-            data['reference_product'] = data['reference_product_id']
 
-        # Auto-match category if category is missing or invalid
+        # Sanitize reference_product
+        ref_p = data.get('reference_product') or data.get('reference_product_id')
+        if ref_p:
+            try:
+                from apps.catalog.models import Product
+                ref_id = int(ref_p)
+                if Product.objects.filter(id=ref_id).exists():
+                    data['reference_product'] = ref_id
+                else:
+                    data.pop('reference_product', None)
+            except (ValueError, TypeError):
+                data.pop('reference_product', None)
+        else:
+            data.pop('reference_product', None)
+
+        # Auto-match metal_alloy from metal_alloy_name if metal_alloy id not given
+        if not data.get('metal_alloy') and data.get('metal_alloy_name'):
+            ma_str = str(data.get('metal_alloy_name')).strip()
+            ma = MetalAlloy.objects.filter(name__iexact=ma_str).first()
+            if not ma:
+                for item in MetalAlloy.objects.all():
+                    if item.name.lower() in ma_str.lower() or ma_str.lower() in item.name.lower():
+                        ma = item
+                        break
+            if ma:
+                data['metal_alloy'] = ma.id
+
+        # Auto-match category if category is missing or string
+        cat_val = data.get('category')
+        if cat_val and not str(cat_val).isdigit():
+            from apps.catalog.models import Category
+            cat_match = Category.objects.filter(slug__iexact=str(cat_val)).first() or Category.objects.filter(name__iexact=str(cat_val)).first()
+            if cat_match:
+                data['category'] = cat_match.id
+            else:
+                data.pop('category', None)
+
         if not data.get('category'):
             cat_group = str(data.get('category_group') or '').lower()
+            from apps.catalog.models import Category
             if 'ring' in cat_group:
                 cat = Category.objects.filter(slug__icontains='ring').first()
                 if cat: data['category'] = cat.id
@@ -344,6 +423,13 @@ class CustomRequestSerializer(serializers.ModelSerializer):
             elif 'bracelet' in cat_group or 'bangle' in cat_group:
                 cat = Category.objects.filter(slug__icontains='bracelet').first()
                 if cat: data['category'] = cat.id
+
+        # Sync title into description/special_instructions
+        title_val = str(data.get('title') or '').strip()
+        if title_val:
+            desc = str(data.get('description') or '').strip()
+            if title_val not in desc:
+                data['description'] = f"[{title_val}]\n{desc}".strip() if desc else title_val
 
         # Sync description and special_instructions
         if not data.get('description') and data.get('special_instructions'):
@@ -389,6 +475,46 @@ class CustomRequestSerializer(serializers.ModelSerializer):
             validated_data['catalog_references_data'] = catalog_references_data
 
         custom_req = CustomRequest.objects.create(**validated_data)
+
+        # Handle uploaded images and CAD files from multipart request
+        if req and hasattr(req, 'FILES'):
+            uploaded_images = req.FILES.getlist('images') or req.FILES.getlist('sketches')
+            for img in uploaded_images:
+                try:
+                    CustomRequestImage.objects.create(
+                        request=custom_req,
+                        image=img,
+                        is_draft=False
+                    )
+                except Exception as img_err:
+                    print(f"Error saving uploaded image: {img_err}")
+
+            uploaded_cads = req.FILES.getlist('cad_files')
+            for cad in uploaded_cads:
+                try:
+                    CustomRequestImage.objects.create(
+                        request=custom_req,
+                        image=cad,
+                        is_draft=False
+                    )
+                except Exception as cad_err:
+                    print(f"Error saving uploaded CAD file: {cad_err}")
+
+            ref_img = req.FILES.get('reference_image')
+            if ref_img:
+                try:
+                    custom_req.reference_image = ref_img
+                    custom_req.save(update_fields=['reference_image'])
+                except Exception as ref_err:
+                    print(f"Error saving reference_image: {ref_err}")
+
+            voice_file = req.FILES.get('voice_recording') or req.FILES.get('voice_note')
+            if voice_file:
+                try:
+                    custom_req.voice_recording = voice_file
+                    custom_req.save(update_fields=['voice_recording'])
+                except Exception as voice_err:
+                    print(f"Error saving voice_recording: {voice_err}")
 
         if draft_sketch_ids and isinstance(draft_sketch_ids, list):
             CustomRequestImage.objects.filter(id__in=draft_sketch_ids, is_draft=True).update(
@@ -585,15 +711,13 @@ class OrderDeliverableSerializer(serializers.ModelSerializer):
         return None
 
     def get_filename(self, obj):
+        if obj.original_filename:
+            return obj.original_filename
         if obj.file:
-            import os
+            import os, re
             raw_name = os.path.basename(obj.file.name)
-            prefix = f"ord_{obj.order_id}_{obj.file_type}_"
-            if raw_name.startswith(prefix):
-                return raw_name[len(prefix):]
-            elif raw_name.startswith(f"ord_{obj.order_id}_"):
-                return raw_name[len(f"ord_{obj.order_id}_"):]
-            return raw_name
+            cleaned = re.sub(rf"^ord_{obj.order_id}_(v\d+_)?({obj.file_type}_)?", "", raw_name)
+            return cleaned or raw_name
         return ""
 
     def get_file_size(self, obj):
@@ -666,9 +790,76 @@ class RevisionRequestSerializer(serializers.ModelSerializer):
         return None
 
 
+# STAFF-SAFE FILE EDIT REQUEST SERIALIZER (Shows technical file specs & download url without financial breakdown)
+class StaffFileEditRequestSerializer(serializers.ModelSerializer):
+    modification_types = serializers.SerializerMethodField()
+    modification_type_labels = serializers.SerializerMethodField()
+    download_url = serializers.SerializerMethodField()
+    original_file_url = serializers.SerializerMethodField()
+    reference_image = serializers.SerializerMethodField()
+    voice_note = serializers.SerializerMethodField()
+    client_display_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FileEditRequest
+        fields = [
+            'id', 'client_display_name',
+            'original_file', 'original_file_url', 'download_url',
+            'original_file_name', 'original_file_format', 'file_size_bytes',
+            'storage_provider', 'drive_file_id', 'drive_web_view_link',
+            'modification_types', 'modification_type_labels',
+            'target_weight_grams', 'target_stone_size', 'description',
+            'reference_image', 'voice_note', 'admin_notes', 'created_at'
+        ]
+
+    def get_client_display_name(self, obj):
+        return obj.contact_name or (obj.client.username if obj.client else "Valued Client")
+
+    def get_modification_types(self, obj):
+        return [{'id': m.id, 'key': m.key, 'label': m.label, 'description': m.description} for m in obj.modification_types.all()]
+
+    def get_modification_type_labels(self, obj):
+        return [m.label for m in obj.modification_types.all()]
+
+    def get_download_url(self, obj):
+        request = self.context.get('request')
+        url = f"/api/file-edits/requests/{obj.id}/download/"
+        if request:
+            auth_header = request.headers.get('Authorization', '')
+            if auth_header.startswith('Bearer '):
+                token = auth_header.split('Bearer ')[1].strip()
+                if token:
+                    url += f"?token={token}"
+            return request.build_absolute_uri(url)
+        return url
+
+    def get_original_file_url(self, obj):
+        return self.get_download_url(obj)
+
+    def get_reference_image(self, obj):
+        request = self.context.get('request')
+        if obj.reference_image:
+            try:
+                return request.build_absolute_uri(obj.reference_image.url) if request else obj.reference_image.url
+            except Exception:
+                return None
+        return None
+
+    def get_voice_note(self, obj):
+        request = self.context.get('request')
+        if obj.voice_note:
+            try:
+                return request.build_absolute_uri(obj.voice_note.url) if request else obj.voice_note.url
+            except Exception:
+                return None
+        return None
+
+
 # STAFF-SAFE ORDER SERIALIZER (Shows Staff Payout Price = Total Price - Admin Commission)
 class StaffOrderSerializer(serializers.ModelSerializer):
     custom_request = StaffCustomRequestSerializer(read_only=True)
+    file_edit_request = StaffFileEditRequestSerializer(read_only=True)
+    is_file_edit = serializers.SerializerMethodField()
     deliverables = OrderDeliverableSerializer(many=True, read_only=True)
     milestones = OrderMilestoneSerializer(many=True, read_only=True)
     revision_requests = RevisionRequestSerializer(many=True, read_only=True)
@@ -679,12 +870,16 @@ class StaffOrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = [
-            'id', 'order_type', 'current_version', 'custom_request', 'status',
+            'id', 'order_type', 'current_version', 'custom_request', 'file_edit_request',
+            'is_file_edit', 'status',
             'deadline_hours', 'due_at', 'is_overdue', 'assigned_at',
             'unassigned_since', 'preview_image', 'admin_review_notes',
             'milestones', 'deliverables', 'revision_requests', 'created_at',
             'staff_payout_price', 'payout_price'
         ]
+
+    def get_is_file_edit(self, obj):
+        return obj.order_type == Order.OrderType.FILE_EDIT or bool(obj.file_edit_request_id or getattr(obj, 'file_edit_source', None))
 
     def get_preview_image(self, obj):
         request = self.context.get('request')
@@ -710,27 +905,39 @@ class AdminOrderSerializer(serializers.ModelSerializer):
     assigned_staff = UserSerializer(read_only=True)
     product = ProductListSerializer(read_only=True)
     custom_request = OrderCustomRequestSummarySerializer(read_only=True)
+    file_edit_request = StaffFileEditRequestSerializer(read_only=True)
+    is_file_edit = serializers.SerializerMethodField()
     milestones = OrderMilestoneSerializer(many=True, read_only=True)
     payment_stages = OrderPaymentStageSerializer(many=True, read_only=True)
     deliverables = OrderDeliverableSerializer(many=True, read_only=True)
     revision_requests = RevisionRequestSerializer(many=True, read_only=True)
     preview_image = serializers.SerializerMethodField()
     is_fully_paid = serializers.SerializerMethodField()
+    paid_amount = serializers.SerializerMethodField()
+    remaining_amount = serializers.SerializerMethodField()
+    paid_percentage = serializers.SerializerMethodField()
+    paid_stages_count = serializers.SerializerMethodField()
+    total_stages_count = serializers.SerializerMethodField()
     admin_commission_amount = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
         fields = [
             'id', 'client', 'order_type', 'current_version', 'product', 'custom_request',
+            'file_edit_request', 'is_file_edit',
             'assigned_staff', 'total_price', 'admin_commission_percentage', 'staff_payout_price',
             'admin_commission_amount', 'advance_amount', 'advance_paid',
             'balance_paid', 'status', 'deadline_hours', 'due_at', 'is_overdue',
             'warning_50_sent', 'warning_80_sent', 'preview_image',
             'admin_review_notes', 'admin_call_notes', 'quality_approved', 'settlement_status',
             'download_enabled_by_admin', 'download_count', 'is_fully_paid',
+            'paid_amount', 'remaining_amount', 'paid_percentage', 'paid_stages_count', 'total_stages_count',
             'unassigned_since', 'assigned_at', 'handed_over_at',
             'milestones', 'payment_stages', 'deliverables', 'revision_requests', 'created_at'
         ]
+
+    def get_is_file_edit(self, obj):
+        return obj.order_type == Order.OrderType.FILE_EDIT or bool(obj.file_edit_request_id or getattr(obj, 'file_edit_source', None))
 
     def get_admin_commission_amount(self, obj):
         if obj.total_price is not None:
@@ -744,17 +951,54 @@ class AdminOrderSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(obj.preview_image.url) if request else obj.preview_image.url
         return None
 
+    def get_paid_amount(self, obj):
+        stages = obj.payment_stages.all()
+        if stages.exists():
+            return float(sum(s.amount for s in stages if s.status == 'paid'))
+        if obj.balance_paid or obj.status == Order.Status.COMPLETED:
+            return float(obj.total_price or 0)
+        if obj.advance_paid:
+            return float(obj.advance_amount or 0)
+        return 0.0
+
+    def get_remaining_amount(self, obj):
+        paid = self.get_paid_amount(obj)
+        total = float(obj.total_price or 0)
+        return max(0.0, round(total - paid, 2))
+
+    def get_paid_percentage(self, obj):
+        total = float(obj.total_price or 0)
+        if total <= 0:
+            return 0
+        paid = self.get_paid_amount(obj)
+        return min(100, round((paid / total) * 100))
+
+    def get_paid_stages_count(self, obj):
+        stages = obj.payment_stages.all()
+        if stages.exists():
+            return stages.filter(status='paid').count()
+        return 1 if (obj.balance_paid or obj.status == Order.Status.COMPLETED) else (1 if obj.advance_paid else 0)
+
+    def get_total_stages_count(self, obj):
+        stages = obj.payment_stages.all()
+        if stages.exists():
+            return stages.count()
+        return 1
+
     def get_is_fully_paid(self, obj):
         stages = obj.payment_stages.all()
-        if not stages.exists():
-            return False
-        return all(s.status == 'paid' for s in stages)
+        if stages.exists():
+            return all(s.status == 'paid' for s in stages)
+        return bool(obj.balance_paid or obj.status == Order.Status.COMPLETED)
+
 
 
 # CLIENT ORDER SERIALIZER (Shows preview image ONLY when status="preview_ready" or higher)
 class ClientOrderSerializer(serializers.ModelSerializer):
     assigned_staff = UserSerializer(read_only=True)
     custom_request = OrderCustomRequestSummarySerializer(read_only=True)
+    file_edit_request = StaffFileEditRequestSerializer(read_only=True)
+    is_file_edit = serializers.SerializerMethodField()
     payment_stages = OrderPaymentStageSerializer(many=True, read_only=True)
     deliverables = serializers.SerializerMethodField()
     preview_image = serializers.SerializerMethodField()
@@ -767,13 +1011,17 @@ class ClientOrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = [
-            'id', 'order_type', 'current_version', 'custom_request', 'assigned_staff',
+            'id', 'order_type', 'current_version', 'custom_request', 'file_edit_request',
+            'is_file_edit', 'assigned_staff',
             'total_price', 'status', 'deadline_hours', 'due_at',
             'is_overdue', 'payment_stages', 'deliverables', 'preview_image',
             'quality_approved', 'is_fully_paid', 'download_enabled_by_admin',
             'can_download', 'download_count', 'milestones',
             'revision_requests', 'revision_policy', 'created_at'
         ]
+
+    def get_is_file_edit(self, obj):
+        return obj.order_type == Order.OrderType.FILE_EDIT or bool(obj.file_edit_request_id or getattr(obj, 'file_edit_source', None))
 
     def get_preview_image(self, obj):
         # Preview image becomes visible once review is ready, submitted for QC, or in revision review

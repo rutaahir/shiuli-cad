@@ -22,6 +22,7 @@ import {
   Download,
   Package,
   BadgeCheck,
+  Lock,
 } from 'lucide-react';
 import { RevealOnScroll } from '../components/motion/RevealOnScroll';
 import { StaggerGrid, StaggerItem } from '../components/motion/StaggerGrid';
@@ -239,13 +240,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
     ? resolveDisplayPrice(product, selectedLicense, currentCountry.code, exchangeRates)
     : null;
 
-  const currentPriceUSD = priceDisplay
-    ? priceDisplay.amount
-    : 0;
-
-  const currentPrice = currentPriceUSD;
-  const currentPriceINR = Math.round(currentPriceUSD * 84);
-  const originalPriceINR = product?.originalPrice ? Math.round(product.originalPrice * 84) : 0;
+  const currentPriceUSD = priceDisplay ? priceDisplay.priceUsd : 0;
+  const currentPrice = priceDisplay ? priceDisplay.amount : 0;
 
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
@@ -612,7 +608,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <div className="text-3xl sm:text-4xl font-serif font-bold text-[#17345C] tracking-tight">
-                      {priceDisplay ? priceDisplay.display : `₹${currentPriceINR.toLocaleString('en-IN')}`}
+                      {priceDisplay ? priceDisplay.display : '—'}
                     </div>
                     {priceDisplay?.isRegional && priceDisplay.tierName && (
                       <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-[#FFF9F0] border border-[#E8D7B7] text-[#B88732] font-semibold tracking-wide">
@@ -624,7 +620,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                     Instant Deliverables (.3DM + .STL + 4K Render Pack)
                   </span>
                 </div>
-                {priceDisplay?.originalDisplay ? (
+                {priceDisplay?.originalDisplay && (
                   <div className="text-right flex-shrink-0">
                     <span className="text-sm text-[#687386] line-through block font-mono">
                       {priceDisplay.originalDisplay}
@@ -635,17 +631,21 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                       </span>
                     )}
                   </div>
-                ) : product.originalPrice ? (
-                  <div className="text-right flex-shrink-0">
-                    <span className="text-sm text-[#687386] line-through block font-mono">
-                      ₹{originalPriceINR.toLocaleString('en-IN')}
-                    </span>
-                    <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 uppercase tracking-wider font-bold inline-block mt-0.5">
-                      Save ₹{(originalPriceINR - currentPriceINR).toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                ) : null}
+                )}
               </div>
+
+              {/* Login Notice Banner when unauthenticated */}
+              {!isLoggedIn && (
+                <div className="p-3 rounded-2xl bg-[#FFF9F0] border border-[#E8D7B7] text-xs text-[#17345C] flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-[#17345C] text-[#D9B66F] flex items-center justify-center shrink-0">
+                    <Lock className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <span className="font-bold block text-xs text-[#17345C]">Account Login Required to Order</span>
+                    <span className="text-[11px] text-[#475569] font-medium">Sign in to purchase CAD files and download production 3DM/STL packages.</span>
+                  </div>
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="space-y-2.5">
@@ -654,21 +654,47 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                   disabled={purchasing}
                   className="w-full py-4 rounded-xl btn-gold-luxury text-xs font-bold tracking-wider uppercase flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all disabled:opacity-50 cursor-pointer"
                 >
-                  <ShieldCheck className="w-4 h-4 text-[#17345C]" />
-                  <span>
-                    {purchasing
-                      ? 'Initiating Secure Purchase...'
-                      : `Buy Now & Verify OTP — ${priceDisplay ? priceDisplay.display : `₹${currentPriceINR.toLocaleString('en-IN')}`}`}
-                  </span>
+                  {purchasing ? (
+                    <span>Initiating Secure Purchase...</span>
+                  ) : !isLoggedIn ? (
+                    <>
+                      <Lock className="w-4 h-4 text-[#17345C]" />
+                      <span>Sign In to Buy Now — {priceDisplay ? priceDisplay.display : ''}</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-4 h-4 text-[#17345C]" />
+                      <span>Buy Now &amp; Verify OTP — {priceDisplay ? priceDisplay.display : ''}</span>
+                    </>
+                  )}
                 </button>
 
                 <div className="flex gap-2">
                   <button
-                    onClick={() => onAddToCart(product, selectedLicense)}
+                    onClick={() => {
+                      if (!isLoggedIn) {
+                        requireAuth(() => onAddToCart(product, selectedLicense), {
+                          intent: 'purchase',
+                          message: 'Sign in to add CAD files to your bag',
+                          productId: product.id,
+                        });
+                      } else {
+                        onAddToCart(product, selectedLicense);
+                      }
+                    }}
                     className="flex-1 py-3 rounded-xl border border-[#17345C] text-xs font-semibold uppercase text-[#17345C] hover:bg-[#17345C] hover:text-white transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
                   >
-                    <ShoppingBag className="w-4 h-4 text-[#B88732]" />
-                    <span>Add to Bag</span>
+                    {!isLoggedIn ? (
+                      <>
+                        <Lock className="w-3.5 h-3.5 text-[#B88732]" />
+                        <span>Sign In to Add to Bag</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingBag className="w-4 h-4 text-[#B88732]" />
+                        <span>Add to Bag</span>
+                      </>
+                    )}
                   </button>
                   <button
                     onClick={() => onToggleWishlist(product)}
@@ -1001,7 +1027,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
           <div className="flex-1 min-w-0">
             <div className="text-xs font-serif text-[#17345C] truncate">{product.title}</div>
             <div className="text-sm font-bold text-[#17345C] font-serif">
-              {priceDisplay ? priceDisplay.display : `₹${currentPriceINR.toLocaleString('en-IN')}`}
+              {priceDisplay ? priceDisplay.display : ''}
             </div>
           </div>
           <button

@@ -13,12 +13,12 @@ export const StaffNotificationsTab: React.FC<StaffNotificationsTabProps> = ({
 }) => {
   return (
     <div className="w-full space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-[#E5E7EF] shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-[#E8D7B7] shadow-sm">
         <div>
           <span className="px-2.5 py-0.5 rounded-full bg-[#09112B] text-[#F5E7A3] text-[10px] uppercase font-bold tracking-widest font-mono">
             Broadcast Feed
           </span>
-          <h1 className="font-serif text-2xl font-bold text-[#1E2230] tracking-tight mt-1">
+          <h1 className="font-serif text-2xl font-bold text-[#17243B] tracking-tight mt-1">
             Artisan Alerts & Broadcasts
           </h1>
         </div>
@@ -36,8 +36,8 @@ export const StaffNotificationsTab: React.FC<StaffNotificationsTabProps> = ({
             key={n.id}
             className={`p-4 rounded-2xl border transition-all flex items-start gap-4 ${
               n.read
-                ? 'bg-white border-[#E5E7EF] text-[#6B7280]'
-                : 'bg-white border-l-4 border-l-[#C9A227] border-[#E5E7EF] text-[#1E2230] shadow-sm'
+                ? 'bg-white border-[#E8D7B7] text-[#6B7280]'
+                : 'bg-white border-l-4 border-l-[#C9A227] border-[#E8D7B7] text-[#17243B] shadow-sm'
             }`}
           >
             <div className="p-2.5 rounded-xl bg-[#09112B] text-[#F5E7A3] border border-[#D4AF37]/30 shrink-0">
@@ -48,7 +48,7 @@ export const StaffNotificationsTab: React.FC<StaffNotificationsTabProps> = ({
             </div>
             <div className="flex-1 space-y-1">
               <div className="flex items-center justify-between">
-                <h4 className="font-serif font-bold text-sm text-[#1E2230]">{n.title}</h4>
+                <h4 className="font-serif font-bold text-sm text-[#17243B]">{n.title}</h4>
                 <span className="text-[10px] font-mono text-[#6B7280]">{n.timestamp}</span>
               </div>
               <p className="text-xs text-[#6B7280] leading-relaxed">{n.message}</p>

@@ -65,7 +65,11 @@ class SettlementSerializer(serializers.ModelSerializer):
 
     def get_design_title(self, obj):
         if obj.order:
-            if obj.order.product:
+            if getattr(obj.order, 'file_edit_request', None):
+                fe = obj.order.file_edit_request
+                format_str = (fe.original_file_format or '3DM').upper()
+                return fe.original_file_name or f"CAD Modification #{obj.order.id} ({format_str})"
+            elif obj.order.product:
                 return obj.order.product.title
             elif obj.order.custom_request and obj.order.custom_request.category:
                 return f"Custom {obj.order.custom_request.category.name}"

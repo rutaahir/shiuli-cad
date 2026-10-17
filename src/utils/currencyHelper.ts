@@ -4,24 +4,27 @@
  * Guarantees Indian Rupee pricing across the studio without accidental dollar signs.
  */
 
-export const USD_TO_INR_RATE = 84;
+export const USD_TO_INR_RATE = 86.85;
 
 /**
- * Converts a price into an integer INR amount.
- * If the value is a small unit (e.g., legacy USD database prices like 2, 3, 149),
- * it converts via USD_TO_INR_RATE (84).
- * If the value is already an INR price (>= 500), it returns the clean integer.
+ * Converts a price into a clean integer INR amount.
+ * Does NOT blindly multiply numbers under 500 by 84/86.85.
  */
 export function toINR(val: number | string | undefined | null): number {
   if (val === undefined || val === null || val === '') return 0;
   const num = typeof val === 'string' ? parseFloat(val) : Number(val);
   if (isNaN(num) || num <= 0) return 0;
-
-  // Values under 500 are legacy USD prices from initial catalog seeds (e.g. $2, $3, $149)
-  if (num < 500) {
-    return Math.round(num * USD_TO_INR_RATE);
-  }
   return Math.round(num);
+}
+
+/**
+ * Explicitly converts a USD price into integer INR amount.
+ */
+export function convertUsdToInr(usdVal: number | string | undefined | null, rate: number = USD_TO_INR_RATE): number {
+  if (usdVal === undefined || usdVal === null || usdVal === '') return 0;
+  const num = typeof usdVal === 'string' ? parseFloat(usdVal) : Number(usdVal);
+  if (isNaN(num) || num <= 0) return 0;
+  return Math.round(num * rate);
 }
 
 /**

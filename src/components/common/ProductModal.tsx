@@ -786,15 +786,15 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5">
-      <div className="bg-white border border-[#E5E7EF] rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl space-y-6 text-[#1E2230] max-h-[92vh] overflow-y-auto relative animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-white border border-[#E8D7B7] rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl space-y-6 text-[#17243B] max-h-[92vh] overflow-y-auto relative animate-in fade-in zoom-in-95 duration-200">
         
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-4">
+        <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-4">
           <div>
             <span className="px-2.5 py-0.5 rounded-full bg-[#09112B] text-[#F5E7A3] text-[10px] font-mono font-bold uppercase tracking-wider">
               {isEditMode ? 'Edit CAD Product' : 'Publish New Jewellery CAD'}
             </span>
-            <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#1E2230] tracking-tight mt-1">
+            <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#17243B] tracking-tight mt-1">
               {isEditMode ? `Modify "${product?.title || 'Product'}"` : 'Add Product to Live Catalog'}
             </h2>
           </div>
@@ -850,28 +850,28 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         {currentStep === 1 && (
           <div className="space-y-4 text-xs">
             <div>
-              <label className="font-semibold text-[#1E2230] block mb-1">Product Title *</label>
+              <label className="font-semibold text-[#17243B] block mb-1">Product Title *</label>
               <input
                 type="text"
                 required
                 value={prodTitle}
                 onChange={(e) => setProdTitle(e.target.value)}
                 placeholder="e.g. Royal Nizam Solitaire Emerald Ring"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs text-[#1E2230] focus:outline-none focus:border-[#C9A227]"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs text-[#17243B] focus:outline-none focus:border-[#C9A227]"
               />
             </div>
 
             {/* Category Selector */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Parent Category *</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Parent Category *</label>
                 <select
                   value={selectedParentCatId}
                   onChange={(e) => {
                     setSelectedParentCatId(e.target.value ? Number(e.target.value) : '');
                     setSelectedSubCatId('');
                   }}
-                  className="w-full px-3 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs text-[#1E2230] focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs text-[#17243B] focus:outline-none focus:border-[#C9A227]"
                 >
                   <option value="">-- Choose Category --</option>
                   {categories.map((cat) => (
@@ -883,12 +883,12 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Subcategory (Optional)</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Subcategory (Optional)</label>
                 <select
                   disabled={!selectedParentCatId || subCategoriesList.length === 0}
                   value={selectedSubCatId}
                   onChange={(e) => setSelectedSubCatId(e.target.value ? Number(e.target.value) : '')}
-                  className="w-full px-3 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs text-[#1E2230] focus:outline-none focus:border-[#C9A227] disabled:opacity-50"
+                  className="w-full px-3 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs text-[#17243B] focus:outline-none focus:border-[#C9A227] disabled:opacity-50"
                 >
                   <option value="">-- Subcategory --</option>
                   {subCategoriesList.map((sub) => (
@@ -903,7 +903,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             {/* Design Style Multi-Tags */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="font-semibold text-[#1E2230]">Design Styles & Aesthetics</label>
+                <label className="font-semibold text-[#17243B]">Design Styles & Aesthetics</label>
                 <button
                   type="button"
                   onClick={() => setShowAddStyleInput(!showAddStyleInput)}
@@ -920,7 +920,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                     placeholder="e.g. Art Deco, Floral, Solitaire..."
                     value={newStyleName}
                     onChange={(e) => setNewStyleName(e.target.value)}
-                    className="flex-1 px-3 py-1.5 rounded-lg bg-white border border-[#E5E7EF] text-xs focus:outline-none"
+                    className="flex-1 px-3 py-1.5 rounded-lg bg-white border border-[#E8D7B7] text-xs focus:outline-none"
                   />
                   <button
                     type="button"
@@ -962,13 +962,13 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
             {/* Description */}
             <div>
-              <label className="font-semibold text-[#1E2230] block mb-1">Detailed Description</label>
+              <label className="font-semibold text-[#17243B] block mb-1">Detailed Description</label>
               <textarea
                 rows={3}
                 value={prodDescription}
                 onChange={(e) => setProdDescription(e.target.value)}
                 placeholder="Describe prong layout, casting notes, aesthetic inspiration..."
-                className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
               />
             </div>
 
@@ -1075,7 +1075,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="font-semibold text-[#1E2230] block mb-1">
+                    <label className="font-semibold text-[#17243B] block mb-1">
                       Listing Price (Customer Pays) *
                     </label>
                     <div className="relative">
@@ -1087,7 +1087,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                         value={prodPrice}
                         onChange={(e) => setProdPrice(e.target.value)}
                         placeholder="250.00"
-                        className="w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-sm font-mono font-bold text-[#1E2230] focus:outline-none focus:border-[#C9A227] shadow-sm"
+                        className="w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-sm font-mono font-bold text-[#17243B] focus:outline-none focus:border-[#C9A227] shadow-sm"
                       />
                     </div>
                     <span className="text-[10px] text-slate-500 mt-1 block">
@@ -1096,7 +1096,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="font-semibold text-[#1E2230] block mb-1 flex items-center justify-between">
+                    <label className="font-semibold text-[#17243B] block mb-1 flex items-center justify-between">
                       <span>Admin Commission ({categoryCommissionRate}%)</span>
                       <span className="text-[10px] font-mono text-[#F5E7A3] bg-[#09112B] px-1.5 py-0.5 rounded">
                         {activeCategory?.name || 'Category'}
@@ -1214,7 +1214,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 {/* 5 PRICING CARDS */}
                 <div className="space-y-3.5">
                   {/* CARD A: Base Country */}
-                  <div className="p-4 rounded-2xl bg-white border border-[#E5E7EF] shadow-sm hover:border-[#D4AF37]/50 transition-colors">
+                  <div className="p-4 rounded-2xl bg-white border border-[#E8D7B7] shadow-sm hover:border-[#D4AF37]/50 transition-colors">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 pb-2.5 border-b border-slate-100">
                       <div>
                         <div className="flex items-center gap-2">
@@ -1233,7 +1233,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-bold text-[#1E2230]">Tier USD Price *</span>
+                        <span className="text-[11px] font-bold text-[#17243B]">Tier USD Price *</span>
                         <div className="relative w-32">
                           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono font-bold">$</span>
                           <input
@@ -1244,7 +1244,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                             value={baseTierPrice}
                             onChange={(e) => handleBaseTierPriceChange(e.target.value)}
                             placeholder="10.00"
-                            className="w-full pl-6 pr-2 py-1.5 rounded-lg bg-[#FAF9F5] border border-[#E5E7EF] text-xs font-mono font-bold text-[#1E2230] focus:outline-none focus:border-[#C9A227]"
+                            className="w-full pl-6 pr-2 py-1.5 rounded-lg bg-[#FAF9F5] border border-[#E8D7B7] text-xs font-mono font-bold text-[#17243B] focus:outline-none focus:border-[#C9A227]"
                           />
                         </div>
                       </div>
@@ -1344,7 +1344,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   </div>
 
                   {/* CARD B: Tier 1 */}
-                  <div className="p-4 rounded-2xl bg-white border border-[#E5E7EF] shadow-sm hover:border-[#D4AF37]/50 transition-colors">
+                  <div className="p-4 rounded-2xl bg-white border border-[#E8D7B7] shadow-sm hover:border-[#D4AF37]/50 transition-colors">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 pb-2.5 border-b border-slate-100">
                       <div>
                         <div className="flex items-center gap-2">
@@ -1363,7 +1363,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-bold text-[#1E2230]">Tier USD Price *</span>
+                        <span className="text-[11px] font-bold text-[#17243B]">Tier USD Price *</span>
                         <div className="relative w-32">
                           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono font-bold">$</span>
                           <input
@@ -1374,7 +1374,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                             value={tier1Price}
                             onChange={(e) => setTier1Price(e.target.value)}
                             placeholder="20.00"
-                            className="w-full pl-6 pr-2 py-1.5 rounded-lg bg-[#FAF9F5] border border-[#E5E7EF] text-xs font-mono font-bold text-[#1E2230] focus:outline-none focus:border-[#C9A227]"
+                            className="w-full pl-6 pr-2 py-1.5 rounded-lg bg-[#FAF9F5] border border-[#E8D7B7] text-xs font-mono font-bold text-[#17243B] focus:outline-none focus:border-[#C9A227]"
                           />
                         </div>
                       </div>
@@ -1472,7 +1472,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   </div>
 
                   {/* CARD C: Tier 2 */}
-                  <div className="p-4 rounded-2xl bg-white border border-[#E5E7EF] shadow-sm hover:border-[#D4AF37]/50 transition-colors">
+                  <div className="p-4 rounded-2xl bg-white border border-[#E8D7B7] shadow-sm hover:border-[#D4AF37]/50 transition-colors">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 pb-2.5 border-b border-slate-100">
                       <div>
                         <div className="flex items-center gap-2">
@@ -1491,7 +1491,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-bold text-[#1E2230]">Tier USD Price *</span>
+                        <span className="text-[11px] font-bold text-[#17243B]">Tier USD Price *</span>
                         <div className="relative w-32">
                           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono font-bold">$</span>
                           <input
@@ -1502,7 +1502,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                             value={tier2Price}
                             onChange={(e) => setTier2Price(e.target.value)}
                             placeholder="15.00"
-                            className="w-full pl-6 pr-2 py-1.5 rounded-lg bg-[#FAF9F5] border border-[#E5E7EF] text-xs font-mono font-bold text-[#1E2230] focus:outline-none focus:border-[#C9A227]"
+                            className="w-full pl-6 pr-2 py-1.5 rounded-lg bg-[#FAF9F5] border border-[#E8D7B7] text-xs font-mono font-bold text-[#17243B] focus:outline-none focus:border-[#C9A227]"
                           />
                         </div>
                       </div>
@@ -1600,7 +1600,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   </div>
 
                   {/* CARD D: Tier 3 */}
-                  <div className="p-4 rounded-2xl bg-white border border-[#E5E7EF] shadow-sm hover:border-[#D4AF37]/50 transition-colors">
+                  <div className="p-4 rounded-2xl bg-white border border-[#E8D7B7] shadow-sm hover:border-[#D4AF37]/50 transition-colors">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 pb-2.5 border-b border-slate-100">
                       <div>
                         <div className="flex items-center gap-2">
@@ -1619,7 +1619,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-bold text-[#1E2230]">Tier USD Price *</span>
+                        <span className="text-[11px] font-bold text-[#17243B]">Tier USD Price *</span>
                         <div className="relative w-32">
                           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono font-bold">$</span>
                           <input
@@ -1630,7 +1630,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                             value={tier3Price}
                             onChange={(e) => setTier3Price(e.target.value)}
                             placeholder="10.00"
-                            className="w-full pl-6 pr-2 py-1.5 rounded-lg bg-[#FAF9F5] border border-[#E5E7EF] text-xs font-mono font-bold text-[#1E2230] focus:outline-none focus:border-[#C9A227]"
+                            className="w-full pl-6 pr-2 py-1.5 rounded-lg bg-[#FAF9F5] border border-[#E8D7B7] text-xs font-mono font-bold text-[#17243B] focus:outline-none focus:border-[#C9A227]"
                           />
                         </div>
                       </div>
@@ -1747,7 +1747,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-[11px] font-bold text-[#1E2230]">Fallback USD Price *</span>
+                        <span className="text-[11px] font-bold text-[#17243B]">Fallback USD Price *</span>
                         <div className="relative w-32">
                           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-mono font-bold">$</span>
                           <input
@@ -1758,7 +1758,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                             value={rowPrice}
                             onChange={(e) => setRowPrice(e.target.value)}
                             placeholder="15.00"
-                            className="w-full pl-6 pr-2 py-1.5 rounded-lg bg-white border border-[#E5E7EF] text-xs font-mono font-bold text-[#1E2230] focus:outline-none focus:border-[#C9A227] shadow-sm"
+                            className="w-full pl-6 pr-2 py-1.5 rounded-lg bg-white border border-[#E8D7B7] text-xs font-mono font-bold text-[#17243B] focus:outline-none focus:border-[#C9A227] shadow-sm"
                           />
                         </div>
                       </div>
@@ -1771,7 +1771,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
             {/* Compare-at Strike-Through */}
             <div>
-              <label className="font-semibold text-[#1E2230] block mb-1">Compare-at Price (Optional Strike-through)</label>
+              <label className="font-semibold text-[#17243B] block mb-1">Compare-at Price (Optional Strike-through)</label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono font-bold text-sm">$</span>
                 <input
@@ -1780,74 +1780,74 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   value={prodComparePrice}
                   onChange={(e) => setProdComparePrice(e.target.value)}
                   placeholder="350.00"
-                  className="w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs font-mono text-[#1E2230] focus:outline-none focus:border-[#C9A227]"
+                  className="w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs font-mono text-[#17243B] focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Metal Weight 18K (grams)</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Metal Weight 18K (grams)</label>
                 <input
                   type="number"
                   step="0.01"
                   value={prodMetalWeight}
                   onChange={(e) => setProdMetalWeight(e.target.value)}
                   placeholder="e.g. 14.5"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs font-mono focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs font-mono focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Total Stone / Diamond Count</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Total Stone / Diamond Count</label>
                 <input
                   type="number"
                   value={prodStoneCount}
                   onChange={(e) => setProdStoneCount(e.target.value)}
                   placeholder="e.g. 36"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs font-mono focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs font-mono focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Ring Size / Dimensions</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Ring Size / Dimensions</label>
                 <input
                   type="text"
                   value={prodDimensions}
                   onChange={(e) => setProdDimensions(e.target.value)}
                   placeholder="US 7 (17.3mm) / 22 x 18 mm"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Tolerance Spec</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Tolerance Spec</label>
                 <input
                   type="text"
                   value={prodTolerance}
                   onChange={(e) => setProdTolerance(e.target.value)}
                   placeholder="±0.01 mm"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
             </div>
 
             <div>
-              <label className="font-semibold text-[#1E2230] block mb-1">Casting Tips & Recommendations</label>
+              <label className="font-semibold text-[#17243B] block mb-1">Casting Tips & Recommendations</label>
               <textarea
                 rows={2}
                 value={prodCastingTips}
                 onChange={(e) => setProdCastingTips(e.target.value)}
                 placeholder="e.g. Spruing at bottom shank recommended; pre-cure resin under 405nm light..."
-                className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
               />
             </div>
 
             {/* Mandatory Terms & Conditions Agreement Checkbox */}
             <div className="p-4 rounded-xl bg-amber-50/90 border border-amber-300 space-y-2">
-              <label className="flex items-start gap-3 cursor-pointer text-xs text-[#1E2230] select-none">
+              <label className="flex items-start gap-3 cursor-pointer text-xs text-[#17243B] select-none">
                 <input
                   type="checkbox"
                   required
@@ -1874,7 +1874,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
           <div className="space-y-5 text-xs">
             {/* Existing Images Gallery (if Edit Mode) */}
             {isEditMode && existingImages.length > 0 && (
-              <div className="p-4 rounded-2xl bg-[#FAF9F5] border border-[#E5E7EF] space-y-3">
+              <div className="p-4 rounded-2xl bg-[#FAF9F5] border border-[#E8D7B7] space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="font-bold text-[#09112B]">Current Published Images ({existingImages.length})</label>
                   <span className="text-[10px] text-slate-500 font-mono">Live on store</span>
@@ -1908,8 +1908,8 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             )}
 
             {/* Upload New Photos Section (Multi-Image Support) */}
-            <div className="p-5 rounded-2xl bg-[#FAF9F5] border border-[#E5E7EF] space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E5E7EF] pb-3">
+            <div className="p-5 rounded-2xl bg-[#FAF9F5] border border-[#E8D7B7] space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E8D7B7] pb-3">
                 <div>
                   <div className="flex items-center gap-2">
                     <label className="font-bold text-[#09112B] text-sm">
@@ -1963,7 +1963,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   <UploadCloud className="w-6 h-6 text-[#F5E7A3]" />
                 </div>
                 <div>
-                  <div className="font-serif font-bold text-[#1E2230] text-sm">
+                  <div className="font-serif font-bold text-[#17243B] text-sm">
                     Drag & drop multiple product images here, or <span className="text-[#C9A227] underline">browse</span>
                   </div>
                   <p className="text-[11px] text-slate-500 mt-0.5">
@@ -2753,14 +2753,14 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         {/* STEP 4: Review & Save */}
         {currentStep === 4 && (
           <div className="space-y-4 text-xs">
-            <div className="p-5 rounded-2xl bg-[#FAF9F5] border border-[#E5E7EF] space-y-3">
+            <div className="p-5 rounded-2xl bg-[#FAF9F5] border border-[#E8D7B7] space-y-3">
               <h4 className="font-serif font-bold text-base text-[#09112B]">
                 {isEditMode ? 'Confirm Product Updates' : 'Product Card Summary Preview'}
               </h4>
               <div className="grid grid-cols-2 gap-4 text-xs font-mono">
                 <div>
                   <span className="text-slate-500 block text-[10px]">PRODUCT TITLE</span>
-                  <strong className="text-sm font-serif text-[#1E2230]">{prodTitle || 'Untitled Product'}</strong>
+                  <strong className="text-sm font-serif text-[#17243B]">{prodTitle || 'Untitled Product'}</strong>
                 </div>
                 <div>
                   <span className="text-slate-500 block text-[10px]">PRICE</span>
@@ -2771,13 +2771,13 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                 </div>
                 <div>
                   <span className="text-slate-500 block text-[10px]">CATEGORY</span>
-                  <span className="font-medium text-[#1E2230]">
+                  <span className="font-medium text-[#17243B]">
                     {categories.find((c) => c.id === Number(selectedParentCatId))?.name || 'Uncategorized'}
                   </span>
                 </div>
                 <div>
                   <span className="text-slate-500 block text-[10px]">METAL / STONES</span>
-                  <span className="font-medium text-[#1E2230]">
+                  <span className="font-medium text-[#17243B]">
                     {prodMetalWeight ? `${prodMetalWeight}g 18K` : 'Custom wt'} • {prodStoneCount} stone(s)
                   </span>
                 </div>
@@ -2841,7 +2841,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         )}
 
         {/* Stepper Footer Action Buttons */}
-        <div className="space-y-3 pt-4 border-t border-[#E5E7EF]">
+        <div className="space-y-3 pt-4 border-t border-[#E8D7B7]">
           {/* Inline step error message */}
           {submitError && (
             <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-800 text-xs flex items-center justify-between shadow-xs animate-in fade-in">

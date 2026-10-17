@@ -241,15 +241,17 @@ class Order(models.Model):
     class OrderType(models.TextChoices):
         READY = "ready", "Ready Design Purchase"
         CUSTOM = "custom", "Custom Order"
+        FILE_EDIT = "file_edit", "CAD File Modification"
 
     client = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="orders"
     )
-    order_type = models.CharField(max_length=10, choices=OrderType.choices)
+    order_type = models.CharField(max_length=20, choices=OrderType.choices)
     product = models.ForeignKey(Product, null=True, blank=True, on_delete=models.SET_NULL)
     custom_request = models.OneToOneField(CustomRequest, null=True, blank=True, on_delete=models.SET_NULL)
+    file_edit_request = models.OneToOneField('file_edits.FileEditRequest', null=True, blank=True, on_delete=models.SET_NULL, related_name="cad_order")
     assigned_staff = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,

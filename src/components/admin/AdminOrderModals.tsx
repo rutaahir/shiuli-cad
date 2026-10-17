@@ -314,10 +314,10 @@ export const AdminCreateOrderModal: React.FC<AdminCreateOrderModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
-      <div className="bg-white border border-[#E5E7EF] rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl space-y-6 text-[#1E2230] max-h-[92vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-white border border-[#E8D7B7] rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl space-y-6 text-[#17243B] max-h-[92vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-4">
+        <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-4">
           <div>
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full bg-[#12204D] text-[#F5E7A3] text-[10px] font-mono font-bold uppercase tracking-wider">
@@ -325,7 +325,7 @@ export const AdminCreateOrderModal: React.FC<AdminCreateOrderModalProps> = ({
               </span>
               <span className="text-xs text-slate-500 font-mono">• Direct Order Entry &amp; Full Customer Spec</span>
             </div>
-            <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#1E2230] tracking-tight mt-1 flex items-center gap-2">
+            <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#17243B] tracking-tight mt-1 flex items-center gap-2">
               <ShoppingBag className="w-5 h-5 text-[#C9A227]" />
               Place Order for Customer
             </h2>
@@ -352,7 +352,7 @@ export const AdminCreateOrderModal: React.FC<AdminCreateOrderModalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-6 text-xs">
           
           {/* 1. CUSTOMER ALL DETAILS */}
-          <div className="p-4 rounded-2xl bg-[#FAF9F5] border border-[#E5E7EF] space-y-3">
+          <div className="p-4 rounded-2xl bg-[#FAF9F5] border border-[#E8D7B7] space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <span className="font-bold text-xs uppercase tracking-wider text-[#09112B] font-mono flex items-center gap-1.5">
                 <User className="w-4 h-4 text-[#C9A227]" /> Customer All Details &amp; Contact Records
@@ -385,7 +385,7 @@ export const AdminCreateOrderModal: React.FC<AdminCreateOrderModalProps> = ({
                 <select
                   value={selectedClientId}
                   onChange={(e) => handleClientSelect(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E5E7EF] text-xs font-medium focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E8D7B7] text-xs font-medium focus:outline-none focus:border-[#C9A227]"
                 >
                   <option value="">-- Choose Existing Client --</option>
                   {clients.map((c) => (
@@ -406,7 +406,7 @@ export const AdminCreateOrderModal: React.FC<AdminCreateOrderModalProps> = ({
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
                   placeholder="e.g. Vikram Malhotra"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
 
@@ -418,7 +418,7 @@ export const AdminCreateOrderModal: React.FC<AdminCreateOrderModalProps> = ({
                   value={clientEmail}
                   onChange={(e) => setClientEmail(e.target.value)}
                   placeholder="client@example.com"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
 
@@ -429,7 +429,7 @@ export const AdminCreateOrderModal: React.FC<AdminCreateOrderModalProps> = ({
                   value={clientPhone}
                   onChange={(e) => setClientPhone(e.target.value)}
                   placeholder="+91 98201 00000"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
             </div>
@@ -444,7 +444,7 @@ export const AdminCreateOrderModal: React.FC<AdminCreateOrderModalProps> = ({
                   value={clientTelegram}
                   onChange={(e) => setClientTelegram(e.target.value)}
                   placeholder="@username or phone number"
-                  className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#E5E7EF] text-xs focus:outline-none focus:border-sky-500"
+                  className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#E8D7B7] text-xs focus:outline-none focus:border-sky-500"
                 />
               </div>
 
@@ -457,7 +457,7 @@ export const AdminCreateOrderModal: React.FC<AdminCreateOrderModalProps> = ({
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
                   placeholder="e.g. Royal Gems Atelier Ltd."
-                  className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
 
@@ -470,37 +470,37 @@ export const AdminCreateOrderModal: React.FC<AdminCreateOrderModalProps> = ({
                   value={clientAddress}
                   onChange={(e) => setClientAddress(e.target.value)}
                   placeholder="Street, City, State, Country, Zip"
-                  className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
             </div>
           </div>
 
           {/* 2. ORDER & JEWELRY SPECIFICATIONS */}
-          <div className="p-4 rounded-2xl bg-white border border-[#E5E7EF] space-y-3">
+          <div className="p-4 rounded-2xl bg-white border border-[#E8D7B7] space-y-3">
             <span className="font-bold text-xs uppercase tracking-wider text-[#09112B] font-mono flex items-center gap-1.5">
               <Gem className="w-4 h-4 text-[#C9A227]" /> Jewellery Design Specifications
             </span>
 
             <div>
-              <label className="font-semibold text-[#1E2230] block mb-1">Order Title / Item Description *</label>
+              <label className="font-semibold text-[#17243B] block mb-1">Order Title / Item Description *</label>
               <input
                 type="text"
                 required
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. Royal Nizam Solitaire Diamond Ring with Micropave Halo"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs font-semibold focus:outline-none focus:border-[#C9A227]"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs font-semibold focus:outline-none focus:border-[#C9A227]"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Jewellery Category *</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Jewellery Category *</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 >
                   {COMMON_CATEGORIES.map((cat) => (
                     <option key={cat} value={cat}>
@@ -511,11 +511,11 @@ export const AdminCreateOrderModal: React.FC<AdminCreateOrderModalProps> = ({
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Metal Alloy &amp; Purity *</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Metal Alloy &amp; Purity *</label>
                 <select
                   value={metalAlloy}
                   onChange={(e) => setMetalAlloy(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 >
                   {COMMON_METALS.map((met) => (
                     <option key={met} value={met}>
@@ -528,22 +528,22 @@ export const AdminCreateOrderModal: React.FC<AdminCreateOrderModalProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Ring Size</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Ring Size</label>
                 <input
                   type="text"
                   value={ringSize}
                   onChange={(e) => setRingSize(e.target.value)}
                   placeholder="e.g. 7, 14, 52, 17.3"
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Size Standard</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Size Standard</label>
                 <select
                   value={ringSizeStandard}
                   onChange={(e) => setRingSizeStandard(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 >
                   {RING_SIZE_STANDARDS.map((s) => (
                     <option key={s.value} value={s.value}>
@@ -554,48 +554,48 @@ export const AdminCreateOrderModal: React.FC<AdminCreateOrderModalProps> = ({
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Target Metal Wt (g)</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Target Metal Wt (g)</label>
                 <input
                   type="number"
                   step="0.01"
                   value={targetWeightGrams}
                   onChange={(e) => setTargetWeightGrams(e.target.value)}
                   placeholder="e.g. 14.50"
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Needed By Date</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Needed By Date</label>
                 <input
                   type="date"
                   value={neededByDate}
                   onChange={(e) => setNeededByDate(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Gemstones &amp; Diamonds Architecture</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Gemstones &amp; Diamonds Architecture</label>
                 <input
                   type="text"
                   value={gemstoneNotes}
                   onChange={(e) => setGemstoneNotes(e.target.value)}
                   placeholder="e.g. 2.0ct Oval Center + 42 micropave round D-F VS"
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Design Brief &amp; Tolerances</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Design Brief &amp; Tolerances</label>
                 <textarea
                   rows={2}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="CAD notes, prong style, wall thickness, hollow azures..."
-                  className="w-full px-3.5 py-1.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-1.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
             </div>
@@ -705,7 +705,7 @@ export const AdminCreateOrderModal: React.FC<AdminCreateOrderModalProps> = ({
               <select
                 value={assignedStaffId}
                 onChange={(e) => setAssignedStaffId(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E5E7EF] text-xs font-medium focus:outline-none focus:border-[#C9A227]"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E8D7B7] text-xs font-medium focus:outline-none focus:border-[#C9A227]"
               >
                 <option value="">Release to Open Staff Pool (Any eligible designer can accept)</option>
                 {staffList.map((stf) => (
@@ -826,7 +826,7 @@ export const AdminCreateOrderModal: React.FC<AdminCreateOrderModalProps> = ({
           </div>
 
           {/* Footer Submit Buttons */}
-          <div className="pt-4 flex items-center justify-between border-t border-[#E5E7EF]">
+          <div className="pt-4 flex items-center justify-between border-t border-[#E8D7B7]">
             <button
               type="button"
               disabled={isSubmitting}
@@ -1012,10 +1012,10 @@ export const AdminEditOrderModal: React.FC<AdminEditOrderModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
-      <div className="bg-white border border-[#E5E7EF] rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl space-y-6 text-[#1E2230] max-h-[92vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-white border border-[#E8D7B7] rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl space-y-6 text-[#17243B] max-h-[92vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-4">
+        <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-4">
           <div>
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full bg-[#12204D] text-[#F5E7A3] text-[10px] font-mono font-bold uppercase tracking-wider">
@@ -1023,7 +1023,7 @@ export const AdminEditOrderModal: React.FC<AdminEditOrderModalProps> = ({
               </span>
               <span className="text-xs text-slate-500 font-mono">• ORD-{order.id}</span>
             </div>
-            <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#1E2230] tracking-tight mt-1 flex items-center gap-2">
+            <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#17243B] tracking-tight mt-1 flex items-center gap-2">
               Edit Master Order Details
             </h2>
           </div>
@@ -1049,7 +1049,7 @@ export const AdminEditOrderModal: React.FC<AdminEditOrderModalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-6 text-xs">
           
           {/* Customer Details */}
-          <div className="p-4 rounded-2xl bg-[#FAF9F5] border border-[#E5E7EF] space-y-3">
+          <div className="p-4 rounded-2xl bg-[#FAF9F5] border border-[#E8D7B7] space-y-3">
             <span className="font-bold text-xs uppercase tracking-wider text-[#09112B] font-mono flex items-center gap-1.5">
               <User className="w-4 h-4 text-[#C9A227]" /> Customer Profile &amp; Contact Records
             </span>
@@ -1061,7 +1061,7 @@ export const AdminEditOrderModal: React.FC<AdminEditOrderModalProps> = ({
                   type="text"
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
 
@@ -1071,7 +1071,7 @@ export const AdminEditOrderModal: React.FC<AdminEditOrderModalProps> = ({
                   type="email"
                   value={clientEmail}
                   onChange={(e) => setClientEmail(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
 
@@ -1081,7 +1081,7 @@ export const AdminEditOrderModal: React.FC<AdminEditOrderModalProps> = ({
                   type="text"
                   value={clientPhone}
                   onChange={(e) => setClientPhone(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
             </div>
@@ -1096,7 +1096,7 @@ export const AdminEditOrderModal: React.FC<AdminEditOrderModalProps> = ({
                   value={clientTelegram}
                   onChange={(e) => setClientTelegram(e.target.value)}
                   placeholder="@username or phone"
-                  className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#E5E7EF] text-xs focus:outline-none focus:border-sky-500"
+                  className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#E8D7B7] text-xs focus:outline-none focus:border-sky-500"
                 />
               </div>
 
@@ -1109,7 +1109,7 @@ export const AdminEditOrderModal: React.FC<AdminEditOrderModalProps> = ({
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
                   placeholder="e.g. Royal Gems Atelier"
-                  className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
 
@@ -1122,35 +1122,35 @@ export const AdminEditOrderModal: React.FC<AdminEditOrderModalProps> = ({
                   value={clientAddress}
                   onChange={(e) => setClientAddress(e.target.value)}
                   placeholder="Street, City, Country, Zip"
-                  className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2 rounded-xl bg-white border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
             </div>
           </div>
 
           {/* Design Specs */}
-          <div className="p-4 rounded-2xl bg-white border border-[#E5E7EF] space-y-3">
+          <div className="p-4 rounded-2xl bg-white border border-[#E8D7B7] space-y-3">
             <span className="font-bold text-xs uppercase tracking-wider text-[#09112B] font-mono flex items-center gap-1.5">
               <Gem className="w-4 h-4 text-[#C9A227]" /> Jewellery Specifications
             </span>
 
             <div>
-              <label className="font-semibold text-[#1E2230] block mb-1">Order Title / Item Name</label>
+              <label className="font-semibold text-[#17243B] block mb-1">Order Title / Item Name</label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs font-semibold focus:outline-none focus:border-[#C9A227]"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs font-semibold focus:outline-none focus:border-[#C9A227]"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Category</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Category</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none"
                 >
                   {COMMON_CATEGORIES.map((cat) => (
                     <option key={cat} value={cat}>
@@ -1161,11 +1161,11 @@ export const AdminEditOrderModal: React.FC<AdminEditOrderModalProps> = ({
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Metal Alloy</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Metal Alloy</label>
                 <select
                   value={metalAlloy}
                   onChange={(e) => setMetalAlloy(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none"
                 >
                   {COMMON_METALS.map((met) => (
                     <option key={met} value={met}>
@@ -1178,22 +1178,22 @@ export const AdminEditOrderModal: React.FC<AdminEditOrderModalProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Ring Size</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Ring Size</label>
                 <input
                   type="text"
                   value={ringSize}
                   onChange={(e) => setRingSize(e.target.value)}
                   placeholder="e.g. 7 / 17.3 mm"
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Size Standard</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Size Standard</label>
                 <select
                   value={ringSizeStandard}
                   onChange={(e) => setRingSizeStandard(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none"
                 >
                   {RING_SIZE_STANDARDS.map((s) => (
                     <option key={s.value} value={s.value}>
@@ -1204,36 +1204,36 @@ export const AdminEditOrderModal: React.FC<AdminEditOrderModalProps> = ({
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Target Weight (g)</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Target Weight (g)</label>
                 <input
                   type="number"
                   step="0.01"
                   value={targetWeightGrams}
                   onChange={(e) => setTargetWeightGrams(e.target.value)}
                   placeholder="e.g. 14.50"
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Needed By Date</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Needed By Date</label>
                 <input
                   type="date"
                   value={neededByDate}
                   onChange={(e) => setNeededByDate(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none"
                 />
               </div>
             </div>
 
             <div>
-              <label className="font-semibold text-[#1E2230] block mb-1">Design Brief &amp; Tolerances</label>
+              <label className="font-semibold text-[#17243B] block mb-1">Design Brief &amp; Tolerances</label>
               <textarea
                 rows={2}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Prong style, thickness, tolerance..."
-                className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none"
+                className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none"
               />
             </div>
           </div>
@@ -1335,7 +1335,7 @@ export const AdminEditOrderModal: React.FC<AdminEditOrderModalProps> = ({
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E5E7EF] text-xs font-semibold focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E8D7B7] text-xs font-semibold focus:outline-none focus:border-[#C9A227]"
                 >
                   {ORDER_STATUS_CHOICES.map((st) => (
                     <option key={st.value} value={st.value}>
@@ -1350,7 +1350,7 @@ export const AdminEditOrderModal: React.FC<AdminEditOrderModalProps> = ({
                 <select
                   value={assignedStaffId}
                   onChange={(e) => setAssignedStaffId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E5E7EF] text-xs font-medium focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E8D7B7] text-xs font-medium focus:outline-none focus:border-[#C9A227]"
                 >
                   <option value="">Unassigned / Open Pool (Staff claims from pool)</option>
                   {staffList.map((stf) => (
@@ -1468,7 +1468,7 @@ export const AdminEditOrderModal: React.FC<AdminEditOrderModalProps> = ({
           </div>
 
           {/* Footer Action Buttons with Edit, Cancel & Delete */}
-          <div className="pt-4 flex items-center justify-between border-t border-[#E5E7EF] flex-wrap gap-3">
+          <div className="pt-4 flex items-center justify-between border-t border-[#E8D7B7] flex-wrap gap-3">
             <div className="flex items-center gap-2">
               {onCancelOrder && status !== 'cancelled' && (
                 <button
@@ -1634,10 +1634,10 @@ export const AdminEditCustomRequestModal: React.FC<AdminEditCustomRequestModalPr
 
   return (
     <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
-      <div className="bg-white border border-[#E5E7EF] rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl space-y-6 text-[#1E2230] max-h-[92vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-white border border-[#E8D7B7] rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl space-y-6 text-[#17243B] max-h-[92vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#E5E7EF] pb-4">
+        <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-4">
           <div>
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full bg-[#12204D] text-[#F5E7A3] text-[10px] font-mono font-bold uppercase tracking-wider">
@@ -1645,7 +1645,7 @@ export const AdminEditCustomRequestModal: React.FC<AdminEditCustomRequestModalPr
               </span>
               <span className="text-xs text-slate-500 font-mono">• REQ #{requestItem.id}</span>
             </div>
-            <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#1E2230] tracking-tight mt-1 flex items-center gap-2">
+            <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#17243B] tracking-tight mt-1 flex items-center gap-2">
               Edit Custom Request &amp; Client Details
             </h2>
           </div>
@@ -1671,7 +1671,7 @@ export const AdminEditCustomRequestModal: React.FC<AdminEditCustomRequestModalPr
         <form onSubmit={handleSubmit} className="space-y-6 text-xs">
           
           {/* Customer Details */}
-          <div className="p-4 rounded-2xl bg-[#FAF9F5] border border-[#E5E7EF] space-y-3">
+          <div className="p-4 rounded-2xl bg-[#FAF9F5] border border-[#E8D7B7] space-y-3">
             <span className="font-bold text-xs uppercase tracking-wider text-[#09112B] font-mono flex items-center gap-1.5">
               <User className="w-4 h-4 text-[#C9A227]" /> Client Details
             </span>
@@ -1683,7 +1683,7 @@ export const AdminEditCustomRequestModal: React.FC<AdminEditCustomRequestModalPr
                   type="text"
                   value={contactName}
                   onChange={(e) => setContactName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
 
@@ -1693,7 +1693,7 @@ export const AdminEditCustomRequestModal: React.FC<AdminEditCustomRequestModalPr
                   type="text"
                   value={contactPhone}
                   onChange={(e) => setContactPhone(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
 
@@ -1703,25 +1703,25 @@ export const AdminEditCustomRequestModal: React.FC<AdminEditCustomRequestModalPr
                   type="email"
                   value={contactEmail}
                   onChange={(e) => setContactEmail(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E5E7EF] text-xs focus:outline-none focus:border-[#C9A227]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 />
               </div>
             </div>
           </div>
 
           {/* Specifications */}
-          <div className="p-4 rounded-2xl bg-white border border-[#E5E7EF] space-y-3">
+          <div className="p-4 rounded-2xl bg-white border border-[#E8D7B7] space-y-3">
             <span className="font-bold text-xs uppercase tracking-wider text-[#09112B] font-mono flex items-center gap-1.5">
               <Gem className="w-4 h-4 text-[#C9A227]" /> Design Specifications &amp; Commercials
             </span>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Category</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Category</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none"
                 >
                   {COMMON_CATEGORIES.map((cat) => (
                     <option key={cat} value={cat}>
@@ -1732,11 +1732,11 @@ export const AdminEditCustomRequestModal: React.FC<AdminEditCustomRequestModalPr
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Metal Alloy</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Metal Alloy</label>
                 <select
                   value={metalAlloy}
                   onChange={(e) => setMetalAlloy(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none"
                 >
                   {COMMON_METALS.map((met) => (
                     <option key={met} value={met}>
@@ -1749,22 +1749,22 @@ export const AdminEditCustomRequestModal: React.FC<AdminEditCustomRequestModalPr
 
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Ring Size</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Ring Size</label>
                 <input
                   type="text"
                   value={ringSize}
                   onChange={(e) => setRingSize(e.target.value)}
                   placeholder="e.g. 7"
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Size Standard</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Size Standard</label>
                 <select
                   value={ringSizeStandard}
                   onChange={(e) => setRingSizeStandard(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none"
                 >
                   {RING_SIZE_STANDARDS.map((s) => (
                     <option key={s.value} value={s.value}>
@@ -1775,56 +1775,56 @@ export const AdminEditCustomRequestModal: React.FC<AdminEditCustomRequestModalPr
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Target Weight (g)</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Target Weight (g)</label>
                 <input
                   type="number"
                   step="0.01"
                   value={targetWeightGrams}
                   onChange={(e) => setTargetWeightGrams(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Needed By Date</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Needed By Date</label>
                 <input
                   type="date"
                   value={neededByDate}
                   onChange={(e) => setNeededByDate(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Agreed / Quoted Price (₹ / $)</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Agreed / Quoted Price (₹ / $)</label>
                 <input
                   type="number"
                   step="0.01"
                   value={agreedPrice}
                   onChange={(e) => setAgreedPrice(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs font-mono font-bold focus:outline-none"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs font-mono font-bold focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Budget Range</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Budget Range</label>
                 <input
                   type="text"
                   value={budgetRange}
                   onChange={(e) => setBudgetRange(e.target.value)}
                   placeholder="e.g. ₹20,000 - ₹35,000"
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-[#1E2230] block mb-1">Pipeline Status</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Pipeline Status</label>
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs font-semibold focus:outline-none"
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs font-semibold focus:outline-none"
                 >
                   <option value="new">New</option>
                   <option value="quoted">Price Quoted</option>
@@ -1836,12 +1836,12 @@ export const AdminEditCustomRequestModal: React.FC<AdminEditCustomRequestModalPr
             </div>
 
             <div>
-              <label className="font-semibold text-[#1E2230] block mb-1">Client Design Brief</label>
+              <label className="font-semibold text-[#17243B] block mb-1">Client Design Brief</label>
               <textarea
                 rows={3}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E5E7EF] text-xs focus:outline-none"
+                className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none"
               />
             </div>
           </div>
@@ -1922,7 +1922,7 @@ export const AdminEditCustomRequestModal: React.FC<AdminEditCustomRequestModalPr
           </div>
 
           {/* Footer Action Buttons with Edit, Convert, Cancel & Delete */}
-          <div className="pt-4 flex items-center justify-between border-t border-[#E5E7EF] flex-wrap gap-3">
+          <div className="pt-4 flex items-center justify-between border-t border-[#E8D7B7] flex-wrap gap-3">
             <div className="flex items-center gap-2">
               {onConvertToOrder && (
                 <button

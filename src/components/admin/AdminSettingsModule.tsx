@@ -271,13 +271,13 @@ export const AdminSettingsModule: React.FC = () => {
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
-      <div className="bg-white p-6 rounded-2xl border border-[#E5E7EF] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white p-6 rounded-2xl border border-[#E8D7B7] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="p-2 rounded-xl bg-amber-500/10 text-amber-700 border border-amber-500/20">
-              <CreditCard className="w-5 h-5 text-[#2856C7]" />
+              <CreditCard className="w-5 h-5 text-[#17345C]" />
             </span>
-            <h1 className="font-serif text-2xl font-bold text-[#1E2230] tracking-tight">
+            <h1 className="font-serif text-2xl font-bold text-[#17243B] tracking-tight">
               Studio Payment Gateway Settings
             </h1>
           </div>
@@ -288,7 +288,7 @@ export const AdminSettingsModule: React.FC = () => {
 
         {loading && (
           <div className="flex items-center gap-2 text-xs text-[#6B7280]">
-            <Loader2 className="w-4 h-4 animate-spin text-[#2856C7]" />
+            <Loader2 className="w-4 h-4 animate-spin text-[#17345C]" />
             <span>Loading active settings...</span>
           </div>
         )}
@@ -303,11 +303,11 @@ export const AdminSettingsModule: React.FC = () => {
       )}
 
       {/* Main Settings Card */}
-      <div className="bg-white rounded-2xl border border-[#E5E7EF] p-6 sm:p-8 shadow-sm space-y-6">
-        <div className="flex items-center gap-2.5 pb-4 border-b border-[#E5E7EF]">
-          <QrCode className="w-5 h-5 text-[#2856C7]" />
+      <div className="bg-white rounded-2xl border border-[#E8D7B7] p-6 sm:p-8 shadow-sm space-y-6">
+        <div className="flex items-center gap-2.5 pb-4 border-b border-[#E8D7B7]">
+          <QrCode className="w-5 h-5 text-[#17345C]" />
           <div>
-            <h3 className="font-bold text-base text-[#1E2230]">
+            <h3 className="font-bold text-base text-[#17243B]">
               Dynamic Client Payment Gateway (UPI / QR &amp; Cash / Check)
             </h3>
             <p className="text-xs text-[#6B7280]">
@@ -319,7 +319,7 @@ export const AdminSettingsModule: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Studio Primary UPI ID */}
           <div className="space-y-2">
-            <label className="font-semibold text-[#1E2230] text-xs block">
+            <label className="font-semibold text-[#17243B] text-xs block">
               Studio Primary UPI VPA ID
             </label>
             <div className="relative">
@@ -328,13 +328,13 @@ export const AdminSettingsModule: React.FC = () => {
                 value={studioUpiId}
                 onChange={(e) => setStudioUpiId(e.target.value)}
                 placeholder="e.g. shiulicad@okhdfcbank"
-                className="w-full pl-3.5 pr-20 py-2.5 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] font-mono text-xs text-[#1E2230] focus:border-[#2856C7] focus:bg-white outline-none transition-all"
+                className="w-full pl-3.5 pr-20 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] font-mono text-xs text-[#17243B] focus:border-[#B88732] focus:bg-white outline-none transition-all"
               />
               <button
                 type="button"
                 onClick={handleCopyUpiPreview}
                 title="Test 1-Click Copy"
-                className="absolute right-2 top-2 px-2.5 py-1 rounded-lg bg-white border border-[#E5E7EF] text-[11px] text-[#2856C7] font-semibold flex items-center gap-1 hover:bg-slate-50 transition-colors cursor-pointer"
+                className="absolute right-2 top-2 px-2.5 py-1 rounded-lg bg-white border border-[#E8D7B7] text-[11px] text-[#17345C] font-semibold flex items-center gap-1 hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 {copiedUpi ? (
                   <>
@@ -357,7 +357,7 @@ export const AdminSettingsModule: React.FC = () => {
           {/* Upload Dynamic QR Code Image */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="font-semibold text-[#1E2230] text-xs block">
+              <label className="font-semibold text-[#17243B] text-xs block">
                 Studio UPI QR Code Image
               </label>
               {studioQrCodeUrl && (
@@ -376,7 +376,7 @@ export const AdminSettingsModule: React.FC = () => {
 
             <div className="flex items-center gap-3">
               {studioQrCodeUrl ? (
-                <div className="w-16 h-16 rounded-xl border border-[#E5E7EF] bg-white p-1 shrink-0 overflow-hidden shadow-sm flex items-center justify-center">
+                <div className="w-16 h-16 rounded-xl border border-[#E8D7B7] bg-white p-1 shrink-0 overflow-hidden shadow-sm flex items-center justify-center">
                   <img
                     src={studioQrCodeUrl}
                     alt="Custom QR Preview"
@@ -390,8 +390,8 @@ export const AdminSettingsModule: React.FC = () => {
               )}
 
               <div className="flex-1">
-                <label className="cursor-pointer px-4 py-2.5 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] hover:border-[#2856C7] hover:bg-white text-xs font-semibold text-[#1E2230] flex items-center justify-center gap-2 transition-all">
-                  <UploadCloud className="w-4 h-4 text-[#2856C7]" />
+                <label className="cursor-pointer px-4 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] hover:border-[#17345C] hover:bg-white text-xs font-semibold text-[#17243B] flex items-center justify-center gap-2 transition-all">
+                  <UploadCloud className="w-4 h-4 text-[#17345C]" />
                   <span>{studioQrCodeUrl ? 'Change QR Image' : 'Upload Studio QR Image'}</span>
                   <input
                     type="file"
@@ -419,16 +419,16 @@ export const AdminSettingsModule: React.FC = () => {
         </div>
 
         {/* Customer Advisory for CASH & Cheque Option */}
-        <div className="space-y-2 pt-2 border-t border-[#E5E7EF]">
-          <label className="font-semibold text-[#1E2230] text-xs flex items-center gap-1.5">
-            <Banknote className="w-4 h-4 text-[#2856C7]" />
+        <div className="space-y-2 pt-2 border-t border-[#E8D7B7]">
+          <label className="font-semibold text-[#17243B] text-xs flex items-center gap-1.5">
+            <Banknote className="w-4 h-4 text-[#17345C]" />
             <span>Customer Advisory for CASH &amp; Cheque Option</span>
           </label>
           <textarea
             rows={3}
             value={cashCheckInstructions}
             onChange={(e) => setCashCheckInstructions(e.target.value)}
-            className="w-full px-3.5 py-2.5 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] text-xs text-[#1E2230] focus:border-[#2856C7] focus:bg-white outline-none resize-none leading-relaxed transition-all"
+            className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] text-xs text-[#17243B] focus:border-[#B88732] focus:bg-white outline-none resize-none leading-relaxed transition-all"
             placeholder="Write bank account details, cheque payee name, and cash deposit instructions for customers..."
           />
           <span className="text-[11px] text-[#6B7280] block">
@@ -459,15 +459,15 @@ export const AdminSettingsModule: React.FC = () => {
       </div>
 
       {/* Dynamic Email Configuration Card */}
-      <div className="bg-white rounded-2xl border border-[#E5E7EF] p-6 sm:p-8 shadow-sm space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#E5E7EF] gap-3">
+      <div className="bg-white rounded-2xl border border-[#E8D7B7] p-6 sm:p-8 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#E8D7B7] gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-blue-50 text-[#2856C7] border border-blue-100">
+            <div className="p-2 rounded-xl bg-blue-50 text-[#17345C] border border-blue-100">
               <Mail className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-base text-[#1E2230]">
+                <h3 className="font-bold text-base text-[#17243B]">
                   Transactional Email Configuration (Google SMTP)
                 </h3>
               </div>
@@ -493,10 +493,10 @@ export const AdminSettingsModule: React.FC = () => {
         </div>
 
         {/* Informative Callout */}
-        <div className="p-3.5 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] text-xs text-[#4B5563] flex items-start gap-2.5">
-          <Lock className="w-4 h-4 text-[#2856C7] shrink-0 mt-0.5" />
+        <div className="p-3.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] text-xs text-[#4B5563] flex items-start gap-2.5">
+          <Lock className="w-4 h-4 text-[#17345C] shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <span className="font-semibold text-[#1E2230] block">
+            <span className="font-semibold text-[#17243B] block">
               Multi-Process Encryption &amp; In-Memory Caching
             </span>
             <p className="leading-relaxed">
@@ -523,7 +523,7 @@ export const AdminSettingsModule: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* SMTP Sender Gmail Address */}
           <div className="space-y-2">
-            <label className="font-semibold text-[#1E2230] text-xs block">
+            <label className="font-semibold text-[#17243B] text-xs block">
               Sender Gmail Address
             </label>
             <input
@@ -534,7 +534,7 @@ export const AdminSettingsModule: React.FC = () => {
                 setTestPassed(null);
               }}
               placeholder={maskedSmtpEmail ? `Current: ${maskedSmtpEmail}` : "e.g. socialbuzz31@gmail.com"}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] font-mono text-xs text-[#1E2230] focus:border-[#2856C7] focus:bg-white outline-none transition-all"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] font-mono text-xs text-[#17243B] focus:border-[#B88732] focus:bg-white outline-none transition-all"
             />
             <span className="text-[11px] text-[#6B7280] block">
               Outgoing transactional emails will display this address as the verified sender.
@@ -544,14 +544,14 @@ export const AdminSettingsModule: React.FC = () => {
           {/* 16-Character Google App Password */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="font-semibold text-[#1E2230] text-xs block">
+              <label className="font-semibold text-[#17243B] text-xs block">
                 16-Character Google App Password
               </label>
               <a
                 href="https://myaccount.google.com/apppasswords"
                 target="_blank"
                 rel="noreferrer"
-                className="text-[11px] text-[#2856C7] hover:underline font-medium"
+                className="text-[11px] text-[#17345C] hover:underline font-medium"
               >
                 Generate App Password &rarr;
               </a>
@@ -565,7 +565,7 @@ export const AdminSettingsModule: React.FC = () => {
                   setTestPassed(null);
                 }}
                 placeholder={emailConfigured ? "•••• •••• •••• •••• (configured)" : "e.g. abcd efgh ijkl mnop"}
-                className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-[#F6F7FB] border border-[#E5E7EF] font-mono text-xs text-[#1E2230] focus:border-[#2856C7] focus:bg-white outline-none transition-all"
+                className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] font-mono text-xs text-[#17243B] focus:border-[#B88732] focus:bg-white outline-none transition-all"
               />
               <button
                 type="button"
@@ -586,8 +586,8 @@ export const AdminSettingsModule: React.FC = () => {
         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h4 className="text-xs font-bold text-[#1E2230] flex items-center gap-1.5">
-                <Send className="w-3.5 h-3.5 text-[#2856C7]" />
+              <h4 className="text-xs font-bold text-[#17243B] flex items-center gap-1.5">
+                <Send className="w-3.5 h-3.5 text-[#17345C]" />
                 <span>Pre-Flight SMTP Verification</span>
               </h4>
               <p className="text-[11px] text-[#6B7280]">
@@ -601,13 +601,13 @@ export const AdminSettingsModule: React.FC = () => {
                 value={testRecipientInput}
                 onChange={(e) => setTestRecipientInput(e.target.value)}
                 placeholder="Custom test recipient (optional)"
-                className="px-3 py-1.5 text-xs rounded-lg bg-white border border-[#E5E7EF] font-mono outline-none w-56 hidden sm:block"
+                className="px-3 py-1.5 text-xs rounded-lg bg-white border border-[#E8D7B7] font-mono outline-none w-56 hidden sm:block"
               />
               <button
                 type="button"
                 onClick={handleTestEmail}
                 disabled={testingEmail}
-                className="px-4 py-2 rounded-xl bg-[#1E2230] text-[#FAF8F3] hover:bg-[#2856C7] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                className="px-4 py-2 rounded-xl bg-[#17243B] text-[#FAF8F3] hover:bg-[#17345C] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 shrink-0"
               >
                 {testingEmail ? (
                   <>
@@ -655,7 +655,7 @@ export const AdminSettingsModule: React.FC = () => {
         </div>
 
         {/* Save & Reset Actions Bar */}
-        <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-[#E5E7EF]">
+        <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-[#E8D7B7]">
           <div className="flex items-center gap-3">
             <button
               type="button"

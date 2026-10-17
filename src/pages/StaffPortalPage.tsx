@@ -121,13 +121,52 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
       const res = await api.request<any>('/orders/pool/');
       if (res && Array.isArray(res.pool_orders)) {
         const mapped: AvailableJob[] = res.pool_orders.map((ord: any) => {
+          const isFileEdit = ord.order_type === 'file_edit' || Boolean(ord.file_edit_request) || Boolean(ord.is_file_edit);
+          const fe = ord.file_edit_request;
           const req = ord.custom_request;
+
+          const rawPayout = Number(ord.staff_payout_price ?? ord.payout_price ?? (ord.total_price ? Math.round(Number(ord.total_price) * 0.8) : 0));
+
+          if (isFileEdit && fe) {
+            const formatStr = (fe.original_file_format || '3dm').toUpperCase();
+            return {
+              id: ord.id.toString(),
+              orderNumber: `FE-ORD-${ord.id}`,
+              title: fe.original_file_name ? `CAD Modification: ${fe.original_file_name}` : `CAD File Modification #${ord.id} (${formatStr})`,
+              category: `CAD File Modification (${formatStr})`,
+              agreedPayout: rawPayout,
+              clientBudget: rawPayout > 0 ? `₹${rawPayout.toLocaleString('en-IN')}` : '',
+              deadlineHours: ord.deadline_hours || 48,
+              releasedTimeAgo: ord.unassigned_since
+                ? new Date(ord.unassigned_since).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : 'Recently',
+              referenceImage: fe.reference_image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&q=80&w=600',
+              description: fe.description || 'Customer-uploaded CAD file modification request.',
+              metalPreference: fe.modification_type_labels?.join(', ') || 'CAD Modification',
+              specsSummary: {
+                diamondCount: 0,
+                weightEst: fe.target_weight_grams ? `${fe.target_weight_grams} gm` : 'As per brief',
+                ringSize: fe.target_stone_size ? `Target: ${fe.target_stone_size}` : undefined,
+              },
+              status: 'available',
+              rawDetails: fe,
+              isFileEdit: true,
+              originalFileFormat: fe.original_file_format,
+              originalFileName: fe.original_file_name,
+              originalFileUrl: fe.download_url || fe.original_file,
+              downloadUrl: fe.download_url,
+              fileSizeBytes: fe.file_size_bytes,
+              modificationTypes: fe.modification_type_labels,
+              targetWeightGrams: fe.target_weight_grams,
+              targetStoneSize: fe.target_stone_size,
+              voiceNoteUrl: fe.voice_note,
+            };
+          }
+
           const stoneCount = (req?.stones && Array.isArray(req.stones) ? req.stones.length : 0) +
                              (req?.gemstones && Array.isArray(req.gemstones) ? req.gemstones.length : 0);
           const selMetal = req?.selections?.find((s: any) => s.group_key === 'metal' || s.group_label?.toLowerCase().includes('metal'));
           const metalPreference = selMetal?.value_label || req?.metal_alloy_name || '';
-
-          const rawPayout = Number(ord.staff_payout_price ?? ord.payout_price ?? (ord.total_price ? Math.round(Number(ord.total_price) * 0.8) : 0));
 
           return {
             id: ord.id.toString(),
@@ -150,6 +189,7 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
             },
             status: 'available',
             rawDetails: req,
+            isFileEdit: false,
           };
         });
         setAvailableJobs(mapped);
@@ -178,6 +218,8 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
         );
 
         const mappedActive: StaffActiveJob[] = activeOrders.map((ord: any) => {
+          const isFileEdit = ord.order_type === 'file_edit' || Boolean(ord.file_edit_request) || Boolean(ord.is_file_edit);
+          const fe = ord.file_edit_request;
           const req = ord.custom_request;
           const total = parseFloat(ord.total_price || '200');
 
@@ -188,7 +230,7 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
           let progressPercentage = 0;
 
           const isClientApproved = milestones.some((m: any) => 
-            (m.stage || '').toLowerCase().includes('approved by client')
+            (m.stage || '').toLowerCase().includes('approved by client') || (m.stage || '').toLowerCase().includes('preview approved')
           );
 
           if (ord.status === 'completed' || ord.status === 'delivered') {
@@ -205,16 +247,16 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
             progressPercentage = 85;
           } else if (milestones.length > 0) {
             const stageNames = milestones.map((m: any) => m.stage);
-            if (stageNames.includes('Ready for Delivery') || stageNames.includes('04. Final STL Export & 4K Renders')) {
+            if (stageNames.some((s: string) => s.includes('04.') || s.includes('Ready for Delivery') || s.includes('Final'))) {
               currentMilestone = 'Ready for Delivery';
               progressPercentage = 95;
-            } else if (stageNames.includes('Refining') || stageNames.includes('03. Tolerances, Prongs & Castability')) {
+            } else if (stageNames.some((s: string) => s.includes('03.') || s.includes('Refining') || s.includes('Tolerances'))) {
               currentMilestone = 'Refining';
               progressPercentage = 85;
-            } else if (stageNames.includes('Modeling') || stageNames.includes('02. Stone Seats & Filigree Detailing')) {
+            } else if (stageNames.some((s: string) => s.includes('02.') || s.includes('Modeling') || s.includes('Modifications'))) {
               currentMilestone = 'Modeling';
               progressPercentage = 60;
-            } else if (stageNames.includes('Started') || stageNames.includes('01. Blueprint Setup & Mesh Blocking')) {
+            } else if (stageNames.some((s: string) => s.includes('01.') || s.includes('Started') || s.includes('Inspected'))) {
               currentMilestone = 'Started';
               progressPercentage = 25;
             }
@@ -244,6 +286,36 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
               : 'In Client 3D Review' as any;
           }
 
+          if (isFileEdit && fe) {
+            const formatStr = (fe.original_file_format || '3dm').toUpperCase();
+            return {
+              id: ord.id.toString(),
+              orderNumber: `FE-ORD-${ord.id}`,
+              title: fe.original_file_name ? `CAD Modification: ${fe.original_file_name}` : `CAD File Modification #${ord.id} (${formatStr})`,
+              category: `CAD File Modification (${formatStr})`,
+              referenceImage: fe.reference_image || ord.preview_image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&q=80&w=600',
+              acceptedAt: ord.assigned_at ? new Date(ord.assigned_at).toLocaleDateString() : 'Active',
+              deadline: 'In 48 Hours',
+              hoursRemaining: 48,
+              payoutAmount: Number(ord.staff_payout_price ?? ord.payout_price ?? (total ? Math.round(total * 0.8) : 0)),
+              clientName: fe.contact_name || fe.client_display_name || ord.client?.first_name || 'Jewellery Atelier',
+              clientNotes: fe.description || 'CAD File Modification',
+              currentMilestone: currentMilestone,
+              progressPercentage: progressPercentage,
+              status: displayStatus,
+              isFileEdit: true,
+              originalFileFormat: fe.original_file_format,
+              originalFileName: fe.original_file_name,
+              originalFileUrl: fe.download_url || fe.original_file,
+              downloadUrl: fe.download_url,
+              fileSizeBytes: fe.file_size_bytes,
+              modificationTypes: fe.modification_type_labels,
+              targetWeightGrams: fe.target_weight_grams,
+              targetStoneSize: fe.target_stone_size,
+              voiceNoteUrl: fe.voice_note,
+            };
+          }
+
           return {
             id: ord.id.toString(),
             orderNumber: `ORD-${ord.id}`,
@@ -259,6 +331,7 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
             currentMilestone: currentMilestone,
             progressPercentage: progressPercentage,
             status: displayStatus,
+            isFileEdit: false,
           };
         });
 
@@ -300,10 +373,67 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
     }
   };
 
+  const [loadingEarnings, setLoadingEarnings] = useState<boolean>(false);
+
+  const fetchSettlements = async () => {
+    setLoadingEarnings(true);
+    try {
+      const res = await api.request<any>('/settlements/');
+      const ensureArray = (r: any) => {
+        if (Array.isArray(r)) return r;
+        if (r && Array.isArray(r.results)) return r.results;
+        return [];
+      };
+      const list = ensureArray(res);
+      const mapped: StaffEarningsRecord[] = list.map((st: any) => {
+        const totalAmt = parseFloat(st.amount || '0');
+        const paidAmt = parseFloat(st.amount_paid || '0');
+        const isSettled = st.status === 'processed' || (paidAmt >= totalAmt && totalAmt > 0);
+        const isPartial = st.status === 'partial' || (paidAmt > 0 && paidAmt < totalAmt);
+
+        let displayStatus: 'Settled' | 'Pending Settlement' | 'Partially Settled' = isSettled
+          ? 'Settled'
+          : isPartial
+          ? 'Partially Settled'
+          : 'Pending Settlement';
+
+        return {
+          id: `SET-${st.id}`,
+          orderNumber: st.order_number || (st.order_id ? `ORD-${st.order_id}` : `ORD-${st.id}`),
+          title: st.design_title || 'Bespoke Custom CAD Design',
+          completedDate: st.created_at || (st.processed_at ? new Date(st.processed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent'),
+          amount: totalAmt,
+          amountPaid: paidAmt,
+          balanceDue: typeof st.balance_due === 'number' ? st.balance_due : Math.max(0, totalAmt - paidAmt),
+          status: displayStatus,
+          settlementRef: st.transaction_ref || undefined,
+          paymentMethod: st.payment_method || 'bank_transfer',
+          notes: st.notes || '',
+          settledAt: st.processed_at ? new Date(st.processed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : undefined,
+        };
+      });
+
+      setEarnings(mapped);
+
+      // Compute total lifetime earnings & update staff object dynamically!
+      const totalLifetime = mapped.reduce((acc, it) => acc + (it.amount || 0), 0);
+      setStaff((prev) => ({
+        ...prev,
+        totalEarnings: totalLifetime,
+        jobsCompleted: Math.max(prev.jobsCompleted, mapped.length),
+      }));
+    } catch (e) {
+      console.warn('Failed to fetch staff settlements/earnings:', e);
+    } finally {
+      setLoadingEarnings(false);
+    }
+  };
+
   useEffect(() => {
     fetchStaffDashboard();
     fetchPoolJobs();
     fetchMyActiveJobs();
+    fetchSettlements();
   }, [activeTab]);
 
   // Action 1: Accept Job from Job Pool (First-Accept-Wins Race Mechanic)
@@ -476,10 +606,15 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
         />
       )}
 
-      {activeTab === 'history' && <StaffHistoryTab earnings={earnings} />}
+      {activeTab === 'history' && <StaffHistoryTab earnings={earnings} staffName={staff.name} />}
 
       {activeTab === 'earnings' && (
-        <StaffEarningsTab staff={staff} earnings={earnings} />
+        <StaffEarningsTab
+          staff={staff}
+          earnings={earnings}
+          loading={loadingEarnings}
+          onRefresh={fetchSettlements}
+        />
       )}
 
       {activeTab === 'profile' && <StaffProfileTab staff={staff} onUpdateProfile={setStaff} />}

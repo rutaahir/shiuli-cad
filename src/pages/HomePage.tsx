@@ -32,14 +32,17 @@ import {
   Sliders,
   Headphones,
   X,
+  Lock,
 } from 'lucide-react';
 import { RevealOnScroll } from '../components/motion/RevealOnScroll';
 import { StaggerGrid, StaggerItem } from '../components/motion/StaggerGrid';
 import { LazyImage } from '../components/motion/LazyImage';
 import { formatINR, formatRupee } from '../utils/currencyHelper';
+import { useCustomerCountry, resolveDisplayPrice, formatCurrencyAmount } from '../utils/countryContext';
 import { getMainShowcaseCategories, getSanitizedCategories, formatCategoryName, isProductInCategory } from '../utils/categoryHelper';
 import { getOptimizedImageUrl, handleImgError } from '../utils/imageHelper';
 import { ProductPriceTag } from '../components/common/ProductPriceTag';
+import { useAuth } from '../context/AuthContext';
 
 interface CategoryBoxCardProps {
   cat: any;
@@ -56,6 +59,7 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
   onNavigate,
   onQuickView,
 }) => {
+  const { currentCountry, exchangeRates } = useCustomerCountry();
   const cSlug = (cat.slug || cat.id || '').toLowerCase().trim();
 
   // 1. Gather all strictly matching products from live inventory (added by admin or staff)
@@ -193,7 +197,7 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
           {currentProduct?.price ? (
             <div className="absolute top-3 right-3 z-10">
               <span className="px-2 py-0.5 rounded-md bg-[#17345C]/90 backdrop-blur-md border border-[#17345C] text-[10px] font-mono font-semibold text-white shadow-xs">
-                ₹{formatINR(currentProduct.price)}
+                {resolveDisplayPrice(currentProduct, 'standard', currentCountry.code, exchangeRates).display}
               </span>
             </div>
           ) : null}
@@ -271,7 +275,7 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
                             e.stopPropagation();
                             onQuickView(prod);
                           }}
-                          title={`View ${prod.title} (₹${formatINR(prod.price)})`}
+                          title={`View ${prod.title} (${resolveDisplayPrice(prod, 'standard', currentCountry.code, exchangeRates).display})`}
                           className={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden shrink-0 border p-0.5 bg-[#FFF9F0] transition-all duration-300 cursor-pointer ${
                             isActive
                               ? 'border-[#B88732] ring-2 ring-[#B88732] scale-105 shadow-[0_0_12px_rgba(217,182,111,0.5)] z-10'
@@ -322,7 +326,7 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
                             e.stopPropagation();
                             onQuickView(prod);
                           }}
-                          title={`View ${prod.title} (₹${formatINR(prod.price)})`}
+                          title={`View ${prod.title} (${resolveDisplayPrice(prod, 'standard', currentCountry.code, exchangeRates).display})`}
                           className={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden shrink-0 border p-0.5 bg-[#FFF9F0] transition-all duration-300 cursor-pointer ${
                             isActive
                               ? 'border-[#B88732] ring-2 ring-[#B88732] scale-105 shadow-[0_0_12px_rgba(217,182,111,0.5)] z-10'
@@ -368,7 +372,7 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
                         e.stopPropagation();
                         onQuickView(prod);
                       }}
-                      title={`View ${prod.title} (₹${formatINR(prod.price)})`}
+                      title={`View ${prod.title} (${resolveDisplayPrice(prod, 'standard', currentCountry.code, exchangeRates).display})`}
                       className={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden shrink-0 border p-0.5 bg-[#FFF9F0] transition-all duration-300 cursor-pointer ${
                         isActive
                           ? 'border-[#B88732] ring-2 ring-[#B88732] scale-105 shadow-[0_0_12px_rgba(217,182,111,0.5)] z-10'
@@ -414,12 +418,12 @@ const CategoryBoxCard: React.FC<CategoryBoxCardProps> = ({
                 className="px-2.5 py-1 rounded-md bg-[#FFF9F0] border border-[#E8D7B7] text-[10px] text-[#B88732] hover:text-[#17345C] hover:border-[#D9B66F] transition-all flex items-center gap-1.5 shadow-xs font-semibold"
               >
                 <Eye className="w-3 h-3 text-[#B88732]" />
-                <span>₹{formatINR(hoveredProduct.price)}</span>
+                <span>{resolveDisplayPrice(hoveredProduct, 'standard', currentCountry.code, exchangeRates).display}</span>
               </button>
             ) : minPrice && minPrice > 0 ? (
               <div className="px-2.5 py-1 rounded-md bg-[#FFF9F0] border border-[#E8D7B7] text-[10px] text-[#B88732] flex items-center gap-1.5 shadow-xs font-semibold">
                 <Sparkles className="w-3 h-3 text-[#B88732]" />
-                <span>From ₹{formatINR(minPrice)}</span>
+                <span>From {formatCurrencyAmount(minPrice * (exchangeRates[currentCountry.currency] || 1), currentCountry.currency, currentCountry.symbol)}</span>
               </div>
             ) : (
               <span className="px-2.5 py-0.5 rounded-full bg-[#FFF9F0] border border-[#E8D7B7] text-[10px] font-mono text-[#687386]">
@@ -448,6 +452,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   onToggleWishlist,
   wishlistIds,
 }) => {
+  const { isLoggedIn } = useAuth();
   const [selectedFilter, setSelectedFilter] = useState('all');
   const INITIAL_VISIBLE_COUNT = 12; // 3 rows of 4 columns = 12 products
   const [visibleCount, setVisibleCount] = useState<number>(INITIAL_VISIBLE_COUNT);
@@ -709,7 +714,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 Becomes Jewellery
               </span>
             </h1>
-            <p className="font-serif text-xs sm:text-[13px] md:text-[14px] text-[#626875] font-normal tracking-wide max-w-xl mx-auto leading-relaxed">
+            <p className="font-serif text-xs sm:text-[13px] md:text-[14px] text-[#475569] font-medium tracking-wide max-w-xl mx-auto leading-relaxed">
               From your imagination to a perfect 3D model — unique, high-precision CAD designs tailored just for you.
             </p>
           </motion.div>
@@ -873,7 +878,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                   {/* Product Grid Results */}
                   <div className="max-h-[300px] sm:max-h-[340px] overflow-y-auto pr-1 sm:pr-1.5 space-y-2 custom-scrollbar">
                     {heroSearchResults.length === 0 ? (
-                      <div className="py-8 text-center text-[#626875] space-y-2">
+                      <div className="py-8 text-center text-[#475569] font-medium space-y-2">
                         <AlertTriangle className="w-6 h-6 text-[#D6AD62] mx-auto" />
                         <p className="text-xs sm:text-sm">
                           No CAD models found matching &quot;{heroSearchQuery}&quot;
@@ -916,11 +921,11 @@ export const HomePage: React.FC<HomePageProps> = ({
                                 <div className="text-xs sm:text-[13px] font-semibold text-[#17365D] group-hover:text-[#B88735] transition-colors truncate">
                                   {renderHighlightedMatch(prod.title, heroSearchQuery)}
                                 </div>
-                                <div className="text-[11px] text-[#626875] truncate">
+                                <div className="text-xs text-[#475569] font-medium truncate">
                                   {prod.categoryName || 'Jewellery CAD'} &bull; .3DM + .STL
                                 </div>
                                 <div className="text-xs sm:text-[13px] font-bold text-[#17365D] mt-0.5">
-                                  ₹{formatINR(prod.price)}
+                                  <ProductPriceTag product={prod} size="xs" showOriginalPrice={false} />
                                 </div>
                               </div>
                             </div>
@@ -934,7 +939,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
                   {/* Bottom Footer bar */}
                   <div className="pt-3 mt-2 border-t border-[#EADCC8]/80 flex items-center justify-between text-xs">
-                    <span className="text-[11px] text-[#626875] hidden sm:inline">
+                    <span className="text-xs text-[#475569] font-medium hidden sm:inline">
                       Press <kbd className="px-1.5 py-0.5 text-[10px] bg-gray-100 border border-gray-300 rounded-sm">Esc</kbd> or click outside to dismiss
                     </span>
                     <button
@@ -1504,11 +1509,20 @@ export const HomePage: React.FC<HomePageProps> = ({
                             <button
                               onClick={(e) => { e.stopPropagation(); onAddToCart(product, 'standard'); }}
                               className="btn-gold-luxury px-2 sm:px-3.5 py-1.5 rounded-lg text-[9.5px] sm:text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-1 shrink-0 cursor-pointer"
-                              title="Add to Bag"
-                              aria-label="Add to Bag"
+                              title={isLoggedIn ? "Add to Bag" : "Sign in to Order / Add to Bag"}
+                              aria-label={isLoggedIn ? "Add to Bag" : "Sign in to Order / Add to Bag"}
                             >
-                              <ShoppingBag className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#17345C]" />
-                              <span className="hidden xs:inline sm:inline">Add</span>
+                              {!isLoggedIn ? (
+                                <>
+                                  <Lock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#17345C]" />
+                                  <span className="hidden xs:inline sm:inline">Add</span>
+                                </>
+                              ) : (
+                                <>
+                                  <ShoppingBag className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#17345C]" />
+                                  <span className="hidden xs:inline sm:inline">Add</span>
+                                </>
+                              )}
                             </button>
                           </div>
                         </div>

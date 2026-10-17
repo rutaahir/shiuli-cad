@@ -19,20 +19,22 @@ class AnalyticsSummaryView(APIView):
         now = timezone.now()
 
         try:
-            # 1. Total Revenue Calculation
-            completed_orders_revenue = Order.objects.filter(
-                status__in=[Order.Status.COMPLETED, Order.Status.PREVIEW_READY, Order.Status.PENDING_FINAL_PAYMENT]
-            ).aggregate(total=Sum('total_price'))['total'] or 0.0
+            # 1. Total Revenue Calculation (Normalized to INR base from verified collections)
+            from apps.payments.models import Payment
+            verified_payments_revenue = Payment.objects.filter(
+                status=Payment.Status.SUCCESS
+            ).aggregate(total=Sum('amount'))['total'] or 0.0
 
             purchases_revenue = Purchase.objects.filter(
                 status=Purchase.Status.PAID
             ).aggregate(total=Sum('price_paid'))['total'] or 0.0
 
-            file_edits_revenue = FileEditRequest.objects.filter(
-                agreed_price__isnull=False
-            ).aggregate(total=Sum('agreed_price'))['total'] or 0.0
+            completed_orders_revenue = float(verified_payments_revenue)
+            file_edits_revenue = 0.0
 
-            total_revenue = float(completed_orders_revenue) + float(purchases_revenue) + float(file_edits_revenue)
+            total_revenue = round(float(verified_payments_revenue) + float(purchases_revenue), 2)
+            total_revenue_inr = int(round(total_revenue))
+            total_revenue_usd = round(total_revenue / 86.85, 2)
 
             # 2. Total Orders & Active Commissions
             total_orders_count = Order.objects.count() + Purchase.objects.count() + FileEditRequest.objects.count()
@@ -139,6 +141,11 @@ class AnalyticsSummaryView(APIView):
 
             return Response({
                 'total_revenue': total_revenue,
+                'total_revenue_inr': total_revenue_inr,
+                'total_revenue_usd': total_revenue_usd,
+                'purchases_revenue': float(purchases_revenue),
+                'completed_orders_revenue': float(completed_orders_revenue),
+                'file_edits_revenue': round(file_edits_revenue, 2),
                 'total_orders_count': total_orders_count,
                 'active_commissions_count': active_commissions_count,
                 'avg_turnaround_hours': avg_turnaround_hours,

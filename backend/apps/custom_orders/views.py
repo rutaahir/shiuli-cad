@@ -117,7 +117,7 @@ class CustomRequestViewSet(viewsets.ModelViewSet):
     pagination_class = None
 
     def get_permissions(self):
-        if self.action in ['create', 'estimate', 'upload_sketch']:
+        if self.action in ['estimate', 'upload_sketch']:
             return [permissions.AllowAny()]
         return [permissions.IsAuthenticated()]
 
@@ -151,12 +151,8 @@ class CustomRequestViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user if (self.request.user and self.request.user.is_authenticated) else None
         if not user:
-            from apps.accounts.models import User
-            contact_email = serializer.validated_data.get('contact_email') or self.request.data.get('contact_email')
-            if contact_email:
-                user = User.objects.filter(email__iexact=str(contact_email).strip()).first()
-            if not user:
-                user = User.objects.filter(role='client').first()
+            from rest_framework.exceptions import NotAuthenticated
+            raise NotAuthenticated("Authentication required: you must be logged in to place a custom design order.")
         serializer.save(client=user, status=CustomRequest.Status.NEW)
 
     @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny], url_path='upload-sketch')
@@ -565,13 +561,19 @@ class CustomRequestViewSet(viewsets.ModelViewSet):
 
         return Response(CustomRequestSerializer(custom_req, context={'request': request}).data)
 
-    # ADMIN CANCEL / REJECT CUSTOM REQUEST
-    @action(detail=True, methods=['post'], permission_classes=[IsAdmin], url_path='cancel')
+    # CANCEL / REJECT CUSTOM REQUEST (CLIENT OR ADMIN)
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated], url_path='cancel')
     def cancel_request(self, request, pk=None):
         custom_req = self.get_object()
-        reason = request.data.get('reason', 'Cancelled by Studio Super Admin.')
+        user = request.user
+        is_admin = getattr(user, 'role', None) in ['admin', 'staff'] or user.is_staff or user.is_superuser
+        if not is_admin and custom_req.client_id != user.id:
+            return Response({"error": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
+
+        reason = request.data.get('reason', 'Cancelled by Customer' if not is_admin else 'Cancelled by Studio Super Admin.')
         custom_req.status = CustomRequest.Status.REJECTED
-        stamp = f"\n[🚫 Cancelled by Admin ({timezone.now().strftime('%d %b %H:%M')})]: {reason}"
+        actor_label = "Admin" if is_admin else "Customer"
+        stamp = f"\n[🚫 Cancelled by {actor_label} ({timezone.now().strftime('%d %b %H:%M')})]: {reason}"
         if custom_req.admin_call_notes:
             custom_req.admin_call_notes += stamp
         else:
@@ -583,7 +585,7 @@ class CustomRequestViewSet(viewsets.ModelViewSet):
             custom_req.order.save(update_fields=['status'])
             OrderMilestone.objects.create(
                 order=custom_req.order,
-                stage=f"Custom Request & Order Cancelled: {reason[:120]}"
+                stage=f"Custom Request & Order Cancelled by {actor_label}: {reason[:120]}"
             )
 
         return Response({
@@ -622,16 +624,15 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def get_serializer_class(self):
         user = self.request.user
-        # STAGE 6 CRITICAL RULE: Staff receives StaffOrderSerializer (PRICE COMPLETELY REMOVED FROM JSON API RESPONSE)
         if getattr(user, 'role', None) == 'staff':
             return StaffOrderSerializer
-        elif getattr(user, 'role', None) == 'client':
-            return ClientOrderSerializer
-        return AdminOrderSerializer
+        elif getattr(user, 'role', None) == 'admin' or getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False):
+            return AdminOrderSerializer
+        return ClientOrderSerializer
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Order.objects.all().select_related('client', 'assigned_staff', 'product', 'custom_request').prefetch_related('milestones', 'deliverables', 'payment_stages')
+        queryset = Order.objects.all().select_related('client', 'assigned_staff', 'product', 'custom_request', 'file_edit_request').prefetch_related('milestones', 'deliverables', 'payment_stages')
 
         if not user or not user.is_authenticated:
             raw_token = self.request.query_params.get('token')
@@ -644,15 +645,18 @@ class OrderViewSet(viewsets.ModelViewSet):
                 except Exception:
                     pass
 
+        if not user or not user.is_authenticated:
+            return Order.objects.none()
+
         role = getattr(user, 'role', None)
-        if role == 'client':
-            return queryset.filter(client=user).order_by('-created_at')
-        elif role == 'staff':
+        if role == 'staff':
             # Staff only sees orders assigned to them
             return queryset.filter(assigned_staff=user).order_by('-created_at')
         elif role == 'admin' or getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False):
             return queryset.order_by('-created_at')
-        return Order.objects.none()
+        
+        # All authenticated clients/customers see their own orders
+        return queryset.filter(client=user).order_by('-created_at')
 
     # STAGE 6 — JOB POOL FOR ELIGIBLE STAFF (PRICE STRIPPED)
     @action(detail=False, methods=['get'], permission_classes=[IsStaff], url_path='pool')
@@ -694,9 +698,25 @@ class OrderViewSet(viewsets.ModelViewSet):
             OrderPaymentStage.objects.create(order=ord_obj, label="Design Approval Milestone", percentage=30.0, amount=round(total_price * 0.30, 2), order_index=1, trigger_type="on_design_approval", status=OrderPaymentStage.Status.LOCKED)
             OrderPaymentStage.objects.create(order=ord_obj, label="Final CAD Delivery", percentage=60.0, amount=round(total_price * 0.60, 2), order_index=2, trigger_type="on_final_delivery", status=OrderPaymentStage.Status.LOCKED)
 
-        # Release any unassigned orders linked to agreed custom requests to IN_DESIGN
+        # Auto-sync any existing FileEditRequests in AGREED state into staff job pool
+        try:
+            from apps.file_edits.models import FileEditRequest
+            from apps.file_edits.services import sync_file_edit_to_order_pool
+            agreed_file_edits = FileEditRequest.objects.filter(status=FileEditRequest.Status.AGREED)
+            for fe in agreed_file_edits:
+                sync_file_edit_to_order_pool(fe)
+        except Exception as fe_sync_err:
+            logger.warning(f"Error auto-syncing agreed file edits into pool: {fe_sync_err}")
+
+        # Release any unassigned orders linked to agreed custom requests or file edits to IN_DESIGN
         Order.objects.filter(
             custom_request__status=CustomRequest.Status.AGREED,
+            assigned_staff__isnull=True,
+            status=Order.Status.AWAITING_PAYMENT
+        ).update(status=Order.Status.IN_DESIGN, unassigned_since=timezone.now())
+
+        Order.objects.filter(
+            file_edit_request__status=FileEditRequest.Status.AGREED,
             assigned_staff__isnull=True,
             status=Order.Status.AWAITING_PAYMENT
         ).update(status=Order.Status.IN_DESIGN, unassigned_since=timezone.now())
@@ -771,13 +791,17 @@ class OrderViewSet(viewsets.ModelViewSet):
         if not file_obj:
             return Response({"error": "No file attached."}, status=status.HTTP_400_BAD_REQUEST)
 
+        if not file_type or file_type not in ['3dm', 'stl', 'render', 'video', 'zip']:
+            return Response({"error": "Invalid or missing file_type. Must be 3dm, stl, render, video, or zip."}, status=status.HTTP_400_BAD_REQUEST)
+
         # File extension validation
         ext = file_obj.name.split('.')[-1].lower() if '.' in file_obj.name else ''
         valid_exts = {
             '3dm': ['3dm', 'rhino'],
             'stl': ['stl'],
             'render': ['jpg', 'jpeg', 'png', 'webp'],
-            'video': ['mp4', 'webm', 'mov', 'mkv']
+            'video': ['mp4', 'webm', 'mov', 'mkv'],
+            'zip': ['zip', 'rar', '7z', 'tar', 'gz']
         }
         allowed = valid_exts.get(file_type, [])
         if allowed and ext not in allowed:
@@ -793,8 +817,14 @@ class OrderViewSet(viewsets.ModelViewSet):
         # Delete existing deliverable for this file_type and current_version to ensure clean replacement for the active round
         OrderDeliverable.objects.filter(order=order, file_type=file_type, version=order.current_version).delete()
 
-        deliverable = OrderDeliverable(order=order, file_type=file_type, version=order.current_version)
-        if file_type in ['3dm', 'stl']:
+        deliverable = OrderDeliverable(
+            order=order,
+            file_type=file_type,
+            version=order.current_version,
+            original_filename=file_obj.name,
+            file_size_bytes=getattr(file_obj, 'size', None)
+        )
+        if file_type in ['3dm', 'stl', 'zip']:
             from apps.catalog.models import protected_cad_storage
             saved_name = protected_cad_storage.save(f"orders/deliverables/ord_{order.id}_v{order.current_version}_{file_type}_{file_obj.name}", file_obj)
             deliverable.file.name = saved_name
@@ -1173,10 +1203,24 @@ class OrderViewSet(viewsets.ModelViewSet):
     def toggle_download_permission(self, request, pk=None):
         order = self.get_object()
         enabled = request.data.get('enabled')
-        if enabled is not None:
-            order.download_enabled_by_admin = bool(enabled)
-        else:
-            order.download_enabled_by_admin = not order.download_enabled_by_admin
+        target_state = bool(enabled) if enabled is not None else not order.download_enabled_by_admin
+
+        # Require 100% full payment before enabling download
+        if target_state:
+            stages = order.payment_stages.all()
+            if stages.exists():
+                unpaid_stages = stages.exclude(status='paid')
+                if unpaid_stages.exists() and not order.balance_paid and order.status != Order.Status.COMPLETED:
+                    paid_amt = sum(s.amount for s in stages.filter(status='paid'))
+                    return Response({
+                        "error": f"Cannot enable CAD download: Client has only paid ₹{paid_amt:,.2f} of ₹{order.total_price:,.2f} across milestone stages. 100% full payment is required before unlocking CAD download."
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            elif not order.balance_paid and order.status != Order.Status.COMPLETED:
+                return Response({
+                    "error": "Cannot enable CAD download: 100% full payment is required before unlocking CAD download."
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+        order.download_enabled_by_admin = target_state
         order.save(update_fields=['download_enabled_by_admin'])
 
         create_notification(
@@ -1313,10 +1357,10 @@ class OrderViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_403_FORBIDDEN)
 
         # Check if staff has uploaded production CAD deliverables
-        has_cad = order.deliverables.filter(file_type__in=['3dm', 'stl']).exists()
+        has_cad = order.deliverables.filter(file_type__in=['3dm', 'stl', 'zip']).exists()
         if not has_cad:
             return Response({
-                "error": "The assigned CAD designer has not uploaded the production CAD files (.3DM / .STL) for this order yet. Download will become available once staff uploads them."
+                "error": "The assigned CAD designer has not uploaded the production CAD files (.3DM / .STL / .ZIP) for this order yet. Download will become available once staff uploads them."
             }, status=status.HTTP_400_BAD_REQUEST)
 
         now = timezone.now()

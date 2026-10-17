@@ -483,6 +483,16 @@ export interface AvailableJob {
   isSecuring?: boolean;
   status: 'available' | 'claimed';
   rawDetails?: any;
+  isFileEdit?: boolean;
+  originalFileFormat?: string;
+  originalFileName?: string;
+  originalFileUrl?: string;
+  downloadUrl?: string;
+  fileSizeBytes?: number;
+  modificationTypes?: string[];
+  targetWeightGrams?: number;
+  targetStoneSize?: string;
+  voiceNoteUrl?: string;
 }
 
 export interface StaffActiveJob {
@@ -506,6 +516,16 @@ export interface StaffActiveJob {
   };
   adminFeedback?: string;
   status: 'In Design' | 'With CAD Designer' | 'Completed';
+  isFileEdit?: boolean;
+  originalFileFormat?: string;
+  originalFileName?: string;
+  originalFileUrl?: string;
+  downloadUrl?: string;
+  fileSizeBytes?: number;
+  modificationTypes?: string[];
+  targetWeightGrams?: number;
+  targetStoneSize?: string;
+  voiceNoteUrl?: string;
 }
 
 export interface StaffSubmission {
@@ -532,8 +552,13 @@ export interface StaffEarningsRecord {
   title: string;
   completedDate: string;
   amount: number;
-  status: 'Settled' | 'Pending Settlement';
+  amountPaid?: number;
+  balanceDue?: number;
+  status: 'Settled' | 'Pending Settlement' | 'Partially Settled';
   settlementRef?: string;
+  paymentMethod?: string;
+  notes?: string;
+  settledAt?: string;
   pdfUrl?: string;
 }
 
