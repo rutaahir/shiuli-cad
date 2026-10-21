@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { StaffSubmission } from '../../types';
 import {
   Sparkles,
@@ -13,7 +13,11 @@ import {
   Loader2,
   Eye,
   Check,
-  Clock
+  Clock,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { ProductModal, CategoryItem, DesignStyleItem } from '../common/ProductModal';
@@ -23,6 +27,19 @@ interface StaffMyDesignsTabProps {
   onUploadDesign?: (newSub: StaffSubmission) => void;
 }
 
+const getPageNumbers = (current: number, total: number): (number | '...')[] => {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  if (current <= 4) {
+    return [1, 2, 3, 4, 5, '...', total];
+  }
+  if (current >= total - 3) {
+    return [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+  }
+  return [1, '...', current - 1, current, current + 1, '...', total];
+};
+
 export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
@@ -31,6 +48,10 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'pending' | 'rejected'>('all');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(25);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -56,10 +77,26 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
         setDesignStyles(stylesRes);
       }
 
-      // 3. Fetch staff's own products isolated
-      const prodRes = await api.getMyProducts();
-      const resultsArray = Array.isArray(prodRes) ? prodRes : prodRes?.results || [];
-      setProducts(resultsArray);
+      // 3. Fetch ALL staff's products across all backend pages
+      const BATCH_SIZE = 200;
+      const firstPage = await api.getMyProducts({ page_size: String(BATCH_SIZE) });
+      const totalCount: number = firstPage?.count ?? 0;
+      const firstBatch = firstPage?.results ?? (Array.isArray(firstPage) ? firstPage : []);
+
+      let allProducts = [...firstBatch];
+      if (totalCount > firstBatch.length) {
+        const totalPages = Math.ceil(totalCount / BATCH_SIZE);
+        const pagePromises = [];
+        for (let page = 2; page <= totalPages; page++) {
+          pagePromises.push(api.getMyProducts({ page: String(page), page_size: String(BATCH_SIZE) }));
+        }
+        const otherPages = await Promise.all(pagePromises);
+        for (const pg of otherPages) {
+          const pgData = pg?.results ?? (Array.isArray(pg) ? pg : []);
+          allProducts = [...allProducts, ...pgData];
+        }
+      }
+      setProducts(allProducts);
     } catch (err: any) {
       console.warn('Failed to fetch catalog data:', err);
     } finally {
@@ -70,6 +107,11 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Reset pagination to page 1 whenever filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, pageSize]);
 
   const handleToggleActive = async (prod: any) => {
     try {
@@ -125,23 +167,35 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
     loadData();
   };
 
-  const filteredProducts = products.filter((prod) => {
-    const matchesSearch =
-      prod.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (prod.category_name && prod.category_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      prod.slug.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredProducts = useMemo(() => {
+    return products.filter((prod) => {
+      const matchesSearch =
+        (prod.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (prod.category_name && prod.category_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (prod.slug && prod.slug.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    const matchesStatus =
-      statusFilter === 'all'
-        ? true
-        : statusFilter === 'approved'
-        ? prod.status === 'approved'
-        : statusFilter === 'rejected'
-        ? prod.status === 'rejected'
-        : prod.status === 'pending';
+      const matchesStatus =
+        statusFilter === 'all'
+          ? true
+          : statusFilter === 'approved'
+          ? prod.status === 'approved'
+          : statusFilter === 'rejected'
+          ? prod.status === 'rejected'
+          : prod.status === 'pending';
 
-    return matchesSearch && matchesStatus;
-  });
+      return matchesSearch && matchesStatus;
+    });
+  }, [products, searchQuery, statusFilter]);
+
+  const totalItems = filteredProducts.length;
+  const totalPages = pageSize === -1 ? 1 : Math.max(1, Math.ceil(totalItems / pageSize));
+  const activePage = Math.min(currentPage, totalPages);
+
+  const paginatedProducts = useMemo(() => {
+    if (pageSize === -1) return filteredProducts;
+    const start = (activePage - 1) * pageSize;
+    return filteredProducts.slice(start, start + pageSize);
+  }, [filteredProducts, activePage, pageSize]);
 
   return (
     <div className="w-full space-y-6">
@@ -217,8 +271,9 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
             <span className="text-xs font-mono text-[#6B7280]">Loading live store catalog...</span>
           </div>
         ) : (
-          /* Products Table */
-          <div className="overflow-x-auto">
+          <>
+            {/* Products Table */}
+            <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#09112B] text-[#F5E7A3] text-[11px] font-mono uppercase tracking-wider">
@@ -231,7 +286,7 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E8D7B7] text-xs">
-                {filteredProducts.map((prod) => (
+                {paginatedProducts.map((prod) => (
                   <tr key={prod.id || prod.slug} className="hover:bg-slate-50 transition-colors">
                     {/* Thumbnail & Title */}
                     <td className="p-4">
@@ -374,8 +429,101 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+
+          {/* Pagination Controls */}
+          {filteredProducts.length > 0 && (
+            <div className="p-4 border-t border-[#E8D7B7] bg-[#FAF9F5] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#17243B]">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="font-mono text-[#6B7280]">
+                  Showing <strong className="text-[#17243B] font-bold">{totalItems === 0 ? 0 : (activePage - 1) * (pageSize === -1 ? totalItems : pageSize) + 1}</strong> to{' '}
+                  <strong className="text-[#17243B] font-bold">{pageSize === -1 ? totalItems : Math.min(activePage * pageSize, totalItems)}</strong> of{' '}
+                  <strong className="text-[#17243B] font-bold">{totalItems}</strong> designs
+                </span>
+                <div className="flex items-center gap-1.5 ml-1">
+                  <span className="text-[#6B7280] font-mono text-[11px]">Per page:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    className="px-2.5 py-1 rounded-lg bg-white border border-[#E8D7B7] text-xs font-mono font-medium focus:outline-none focus:border-[#C9A227] cursor-pointer"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                    <option value={-1}>All ({totalItems})</option>
+                  </select>
+                </div>
+              </div>
+
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(1)}
+                    disabled={activePage === 1}
+                    className="p-1.5 rounded-lg border border-[#E8D7B7] bg-white hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    title="First Page"
+                  >
+                    <ChevronsLeft className="w-4 h-4 text-[#17243B]" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={activePage === 1}
+                    className="p-1.5 rounded-lg border border-[#E8D7B7] bg-white hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    title="Previous Page"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-[#17243B]" />
+                  </button>
+
+                  <div className="flex items-center gap-1 px-1">
+                    {getPageNumbers(activePage, totalPages).map((pageNum, idx) =>
+                      pageNum === '...' ? (
+                        <span key={`ellipsis-${idx}`} className="px-1.5 text-slate-400 font-mono text-xs">
+                          ...
+                        </span>
+                      ) : (
+                        <button
+                          key={`page-${pageNum}`}
+                          type="button"
+                          onClick={() => setCurrentPage(pageNum as number)}
+                          className={`min-w-7 h-7 px-2 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                            activePage === pageNum
+                              ? 'bg-[#09112B] text-[#F5E7A3] shadow-xs'
+                              : 'bg-white text-[#17243B] border border-[#E8D7B7] hover:bg-slate-100'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      )
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={activePage === totalPages}
+                    className="p-1.5 rounded-lg border border-[#E8D7B7] bg-white hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    title="Next Page"
+                  >
+                    <ChevronRight className="w-4 h-4 text-[#17243B]" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={activePage === totalPages}
+                    className="p-1.5 rounded-lg border border-[#E8D7B7] bg-white hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    title="Last Page"
+                  >
+                    <ChevronsRight className="w-4 h-4 text-[#17243B]" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
 
       {/* Unified Add / Edit Product Stepper Modal */}
       <ProductModal

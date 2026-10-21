@@ -170,11 +170,11 @@ export const AdminApprovalsModule: React.FC = () => {
       try {
         let pendingRes: any = [];
         try {
-          pendingRes = await api.request<any>('/catalog/products/pending/');
+          pendingRes = await api.request<any>('/catalog/products/pending/?page_size=500');
         } catch {}
         const pendingList = Array.isArray(pendingRes) ? pendingRes : pendingRes?.results || [];
 
-        const prodRes = await api.getProducts();
+        const prodRes = await api.getProducts({ page_size: '500' });
         const prodList = Array.isArray(prodRes) ? prodRes : prodRes?.results || [];
 
         // Combine unique products

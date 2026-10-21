@@ -323,11 +323,31 @@ export async function fetchCatalog(force = false): Promise<void> {
       let nextProducts = state.products;
       if (prodsResult.status === 'fulfilled') {
         const prodsRaw = prodsResult.value;
-        const rawProds: BackendProduct[] = prodsRaw?.results
+        let rawProds: BackendProduct[] = prodsRaw?.results
           ? prodsRaw.results
           : Array.isArray(prodsRaw)
           ? prodsRaw
           : [];
+
+        // If backend has more than 500 products, fetch remaining pages
+        const totalCount = prodsRaw?.count ?? 0;
+        if (totalCount > rawProds.length) {
+          const PAGE_SIZE = 500;
+          const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+          const pagePromises = [];
+          for (let page = 2; page <= totalPages; page++) {
+            pagePromises.push(api.getProducts({ page: String(page), page_size: String(PAGE_SIZE) }));
+          }
+          const otherPages = await Promise.allSettled(pagePromises);
+          for (const res of otherPages) {
+            if (res.status === 'fulfilled') {
+              const pg = res.value;
+              const pgData = pg?.results ?? (Array.isArray(pg) ? pg : []);
+              rawProds = [...rawProds, ...pgData];
+            }
+          }
+        }
+
         // Only keep approved products in public catalog store
         const approvedProds = rawProds.filter((p: any) => {
           const st = (p.status || '').toLowerCase();
