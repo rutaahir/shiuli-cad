@@ -125,7 +125,7 @@ class FileEditRequestSerializer(serializers.ModelSerializer):
         if not order:
             from apps.custom_orders.models import Order
             order = Order.objects.filter(file_edit_request=obj).first()
-        if not order:
+        if not order or getattr(order, 'is_deleted', False):
             return None
         request = self.context.get('request')
         preview_url = None

@@ -243,28 +243,6 @@ export const StaffWorkbenchTab: React.FC<StaffWorkbenchTabProps> = ({
         </div>
       </div>
 
-      {/* Broadcast Alert Banner */}
-      <div className="p-5 rounded-2xl bg-white border border-[#E8D7B7] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-[#09112B] text-[#F5E7A3] border border-[#D4AF37]/30">
-            <Zap className="w-5 h-5 text-[#D4AF37] animate-bounce" />
-          </div>
-          <div>
-            <h4 className="text-xs font-bold text-[#17243B] uppercase tracking-wider">
-              Job Pool Live Broadcast
-            </h4>
-            <p className="text-xs text-[#6B7280]">
-              3 new high-ticket custom CAD requests were just released by Super Admin. First-accept-wins claims the job immediately.
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={() => onNavigateToTab('job-pool')}
-          className="btn-gold-luxury shrink-0 px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider shadow-md"
-        >
-          View Job Pool
-        </button>
-      </div>
     </div>
   );
 };

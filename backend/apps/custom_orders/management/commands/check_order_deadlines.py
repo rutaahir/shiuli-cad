@@ -13,7 +13,8 @@ class Command(BaseCommand):
         active_orders = Order.objects.filter(
             status=Order.Status.WITH_DESIGNER,
             due_at__isnull=False,
-            assigned_staff__isnull=False
+            assigned_staff__isnull=False,
+            is_deleted=False
         ).select_related('assigned_staff', 'client', 'custom_request')
 
         processed_count = 0

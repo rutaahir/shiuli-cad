@@ -10,7 +10,10 @@ class IsAdminOrReadOnly(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.method in permissions.SAFE_METHODS:
             return True
-        return bool(request.user and request.user.is_authenticated and getattr(request.user, 'role', None) == 'admin')
+        return bool(
+            request.user and request.user.is_authenticated and
+            (getattr(request.user, 'role', None) == 'admin' or request.user.is_superuser or request.user.is_staff)
+        )
 
 
 class PortfolioItemViewSet(viewsets.ModelViewSet):
@@ -34,7 +37,12 @@ class PortfolioItemViewSet(viewsets.ModelViewSet):
         elif project_type == 'ai':
             qs = qs.filter(is_ai_project=True)
 
-        if not (self.request.user and self.request.user.is_authenticated and getattr(self.request.user, 'role', None) == 'admin'):
+        is_admin_user = (
+            self.request.user and
+            self.request.user.is_authenticated and
+            (getattr(self.request.user, 'role', None) == 'admin' or self.request.user.is_superuser or self.request.user.is_staff)
+        )
+        if not is_admin_user:
             qs = qs.filter(is_published=True)
         return qs
 
@@ -48,6 +56,9 @@ class PortfolioItemViewSet(viewsets.ModelViewSet):
             order = Order.objects.get(id=order_id)
         except Order.DoesNotExist:
             return Response({"error": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if getattr(order, 'is_deleted', False):
+            return Response({"error": "Cannot promote a deleted order to portfolio."}, status=status.HTTP_400_BAD_REQUEST)
 
         if not order.client_consent_to_feature:
             return Response(

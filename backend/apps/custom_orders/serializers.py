@@ -297,6 +297,8 @@ class CustomRequestSerializer(serializers.ModelSerializer):
 
     def get_order(self, obj):
         if hasattr(obj, 'order') and obj.order:
+            if getattr(obj.order, 'is_deleted', False):
+                return None
             request = self.context.get('request')
             return ClientOrderSerializer(obj.order, context={'request': request}).data
         return None
@@ -933,7 +935,8 @@ class AdminOrderSerializer(serializers.ModelSerializer):
             'download_enabled_by_admin', 'download_count', 'is_fully_paid',
             'paid_amount', 'remaining_amount', 'paid_percentage', 'paid_stages_count', 'total_stages_count',
             'unassigned_since', 'assigned_at', 'handed_over_at',
-            'milestones', 'payment_stages', 'deliverables', 'revision_requests', 'created_at'
+            'milestones', 'payment_stages', 'deliverables', 'revision_requests', 'created_at',
+            'is_deleted', 'deleted_at'
         ]
 
     def get_is_file_edit(self, obj):

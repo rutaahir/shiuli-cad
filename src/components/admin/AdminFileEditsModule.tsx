@@ -42,6 +42,7 @@ import {
   triggerNegotiationAlert, 
   requestDesktopNotificationPermission 
 } from '../../utils/negotiationNotificationHelper';
+import { getCancellationInfo, getAdminStatusLabel } from '../../utils/adminStatusHelper';
 
 export const USD_TO_INR_RATE = 86.85;
 
@@ -512,7 +513,14 @@ export const AdminFileEditsModule: React.FC = () => {
     return matchesStatus && (nameMatch || emailMatch || formatMatch || idMatch || q === '');
   });
 
-  const getStatusBadgeClass = (status: string) => {
+  const getStatusBadgeClass = (reqOrStatus: any) => {
+    const status = typeof reqOrStatus === 'string' ? reqOrStatus : (reqOrStatus?.status || '');
+    if (status === 'rejected' || status === 'cancelled') {
+      const info = typeof reqOrStatus === 'object' && reqOrStatus !== null
+        ? getCancellationInfo(reqOrStatus, 'file_edit')
+        : { badgeClass: 'bg-rose-100 text-rose-900 border-rose-300' };
+      return info.badgeClass;
+    }
     switch (status) {
       case 'new':
         return 'bg-amber-100 text-amber-900 border-amber-300';
@@ -522,8 +530,6 @@ export const AdminFileEditsModule: React.FC = () => {
         return 'bg-purple-100 text-purple-900 border-purple-300';
       case 'agreed':
         return 'bg-emerald-100 text-emerald-900 border-emerald-300';
-      case 'rejected':
-        return 'bg-rose-100 text-rose-900 border-rose-300';
       default:
         return 'bg-slate-100 text-slate-700 border-slate-300';
     }
@@ -839,8 +845,8 @@ export const AdminFileEditsModule: React.FC = () => {
                           </span>
                         </td>
                         <td className="px-5 py-4">
-                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border uppercase tracking-wider ${getStatusBadgeClass(req.status)}`}>
-                            {req.status}
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border uppercase tracking-wider ${getStatusBadgeClass(req)}`}>
+                            {getAdminStatusLabel(req, 'file_edit')}
                           </span>
                         </td>
                         <td className="px-5 py-4 font-bold text-slate-900">
@@ -957,8 +963,8 @@ export const AdminFileEditsModule: React.FC = () => {
               <div>
                 <div className="inline-flex items-center gap-2 text-xs font-bold font-mono text-[#0B1330]">
                   <FileCode className="w-4 h-4 text-[#D4AF37]" /> #FED-{selectedReq.id}
-                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${getStatusBadgeClass(selectedReq.status)}`}>
-                    {selectedReq.status}
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${getStatusBadgeClass(selectedReq)}`}>
+                    {getAdminStatusLabel(selectedReq, 'file_edit')}
                   </span>
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 mt-0.5">
@@ -1253,7 +1259,7 @@ export const AdminFileEditsModule: React.FC = () => {
                         <XCircle className="w-6 h-6" />
                       </div>
                       <div>
-                        <span className="font-bold text-rose-950 text-base block">Request Declined / Cancelled</span>
+                        <span className="font-bold text-rose-950 text-base block">{getAdminStatusLabel(selectedReq, 'file_edit')}</span>
                         <span className="text-rose-800 text-xs block mt-0.5">
                           <strong>Reason:</strong> {selectedReq.rejection_reason || 'Specifications cannot be accommodated at this time.'}
                         </span>

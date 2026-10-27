@@ -11,6 +11,7 @@ import {
   UserCheck,
   RotateCcw,
   X,
+  Search,
   FileText,
   DollarSign,
   Download,
@@ -40,6 +41,7 @@ import {
   Wrench
 } from 'lucide-react';
 import { AdminCreateOrderModal, AdminEditOrderModal } from './AdminOrderModals';
+import { getCancellationInfo, getAdminStatusLabel } from '../../utils/adminStatusHelper';
 
 interface AdminOrdersModuleProps {
   staffList: StaffMember[];
@@ -69,8 +71,9 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
   const [isSubmittingReview, setIsSubmittingReview] = useState<boolean>(false);
   const [togglingDownloadId, setTogglingDownloadId] = useState<number | null>(null);
 
-  // Filter state
+  // Filter & Search state
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [downloadingDelId, setDownloadingDelId] = useState<number | null>(null);
 
   // Commission editing state
@@ -155,10 +158,12 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
     }
   };
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (query?: string) => {
     setLoading(true);
     try {
-      const res = await api.request<any>('/orders/');
+      const q = typeof query === 'string' ? query.trim() : searchQuery.trim();
+      const endpoint = q ? `/orders/?search=${encodeURIComponent(q)}` : '/orders/';
+      const res = await api.request<any>(endpoint);
       const ensureArray = (r: any) => {
         if (Array.isArray(r)) return r;
         if (r && Array.isArray(r.results)) return r.results;
@@ -179,8 +184,11 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
   };
 
   useEffect(() => {
-    fetchOrders();
-  }, []);
+    const timer = setTimeout(() => {
+      fetchOrders(searchQuery);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   useEffect(() => {
     if (selectedOrderDrawer) {
@@ -322,15 +330,15 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
     }
   };
 
-  // Admin Delete Order Permanently
+  // Admin Delete Order (Soft Delete)
   const handleDeleteOrderPermanently = async (order: any) => {
     const confirmed = window.confirm(
-      `⚠️ PERMANENT DELETION WARNING:\n\nAre you sure you want to permanently delete Order #ORD-${order.id}?\n\nThis will remove all files, deliverables, milestones, and payment records from the database permanently.\n\nThis action CANNOT be undone.`
+      `Are you sure you want to delete Order #ORD-${order.id}?\n\nThe order will be soft-deleted. Payment records and revenue history will remain intact.`
     );
     if (!confirmed) return;
     try {
       await api.deleteOrder(order.id);
-      alert(`Order #ORD-${order.id} has been permanently deleted.`);
+      alert(`Order #ORD-${order.id} has been deleted.`);
       if (selectedOrderDrawer?.id === order.id) {
         setSelectedOrderDrawer(null);
       }
@@ -341,6 +349,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
   };
 
   const filteredOrders = orders.filter((o) => {
+    if (o.is_deleted) return true; // Always show when returned via exact search
     if (statusFilter === 'pending_review') return o.status === 'pending_review';
     if (statusFilter === 'in_design') return o.status === 'in_design';
     if (statusFilter === 'preview_ready') return o.status === 'preview_ready';
@@ -378,7 +387,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
           </button>
 
           <button
-            onClick={fetchOrders}
+            onClick={() => fetchOrders()}
             disabled={loading}
             className="px-4 py-2 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] text-xs font-semibold text-[#17243B] hover:bg-[#E8D7B7] flex items-center gap-1.5 transition-colors cursor-pointer"
           >
@@ -388,28 +397,60 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex flex-wrap gap-2 text-xs">
-        {[
-          { key: 'all', label: `All Orders (${orders.length})` },
-          { key: 'pending_review', label: `Pending QC Review (${orders.filter(o => o.status === 'pending_review').length})` },
-          { key: 'in_design', label: `In Design (${orders.filter(o => o.status === 'in_design').length})` },
-          { key: 'preview_ready', label: `Preview Ready (${orders.filter(o => o.status === 'preview_ready').length})` },
-          { key: 'completed', label: `Completed (${orders.filter(o => o.status === 'completed').length})` },
-          { key: 'cancelled', label: `Cancelled (${orders.filter(o => o.status === 'cancelled').length})` },
-        ].map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setStatusFilter(t.key)}
-            className={`px-4 py-2 rounded-xl font-medium transition-all ${
-              statusFilter === t.key
-                ? 'bg-[#09112B] text-[#F5E7A3] font-bold shadow-md'
-                : 'bg-white border border-[#E8D7B7] text-[#6B7280] hover:bg-[#FAF8F5]'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+      {/* Search & Filter Controls */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        {/* Filter Tabs */}
+        <div className="flex flex-wrap gap-2 text-xs">
+          {[
+            { key: 'all', label: `All Orders (${orders.filter(o => !o.is_deleted).length})` },
+            { key: 'pending_review', label: `Pending QC Review (${orders.filter(o => !o.is_deleted && o.status === 'pending_review').length})` },
+            { key: 'in_design', label: `In Design (${orders.filter(o => !o.is_deleted && o.status === 'in_design').length})` },
+            { key: 'preview_ready', label: `Preview Ready (${orders.filter(o => !o.is_deleted && o.status === 'preview_ready').length})` },
+            { key: 'completed', label: `Completed (${orders.filter(o => !o.is_deleted && o.status === 'completed').length})` },
+            { key: 'cancelled', label: `Cancelled (${orders.filter(o => !o.is_deleted && o.status === 'cancelled').length})` },
+          ].map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setStatusFilter(t.key)}
+              className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                statusFilter === t.key
+                  ? 'bg-[#09112B] text-[#F5E7A3] font-bold shadow-md'
+                  : 'bg-white border border-[#E8D7B7] text-[#6B7280] hover:bg-[#FAF8F5]'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Order Search Bar */}
+        <div className="relative min-w-[260px]">
+          <Search className="w-4 h-4 text-[#9CA3AF] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search order # (e.g. #ORD-12)..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                fetchOrders(searchQuery);
+              }
+            }}
+            className="w-full pl-9 pr-8 py-2 rounded-xl bg-white border border-[#E8D7B7] text-xs text-[#17243B] focus:outline-none focus:ring-1 focus:ring-[#C9A227] placeholder-[#9CA3AF]"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                fetchOrders('');
+              }}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#17243B] p-0.5"
+              title="Clear search"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Orders Table */}
@@ -508,17 +549,36 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                     {/* Progress / QC Status */}
                     <td className="p-4">
                       <div className="space-y-1">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider inline-flex items-center gap-1 ${
-                          ord.status === 'completed'
-                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                            : ord.status === 'pending_review'
-                            ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
-                            : ord.status === 'preview_ready'
-                            ? 'bg-purple-100 text-purple-800 border border-purple-300'
-                            : 'bg-blue-100 text-blue-800 border border-blue-300'
-                        }`}>
-                          {ord.status === 'pending_review' ? '⚠️ Pending QC Review' : ord.status.replace('_', ' ')}
-                        </span>
+                        {(() => {
+                          if (ord.is_deleted) {
+                            return (
+                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider inline-flex items-center gap-1 bg-red-100 text-red-800 border border-red-300">
+                                Deleted
+                              </span>
+                            );
+                          }
+                          if (ord.status === 'cancelled') {
+                            const cInfo = getCancellationInfo(ord, 'order');
+                            return (
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider inline-flex items-center gap-1 border ${cInfo.badgeClass}`}>
+                                {cInfo.label}
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider inline-flex items-center gap-1 ${
+                              ord.status === 'completed'
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                : ord.status === 'pending_review'
+                                ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
+                                : ord.status === 'preview_ready'
+                                ? 'bg-purple-100 text-purple-800 border border-purple-300'
+                                : 'bg-blue-100 text-blue-800 border border-blue-300'
+                            }`}>
+                              {ord.status === 'pending_review' ? '⚠️ Pending QC Review' : ord.status.replace('_', ' ')}
+                            </span>
+                          );
+                        })()}
                         
                         {ord.status === 'pending_review' && (
                           <div className="flex items-center gap-1 pt-1">
@@ -626,31 +686,35 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                           Inspect
                         </button>
 
-                        <button
-                          onClick={() => setEditingOrder(ord)}
-                          className="p-1.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer"
-                          title="Edit Order Details"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
+                        {!ord.is_deleted && (
+                          <>
+                            <button
+                              onClick={() => setEditingOrder(ord)}
+                              className="p-1.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer"
+                              title="Edit Order Details"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
 
-                        {ord.status !== 'cancelled' && (
-                          <button
-                            onClick={() => handleCancelOrder(ord)}
-                            className="p-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors cursor-pointer"
-                            title="Cancel Order"
-                          >
-                            <XCircle className="w-3.5 h-3.5" />
-                          </button>
+                            {ord.status !== 'cancelled' && (
+                              <button
+                                onClick={() => handleCancelOrder(ord)}
+                                className="p-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors cursor-pointer"
+                                title="Cancel Order"
+                              >
+                                <XCircle className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+
+                            <button
+                              onClick={() => handleDeleteOrderPermanently(ord)}
+                              className="p-1.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer"
+                              title="Delete Order"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </>
                         )}
-
-                        <button
-                          onClick={() => handleDeleteOrderPermanently(ord)}
-                          className="p-1.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer"
-                          title="Permanently Delete Order"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -678,38 +742,54 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                   ) : (
                     <span>• REQ #{selectedOrderDrawer.custom_request?.id}</span>
                   )}
+                  {selectedOrderDrawer.is_deleted ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider inline-flex items-center gap-1 bg-red-100 text-red-800 border-red-300">
+                      Deleted
+                    </span>
+                  ) : selectedOrderDrawer.status === 'cancelled' && (() => {
+                    const cInfo = getCancellationInfo(selectedOrderDrawer, 'order');
+                    return (
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider inline-flex items-center gap-1 ${cInfo.badgeClass}`}>
+                        {cInfo.label}
+                      </span>
+                    );
+                  })()}
                 </span>
                 <h3 className="font-serif text-xl font-bold text-[#17243B]">
                   {selectedOrderDrawer.is_file_edit ? 'CAD File Modification & QC Record' : 'Master CAD Order & Quality Record'}
                 </h3>
               </div>
               <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setEditingOrder(selectedOrderDrawer)}
-                  className="px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                  title="Edit Order Details"
-                >
-                  <Edit2 className="w-3.5 h-3.5" />
-                  <span>Edit</span>
-                </button>
-                {selectedOrderDrawer.status !== 'cancelled' && (
-                  <button
-                    onClick={() => handleCancelOrder(selectedOrderDrawer)}
-                    className="px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                    title="Cancel Order"
-                  >
-                    <XCircle className="w-3.5 h-3.5" />
-                    <span>Cancel</span>
-                  </button>
+                {!selectedOrderDrawer.is_deleted && (
+                  <>
+                    <button
+                      onClick={() => setEditingOrder(selectedOrderDrawer)}
+                      className="px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                      title="Edit Order Details"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                      <span>Edit</span>
+                    </button>
+                    {selectedOrderDrawer.status !== 'cancelled' && (
+                      <button
+                        onClick={() => handleCancelOrder(selectedOrderDrawer)}
+                        className="px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                        title="Cancel Order"
+                      >
+                        <XCircle className="w-3.5 h-3.5" />
+                        <span>Cancel</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDeleteOrderPermanently(selectedOrderDrawer)}
+                      className="px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                      title="Delete Order"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete</span>
+                    </button>
+                  </>
                 )}
-                <button
-                  onClick={() => handleDeleteOrderPermanently(selectedOrderDrawer)}
-                  className="px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                  title="Permanently Delete Order"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete</span>
-                </button>
                 <button
                   onClick={() => setSelectedOrderDrawer(null)}
                   className="p-1.5 rounded-xl text-[#6B7280] hover:text-[#17243B] hover:bg-[#FAF8F5]"

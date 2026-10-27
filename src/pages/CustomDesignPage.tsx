@@ -582,7 +582,10 @@ Please confirm feasibility and provide the production CAD quotation.`;
     setSubmitError('');
 
     // Authentication Guard: Customers MUST be logged in to place any custom order
-    if (!isLoggedIn) {
+    const hasToken = typeof window !== 'undefined' && Boolean(
+      localStorage.getItem('shiuli_access_token') || localStorage.getItem('shiuli_refresh_token')
+    );
+    if (!isLoggedIn && !hasToken) {
       requireAuth(() => {
         handlePlaceOrder();
       }, {
@@ -590,6 +593,21 @@ Please confirm feasibility and provide the production CAD quotation.`;
         message: 'Please sign in or create an account to place your custom CAD order.',
       });
       return;
+    }
+
+    // Auto-fill client details from saved user session if left blank
+    const savedUserStr = localStorage.getItem('shiuli_user');
+    const activeUser = user || (savedUserStr ? JSON.parse(savedUserStr) : null);
+    if (activeUser) {
+      if (!clientName.trim() && (activeUser.first_name || activeUser.username)) {
+        setClientName(`${activeUser.first_name || ''} ${activeUser.last_name || ''}`.trim() || activeUser.username);
+      }
+      if (!contactEmail.trim() && activeUser.email) {
+        setContactEmail(activeUser.email);
+      }
+      if (!contactPhone.trim() && activeUser.phone_number) {
+        setContactPhone(activeUser.phone_number);
+      }
     }
 
     if (!clientName.trim()) {
@@ -1548,7 +1566,14 @@ Please confirm feasibility and provide the production CAD quotation.`;
                 </div>
                 <button
                   type="button"
-                  onClick={() => openAuthModal('Sign in to submit your custom design order.')}
+                  onClick={() => {
+                    requireAuth(() => {
+                      handlePlaceOrder();
+                    }, {
+                      intent: 'custom-request',
+                      message: 'Sign in to submit your custom design order.',
+                    });
+                  }}
                   className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#C99A45] via-[#D6AD62] to-[#B88735] text-[#17345C] font-bold text-xs shrink-0 shadow-sm hover:opacity-95 transition-all text-center cursor-pointer"
                 >
                   Sign In / Register

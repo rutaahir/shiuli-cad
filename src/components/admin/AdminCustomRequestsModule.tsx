@@ -53,6 +53,7 @@ import {
   MessageCircle
 } from 'lucide-react';
 import { triggerNegotiationAlert } from '../../utils/negotiationNotificationHelper';
+import { getCancellationInfo } from '../../utils/adminStatusHelper';
 
 interface CustomRequestItem {
   id: number;
@@ -480,7 +481,18 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (reqOrStatus: any, statusFallback?: string) => {
+    const status = typeof reqOrStatus === 'string' ? reqOrStatus : (reqOrStatus?.status || statusFallback || '');
+    if (status === 'rejected' || status === 'cancelled') {
+      const info = typeof reqOrStatus === 'object' && reqOrStatus !== null
+        ? getCancellationInfo(reqOrStatus, 'custom_request')
+        : { label: 'Cancelled', badgeClass: 'bg-slate-100 text-slate-700 border-slate-300' };
+      return {
+        label: info.label,
+        bg: info.badgeClass,
+        dot: 'bg-rose-500',
+      };
+    }
     switch (status) {
       case 'new':
         return {
@@ -704,7 +716,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
             <div className="space-y-1.5 max-h-[580px] overflow-y-auto pr-0.5">
               {filteredRequests.map((req) => {
                 const isSelected = req.id === activeReq?.id;
-                const statusInfo = getStatusBadge(req.status);
+                const statusInfo = getStatusBadge(req);
                 const hasCounterOffer =
                   req.messages &&
                   req.messages.length > 0 &&
@@ -899,10 +911,10 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                   )}
                   <span
                     className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase border ${
-                      getStatusBadge(activeReq.status).bg
+                      getStatusBadge(activeReq).bg
                     }`}
                   >
-                    {getStatusBadge(activeReq.status).label}
+                    {getStatusBadge(activeReq).label}
                   </span>
 
                   {/* Direct Place Order & Request Actions */}

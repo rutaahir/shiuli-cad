@@ -1052,9 +1052,9 @@ def download_cad_file(request, token):
                 "error": "Download permission has been locked by administration for this purchase. Please contact support."
             }, status=status.HTTP_403_FORBIDDEN)
 
-        if token_obj.order and token_obj.order.status == 'cancelled':
+        if token_obj.order and (token_obj.order.status == 'cancelled' or getattr(token_obj.order, 'is_deleted', False)):
             return Response({
-                "error": "This order has been cancelled. Please contact support."
+                "error": "This order has been cancelled or removed. Please contact support."
             }, status=status.HTTP_403_FORBIDDEN)
 
         # 2. Check revoked status

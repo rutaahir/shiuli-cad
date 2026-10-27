@@ -33,6 +33,9 @@ def pay_stage_payment(request):
     except OrderPaymentStage.DoesNotExist:
         return Response({"error": "Payment stage not found or not owned by user."}, status=status.HTTP_404_NOT_FOUND)
 
+    if getattr(stage.order, 'is_deleted', False):
+        return Response({"error": "Cannot pay for a deleted order."}, status=status.HTTP_404_NOT_FOUND)
+
     if stage.status == OrderPaymentStage.Status.PAID:
         return Response({"error": "This stage has already been paid."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -54,6 +57,9 @@ def pay_full_order_payment(request):
         order = Order.objects.get(id=order_id, client=request.user)
     except Order.DoesNotExist:
         return Response({"error": "Order not found or does not belong to you."}, status=status.HTTP_404_NOT_FOUND)
+
+    if getattr(order, 'is_deleted', False):
+        return Response({"error": "Cannot pay for a deleted order."}, status=status.HTTP_404_NOT_FOUND)
 
     transaction_id = request.data.get('transaction_id')
     payment_method = request.data.get('payment_method', 'upi')
@@ -88,6 +94,8 @@ def create_payment_session(request):
         try:
             stage = OrderPaymentStage.objects.get(id=stage_id, order__client=request.user)
             order = stage.order
+            if getattr(order, 'is_deleted', False):
+                return Response({"error": "Cannot checkout for a deleted order."}, status=status.HTTP_404_NOT_FOUND)
             amount = stage.amount
             payment_type = f"stage_{stage.order_index}"
         except OrderPaymentStage.DoesNotExist:
@@ -95,6 +103,8 @@ def create_payment_session(request):
     elif order_id:
         try:
             order = Order.objects.get(id=order_id, client=request.user)
+            if getattr(order, 'is_deleted', False):
+                return Response({"error": "Cannot checkout for a deleted order."}, status=status.HTTP_404_NOT_FOUND)
         except Order.DoesNotExist:
             return Response({"error": "Order not found or does not belong to you."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -207,6 +217,9 @@ def admin_approve_custom_payment(request, payment_id):
         payment = Payment.objects.select_related('order', 'payment_stage').get(id=payment_id)
     except Payment.DoesNotExist:
         return Response({"error": "Payment record not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if payment.order and getattr(payment.order, 'is_deleted', False):
+        return Response({"error": "Cannot approve payment for a deleted order."}, status=status.HTTP_400_BAD_REQUEST)
 
     payment.status = Payment.Status.SUCCESS
     payment.admin_verified_at = timezone.now()
@@ -545,7 +558,8 @@ class SettlementViewSet(viewsets.ReadOnlyModelViewSet):
         # Auto-create missing settlements for completed orders
         completed_orders = Order.objects.filter(
             status__in=[Order.Status.COMPLETED, 'delivered'],
-            assigned_staff__isnull=False
+            assigned_staff__isnull=False,
+            is_deleted=False
         )
         for ord_obj in completed_orders:
             from decimal import Decimal

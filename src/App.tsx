@@ -151,7 +151,17 @@ function getInitialRouteState() {
   if (path === '/blog') return { page: 'blog' as PageId, tab: undefined, category: 'all', productId: DEFAULT_PRODUCT_ID, customProductId: undefined, serviceSlug: undefined };
   if (path === '/contact') return { page: 'contact' as PageId, tab: undefined, category: 'all', productId: DEFAULT_PRODUCT_ID, customProductId: undefined, serviceSlug: undefined };
   if (path.startsWith('/download/')) return { page: 'secure-download' as PageId, tab: undefined, category: 'all', productId: DEFAULT_PRODUCT_ID, customProductId: undefined, serviceSlug: undefined };
-  if (path === '/account' || path === '/dashboard') return { page: 'account' as PageId, tab: undefined, category: 'all', productId: DEFAULT_PRODUCT_ID, customProductId: undefined, serviceSlug: undefined };
+  if (path === '/account' || path === '/dashboard') {
+    const savedTab = typeof window !== 'undefined' ? localStorage.getItem('shiuli_client_active_tab') || undefined : undefined;
+    return {
+      page: 'account' as PageId,
+      tab: tab || savedTab,
+      category: 'all',
+      productId: DEFAULT_PRODUCT_ID,
+      customProductId: undefined,
+      serviceSlug: undefined,
+    };
+  }
 
   return {
     page: 'home' as PageId,
@@ -293,7 +303,14 @@ function MainApp() {
     } else if (targetPage === 'contact') {
       url = '/contact';
     } else if (targetPage === 'account') {
-      url = '/account';
+      const currentTab = extraId || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null) || localStorage.getItem('shiuli_client_active_tab') || 'custom';
+      const currentOrder = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('order') : null;
+      const params = new URLSearchParams();
+      if (currentTab) params.set('tab', currentTab);
+      if (currentOrder) params.set('order', currentOrder);
+      const qs = params.toString();
+      url = qs ? `/account?${qs}` : '/account';
+      if (currentTab) setInitialSubTab(currentTab);
     } else if (targetPage === 'admin') {
       url = extraId ? `/admin?tab=${encodeURIComponent(extraId)}` : '/admin';
       if (extraId) setInitialSubTab(extraId);
@@ -616,6 +633,7 @@ function MainApp() {
               wishlistIds={wishlistIds}
               onRemoveWishlist={handleToggleWishlist}
               onAddToCart={handleAddToCart}
+              initialTab={initialSubTab as any}
             />
           )}
 

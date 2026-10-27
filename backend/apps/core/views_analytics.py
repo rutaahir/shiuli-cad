@@ -37,7 +37,7 @@ class AnalyticsSummaryView(APIView):
             total_revenue_usd = round(total_revenue / 86.85, 2)
 
             # 2. Total Orders & Active Commissions
-            total_orders_count = Order.objects.count() + Purchase.objects.count() + FileEditRequest.objects.count()
+            total_orders_count = Order.objects.filter(is_deleted=False).count() + Purchase.objects.count() + FileEditRequest.objects.count()
             
             active_statuses = [
                 Order.Status.IN_DESIGN,
@@ -46,7 +46,7 @@ class AnalyticsSummaryView(APIView):
                 Order.Status.PREVIEW_READY,
                 Order.Status.AWAITING_PAYMENT,
             ]
-            active_commissions_count = Order.objects.filter(status__in=active_statuses).count() + FileEditRequest.objects.filter(status__in=['new', 'quoted', 'negotiating']).count()
+            active_commissions_count = Order.objects.filter(is_deleted=False, status__in=active_statuses).count() + FileEditRequest.objects.filter(status__in=['new', 'quoted', 'negotiating']).count()
 
             # 3. Category Breakdown (Orders & Products by Category)
             categories = Category.objects.all()
@@ -56,8 +56,8 @@ class AnalyticsSummaryView(APIView):
             color_palette = ['bg-[#0D1B4C]', 'bg-[#C9A227]', 'bg-[#2856C7]', 'bg-[#1F9D66]', 'bg-[#8B5CF6]', 'bg-[#EC4899] font-bold']
 
             for idx, cat in enumerate(categories):
-                custom_count = Order.objects.filter(custom_request__category=cat).count()
-                ready_count = Order.objects.filter(product__category=cat).count()
+                custom_count = Order.objects.filter(is_deleted=False, custom_request__category=cat).count()
+                ready_count = Order.objects.filter(is_deleted=False, product__category=cat).count()
                 cat_total = custom_count + ready_count
                 total_category_orders += cat_total
                 category_stats.append({
@@ -107,7 +107,8 @@ class AnalyticsSummaryView(APIView):
                 completed_in_month = Order.objects.filter(
                     status=Order.Status.COMPLETED,
                     due_at__gte=start_month,
-                    due_at__lt=end_month
+                    due_at__lt=end_month,
+                    is_deleted=False
                 )
 
                 if completed_in_month.exists():
@@ -126,9 +127,9 @@ class AnalyticsSummaryView(APIView):
             staff_members = User.objects.filter(role='staff')
             staff_efficiency = []
             for staff in staff_members:
-                assigned_total = Order.objects.filter(assigned_staff=staff).count()
-                completed = Order.objects.filter(assigned_staff=staff, status=Order.Status.COMPLETED).count()
-                active = Order.objects.filter(assigned_staff=staff, status__in=[Order.Status.WITH_DESIGNER, Order.Status.PENDING_REVIEW]).count()
+                assigned_total = Order.objects.filter(assigned_staff=staff, is_deleted=False).count()
+                completed = Order.objects.filter(assigned_staff=staff, status=Order.Status.COMPLETED, is_deleted=False).count()
+                active = Order.objects.filter(assigned_staff=staff, status__in=[Order.Status.WITH_DESIGNER, Order.Status.PENDING_REVIEW], is_deleted=False).count()
                 staff_efficiency.append({
                     'id': staff.id,
                     'name': staff.username or f"{staff.first_name} {staff.last_name}".strip() or "Modeller",

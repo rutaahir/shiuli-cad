@@ -649,14 +649,74 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Order.objects.none()
 
         role = getattr(user, 'role', None)
+        is_admin_user = (role == 'admin' or getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False))
+
         if role == 'staff':
-            # Staff only sees orders assigned to them
-            return queryset.filter(assigned_staff=user).order_by('-created_at')
-        elif role == 'admin' or getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False):
-            return queryset.order_by('-created_at')
+            # Staff only sees non-deleted orders assigned to them
+            return queryset.filter(assigned_staff=user, is_deleted=False).order_by('-created_at')
+        elif is_admin_user:
+            # If admin is accessing a detail URL (retrieve / destroy), allow so soft-deleted order can be inspected/managed
+            if getattr(self, 'detail', False) or self.action in ['retrieve', 'destroy']:
+                return queryset.order_by('-created_at')
+
+            search_val = (
+                self.request.query_params.get('search') or
+                self.request.query_params.get('q') or
+                self.request.query_params.get('order_number') or
+                self.request.query_params.get('order_id')
+            )
+            if search_val:
+                search_val = str(search_val).strip()
+                import re
+                digits_matches = re.findall(r'\d+', search_val)
+                upper_val = search_val.upper()
+
+                if digits_matches:
+                    # In SCS-2026-0001, the order ID is the trailing digits: 0001 -> 1
+                    # In ORD-1, REQ #1, FILE #1, #1, 1, trailing digits give the target number
+                    target_num = int(digits_matches[-1])
+
+                    if 'REQ' in upper_val:
+                        # Exact search by linked CustomRequest ID, FileEditRequest ID, or Order ID (includes soft-deleted order for admin)
+                        return queryset.filter(
+                            Q(custom_request_id=target_num) |
+                            Q(file_edit_request_id=target_num) |
+                            Q(id=target_num)
+                        ).order_by('-created_at')
+                    elif 'FILE' in upper_val or 'EDIT' in upper_val:
+                        return queryset.filter(
+                            Q(file_edit_request_id=target_num) |
+                            Q(id=target_num)
+                        ).order_by('-created_at')
+                    elif (
+                        upper_val.startswith('SCS') or
+                        upper_val.startswith('ORD') or
+                        upper_val.startswith('#') or
+                        search_val.isdigit()
+                    ):
+                        return queryset.filter(
+                            Q(id=target_num) |
+                            Q(custom_request_id=target_num) |
+                            Q(file_edit_request_id=target_num)
+                        ).order_by('-created_at')
+                else:
+                    # General search across client name, email, product, or description (excludes deleted orders)
+                    return queryset.filter(
+                        Q(client__email__icontains=search_val) |
+                        Q(client__username__icontains=search_val) |
+                        Q(client__first_name__icontains=search_val) |
+                        Q(client__last_name__icontains=search_val) |
+                        Q(custom_request__contact_name__icontains=search_val) |
+                        Q(custom_request__description__icontains=search_val) |
+                        Q(product__title__icontains=search_val),
+                        is_deleted=False
+                    ).order_by('-created_at')
+
+            # General admin listing: strictly exclude deleted orders
+            return queryset.filter(is_deleted=False).order_by('-created_at')
         
-        # All authenticated clients/customers see their own orders
-        return queryset.filter(client=user).order_by('-created_at')
+        # All authenticated clients/customers see their own non-deleted orders
+        return queryset.filter(client=user, is_deleted=False).order_by('-created_at')
 
     # STAGE 6 — JOB POOL FOR ELIGIBLE STAFF (PRICE STRIPPED)
     @action(detail=False, methods=['get'], permission_classes=[IsStaff], url_path='pool')
@@ -666,7 +726,8 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         current_load = Order.objects.filter(
             assigned_staff=request.user,
-            status=Order.Status.WITH_DESIGNER
+            status=Order.Status.WITH_DESIGNER,
+            is_deleted=False
         ).count()
 
         # Capacity check: Staff at capacity NEVER see jobs in pool
@@ -712,18 +773,21 @@ class OrderViewSet(viewsets.ModelViewSet):
         Order.objects.filter(
             custom_request__status=CustomRequest.Status.AGREED,
             assigned_staff__isnull=True,
-            status=Order.Status.AWAITING_PAYMENT
+            status=Order.Status.AWAITING_PAYMENT,
+            is_deleted=False
         ).update(status=Order.Status.IN_DESIGN, unassigned_since=timezone.now())
 
         Order.objects.filter(
             file_edit_request__status=FileEditRequest.Status.AGREED,
             assigned_staff__isnull=True,
-            status=Order.Status.AWAITING_PAYMENT
+            status=Order.Status.AWAITING_PAYMENT,
+            is_deleted=False
         ).update(status=Order.Status.IN_DESIGN, unassigned_since=timezone.now())
 
         pool_orders = Order.objects.filter(
             status=Order.Status.IN_DESIGN,
-            assigned_staff__isnull=True
+            assigned_staff__isnull=True,
+            is_deleted=False
         ).order_by('unassigned_since', '-created_at')
 
         # Use StaffOrderSerializer (Price completely absent)
@@ -742,6 +806,8 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
+        if getattr(instance, 'is_deleted', False) and getattr(request.user, 'role', '') != 'admin' and not getattr(request.user, 'is_superuser', False):
+            return Response({"error": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
         if request.user.role == 'staff' and instance.assigned_staff and instance.assigned_staff != request.user:
             return Response({"error": "Forbidden. You are not the assigned staff member for this order."}, status=status.HTTP_403_FORBIDDEN)
         serializer = self.get_serializer(instance)
@@ -751,6 +817,8 @@ class OrderViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsStaff], url_path='milestone')
     def add_milestone(self, request, pk=None):
         order = self.get_object()
+        if getattr(order, 'is_deleted', False):
+            return Response({"error": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
         if order.assigned_staff and order.assigned_staff != request.user and getattr(request.user, 'role', None) != 'admin' and not getattr(request.user, 'is_superuser', False):
             return Response({"error": "Forbidden. You are not assigned to this order."}, status=status.HTTP_403_FORBIDDEN)
 
@@ -773,6 +841,8 @@ class OrderViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsStaff], url_path='upload-deliverable')
     def upload_deliverable(self, request, pk=None):
         order = self.get_object()
+        if getattr(order, 'is_deleted', False):
+            return Response({"error": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
         is_same_staff = (
             order.assigned_staff == request.user or
             (order.assigned_staff and order.assigned_staff.email and request.user.email and
@@ -809,29 +879,30 @@ class OrderViewSet(viewsets.ModelViewSet):
                 "error": f"Invalid file type '.{ext}' for {file_type.upper()} slot. Expected format: {', '.join(allowed)}"
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Handle Render Preview
-        if file_type == 'render':
-            order.preview_image = file_obj
-            order.save(update_fields=['preview_image'])
+        with transaction.atomic():
+            # Delete existing deliverable for this file_type and current_version to ensure clean replacement for the active round
+            OrderDeliverable.objects.filter(order=order, file_type=file_type, version=order.current_version).delete()
 
-        # Delete existing deliverable for this file_type and current_version to ensure clean replacement for the active round
-        OrderDeliverable.objects.filter(order=order, file_type=file_type, version=order.current_version).delete()
+            deliverable = OrderDeliverable(
+                order=order,
+                file_type=file_type,
+                version=order.current_version,
+                original_filename=file_obj.name,
+                file_size_bytes=getattr(file_obj, 'size', None)
+            )
+            if file_type in ['3dm', 'stl', 'zip']:
+                from apps.catalog.models import protected_cad_storage
+                saved_name = protected_cad_storage.save(f"orders/deliverables/ord_{order.id}_v{order.current_version}_{file_type}_{file_obj.name}", file_obj)
+                deliverable.file.name = saved_name
+            else:
+                deliverable.file = file_obj
 
-        deliverable = OrderDeliverable(
-            order=order,
-            file_type=file_type,
-            version=order.current_version,
-            original_filename=file_obj.name,
-            file_size_bytes=getattr(file_obj, 'size', None)
-        )
-        if file_type in ['3dm', 'stl', 'zip']:
-            from apps.catalog.models import protected_cad_storage
-            saved_name = protected_cad_storage.save(f"orders/deliverables/ord_{order.id}_v{order.current_version}_{file_type}_{file_obj.name}", file_obj)
-            deliverable.file.name = saved_name
-        else:
-            deliverable.file = file_obj
+            deliverable.save()
 
-        deliverable.save()
+            # Handle Render Preview
+            if file_type == 'render':
+                order.preview_image = deliverable.file
+                order.save(update_fields=['preview_image'])
 
         return Response(StaffOrderSerializer(order, context={'request': request}).data)
 
@@ -862,6 +933,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                     user = None
 
         is_admin = user and (getattr(user, 'role', None) == 'admin' or getattr(user, 'is_staff', False) or getattr(user, 'is_superuser', False))
+        if getattr(order, 'is_deleted', False) and not is_admin:
+            return Response({"error": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
         is_assigned = user and (order.assigned_staff == user)
         if not (is_admin or is_assigned):
             return Response({"error": "Forbidden. Only assigned staff or studio admins may inspect CAD deliverables."}, status=status.HTTP_403_FORBIDDEN)
@@ -907,6 +980,8 @@ class OrderViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsStaff], url_path='submit-for-review')
     def submit_for_review(self, request, pk=None):
         order = self.get_object()
+        if getattr(order, 'is_deleted', False):
+            return Response({"error": "Order has been deleted."}, status=status.HTTP_404_NOT_FOUND)
         is_same_staff = (
             order.assigned_staff == request.user or
             (order.assigned_staff and order.assigned_staff.email and request.user.email and
@@ -945,6 +1020,8 @@ class OrderViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsAdmin], url_path='admin-review')
     def admin_review(self, request, pk=None):
         order = self.get_object()
+        if getattr(order, 'is_deleted', False):
+            return Response({"error": "Cannot review a deleted order."}, status=status.HTTP_404_NOT_FOUND)
         decision = request.data.get('decision')  # 'approve' or 'reject'
         notes = request.data.get('notes', '')
 
@@ -1051,6 +1128,8 @@ class OrderViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated], url_path='approve-design-preview')
     def approve_design_preview(self, request, pk=None):
         order = self.get_object()
+        if getattr(order, 'is_deleted', False):
+            return Response({"error": "Order has been deleted."}, status=status.HTTP_404_NOT_FOUND)
         if order.client != request.user and getattr(request.user, 'role', None) != 'admin' and not getattr(request.user, 'is_superuser', False):
             return Response({"error": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
 
@@ -1062,6 +1141,8 @@ class OrderViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get', 'post'], permission_classes=[permissions.IsAuthenticated], url_path='revision-requests')
     def revision_requests(self, request, pk=None):
         order = self.get_object()
+        if getattr(order, 'is_deleted', False):
+            return Response({"error": "Order has been deleted."}, status=status.HTTP_404_NOT_FOUND)
 
         if request.method == 'GET':
             if (
@@ -1202,6 +1283,8 @@ class OrderViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsAdmin], url_path='toggle-download-permission')
     def toggle_download_permission(self, request, pk=None):
         order = self.get_object()
+        if getattr(order, 'is_deleted', False):
+            return Response({"error": "Cannot toggle download permission for a deleted order."}, status=status.HTTP_404_NOT_FOUND)
         enabled = request.data.get('enabled')
         target_state = bool(enabled) if enabled is not None else not order.download_enabled_by_admin
 
@@ -1237,6 +1320,8 @@ class OrderViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsAdmin], url_path='reassign')
     def reassign_staff(self, request, pk=None):
         order = self.get_object()
+        if getattr(order, 'is_deleted', False):
+            return Response({"error": "Cannot reassign a deleted order."}, status=status.HTTP_404_NOT_FOUND)
         staff_id = request.data.get('staff_id')
 
         if not staff_id or str(staff_id).strip() in ['', 'null', '0', 'unassigned']:
@@ -1302,6 +1387,8 @@ class OrderViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post', 'patch'], permission_classes=[IsAdmin], url_path='set-commission')
     def set_commission(self, request, pk=None):
         order = self.get_object()
+        if getattr(order, 'is_deleted', False):
+            return Response({"error": "Cannot set commission on a deleted order."}, status=status.HTTP_404_NOT_FOUND)
         commission_pct = request.data.get('admin_commission_percentage')
         if commission_pct is not None:
             try:
@@ -1317,6 +1404,8 @@ class OrderViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsAdmin], url_path='approve-to-pool')
     def approve_to_pool(self, request, pk=None):
         order = self.get_object()
+        if getattr(order, 'is_deleted', False):
+            return Response({"error": "Cannot release a deleted order to pool."}, status=status.HTTP_404_NOT_FOUND)
         commission_pct = request.data.get('admin_commission_percentage')
         if commission_pct is not None:
             try:
@@ -1342,6 +1431,8 @@ class OrderViewSet(viewsets.ModelViewSet):
     def request_order_otp(self, request, pk=None):
         from apps.payments.models import DownloadOTP
         order = self.get_object()
+        if getattr(order, 'is_deleted', False):
+            return Response({"error": "Order has been deleted."}, status=status.HTTP_404_NOT_FOUND)
 
         # Check if 100% of payment stages are paid
         unpaid_stages = order.payment_stages.exclude(status='paid')
@@ -1408,6 +1499,8 @@ class OrderViewSet(viewsets.ModelViewSet):
     def verify_order_otp(self, request, pk=None):
         from apps.payments.models import DownloadOTP, DownloadToken
         order = self.get_object()
+        if getattr(order, 'is_deleted', False):
+            return Response({"error": "Order has been deleted."}, status=status.HTTP_404_NOT_FOUND)
         code = str(request.data.get('code', '')).strip()
 
         if not code:
@@ -1722,6 +1815,8 @@ class OrderViewSet(viewsets.ModelViewSet):
         from apps.catalog.models import Category
 
         order = self.get_object()
+        if getattr(order, 'is_deleted', False):
+            return Response({"error": "Cannot edit a deleted order."}, status=status.HTTP_404_NOT_FOUND)
         data = request.data
         req = order.custom_request
 
@@ -1877,6 +1972,8 @@ class OrderViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsAdmin], url_path='cancel')
     def cancel_order(self, request, pk=None):
         order = self.get_object()
+        if getattr(order, 'is_deleted', False):
+            return Response({"error": "Cannot cancel a deleted order."}, status=status.HTTP_404_NOT_FOUND)
         reason = request.data.get('reason', 'Cancelled by Studio Super Admin.')
 
         order.status = Order.Status.CANCELLED
@@ -1912,51 +2009,27 @@ class OrderViewSet(viewsets.ModelViewSet):
             "order": AdminOrderSerializer(order, context={'request': request}).data
         })
 
-    # ADMIN DELETE ORDER PERMANENTLY
+    # ADMIN SOFT-DELETE ORDER
     def destroy(self, request, *args, **kwargs):
         if getattr(request.user, 'role', '') != 'admin' and not getattr(request.user, 'is_superuser', False):
-            return Response({"error": "Forbidden. Only Studio Super Admins can permanently delete orders."}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"error": "Forbidden. Only Studio Super Admins can delete orders."}, status=status.HTTP_403_FORBIDDEN)
 
         instance = self.get_object()
         order_id = instance.id
 
         try:
-            # 1. Delete protected deliverables files
-            from apps.catalog.models import protected_cad_storage
-            for deliverable in instance.deliverables.all():
-                if deliverable.file:
-                    try:
-                        if protected_cad_storage.exists(deliverable.file.name):
-                            protected_cad_storage.delete(deliverable.file.name)
-                        else:
-                            deliverable.file.delete(save=False)
-                    except Exception:
-                        pass
-
-            # 2. Clean up associated payments and stages
-            instance.payments.all().delete()
-            instance.payment_stages.all().delete()
-            instance.deliverables.all().delete()
-            instance.milestones.all().delete()
-            instance.revision_requests.all().delete()
-
-            # Clean up linked custom request if direct admin created
-            custom_req = instance.custom_request
-            instance.custom_request = None
-            instance.save(update_fields=['custom_request'])
-
-            if custom_req and custom_req.request_mode == 'direct':
-                custom_req.delete()
-
-            instance.delete()
+            # Soft delete order: do NOT modify or delete existing Payment, PaymentStage, Settlement, Purchase, milestone or deliverable records
+            instance.is_deleted = True
+            instance.deleted_at = timezone.now()
+            instance.save(update_fields=['is_deleted', 'deleted_at'])
 
             return Response(
-                {"message": f"Order #{order_id} has been permanently deleted from the database."},
+                {"message": f"Order #{order_id} has been soft-deleted."},
                 status=status.HTTP_200_OK
             )
         except Exception as e:
             return Response(
-                {"error": f"Failed to permanently delete order #{order_id}: {str(e)}"},
+                {"error": f"Failed to delete order #{order_id}: {str(e)}"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 

@@ -154,13 +154,15 @@ class StaffListSerializer(serializers.ModelSerializer):
     def get_current_load(self, obj):
         return Order.objects.filter(
             assigned_staff=obj,
-            status=Order.Status.WITH_DESIGNER
+            status=Order.Status.WITH_DESIGNER,
+            is_deleted=False
         ).count()
 
     def get_active_jobs(self, obj):
         orders = Order.objects.filter(
             assigned_staff=obj,
-            status=Order.Status.WITH_DESIGNER
+            status=Order.Status.WITH_DESIGNER,
+            is_deleted=False
         ).select_related('custom_request', 'custom_request__category', 'custom_request__reference_product', 'client', 'product').order_by('-assigned_at')
         active_list = []
         for o in orders:

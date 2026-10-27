@@ -23,6 +23,7 @@ import {
   Package,
   BadgeCheck,
   Lock,
+  Share2,
 } from 'lucide-react';
 import { RevealOnScroll } from '../components/motion/RevealOnScroll';
 import { StaggerGrid, StaggerItem } from '../components/motion/StaggerGrid';
@@ -36,6 +37,7 @@ import { useAuth } from '../context/AuthContext';
 import { getOptimizedImageUrl, handleImgError } from '../utils/imageHelper';
 import { useCustomerCountry, resolveDisplayPrice } from '../utils/countryContext';
 import { ProductPriceTag } from '../components/common/ProductPriceTag';
+import { ProductShareModal, FloatingProductShareButton } from '../components/common/ProductShareModal';
 
 interface ProductDetailPageProps {
   productId: string;
@@ -61,6 +63,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const stickyRef = useRef<HTMLDivElement>(null);
 
   const [otpModalState, setOtpModalState] = useState<{
@@ -707,6 +710,14 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                   >
                     <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-current' : ''}`} />
                   </button>
+                  <button
+                    onClick={() => setIsShareModalOpen(true)}
+                    className="p-3 rounded-xl border border-[#E8D7B7] text-[#687386] hover:border-[#B88732] hover:text-[#B88732] bg-white hover:bg-[#FFF9F0] transition-all cursor-pointer shadow-sm flex items-center justify-center"
+                    title="Share Design (Link, Image &amp; Name)"
+                    aria-label="Share Design"
+                  >
+                    <Share2 className="w-5 h-5 text-[#B88732]" />
+                  </button>
                 </div>
 
                 <button
@@ -1076,6 +1087,30 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
           onNavigate('account');
         }}
       />
+
+      {/* Floating Share Button & Modal */}
+      {product && (
+        <>
+          <FloatingProductShareButton
+            product={{
+              id: product.id,
+              title: product.title,
+              image: product.primaryImage || (images && images[0]) || '',
+              category: typeof product.category === 'string' ? product.category : (product.category as any)?.name,
+            }}
+          />
+          <ProductShareModal
+            product={{
+              id: product.id,
+              title: product.title,
+              image: product.primaryImage || (images && images[0]) || '',
+              category: typeof product.category === 'string' ? product.category : (product.category as any)?.name,
+            }}
+            isOpen={isShareModalOpen}
+            onClose={() => setIsShareModalOpen(false)}
+          />
+        </>
+      )}
     </div>
   );
 };

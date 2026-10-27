@@ -18,7 +18,8 @@ class Command(BaseCommand):
             status=Order.Status.IN_DESIGN,
             assigned_staff__isnull=True,
             advance_paid=True,
-            unassigned_since__lte=threshold_time
+            unassigned_since__lte=threshold_time,
+            is_deleted=False
         )
 
         admins = User.objects.filter(role=User.Role.ADMIN, is_active=True)

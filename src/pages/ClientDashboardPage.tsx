@@ -58,9 +58,11 @@ import {
   CheckCheck,
   XCircle,
   Wrench,
-  Cloud
+  Cloud,
+  Menu
 } from 'lucide-react';
 import { RevealOnScroll } from '../components/motion/RevealOnScroll';
+import { BrandLogo } from '../components/BrandLogo';
 
 import { appStore } from '../services/store';
 
@@ -87,6 +89,7 @@ interface ClientDashboardPageProps {
   wishlistIds: string[];
   onRemoveWishlist: (product: Product) => void;
   onAddToCart: (product: Product, license: 'standard' | 'commercial') => void;
+  initialTab?: 'custom' | 'downloads' | 'orders' | 'wishlist' | 'profile';
 }
 
 export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
@@ -95,19 +98,147 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
   wishlistIds,
   onRemoveWishlist,
   onAddToCart,
+  initialTab,
 }) => {
   const { isLoggedIn, user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'custom' | 'downloads' | 'orders' | 'wishlist' | 'profile'>('custom');
+  type ClientTabKey = 'custom' | 'downloads' | 'orders' | 'wishlist' | 'profile';
+
+  // Read initial tab and order from URL search params or localStorage/sessionStorage
+  const getInitialTab = (): ClientTabKey => {
+    if (initialTab && ['custom', 'downloads', 'orders', 'wishlist', 'profile'].includes(initialTab)) {
+      return initialTab;
+    }
+    if (typeof window === 'undefined') return 'custom';
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    if (tabParam && ['custom', 'downloads', 'orders', 'wishlist', 'profile'].includes(tabParam)) {
+      return tabParam as ClientTabKey;
+    }
+    const saved = localStorage.getItem('shiuli_client_active_tab') as ClientTabKey;
+    if (saved && ['custom', 'downloads', 'orders', 'wishlist', 'profile'].includes(saved)) {
+      return saved;
+    }
+    return 'custom';
+  };
+
+  const getInitialOrderSelection = (): { openedId: number | null; reqKey: string | null } => {
+    if (typeof window === 'undefined') return { openedId: null, reqKey: null };
+    const params = new URLSearchParams(window.location.search);
+    const ord = params.get('order') || localStorage.getItem('shiuli_client_opened_order') || sessionStorage.getItem('shiuli_client_opened_order');
+    if (!ord) return { openedId: null, reqKey: null };
+    if (ord.startsWith('fe-') || ord.startsWith('cr-')) {
+      const num = parseInt(ord.replace(/^[a-z]+-/, ''), 10);
+      return { openedId: isNaN(num) ? null : num, reqKey: ord };
+    }
+    const num = parseInt(ord, 10);
+    return { openedId: isNaN(num) ? null : num, reqKey: isNaN(num) ? null : `cr-${num}` };
+  };
+
+  const initialOrderState = getInitialOrderSelection();
+
+  const [activeTab, setActiveTabState] = useState<ClientTabKey>(getInitialTab);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState<boolean>(false);
+
+  // Sync tab & order with browser URL, localStorage, and sessionStorage without page reload
+  const updateUrlParams = (tab?: string, orderKey?: string | number | null) => {
+    if (typeof window === 'undefined') return;
+    try {
+      const url = new URL(window.location.href);
+      if (tab) {
+        url.searchParams.set('tab', tab);
+        localStorage.setItem('shiuli_client_active_tab', tab);
+      }
+      if (orderKey !== undefined) {
+        if (orderKey === null || orderKey === '') {
+          url.searchParams.delete('order');
+          localStorage.removeItem('shiuli_client_opened_order');
+          sessionStorage.removeItem('shiuli_client_opened_order');
+        } else {
+          url.searchParams.set('order', String(orderKey));
+          localStorage.setItem('shiuli_client_opened_order', String(orderKey));
+          sessionStorage.setItem('shiuli_client_opened_order', String(orderKey));
+        }
+      }
+      window.history.replaceState({}, '', url.toString());
+    } catch {}
+  };
+
+  const setActiveTab = (tab: ClientTabKey) => {
+    setActiveTabState(tab);
+    updateUrlParams(tab);
+  };
+
+  const handleTabChange = (tab: ClientTabKey) => {
+    setActiveTab(tab);
+    setIsMobileNavOpen(false);
+  };
+
+  // Lock body scroll while mobile drawer is open (Step 8A Rule 2)
+  useEffect(() => {
+    if (isMobileNavOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileNavOpen]);
 
   // Live State
   const [customRequests, setCustomRequests] = useState<any[]>([]);
-  const [selectedCustomReqId, setSelectedCustomReqId] = useState<number | null>(null);
-  const [openedOrderId, setOpenedOrderId] = useState<number | null>(null);
+  const [selectedCustomReqId, setSelectedCustomReqId] = useState<number | null>(initialOrderState.openedId);
+  const [openedOrderId, setOpenedOrderId] = useState<number | null>(initialOrderState.openedId);
   const [activeStageTab, setActiveStageTab] = useState<'all' | 'specs' | 'negotiation' | 'payments' | 'preview' | 'deliverables'>('all');
+  const [mobileAccordionStage, setMobileAccordionStage] = useState<string | null>(null);
   const [orderSearchTerm, setOrderSearchTerm] = useState<string>('');
   const [loadingCustom, setLoadingCustom] = useState<boolean>(false);
   const [clientOrders, setClientOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState<boolean>(false);
+
+  // Step 8C: Local UI state for mobile card expansion/collapse (not reset by 7-second background refresh)
+  const [mobileExpandedCards, setMobileExpandedCards] = useState<{ [key: string]: boolean }>({});
+
+  // Step 8C: Status taxonomy check: Active vs. Non-Active (completed, cancelled, rejected)
+  const isOrderActiveStatus = (item: any, ord: any): boolean => {
+    if (ord && ord.status) {
+      return ord.status !== 'completed' && ord.status !== 'cancelled';
+    }
+    return item.status !== 'rejected';
+  };
+
+  const toggleMobileCardExpand = (itemKey: string, defaultExpanded: boolean) => {
+    setMobileExpandedCards((prev) => ({
+      ...prev,
+      [itemKey]: prev[itemKey] !== undefined ? !prev[itemKey] : !defaultExpanded,
+    }));
+  };
+
+  const handleOpenCustomOrder = (item: any, initialStageTab?: 'all' | 'specs' | 'negotiation' | 'payments' | 'preview' | 'deliverables') => {
+    const itemKey = item.is_file_edit ? `fe-${item.id}` : `cr-${item.id}`;
+    setSelectedCustomReqId(item.id);
+    setSelectedReqKey(itemKey);
+    setOpenedOrderId(item.id);
+    updateUrlParams('custom', itemKey);
+    if (initialStageTab) {
+      setActiveStageTab(initialStageTab);
+    }
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleBackToGrid = () => {
+    setOpenedOrderId(null);
+    setSelectedReqKey(null);
+    setMobileAccordionStage(null);
+    localStorage.removeItem('shiuli_client_opened_order');
+    sessionStorage.removeItem('shiuli_client_opened_order');
+    updateUrlParams(activeTab, null);
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   // Real-Time Negotiation Notification & Audio Alert
   const [negotiationAlertBanner, setNegotiationAlertBanner] = useState<{
@@ -122,7 +253,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
   });
   const lastAdminMsgIdRef = useRef<{ [reqId: string]: number }>({});
   const lastStatusRef = useRef<{ [key: string]: string }>({});
-  const [selectedReqKey, setSelectedReqKey] = useState<string | null>(null);
+  const [selectedReqKey, setSelectedReqKey] = useState<string | null>(initialOrderState.reqKey);
   const initialFetchDoneRef = useRef<boolean>(false);
   const [counterPriceInput, setCounterPriceInput] = useState<{ [key: number]: string }>({});
   const [counterMessageInput, setCounterMessageInput] = useState<{ [key: number]: string }>({});
@@ -247,8 +378,10 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
     );
   };
 
-  const fetchCustomRequests = async () => {
-    setLoadingCustom(true);
+  const fetchCustomRequests = async (isBackgroundPoll: boolean = false) => {
+    if (!isBackgroundPoll && !initialFetchDoneRef.current && customRequests.length === 0) {
+      setLoadingCustom(true);
+    }
     try {
       let dbRequests: any[] = [];
       try {
@@ -553,17 +686,54 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
       });
 
       if (combined.length > 0) {
-        const storedLastReqId = localStorage.getItem('shiuli_last_submitted_req_id');
-        if (storedLastReqId && combined.some((c: any) => String(c.id) === String(storedLastReqId))) {
-          setSelectedCustomReqId(Number(storedLastReqId));
-        } else {
-          setSelectedCustomReqId((prev) => (prev && combined.some((c: any) => c.id === prev) ? prev : combined[0].id));
+        // Step 8D: Keep selected order across reload and background refetch by ID, never by array index
+        const currentSavedOrder = typeof window !== 'undefined'
+          ? (new URLSearchParams(window.location.search).get('order') || localStorage.getItem('shiuli_client_opened_order') || sessionStorage.getItem('shiuli_client_opened_order'))
+          : null;
+
+        let matched = null;
+        if (currentSavedOrder) {
+          matched = combined.find((c: any) =>
+            (c.is_file_edit ? `fe-${c.id}` : `cr-${c.id}`) === currentSavedOrder ||
+            String(c.id) === currentSavedOrder ||
+            (c.order && String(c.order.id) === currentSavedOrder)
+          );
+        }
+
+        // If not matched via URL/localStorage, match by active state selectedReqKey
+        if (!matched && selectedReqKey) {
+          matched = combined.find((c: any) => (c.is_file_edit ? `fe-${c.id}` : `cr-${c.id}`) === selectedReqKey);
+        }
+
+        // If still not matched, match by selectedCustomReqId
+        if (!matched && selectedCustomReqId) {
+          matched = combined.find((c: any) => c.id === selectedCustomReqId);
+        }
+
+        // Fall back to first ACTIVE order if previous selection not found, never random index 0
+        if (!matched) {
+          const activeOrder = combined.find((c: any) => {
+            const ord = getOrderForRequest(c);
+            return isOrderActiveStatus(c, ord);
+          });
+          matched = activeOrder || combined[0];
+        }
+
+        if (matched) {
+          const targetKey = matched.is_file_edit ? `fe-${matched.id}` : `cr-${matched.id}`;
+          setSelectedCustomReqId(matched.id);
+          setSelectedReqKey(targetKey);
+          if (currentSavedOrder) {
+            setOpenedOrderId(matched.id);
+          }
         }
       }
     } catch (e) {
       console.warn('Failed to fetch client custom requests:', e);
     } finally {
-      setLoadingCustom(false);
+      if (!isBackgroundPoll) {
+        setLoadingCustom(false);
+      }
       initialFetchDoneRef.current = true;
     }
   };
@@ -625,10 +795,10 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
     }
   }, [isLoggedIn, user, activeTab]);
 
-  // Live polling for negotiation updates & quotes every 7 seconds
+  // Live polling for negotiation updates & quotes every 7 seconds (silent background refresh)
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchCustomRequests();
+      fetchCustomRequests(true);
     }, 7000);
     return () => clearInterval(interval);
   }, []);
@@ -864,174 +1034,356 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
   }, [catalogProducts, wishlistIds]);
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] text-[#0B1330] pt-24 pb-24 px-4 sm:px-8 lg:px-12">
-      <div className="max-w-[1400px] mx-auto space-y-8">
+    <div className="min-h-screen bg-[#FAF8F5] text-[#0B1330] pt-20 sm:pt-24 pb-20 sm:pb-24 px-3 sm:px-6 lg:px-12">
+      <div className="max-w-[1400px] mx-auto space-y-6 sm:space-y-8">
         
-        {/* LUXURY ATELIER HEADER PROFILE BANNER */}
-        <RevealOnScroll className="relative rounded-3xl bg-gradient-to-r from-white via-[#FCFAF7] to-white border border-[#E8D7B7] p-6 sm:p-7 shadow-[0_10px_35px_rgba(184,135,50,0.07)] overflow-hidden">
+        {/* LUXURY ATELIER HEADER PROFILE BANNER - Displayed ONLY on main dashboard, hidden inside order workspace */}
+        {openedOrderId === null && (
+          <RevealOnScroll className="relative rounded-3xl bg-gradient-to-r from-white via-[#FCFAF7] to-white border border-[#E8D7B7] p-4 sm:p-6 lg:p-7 shadow-[0_10px_35px_rgba(184,135,50,0.07)] overflow-hidden">
           {/* Subtle gold decorative glow */}
           <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-bl from-[#D4AF37]/10 via-transparent to-transparent rounded-full pointer-events-none -mr-20 -mt-20 blur-2xl" />
 
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
+          {/* MOBILE COMPACT PROFILE CARD (Below sm) */}
+          <div className="flex sm:hidden flex-col gap-2.5 relative z-10">
+            <div className="flex items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="relative shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#1E4FA3] via-[#D4AF37] to-[#F5E7A3] p-[2px] shadow-xs overflow-hidden">
+                    {user?.profile_photo ? (
+                      <img src={user.profile_photo} alt={user.username} className="w-full h-full rounded-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full rounded-full bg-[#FFFDF9] flex items-center justify-center text-[#B88732]">
+                        <User className="w-5 h-5 text-[#B88732]" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border border-white flex items-center justify-center" />
+                </div>
+
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h1 className="font-serif text-sm font-bold text-[#0B1330] truncate">
+                      {user?.first_name ? `${user.first_name} ${user.last_name || ''}` : (user?.username || 'Client Atelier')}
+                    </h1>
+                    <span className="px-1.5 py-0.2 rounded-full bg-[#FFF8EC] border border-[#D4AF37]/60 text-[8px] text-[#9A6A1A] font-mono uppercase font-black">
+                      {user?.role === 'admin' ? 'ADMIN' : user?.role === 'staff' ? 'ARTISAN' : 'CLIENT'}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-[#5A6679] font-mono truncate">
+                    {user?.email || userEmail || 'client@shiulicadstudio.com'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => onNavigate('custom-design')}
+                className="btn-gold-luxury px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm shrink-0 cursor-pointer"
+              >
+                <Sparkles className="w-3 h-3 text-[#0B1330]" />
+                <span>+ Brief</span>
+              </button>
+            </div>
+
+            {/* Quick Stat Counters (4-column compact bar on mobile) */}
+            <div className="grid grid-cols-4 gap-1.5 pt-2 border-t border-[#E8D7B7]/50 text-center">
+              <div
+                onClick={() => handleTabChange('custom')}
+                className="p-1.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7]/80 hover:border-[#D4AF37] transition-all cursor-pointer shadow-xs"
+              >
+                <span className="block text-[8px] font-mono uppercase text-[#687386] font-semibold truncate">Briefs</span>
+                <span className="font-serif text-xs font-bold text-[#0B1330]">{customRequests.length}</span>
+              </div>
+              <div
+                onClick={() => handleTabChange('custom')}
+                className="p-1.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7]/80 hover:border-[#D4AF37] transition-all cursor-pointer shadow-xs"
+              >
+                <span className="block text-[8px] font-mono uppercase text-[#687386] font-semibold truncate">In Prod</span>
+                <span className="font-serif text-xs font-bold text-emerald-700">
+                  {customRequests.filter(r => r.order?.assigned_staff || r.status === 'in_progress').length}
+                </span>
+              </div>
+              <div
+                onClick={() => handleTabChange('downloads')}
+                className="p-1.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7]/80 hover:border-[#D4AF37] transition-all cursor-pointer shadow-xs"
+              >
+                <span className="block text-[8px] font-mono uppercase text-[#687386] font-semibold truncate">Vault</span>
+                <span className="font-serif text-xs font-bold text-[#0B1330]">{purchases.length}</span>
+              </div>
+              <div
+                onClick={() => handleTabChange('wishlist')}
+                className="p-1.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7]/80 hover:border-[#D4AF37] transition-all cursor-pointer shadow-xs"
+              >
+                <span className="block text-[8px] font-mono uppercase text-[#687386] font-semibold truncate">Wishlist</span>
+                <span className="font-serif text-xs font-bold text-rose-600">{wishlistIds.length}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* DESKTOP / TABLET SPACIOUS PROFILE CARD (hidden on mobile, flex on sm+) */}
+          <div className="hidden sm:flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 sm:gap-6 relative z-10">
             {/* User Info */}
-            <div className="flex items-center gap-4 sm:gap-5">
+            <div className="flex items-center gap-3.5 sm:gap-5">
               <div className="relative">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-[#1E4FA3] via-[#D4AF37] to-[#F5E7A3] p-[2.5px] shadow-[0_4px_20px_rgba(212,175,55,0.35)] overflow-hidden">
+                <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-[#1E4FA3] via-[#D4AF37] to-[#F5E7A3] p-[2.5px] shadow-[0_4px_20px_rgba(212,175,55,0.35)] overflow-hidden">
                   {user?.profile_photo ? (
                     <img src={user.profile_photo} alt={user.username} className="w-full h-full rounded-full object-cover" />
                   ) : (
                     <div className="w-full h-full rounded-full bg-[#FFFDF9] flex items-center justify-center text-[#B88732]">
-                      <User className="w-8 h-8 sm:w-9 sm:h-9 text-[#B88732]" />
+                      <User className="w-7 h-7 sm:w-9 sm:h-9 text-[#B88732]" />
                     </div>
                   )}
                 </div>
-                <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center shadow" title="Online Client Session">
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center shadow" title="Online Client Session">
                   <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <h1 className="font-serif text-2xl sm:text-3xl font-extrabold text-[#0B1330] tracking-tight">
+              <div className="space-y-1 min-w-0">
+                <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+                  <h1 className="font-serif text-xl sm:text-2xl lg:text-3xl font-extrabold text-[#0B1330] tracking-tight truncate">
                     {user?.first_name ? `${user.first_name} ${user.last_name || ''}` : (user?.username || 'Client Atelier')}
                   </h1>
-                  <span className="px-3 py-0.5 rounded-full bg-[#FFF8EC] border border-[#D4AF37]/60 text-[10px] text-[#9A6A1A] font-mono uppercase tracking-widest font-black shadow-xs">
+                  <span className="px-2.5 py-0.5 rounded-full bg-[#FFF8EC] border border-[#D4AF37]/60 text-[9px] sm:text-[10px] text-[#9A6A1A] font-mono uppercase tracking-widest font-black shadow-xs">
                     {user?.role === 'admin' ? 'ATELIER ADMIN' : user?.role === 'staff' ? 'CAD ARTISAN' : 'VERIFIED CLIENT'}
                   </span>
                 </div>
-                <p className="text-xs text-[#5A6679] font-mono flex items-center gap-1.5">
-                  <Mail className="w-3.5 h-3.5 text-[#B88732]" />
-                  <span>{user?.email || userEmail || 'client@shiulicadstudio.com'}</span>
+                <p className="text-[11px] sm:text-xs text-[#5A6679] font-mono flex items-center gap-1.5 truncate">
+                  <Mail className="w-3.5 h-3.5 text-[#B88732] shrink-0" />
+                  <span className="truncate">{user?.email || userEmail || 'client@shiulicadstudio.com'}</span>
                 </p>
               </div>
             </div>
 
             {/* Quick Stat Counters */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 w-full lg:w-auto">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 w-full lg:w-auto">
               <div
-                onClick={() => setActiveTab('custom')}
-                className="px-4 py-2.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7]/80 hover:border-[#D4AF37] transition-all cursor-pointer text-center group shadow-xs"
+                onClick={() => handleTabChange('custom')}
+                className="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7]/80 hover:border-[#D4AF37] transition-all cursor-pointer text-center group shadow-xs"
               >
-                <span className="block text-[10px] font-mono uppercase tracking-wider text-[#687386] font-semibold">Active Briefs</span>
-                <span className="font-serif text-lg sm:text-xl font-bold text-[#0B1330] group-hover:text-[#B88732]">{customRequests.length}</span>
+                <span className="block text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-[#687386] font-semibold">Active Briefs</span>
+                <span className="font-serif text-base sm:text-xl font-bold text-[#0B1330] group-hover:text-[#B88732]">{customRequests.length}</span>
               </div>
               <div
-                onClick={() => setActiveTab('custom')}
-                className="px-4 py-2.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7]/80 hover:border-[#D4AF37] transition-all cursor-pointer text-center group shadow-xs"
+                onClick={() => handleTabChange('custom')}
+                className="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7]/80 hover:border-[#D4AF37] transition-all cursor-pointer text-center group shadow-xs"
               >
-                <span className="block text-[10px] font-mono uppercase tracking-wider text-[#687386] font-semibold">In Production</span>
-                <span className="font-serif text-lg sm:text-xl font-bold text-emerald-700 group-hover:text-emerald-800">
+                <span className="block text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-[#687386] font-semibold">In Production</span>
+                <span className="font-serif text-base sm:text-xl font-bold text-emerald-700 group-hover:text-emerald-800">
                   {customRequests.filter(r => r.order?.assigned_staff || r.status === 'in_progress').length}
                 </span>
               </div>
               <div
-                onClick={() => setActiveTab('downloads')}
-                className="px-4 py-2.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7]/80 hover:border-[#D4AF37] transition-all cursor-pointer text-center group shadow-xs"
+                onClick={() => handleTabChange('downloads')}
+                className="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7]/80 hover:border-[#D4AF37] transition-all cursor-pointer text-center group shadow-xs"
               >
-                <span className="block text-[10px] font-mono uppercase tracking-wider text-[#687386] font-semibold">CAD Vault</span>
-                <span className="font-serif text-lg sm:text-xl font-bold text-[#0B1330] group-hover:text-[#B88732]">{purchases.length}</span>
+                <span className="block text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-[#687386] font-semibold">CAD Vault</span>
+                <span className="font-serif text-base sm:text-xl font-bold text-[#0B1330] group-hover:text-[#B88732]">{purchases.length}</span>
               </div>
               <div
-                onClick={() => setActiveTab('wishlist')}
-                className="px-4 py-2.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7]/80 hover:border-[#D4AF37] transition-all cursor-pointer text-center group shadow-xs"
+                onClick={() => handleTabChange('wishlist')}
+                className="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7]/80 hover:border-[#D4AF37] transition-all cursor-pointer text-center group shadow-xs"
               >
-                <span className="block text-[10px] font-mono uppercase tracking-wider text-[#687386] font-semibold">Saved Wishlist</span>
-                <span className="font-serif text-lg sm:text-xl font-bold text-[#0B1330] group-hover:text-rose-600">{wishlistIds.length}</span>
+                <span className="block text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-[#687386] font-semibold">Saved Wishlist</span>
+                <span className="font-serif text-base sm:text-xl font-bold text-[#0B1330] group-hover:text-rose-600">{wishlistIds.length}</span>
               </div>
             </div>
 
             {/* CTA Button */}
             <button
               onClick={() => onNavigate('custom-design')}
-              className="btn-gold-luxury px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(212,175,55,0.35)] shrink-0 w-full sm:w-auto hover:brightness-105 transition-all cursor-pointer"
+              className="btn-gold-luxury px-6 py-3 min-h-[44px] rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(212,175,55,0.35)] shrink-0 w-full sm:w-auto hover:brightness-105 transition-all cursor-pointer"
             >
               <Sparkles className="w-4 h-4 text-[#0B1330]" />
               <span>+ Start Custom Brief</span>
             </button>
           </div>
         </RevealOnScroll>
+        )}
 
-        {/* LUXURY SEGMENTED NAVIGATION PILLS */}
-        <div className="p-1.5 rounded-2xl bg-[#F4EFE6]/80 backdrop-blur-md border border-[#E8D7B7] flex overflow-x-auto gap-1.5 shadow-sm text-xs sm:text-sm font-serif">
-          <button
-            onClick={() => setActiveTab('custom')}
-            className={`px-5 py-3 rounded-xl flex items-center gap-2.5 font-bold transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === 'custom'
-                ? 'bg-[#0B1330] text-[#F5E7A3] shadow-md border border-[#D4AF37]/40'
-                : 'text-[#5A6679] hover:text-[#0B1330] hover:bg-white/70'
-            }`}
-          >
-            <Clock className={`w-4 h-4 ${activeTab === 'custom' ? 'text-[#D4AF37]' : 'text-[#8C97A7]'}`} />
-            <span>Custom Requests &amp; Journey</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-              activeTab === 'custom' ? 'bg-[#D4AF37]/20 text-[#F5E7A3] border border-[#D4AF37]/50' : 'bg-[#EAE2D2] text-[#5A6679]'
-            }`}>
-              {customRequests.length}
-            </span>
-          </button>
+        {/* STEP 8A: MOBILE SLIDE-OVER DRAWER BACKDROP & PANEL */}
+        {isMobileNavOpen && (
+          <div
+            onClick={() => setIsMobileNavOpen(false)}
+            className="fixed inset-0 bg-black/75 backdrop-blur-xs z-50 lg:hidden animate-in fade-in duration-200"
+          />
+        )}
 
-          <button
-            onClick={() => setActiveTab('downloads')}
-            className={`px-5 py-3 rounded-xl flex items-center gap-2.5 font-bold transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === 'downloads'
-                ? 'bg-[#0B1330] text-[#F5E7A3] shadow-md border border-[#D4AF37]/40'
-                : 'text-[#5A6679] hover:text-[#0B1330] hover:bg-white/70'
-            }`}
-          >
-            <Download className={`w-4 h-4 ${activeTab === 'downloads' ? 'text-[#D4AF37]' : 'text-[#8C97A7]'}`} />
-            <span>My CAD Vault</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-              activeTab === 'downloads' ? 'bg-[#D4AF37]/20 text-[#F5E7A3] border border-[#D4AF37]/50' : 'bg-[#EAE2D2] text-[#5A6679]'
-            }`}>
-              {purchases.length}
-            </span>
-          </button>
+        <aside
+          className={`fixed inset-y-0 left-0 w-[290px] sm:w-[320px] bg-gradient-to-b from-[#09112B] via-[#0B1536] to-[#060B1E] text-[#F5F1E8] z-50 flex flex-col justify-between transition-transform duration-300 ease-in-out lg:hidden shadow-2xl border-r border-[#D4AF37]/30 ${
+            isMobileNavOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          <div className="flex-1 flex flex-col min-h-0">
+            {/* Drawer Header */}
+            <div className="p-4 flex items-center justify-between border-b border-[#D4AF37]/20 bg-[#070D22]">
+              <BrandLogo variant="horizontal" size="sm" />
+              <button
+                type="button"
+                onClick={() => setIsMobileNavOpen(false)}
+                className="p-2 min-h-[44px] min-w-[44px] rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all flex items-center justify-center cursor-pointer"
+                aria-label="Close Navigation Drawer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-          <button
-            onClick={() => setActiveTab('orders')}
-            className={`px-5 py-3 rounded-xl flex items-center gap-2.5 font-bold transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === 'orders'
-                ? 'bg-[#0B1330] text-[#F5E7A3] shadow-md border border-[#D4AF37]/40'
-                : 'text-[#5A6679] hover:text-[#0B1330] hover:bg-white/70'
-            }`}
-          >
-            <ShoppingBag className={`w-4 h-4 ${activeTab === 'orders' ? 'text-[#D4AF37]' : 'text-[#8C97A7]'}`} />
-            <span>Order History</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-              activeTab === 'orders' ? 'bg-[#D4AF37]/20 text-[#F5E7A3] border border-[#D4AF37]/50' : 'bg-[#EAE2D2] text-[#5A6679]'
-            }`}>
-              {clientOrders.length}
-            </span>
-          </button>
+            {/* Client Mini Summary */}
+            <div className="p-4 border-b border-[#D4AF37]/15 bg-[#0A1435]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#1E4FA3] via-[#D4AF37] to-[#F5E7A3] p-[2px] overflow-hidden shrink-0">
+                  {user?.profile_photo ? (
+                    <img src={user.profile_photo} alt={user.username} className="w-full h-full rounded-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full rounded-full bg-[#0B1330] flex items-center justify-center text-[#B88732]">
+                      <User className="w-5 h-5 text-[#B88732]" />
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-serif text-xs font-bold text-white truncate">
+                    {user?.first_name ? `${user.first_name} ${user.last_name || ''}` : (user?.username || 'Client Atelier')}
+                  </p>
+                  <p className="text-[10px] text-[#A5B2C9] font-mono truncate">
+                    {user?.email || userEmail || 'client@shiulicadstudio.com'}
+                  </p>
+                </div>
+              </div>
+            </div>
 
-          <button
-            onClick={() => setActiveTab('wishlist')}
-            className={`px-5 py-3 rounded-xl flex items-center gap-2.5 font-bold transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === 'wishlist'
-                ? 'bg-[#0B1330] text-[#F5E7A3] shadow-md border border-[#D4AF37]/40'
-                : 'text-[#5A6679] hover:text-[#0B1330] hover:bg-white/70'
-            }`}
-          >
-            <Heart className={`w-4 h-4 ${activeTab === 'wishlist' ? 'text-rose-400' : 'text-[#8C97A7]'}`} />
-            <span>Wishlist</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-              activeTab === 'wishlist' ? 'bg-[#D4AF37]/20 text-[#F5E7A3] border border-[#D4AF37]/50' : 'bg-[#EAE2D2] text-[#5A6679]'
-            }`}>
-              {wishlistIds.length}
-            </span>
-          </button>
+            {/* Drawer Navigation Links */}
+            <nav className="p-3 space-y-1.5 overflow-y-auto flex-1">
+              {[
+                {
+                  id: 'custom' as const,
+                  label: 'Custom Requests & Journey',
+                  icon: <Clock className="w-4 h-4" />,
+                  badge: customRequests.length,
+                },
+                {
+                  id: 'downloads' as const,
+                  label: 'My CAD Vault',
+                  icon: <Download className="w-4 h-4" />,
+                  badge: purchases.length,
+                },
+                {
+                  id: 'orders' as const,
+                  label: 'Order History',
+                  icon: <ShoppingBag className="w-4 h-4" />,
+                  badge: clientOrders.length,
+                },
+                {
+                  id: 'wishlist' as const,
+                  label: 'Saved Wishlist',
+                  icon: <Heart className="w-4 h-4" />,
+                  badge: wishlistIds.length,
+                },
+                {
+                  id: 'profile' as const,
+                  label: 'My Profile & Security',
+                  icon: <User className="w-4 h-4" />,
+                },
+              ].map((item) => {
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleTabChange(item.id)}
+                    className={`w-full min-h-[44px] flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                      isActive
+                        ? 'bg-gradient-to-r from-[#D4AF37]/30 to-[#D4AF37]/5 text-[#F5E7A3] font-bold border-l-4 border-[#D4AF37] shadow-sm'
+                        : 'text-[#C9C2A6]/80 hover:bg-[#122254]/60 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className={isActive ? 'text-[#D4AF37]' : 'text-[#8A9BC7]'}>
+                        {item.icon}
+                      </span>
+                      <span className="truncate">{item.label}</span>
+                    </div>
+                    {item.badge !== undefined && (
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold shrink-0 ${
+                        isActive
+                          ? 'bg-[#D4AF37] text-[#070D22]'
+                          : 'bg-white/10 text-[#C9C2A6]'
+                      }`}>
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
 
-          <button
-            onClick={() => setActiveTab('profile')}
-            className={`px-5 py-3 rounded-xl flex items-center gap-2.5 font-bold transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === 'profile'
-                ? 'bg-[#0B1330] text-[#F5E7A3] shadow-md border border-[#D4AF37]/40'
-                : 'text-[#5A6679] hover:text-[#0B1330] hover:bg-white/70'
-            }`}
-          >
-            <User className={`w-4 h-4 ${activeTab === 'profile' ? 'text-[#D4AF37]' : 'text-[#8C97A7]'}`} />
-            <span>My Profile &amp; Security</span>
-          </button>
+          {/* Drawer Footer */}
+          <div className="p-3.5 border-t border-[#D4AF37]/20 bg-[#070D22] flex items-center justify-between text-[11px] font-mono text-[#8C97A7]">
+            <span className="truncate">Shiuli CAD Studio</span>
+            <span className="text-[#D4AF37] font-bold">Client Portal</span>
+          </div>
+        </aside>
+
+        {/* DIRECT SEGMENTED NAVIGATION BAR (Visible and scrollable on all screen sizes) */}
+        <div className="flex p-1 sm:p-1.5 rounded-2xl bg-[#F4EFE6]/90 backdrop-blur-md border border-[#E8D7B7] gap-1.5 sm:gap-2 shadow-sm text-xs font-serif overflow-x-auto no-scrollbar scroll-smooth">
+          {[
+            {
+              id: 'custom' as const,
+              label: 'Custom Requests & Journey',
+              icon: <Clock className="w-4 h-4" />,
+              badge: customRequests.length,
+            },
+            {
+              id: 'downloads' as const,
+              label: 'My CAD Vault',
+              icon: <Download className="w-4 h-4" />,
+              badge: purchases.length,
+            },
+            {
+              id: 'orders' as const,
+              label: 'Order History',
+              icon: <ShoppingBag className="w-4 h-4" />,
+              badge: clientOrders.length,
+            },
+            {
+              id: 'wishlist' as const,
+              label: 'Saved Wishlist',
+              icon: <Heart className="w-4 h-4" />,
+              badge: wishlistIds.length,
+            },
+            {
+              id: 'profile' as const,
+              label: 'My Profile & Security',
+              icon: <User className="w-4 h-4" />,
+            },
+          ].map((item) => {
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => handleTabChange(item.id)}
+                className={`flex-1 px-4 py-3 min-h-[44px] rounded-xl flex items-center justify-center gap-2.5 font-bold transition-all cursor-pointer text-center whitespace-nowrap ${
+                  isActive
+                    ? 'bg-[#0B1330] text-[#F5E7A3] shadow-md border border-[#D4AF37]/50'
+                    : 'text-[#5A6679] hover:text-[#0B1330] hover:bg-white/70'
+                }`}
+              >
+                <span className={isActive ? 'text-[#D4AF37]' : 'text-[#8C97A7]'}>
+                  {item.icon}
+                </span>
+                <span>{item.label}</span>
+                {item.badge !== undefined && (
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                    isActive
+                      ? 'bg-[#D4AF37]/20 text-[#F5E7A3] border border-[#D4AF37]/50'
+                      : 'bg-[#EAE2D2] text-[#5A6679]'
+                  }`}>
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* TAB 1: CONTINUOUS VERTICAL JOURNEY TIMELINE */}
@@ -1075,6 +1427,14 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                   || customRequests.find((r) => r.id === selectedCustomReqId)
                   || (filteredRequests.length > 0 ? filteredRequests[0] : customRequests[0]);
                 const req = activeReq;
+                if (!req) {
+                  return (
+                    <div className="p-12 text-center rounded-3xl bg-white border border-[#E8D7B7] text-xs text-[#5A6679]">
+                      <Loader2 className="w-8 h-8 text-[#B88732] animate-spin mx-auto mb-3" />
+                      <span className="font-serif text-sm font-bold text-[#0B1330] block">Loading Atelier Order Workspace...</span>
+                    </div>
+                  );
+                }
                 const order = getOrderForRequest(req);
                 const assignedStaff = order?.assigned_staff;
                 const isOrderConfirmed = Boolean(
@@ -1220,8 +1580,9 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                         </div>
 
                         {/* THE LITTLE BOXES (CARDS GRID) */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-5">
                           {filteredRequests.map((item) => {
+                            const itemKey = item.is_file_edit ? `fe-${item.id}` : `cr-${item.id}`;
                             const itemOrder = getOrderForRequest(item);
                             const itemAssigned = itemOrder?.assigned_staff;
                             const itemHasQuote = Boolean(item.agreed_price || item.status === 'quoted' || item.status === 'agreed' || itemOrder?.total_price);
@@ -1240,178 +1601,238 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
 
                             const hasNegotiationPending = item.status === 'quoted' || item.status === 'negotiating';
 
+                            // Step 8C: Status classification: Active vs. Non-Active (completed, cancelled, rejected)
+                            const isItemActive = isOrderActiveStatus(item, itemOrder);
+                            const isCardExpanded = mobileExpandedCards[itemKey] !== undefined ? mobileExpandedCards[itemKey] : isItemActive;
+
+                            const orderBadgeTitle = item.is_file_edit ? `FILE EDIT #${item.id}` : (itemOrder ? `ORDER #${itemOrder.id}` : `REQ #${item.id || 'NEW'}`);
+                            const statusText = item.is_file_edit ? (
+                              item.status === 'agreed'
+                                ? 'Approved & Agreed'
+                                : item.status === 'rejected'
+                                ? 'Order Declined'
+                                : item.status === 'quoted'
+                                ? 'Official Quote Ready'
+                                : item.status === 'negotiating'
+                                ? 'Negotiating Price'
+                                : 'Under Assessment'
+                            ) : (
+                              itemAssigned
+                                ? 'In CAD Production'
+                                : itemOrder
+                                ? 'Order Confirmed'
+                                : item.status === 'quoted'
+                                ? 'Official Quote Ready'
+                                : 'Brief In Review'
+                            );
+
                             return (
-                              <div
-                                key={item.is_file_edit ? `fe-${item.id}` : `cr-${item.id}`}
-                                onClick={() => {
-                                  setSelectedCustomReqId(item.id);
-                                  setSelectedReqKey(item.is_file_edit ? `fe-${item.id}` : `cr-${item.id}`);
-                                  setOpenedOrderId(item.id);
-                                  if (hasNegotiationPending) {
-                                    setActiveStageTab('negotiation');
-                                  } else if (itemOrder && !itemFullyPaid) {
-                                    setActiveStageTab('payments');
-                                  } else {
-                                    setActiveStageTab('all');
-                                  }
-                                }}
-                                className="relative p-5 rounded-2xl cursor-pointer transition-all duration-300 flex flex-col justify-between gap-3.5 text-left group bg-[#FCFAF7] hover:bg-white border-2 border-[#E8D7B7]/80 hover:border-[#D4AF37] shadow-[0_4px_16px_rgba(0,0,0,0.03)] hover:shadow-[0_12px_32px_rgba(212,175,55,0.18)] hover:-translate-y-1"
-                              >
-                                <div>
-                                  {/* Header Row: ORDER # & STATUS */}
-                                  <div className="flex items-start justify-between gap-2 mb-2">
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className="px-2.5 py-1 rounded-lg bg-[#0B1330] text-[#F5E7A3] text-xs font-mono font-black tracking-wider shadow-sm flex items-center gap-1.5">
-                                        {item.is_file_edit && <Wrench className="w-3 h-3 text-[#D4AF37]" />}
-                                        {item.is_file_edit ? `FILE EDIT #${item.id}` : (itemOrder ? `ORDER #${itemOrder.id}` : `REQ #${item.id || 'NEW'}`)}
+                              <React.Fragment key={itemKey}>
+                                {/* STEP 8C: MOBILE COMPACT COLLAPSED ROW (sm:hidden, shown only when collapsed on mobile) */}
+                                {!isCardExpanded && (
+                                  <div
+                                    className="sm:hidden p-3.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] shadow-xs flex items-center justify-between gap-3 text-left transition-all"
+                                  >
+                                    <div
+                                      className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1"
+                                      onClick={() => handleOpenCustomOrder(item, hasNegotiationPending ? 'negotiation' : (itemOrder && !itemFullyPaid ? 'payments' : 'all'))}
+                                    >
+                                      <span className="px-2 py-1 rounded-lg bg-[#0B1330] text-[#F5E7A3] text-xs font-mono font-black tracking-wider shrink-0">
+                                        {item.is_file_edit ? `EDIT #${item.id}` : (itemOrder ? `ORD #${itemOrder.id}` : `REQ #${item.id}`)}
                                       </span>
-                                      {item.is_file_edit ? (
-                                        <span className="px-2 py-0.5 rounded bg-[#FFF8EC] border border-[#E8D7B7] text-[10px] font-mono text-[#9A6A1A] font-bold uppercase">
-                                          .{item.original_file_format || 'cad'}
+                                      <div className="min-w-0 flex-1">
+                                        <h4 className="font-serif text-xs font-bold text-[#0B1330] truncate">
+                                          {item.category_name || item.title || 'Bespoke CAD'}
+                                        </h4>
+                                        <span className="text-[10px] font-mono text-[#5A6679] block truncate">
+                                          {statusText}
                                         </span>
-                                      ) : itemOrder ? (
-                                        <span className="text-[11px] font-mono text-[#5A6679] font-semibold">
-                                          (REQ #{item.id || 'NEW'})
-                                        </span>
-                                      ) : null}
+                                      </div>
+                                      <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold shrink-0 bg-slate-100 text-slate-700 border border-slate-300">
+                                        {itemOrder?.status?.replace(/_/g, ' ') || item.status}
+                                      </span>
                                     </div>
 
-                                    <span className="text-[11px] font-mono text-[#B88732] group-hover:text-[#0B1330] font-bold shrink-0 flex items-center gap-0.5 transition-colors">
-                                      Open →
-                                    </span>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          toggleMobileCardExpand(itemKey, false);
+                                        }}
+                                        className="p-2 min-h-[44px] min-w-[44px] rounded-xl bg-white border border-[#E8D7B7] text-[#0B1330] hover:border-[#D4AF37] flex items-center justify-center cursor-pointer shadow-2xs"
+                                        title="Expand Order Card"
+                                        aria-label="Expand Order Card"
+                                      >
+                                        <ChevronDown className="w-4 h-4 text-[#B88732]" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleOpenCustomOrder(item, hasNegotiationPending ? 'negotiation' : (itemOrder && !itemFullyPaid ? 'payments' : 'all'));
+                                        }}
+                                        className="px-3 py-2 min-h-[44px] rounded-xl btn-gold-luxury text-[11px] font-bold uppercase tracking-wider flex items-center justify-center cursor-pointer shadow-xs"
+                                      >
+                                        Open →
+                                      </button>
+                                    </div>
                                   </div>
+                                )}
 
-                                  {/* Thumbnail & Title */}
-                                  <div className="flex items-center gap-3 my-2.5">
-                                    {item.reference_image ? (
-                                      <img
-                                        src={item.reference_image}
-                                        alt={item.category_name}
-                                        className="w-13 h-13 rounded-xl object-cover border border-[#E8D7B7] bg-white shadow-xs shrink-0"
-                                      />
-                                    ) : item.is_file_edit ? (
-                                      <div className="w-13 h-13 rounded-xl bg-gradient-to-br from-[#0B1330] to-[#162145] border border-[#D4AF37]/40 flex items-center justify-center text-[#F5E7A3] shadow-xs shrink-0">
-                                        <FileCode2 className="w-6 h-6 text-[#D4AF37]" />
+                                {/* FULL CARD VIEW (Always on desktop; on mobile shown only when expanded) */}
+                                <div
+                                  onClick={() => handleOpenCustomOrder(item, hasNegotiationPending ? 'negotiation' : (itemOrder && !itemFullyPaid ? 'payments' : 'all'))}
+                                  className={`relative p-4 sm:p-5 rounded-2xl cursor-pointer transition-all duration-300 flex-col justify-between gap-3.5 text-left group bg-[#FCFAF7] hover:bg-white border-2 border-[#E8D7B7]/80 hover:border-[#D4AF37] shadow-[0_4px_16px_rgba(0,0,0,0.03)] hover:shadow-[0_12px_32px_rgba(212,175,55,0.18)] hover:-translate-y-1 ${
+                                    isCardExpanded ? 'flex' : 'hidden sm:flex'
+                                  }`}
+                                >
+                                  <div>
+                                    {/* Header Row: ORDER # & STATUS */}
+                                    <div className="flex items-start justify-between gap-2 mb-2">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="px-2.5 py-1 rounded-lg bg-[#0B1330] text-[#F5E7A3] text-xs font-mono font-black tracking-wider shadow-sm flex items-center gap-1.5">
+                                          {item.is_file_edit && <Wrench className="w-3 h-3 text-[#D4AF37]" />}
+                                          {orderBadgeTitle}
+                                        </span>
+                                        {item.is_file_edit ? (
+                                          <span className="px-2 py-0.5 rounded bg-[#FFF8EC] border border-[#E8D7B7] text-[10px] font-mono text-[#9A6A1A] font-bold uppercase">
+                                            .{item.original_file_format || 'cad'}
+                                          </span>
+                                        ) : itemOrder ? (
+                                          <span className="text-[11px] font-mono text-[#5A6679] font-semibold">
+                                            (REQ #{item.id || 'NEW'})
+                                          </span>
+                                        ) : null}
                                       </div>
-                                    ) : (
-                                      <div className="w-13 h-13 rounded-xl bg-gradient-to-br from-[#FFF9EE] to-[#FFF3DC] border border-[#E8D7B7] flex items-center justify-center text-[#B88732] shadow-xs shrink-0">
-                                        <Gem className="w-6 h-6 text-[#B88732]" />
+
+                                      <div className="flex items-center gap-1.5 shrink-0">
+                                        {/* Mobile Collapse Chevron */}
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            toggleMobileCardExpand(itemKey, true);
+                                          }}
+                                          className="sm:hidden p-1.5 min-h-[36px] min-w-[36px] rounded-lg bg-white border border-[#E8D7B7] text-[#5A6679] hover:text-[#0B1330] flex items-center justify-center cursor-pointer shadow-2xs"
+                                          title="Collapse Order Card"
+                                          aria-label="Collapse Order Card"
+                                        >
+                                          <ChevronUp className="w-4 h-4 text-[#B88732]" />
+                                        </button>
+
+                                        <span className="text-[11px] font-mono text-[#B88732] group-hover:text-[#0B1330] font-bold shrink-0 flex items-center gap-0.5 transition-colors">
+                                          Open →
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Thumbnail & Title */}
+                                    <div className="flex items-center gap-3 my-2.5">
+                                      {item.reference_image ? (
+                                        <img
+                                          src={item.reference_image}
+                                          alt={item.category_name}
+                                          className="w-13 h-13 rounded-xl object-cover border border-[#E8D7B7] bg-white shadow-xs shrink-0"
+                                        />
+                                      ) : item.is_file_edit ? (
+                                        <div className="w-13 h-13 rounded-xl bg-gradient-to-br from-[#0B1330] to-[#162145] border border-[#D4AF37]/40 flex items-center justify-center text-[#F5E7A3] shadow-xs shrink-0">
+                                          <FileCode2 className="w-6 h-6 text-[#D4AF37]" />
+                                        </div>
+                                      ) : (
+                                        <div className="w-13 h-13 rounded-xl bg-gradient-to-br from-[#FFF9EE] to-[#FFF3DC] border border-[#E8D7B7] flex items-center justify-center text-[#B88732] shadow-xs shrink-0">
+                                          <Gem className="w-6 h-6 text-[#B88732]" />
+                                        </div>
+                                      )}
+                                      <div className="min-w-0 flex-1">
+                                        <h4 className="font-serif text-sm font-bold text-[#0B1330] truncate group-hover:text-[#B88732] transition-colors">
+                                          {item.category_name || item.title || 'Bespoke Custom Jewellery'}
+                                        </h4>
+                                        <p className="text-[11px] font-mono text-[#5A6679] truncate font-medium">
+                                          {item.is_file_edit ? (item.modification_type_labels?.join(', ') || 'CAD Modification') : metalLabel}
+                                        </p>
+                                        <span className="text-[10px] font-mono text-[#8C97A7] block">
+                                          {item.created_at && !isNaN(new Date(item.created_at).getTime())
+                                            ? new Date(item.created_at).toLocaleDateString()
+                                            : 'Recent'}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Status Pill */}
+                                    <div className="mt-1">
+                                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider inline-flex items-center gap-1.5 w-full justify-start ${
+                                        item.status === 'agreed' || (itemOrder && itemOrder.status)
+                                          ? 'bg-emerald-50 border border-emerald-300 text-emerald-800'
+                                          : item.status === 'rejected'
+                                          ? 'bg-rose-50 border border-rose-300 text-rose-800'
+                                          : item.status === 'quoted'
+                                          ? 'bg-blue-50 border border-blue-300 text-blue-800'
+                                          : item.status === 'negotiating'
+                                          ? 'bg-purple-50 border border-purple-300 text-purple-800'
+                                          : 'bg-slate-100 border border-slate-300 text-slate-700'
+                                      }`}>
+                                        <span className={`w-1.5 h-1.5 rounded-full ${
+                                          item.status === 'agreed' ? 'bg-emerald-600' : (item.status === 'rejected' ? 'bg-rose-600' : 'bg-[#D4AF37]')
+                                        }`} />
+                                        <span className="truncate">
+                                          {statusText}
+                                        </span>
+                                      </span>
+                                    </div>
+
+                                    {/* Active Negotiation Callout Pill if pending */}
+                                    {hasNegotiationPending && (
+                                      <div className="mt-2 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-[10px] font-mono flex items-center gap-1.5 font-bold">
+                                        <BellRing className="w-3 h-3 text-amber-600 animate-pulse shrink-0" />
+                                        <span className="truncate">Active Price Negotiation</span>
                                       </div>
                                     )}
-                                    <div className="min-w-0 flex-1">
-                                      <h4 className="font-serif text-sm font-bold text-[#0B1330] truncate group-hover:text-[#B88732] transition-colors">
-                                        {item.category_name || item.title || 'Bespoke Custom Jewellery'}
-                                      </h4>
-                                      <p className="text-[11px] font-mono text-[#5A6679] truncate font-medium">
-                                        {item.is_file_edit ? (item.modification_type_labels?.join(', ') || 'CAD Modification') : metalLabel}
-                                      </p>
-                                      <span className="text-[10px] font-mono text-[#8C97A7] block">
-                                        {item.created_at && !isNaN(new Date(item.created_at).getTime())
-                                          ? new Date(item.created_at).toLocaleDateString()
-                                          : 'Recent'}
-                                      </span>
-                                    </div>
                                   </div>
 
-                                  {/* Status Pill */}
-                                  <div className="mt-1">
-                                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider inline-flex items-center gap-1.5 w-full justify-start ${
-                                      item.status === 'agreed' || (itemOrder && itemOrder.status)
-                                        ? 'bg-emerald-50 border border-emerald-300 text-emerald-800'
-                                        : item.status === 'rejected'
-                                        ? 'bg-rose-50 border border-rose-300 text-rose-800'
-                                        : item.status === 'quoted'
-                                        ? 'bg-blue-50 border border-blue-300 text-blue-800'
-                                        : item.status === 'negotiating'
-                                        ? 'bg-purple-50 border border-purple-300 text-purple-800'
-                                        : 'bg-slate-100 border border-slate-300 text-slate-700'
-                                    }`}>
-                                      <span className={`w-1.5 h-1.5 rounded-full ${
-                                        item.status === 'agreed' ? 'bg-emerald-600' : (item.status === 'rejected' ? 'bg-rose-600' : 'bg-[#D4AF37]')
-                                      }`} />
-                                      <span className="truncate">
-                                        {item.is_file_edit ? (
-                                          item.status === 'agreed'
-                                            ? 'Approved & Agreed'
-                                            : item.status === 'rejected'
-                                            ? 'Order Declined'
-                                            : item.status === 'quoted'
-                                            ? 'Official Quote Ready'
-                                            : item.status === 'negotiating'
-                                            ? 'Negotiating Price'
-                                            : 'Under Assessment'
-                                        ) : (
-                                          itemAssigned
-                                            ? 'In CAD Production'
-                                            : itemOrder
-                                            ? 'Order Confirmed'
-                                            : item.status === 'quoted'
-                                            ? 'Official Quote Ready'
-                                            : 'Brief In Review'
-                                        )}
-                                      </span>
-                                    </span>
-                                  </div>
-
-                                  {/* Active Negotiation Callout Pill if pending */}
-                                  {hasNegotiationPending && (
-                                    <div className="mt-2 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-[10px] font-mono flex items-center gap-1.5 font-bold">
-                                      <BellRing className="w-3 h-3 text-amber-600 animate-pulse shrink-0" />
-                                      <span className="truncate">Active Price Negotiation</span>
+                                  {/* Financial & Action Row */}
+                                  <div className="pt-3 border-t border-[#E8D7B7]/70 space-y-2.5">
+                                    <div className="flex items-center justify-between text-xs font-mono">
+                                      <div>
+                                        <span className="text-[10px] text-[#687386] block leading-none font-semibold">ORDER TOTAL</span>
+                                        <span className="text-xs font-extrabold text-[#0B1330]">
+                                          {itemTotal > 0 ? formatINR(itemTotal) : 'Estimating'}
+                                        </span>
+                                      </div>
+                                      <div className="text-right">
+                                        <span className="text-[10px] text-[#687386] block leading-none font-semibold">PAYMENT</span>
+                                        <span className={`text-[11px] font-extrabold ${itemFullyPaid ? 'text-emerald-700' : itemPaid > 0 ? 'text-amber-700' : 'text-slate-500'}`}>
+                                          {itemFullyPaid ? '100% Paid' : itemPaid > 0 ? `${itemPaidPct}% Paid` : 'Pending'}
+                                        </span>
+                                      </div>
                                     </div>
-                                  )}
+
+                                    {itemTotal > 0 && (
+                                      <div className="w-full bg-[#EAE2D2] rounded-full h-1.5 overflow-hidden border border-[#E8D7B7]/50">
+                                        <div
+                                          className={`h-full rounded-full transition-all duration-500 ${
+                                            itemFullyPaid ? 'bg-emerald-500' : 'bg-gradient-to-r from-amber-500 to-[#D4AF37]'
+                                          }`}
+                                          style={{ width: `${itemPaidPct}%` }}
+                                        />
+                                      </div>
+                                    )}
+
+                                    {/* Open & Manage Button */}
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOpenCustomOrder(item, hasNegotiationPending ? 'negotiation' : (itemOrder && !itemFullyPaid ? 'payments' : 'all'));
+                                      }}
+                                      className="w-full mt-1 py-3 min-h-[44px] rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-[0_2px_10px_rgba(212,175,55,0.25)] hover:brightness-105 transition-all cursor-pointer"
+                                    >
+                                      <Eye className="w-3.5 h-3.5 text-[#070D22]" />
+                                      <span>Open &amp; Manage Order</span>
+                                    </button>
+                                  </div>
                                 </div>
-
-                                {/* Financial & Action Row */}
-                                <div className="pt-3 border-t border-[#E8D7B7]/70 space-y-2.5">
-                                  <div className="flex items-center justify-between text-xs font-mono">
-                                    <div>
-                                      <span className="text-[10px] text-[#687386] block leading-none font-semibold">ORDER TOTAL</span>
-                                      <span className="text-xs font-extrabold text-[#0B1330]">
-                                        {itemTotal > 0 ? formatINR(itemTotal) : 'Estimating'}
-                                      </span>
-                                    </div>
-                                    <div className="text-right">
-                                      <span className="text-[10px] text-[#687386] block leading-none font-semibold">PAYMENT</span>
-                                      <span className={`text-[11px] font-extrabold ${itemFullyPaid ? 'text-emerald-700' : itemPaid > 0 ? 'text-amber-700' : 'text-slate-500'}`}>
-                                        {itemFullyPaid ? '100% Paid' : itemPaid > 0 ? `${itemPaidPct}% Paid` : 'Pending'}
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  {itemTotal > 0 && (
-                                    <div className="w-full bg-[#EAE2D2] rounded-full h-1.5 overflow-hidden border border-[#E8D7B7]/50">
-                                      <div
-                                        className={`h-full rounded-full transition-all duration-500 ${
-                                          itemFullyPaid ? 'bg-emerald-500' : 'bg-gradient-to-r from-amber-500 to-[#D4AF37]'
-                                        }`}
-                                        style={{ width: `${itemPaidPct}%` }}
-                                      />
-                                    </div>
-                                  )}
-
-                                  {/* Open & Manage Button */}
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedCustomReqId(item.id);
-                                      setOpenedOrderId(item.id);
-                                      if (hasNegotiationPending) {
-                                        setActiveStageTab('negotiation');
-                                      } else if (itemOrder && !itemFullyPaid) {
-                                        setActiveStageTab('payments');
-                                      } else {
-                                        setActiveStageTab('all');
-                                      }
-                                    }}
-                                    className="w-full mt-1 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-[0_2px_10px_rgba(212,175,55,0.25)] hover:brightness-105 transition-all cursor-pointer"
-                                  >
-                                    <Eye className="w-3.5 h-3.5 text-[#070D22]" />
-                                    <span>Open &amp; Manage Order</span>
-                                  </button>
-                                </div>
-                              </div>
+                              </React.Fragment>
                             );
                           })}
                         </div>
@@ -1420,34 +1841,44 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                       /* VIEW 2: DEDICATED OPENED ORDER WORKSPACE (Zero Endless Scrolling) */
                       <div className="space-y-6">
                         {/* STICKY TOP ORDER BAR */}
-                        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[#0B1330] via-[#12204D] to-[#0B1330] border-2 border-[#D4AF37]/60 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-                          <div className="flex items-center gap-3">
-                            <button
-                              type="button"
-                              onClick={() => setOpenedOrderId(null)}
-                              className="px-4 py-2 rounded-xl bg-[#0B1330]/80 hover:bg-[#1A2E68] border border-[#D4AF37]/70 text-[#F5E7A3] font-bold text-xs flex items-center gap-2 shadow transition-all cursor-pointer shrink-0"
-                            >
-                              <ArrowLeft className="w-4 h-4 text-[#F5E7A3]" />
-                              <span>← Back to All Orders Grid</span>
-                            </button>
-                            <div className="border-l border-white/20 pl-3">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="px-2.5 py-0.5 rounded-lg bg-[#D4AF37] text-[#070D22] text-xs font-mono font-black shadow">
+                        <div className="p-3.5 sm:p-5 rounded-2xl bg-gradient-to-r from-[#0B1330] via-[#12204D] to-[#0B1330] border-2 border-[#D4AF37]/60 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                            <div className="flex items-center justify-between sm:justify-start gap-2">
+                              <button
+                                type="button"
+                                onClick={handleBackToGrid}
+                                className="px-3 sm:px-4 py-2 sm:py-2.5 min-h-[40px] sm:min-h-[44px] rounded-xl bg-[#0B1330]/80 hover:bg-[#1A2E68] border border-[#D4AF37]/70 text-[#F5E7A3] font-bold text-xs flex items-center gap-1.5 sm:gap-2 shadow transition-all cursor-pointer shrink-0"
+                              >
+                                <ArrowLeft className="w-4 h-4 text-[#F5E7A3]" />
+                                <span>← Back to Orders</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleBackToGrid}
+                                className="sm:hidden p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                                title="Close this order view"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                            <div className="border-t sm:border-t-0 sm:border-l border-white/20 pt-2 sm:pt-0 sm:pl-3">
+                              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                                <span className="px-2 sm:px-2.5 py-0.5 rounded-lg bg-[#D4AF37] text-[#070D22] text-[11px] sm:text-xs font-mono font-black shadow">
                                   {req.is_file_edit ? `FILE EDIT #${req.id}` : (order ? `ORDER #${order.id}` : `REQ #${req.id}`)}
                                 </span>
                                 {req.is_file_edit && req.original_file_format && (
-                                  <span className="px-2 py-0.5 rounded-lg bg-white/20 text-[#F5E7A3] text-xs font-mono font-bold uppercase">
+                                  <span className="px-1.5 sm:px-2 py-0.5 rounded-lg bg-white/20 text-[#F5E7A3] text-[10px] sm:text-xs font-mono font-bold uppercase">
                                     .{req.original_file_format}
                                   </span>
                                 )}
                                 {req.is_file_edit && req.storage_provider === 'gdrive' && (
-                                  <span className="px-2 py-0.5 rounded-lg bg-blue-500/30 text-blue-200 border border-blue-400/30 text-[10px] font-mono font-bold flex items-center gap-1">
+                                  <span className="px-1.5 sm:px-2 py-0.5 rounded-lg bg-blue-500/30 text-blue-200 border border-blue-400/30 text-[10px] font-mono font-bold flex items-center gap-1">
                                     <Cloud className="w-3 h-3 text-blue-300" />
                                     Drive (&gt;50MB)
                                   </span>
                                 )}
                                 {!req.is_file_edit && order && (
-                                  <span className="text-xs font-mono font-bold text-[#F5E7A3]">
+                                  <span className="text-[10px] sm:text-xs font-mono font-bold text-[#F5E7A3]">
                                     (REQ #{req.id})
                                   </span>
                                 )}
@@ -1473,23 +1904,23 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                     : 'Under Assessment'}
                                 </span>
                               </div>
-                              <h3 className="font-serif text-lg sm:text-xl font-bold text-white mt-0.5 truncate">
+                              <h3 className="font-serif text-base sm:text-xl font-bold text-white mt-1 truncate max-w-sm sm:max-w-md">
                                 {req.is_file_edit ? (req.original_file_name || `CAD File Modification #${req.id}`) : (req.category_name || 'Bespoke Custom Jewellery')}
                               </h3>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-4 self-end md:self-auto">
-                            <div className="text-right font-mono">
+                          <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-white/10">
+                            <div className="text-left md:text-right font-mono">
                               <span className="text-[10px] text-slate-300 block uppercase leading-none">Order Balance</span>
-                              <span className="text-sm font-bold text-[#F5E7A3]">
+                              <span className="text-xs sm:text-sm font-bold text-[#F5E7A3]">
                                 {totalVal > 0 ? formatINR(totalVal) : 'Est'} • <span className={isFullyPaid ? 'text-emerald-300' : 'text-amber-300'}>{paidPct}% Paid</span>
                               </span>
                             </div>
                             <button
                               type="button"
-                              onClick={() => setOpenedOrderId(null)}
-                              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-colors cursor-pointer"
+                              onClick={handleBackToGrid}
+                              className="hidden sm:block p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-colors cursor-pointer"
                               title="Close this order view"
                             >
                               <X className="w-5 h-5" />
@@ -1498,44 +1929,53 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                         </div>
 
                         {/* STAGE NAVIGATION BAR (Zero Scrolling) */}
-                        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-mono">
+                        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 text-xs font-mono no-scrollbar">
                           <button
                             type="button"
-                            onClick={() => setActiveStageTab('all')}
-                            className={`px-4 py-2.5 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
+                            onClick={() => {
+                              setActiveStageTab('all');
+                              setMobileAccordionStage(null);
+                            }}
+                            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer text-[11px] sm:text-xs ${
                               activeStageTab === 'all'
                                 ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] shadow-[0_2px_10px_rgba(212,175,55,0.35)] font-black'
                                 : 'bg-white border border-[#E8D7B7] text-[#0B1330] hover:border-[#D4AF37] hover:text-[#B88732] shadow-xs'
                             }`}
                           >
                             <Layers className="w-3.5 h-3.5" />
-                            <span>Full Continuous View</span>
+                            <span>All Steps</span>
                           </button>
 
                           <button
                             type="button"
-                            onClick={() => setActiveStageTab('specs')}
-                            className={`px-4 py-2.5 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
-                              activeStageTab === 'specs'
+                            onClick={() => {
+                              setActiveStageTab('specs');
+                              setMobileAccordionStage('specs');
+                            }}
+                            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer text-[11px] sm:text-xs ${
+                              activeStageTab === 'specs' || (activeStageTab === 'all' && (mobileAccordionStage === 'specs' || (!mobileAccordionStage && !isOrderConfirmed && req.status !== 'quoted' && req.status !== 'negotiating' && req.status !== 'rejected')))
                                 ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] shadow-[0_2px_10px_rgba(212,175,55,0.35)] font-black'
                                 : 'bg-white border border-[#E8D7B7] text-[#0B1330] hover:border-[#D4AF37] hover:text-[#B88732] shadow-xs'
                             }`}
                           >
                             <Sliders className="w-3.5 h-3.5" />
-                            <span>1. Brief &amp; Specs</span>
+                            <span>1. Brief</span>
                           </button>
 
                           <button
                             type="button"
-                            onClick={() => setActiveStageTab('negotiation')}
-                            className={`px-4 py-2.5 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer relative ${
-                              activeStageTab === 'negotiation'
+                            onClick={() => {
+                              setActiveStageTab('negotiation');
+                              setMobileAccordionStage('negotiation');
+                            }}
+                            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer text-[11px] sm:text-xs relative ${
+                              activeStageTab === 'negotiation' || (activeStageTab === 'all' && (mobileAccordionStage === 'negotiation' || (!mobileAccordionStage && (req.status === 'quoted' || req.status === 'negotiating' || req.status === 'rejected') && !isOrderConfirmed)))
                                 ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] shadow-[0_2px_10px_rgba(212,175,55,0.35)] font-black'
                                 : 'bg-white border border-[#E8D7B7] text-[#0B1330] hover:border-[#D4AF37] hover:text-[#B88732] shadow-xs'
                             }`}
                           >
                             <MessageSquare className="w-3.5 h-3.5" />
-                            <span>2. Quote &amp; Negotiation</span>
+                            <span>2. Quote</span>
                             {(req.status === 'quoted' || req.status === 'negotiating') && (
                               <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
                             )}
@@ -1543,15 +1983,18 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
 
                           <button
                             type="button"
-                            onClick={() => setActiveStageTab('payments')}
-                            className={`px-4 py-2.5 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
-                              activeStageTab === 'payments'
+                            onClick={() => {
+                              setActiveStageTab('payments');
+                              setMobileAccordionStage('payments');
+                            }}
+                            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer text-[11px] sm:text-xs ${
+                              activeStageTab === 'payments' || (activeStageTab === 'all' && (mobileAccordionStage === 'payments' || (!mobileAccordionStage && isOrderConfirmed && !isFullyPaid && !order?.preview_image)))
                                 ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] shadow-[0_2px_10px_rgba(212,175,55,0.35)] font-black'
                                 : 'bg-white border border-[#E8D7B7] text-[#0B1330] hover:border-[#D4AF37] hover:text-[#B88732] shadow-xs'
                             }`}
                           >
                             <CreditCard className="w-3.5 h-3.5" />
-                            <span>3. Milestone Payments</span>
+                            <span>3. Payments</span>
                             {isOrderConfirmed && !isFullyPaid && (
                               <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
                             )}
@@ -1559,28 +2002,34 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
 
                           <button
                             type="button"
-                            onClick={() => setActiveStageTab('preview')}
-                            className={`px-4 py-2.5 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
-                              activeStageTab === 'preview'
+                            onClick={() => {
+                              setActiveStageTab('preview');
+                              setMobileAccordionStage('preview');
+                            }}
+                            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer text-[11px] sm:text-xs ${
+                              activeStageTab === 'preview' || (activeStageTab === 'all' && (mobileAccordionStage === 'preview' || (!mobileAccordionStage && isOrderConfirmed && (order?.preview_image || order?.status === 'in_design' || order?.status === 'preview_ready' || order?.status === 'revision_requested') && (!isFullyPaid || (!order?.download_enabled_by_admin && !order?.can_download)))))
                                 ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] shadow-[0_2px_10px_rgba(212,175,55,0.35)] font-black'
                                 : 'bg-white border border-[#E8D7B7] text-[#0B1330] hover:border-[#D4AF37] hover:text-[#B88732] shadow-xs'
                             }`}
                           >
                             <Eye className="w-3.5 h-3.5" />
-                            <span>4. 3D Rhino Preview</span>
+                            <span>4. 3D Preview</span>
                           </button>
 
                           <button
                             type="button"
-                            onClick={() => setActiveStageTab('deliverables')}
-                            className={`px-4 py-2.5 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
-                              activeStageTab === 'deliverables'
+                            onClick={() => {
+                              setActiveStageTab('deliverables');
+                              setMobileAccordionStage('deliverables');
+                            }}
+                            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer text-[11px] sm:text-xs ${
+                              activeStageTab === 'deliverables' || (activeStageTab === 'all' && (mobileAccordionStage === 'deliverables' || (!mobileAccordionStage && isFullyPaid && (order?.download_enabled_by_admin || order?.can_download))))
                                 ? 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#070D22] shadow-[0_2px_10px_rgba(212,175,55,0.35)] font-black'
                                 : 'bg-white border border-[#E8D7B7] text-[#0B1330] hover:border-[#D4AF37] hover:text-[#B88732] shadow-xs'
                             }`}
                           >
                             <Download className="w-3.5 h-3.5" />
-                            <span>5. Deliverables (.3DM/.STL)</span>
+                            <span>5. Files</span>
                             {isFullyPaid && (
                               <span className="w-2 h-2 rounded-full bg-emerald-400" />
                             )}
@@ -1814,27 +2263,27 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
 
                     {/* 2. THE ASSIGNED ATELIER PRODUCTION CARD */}
                     {assignedStaff ? (
-                      <div className="p-6 rounded-3xl bg-gradient-to-r from-[#0B1330] via-[#12204D] to-[#0B1330] border-2 border-[#D4AF37]/50 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-6 text-white">
-                        <div className="flex items-center gap-5">
-                          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-[#D9B66F] shadow-lg shrink-0 bg-gradient-to-br from-[#12204D] via-[#0D1B4C] to-[#070D22] flex items-center justify-center text-[#F5E7A3]">
-                            <Sparkles className="w-8 h-8 text-[#F5E7A3]" />
+                      <div className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-[#0B1330] via-[#12204D] to-[#0B1330] border-2 border-[#D4AF37]/50 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6 text-white">
+                        <div className="flex items-center gap-3.5 sm:gap-5">
+                          <div className="w-12 h-12 sm:w-20 sm:h-20 rounded-full border-2 border-[#D9B66F] shadow-lg shrink-0 bg-gradient-to-br from-[#12204D] via-[#0D1B4C] to-[#070D22] flex items-center justify-center text-[#F5E7A3]">
+                            <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-[#F5E7A3]" />
                           </div>
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-serif text-xl font-bold text-white">
+                          <div className="space-y-0.5 sm:space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="font-serif text-base sm:text-xl font-bold text-white">
                                 Shiuli Master CAD Atelier
                               </h4>
-                              <span className="px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/40 text-[10px] font-mono font-bold uppercase tracking-wider">
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/40 text-[9px] sm:text-[10px] font-mono font-bold uppercase tracking-wider">
                                 CAD Production Active
                               </span>
                             </div>
-                            <p className="text-xs text-[#F5E7A3] font-medium">
-                              Dedicated Senior CAD Team &bull; Specializes in {req.category_name || 'Bespoke Jewelry'}
+                            <p className="text-[11px] sm:text-xs text-[#F5E7A3] font-medium">
+                              Dedicated Senior CAD Team &bull; {req.category_name || 'Bespoke Jewelry'}
                             </p>
-                            <div className="flex items-center gap-3 text-xs text-slate-300 font-mono pt-1">
-                              <span className="flex items-center gap-1.5 text-white">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                                Assigned &amp; Under Active 3D Sculpting
+                            <div className="flex items-center gap-2 text-[10px] sm:text-xs text-slate-300 font-mono pt-0.5">
+                              <span className="flex items-center gap-1 text-white">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                Assigned &amp; In Sculpting
                               </span>
                               <span>&bull;</span>
                               <span className="text-emerald-300">Watertight STL Guaranteed</span>
@@ -1846,29 +2295,29 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                           href={`https://wa.me/919574787098?text=Hello%20Shiuli%20CAD%20Studio%2C%20I%20am%20in%20touch%20regarding%20REQ%20%23${req.id}.`}
                           target="_blank"
                           rel="noreferrer"
-                          className="px-5 py-3 rounded-2xl bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 text-xs font-bold uppercase tracking-wider flex items-center gap-2 hover:bg-emerald-900/60 transition-all shrink-0 shadow-lg"
+                          className="w-full sm:w-auto justify-center px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 text-xs font-bold uppercase tracking-wider flex items-center gap-2 hover:bg-emerald-900/60 transition-all shrink-0 shadow-lg"
                         >
                           <Phone className="w-4 h-4 text-emerald-400" />
                           <span>Studio Support Desk</span>
                         </a>
                       </div>
                     ) : (
-                      <div className="p-6 rounded-3xl bg-white border-2 border-dashed border-[#E8D7B7] shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6">
-                        <div className="flex items-center gap-5">
-                          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[#FFF9EE] border-2 border-[#D9B66F]/50 flex items-center justify-center text-[#B88732] shrink-0 shadow-sm">
-                            <Loader2 className="w-8 h-8 text-[#B88732] animate-spin" />
+                      <div className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-white border-2 border-dashed border-[#E8D7B7] shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6">
+                        <div className="flex items-center gap-3.5 sm:gap-5">
+                          <div className="w-12 h-12 sm:w-20 sm:h-20 rounded-full bg-[#FFF9EE] border-2 border-[#D9B66F]/50 flex items-center justify-center text-[#B88732] shrink-0 shadow-sm">
+                            <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 text-[#B88732] animate-spin" />
                           </div>
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-serif text-xl font-bold text-[#0B1330]">
+                          <div className="space-y-0.5 sm:space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="font-serif text-base sm:text-xl font-bold text-[#0B1330]">
                                 Matching Senior CAD Artisan...
                               </h4>
-                              <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300 text-[10px] font-mono font-bold uppercase tracking-wider">
-                                Assignment In Progress
+                              <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300 text-[9px] sm:text-[10px] font-mono font-bold uppercase tracking-wider">
+                                In Progress
                               </span>
                             </div>
-                            <p className="text-xs text-[#5A6679] max-w-xl">
-                              Our Master Atelier Goldsmiths are currently assigning a dedicated Senior CAD Specialist tailored to your {req.category_name || 'Bespoke Jewelry'} design requirements.
+                            <p className="text-[11px] sm:text-xs text-[#5A6679] max-w-xl">
+                              Assigning dedicated CAD Specialist tailored to your {req.category_name || 'Bespoke Jewelry'} requirements.
                             </p>
                           </div>
                         </div>
@@ -1877,7 +2326,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                           href={`https://wa.me/919574787098?text=Hello%20Shiuli%20CAD%20Studio%2C%20I%20am%20in%20touch%20regarding%20REQ%20%23${req.id}.`}
                           target="_blank"
                           rel="noreferrer"
-                          className="px-5 py-3 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] text-[#0B1330] text-xs font-bold uppercase tracking-wider flex items-center gap-2 hover:border-[#D4AF37] hover:text-[#B88732] transition-all shrink-0 shadow-xs"
+                          className="w-full sm:w-auto justify-center px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] text-[#0B1330] text-xs font-bold uppercase tracking-wider flex items-center gap-2 hover:border-[#D4AF37] hover:text-[#B88732] transition-all shrink-0 shadow-xs"
                         >
                           <Phone className="w-4 h-4 text-[#B88732]" />
                           <span>Support Desk Chat</span>
@@ -1885,18 +2334,66 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                       </div>
                     )}
 
-                    {/* 3. CONTINUOUS VERTICAL JOURNEY TIMELINE */}
-                    <div className="relative pl-6 sm:pl-10 space-y-10 border-l-2 border-[#E8D7B7] ml-4 sm:ml-8 pt-2">
+                    {/* 3. CONTINUOUS VERTICAL JOURNEY TIMELINE (WITH SMART MOBILE ACCORDION) */}
+                    {(() => {
+                      const getComputedActiveStage = () => {
+                        if (req.status === 'completed' || (isFullyPaid && (order?.download_enabled_by_admin || order?.can_download))) return 'deliverables';
+                        if (order?.preview_image || order?.status === 'in_design' || order?.status === 'preview_ready' || order?.status === 'revision_requested') return 'preview';
+                        if (isOrderConfirmed && !isFullyPaid) return 'payments';
+                        if (req.status === 'quoted' || req.status === 'negotiating' || req.status === 'rejected') return 'negotiation';
+                        return 'specs';
+                      };
+                      const computedActive = getComputedActiveStage();
+                      const currentActiveStage = mobileAccordionStage || (activeStageTab !== 'all' ? activeStageTab : computedActive);
+
+                      return (
+                    <div className="relative pl-0 sm:pl-10 space-y-4 sm:space-y-10 sm:border-l-2 sm:border-[#E8D7B7] sm:ml-8 pt-2">
                       
                       {/* NODE 1: REQUEST SUBMITTED */}
                       {(activeStageTab === 'all' || activeStageTab === 'specs') && (
                       <div className="relative group">
-                        <div className="absolute -left-[31px] sm:-left-[47px] top-0 w-6 h-6 rounded-full bg-[#D4AF37] border-4 border-[#FAF8F5] shadow-[0_0_10px_rgba(212,175,55,0.8)] flex items-center justify-center">
+                        <div className="hidden sm:flex absolute -left-[47px] top-0 w-6 h-6 rounded-full bg-[#D4AF37] border-4 border-[#FAF8F5] shadow-[0_0_10px_rgba(212,175,55,0.8)] items-center justify-center">
                           <CheckCircle2 className="w-3.5 h-3.5 text-[#0B1330]" />
                         </div>
+
+                        {/* MOBILE ACCORDION HEADER (1. BRIEF) */}
+                        <button
+                          type="button"
+                          onClick={() => setMobileAccordionStage(currentActiveStage === 'specs' ? null : 'specs')}
+                          className="sm:hidden w-full p-3.5 rounded-2xl bg-white border border-[#E8D7B7] shadow-xs flex items-center justify-between gap-3 text-left transition-all cursor-pointer mb-3"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                              currentActiveStage === 'specs' ? 'bg-[#0B1330] text-[#F5E7A3]' : 'bg-[#FFF9EE] text-[#B88732] border border-[#E8D7B7]'
+                            }`}>
+                              <Wrench className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="font-serif font-bold text-xs text-[#0B1330] block truncate">
+                                1. {req.is_file_edit ? 'CAD Modification Brief' : 'Custom CAD Brief'}
+                              </span>
+                              <span className="text-[10px] font-mono text-[#5A6679]">
+                                Submitted &bull; {new Date(req.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-300 text-[9px] font-mono font-bold uppercase">
+                              Verified
+                            </span>
+                            {currentActiveStage === 'specs' ? (
+                              <ChevronUp className="w-4 h-4 text-[#B88732]" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-[#5A6679]" />
+                            )}
+                          </div>
+                        </button>
+
+                        {/* NODE 1 CONTENT WRAPPER */}
+                        <div className={activeStageTab === 'all' && currentActiveStage !== 'specs' ? 'hidden sm:block' : 'block'}>
                         {req.is_file_edit ? (
                           <div className="space-y-4">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="hidden sm:flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                               <div className="flex items-center gap-2.5">
                                 <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#0B1330] to-[#12204D] border border-[#D4AF37]/50 flex items-center justify-center text-[#F5E7A3]">
                                   <Wrench className="w-4 h-4 text-[#F5E7A3]" />
@@ -2365,13 +2862,14 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                           </div>
                         </div>
                         )}
+                        </div>
                       </div>
                       )}
 
                       {/* NODE 2: OFFICIAL QUOTE & NEGOTIATION */}
                       {(activeStageTab === 'all' || activeStageTab === 'negotiation') && (
                       <div className="relative group">
-                        <div className={`absolute -left-[31px] sm:-left-[47px] top-0 w-6 h-6 rounded-full border-4 border-[#070D22] flex items-center justify-center ${
+                        <div className={`hidden sm:flex absolute -left-[47px] top-0 w-6 h-6 rounded-full border-4 border-[#070D22] items-center justify-center ${
                           req.status === 'quoted' || req.status === 'negotiating' || req.status === 'agreed' || order
                             ? 'bg-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.8)]'
                             : 'bg-white border-slate-300'
@@ -2379,6 +2877,51 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                           <Sparkles className="w-3.5 h-3.5 text-[#070D22]" />
                         </div>
 
+                        {/* MOBILE ACCORDION HEADER (2. QUOTE & NEGOTIATION) */}
+                        <button
+                          type="button"
+                          onClick={() => setMobileAccordionStage(currentActiveStage === 'negotiation' ? null : 'negotiation')}
+                          className="sm:hidden w-full p-3.5 rounded-2xl bg-white border border-[#E8D7B7] shadow-xs flex items-center justify-between gap-3 text-left transition-all cursor-pointer mb-3"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                              currentActiveStage === 'negotiation' ? 'bg-[#0B1330] text-[#F5E7A3]' : 'bg-[#FFF9EE] text-[#B88732] border border-[#E8D7B7]'
+                            }`}>
+                              <MessageSquare className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="font-serif font-bold text-xs text-[#0B1330] block truncate">
+                                2. Senior Engineer Quote &amp; Negotiation
+                              </span>
+                              <span className="text-[10px] font-mono text-[#5A6679]">
+                                {req.status === 'agreed' || order ? 'Agreed & Confirmed' : req.status === 'quoted' ? 'Official Quote Ready' : req.status === 'negotiating' ? 'Counter-Offer Active' : 'Under Assessment'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono font-bold uppercase ${
+                              req.status === 'rejected'
+                                ? 'bg-rose-50 text-rose-700 border border-rose-300'
+                                : req.status === 'agreed' || order
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
+                                : req.status === 'quoted'
+                                ? 'bg-blue-50 text-blue-700 border border-blue-300'
+                                : req.status === 'negotiating'
+                                ? 'bg-purple-50 text-purple-700 border border-purple-300'
+                                : 'bg-slate-100 text-slate-600 border border-slate-300'
+                            }`}>
+                              {req.status === 'rejected' ? 'Declined' : req.status === 'agreed' || order ? 'Agreed' : req.status === 'quoted' ? 'Quote' : req.status === 'negotiating' ? 'Counter' : 'Pending'}
+                            </span>
+                            {currentActiveStage === 'negotiation' ? (
+                              <ChevronUp className="w-4 h-4 text-[#B88732]" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-[#5A6679]" />
+                            )}
+                          </div>
+                        </button>
+
+                        {/* NODE 2 CONTENT WRAPPER */}
+                        <div className={activeStageTab === 'all' && currentActiveStage !== 'negotiation' ? 'hidden sm:block' : 'block'}>
                         {/* Negotiation message analysis */}
                         {(() => {
                           const latestOfferMsg = req.messages && req.messages.length > 0
@@ -2395,7 +2938,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
 
                           return (
                             <div className="space-y-4">
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <div className="hidden sm:flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                 <div className="flex items-center gap-3">
                                   <h3 className="font-serif text-xl font-bold text-[#0B1330]">
                                     2. Official Senior Engineer Quote &amp; Negotiation
@@ -2681,13 +3224,14 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                             </div>
                           );
                         })()}
+                        </div>
                       </div>
                       )}
 
                       {/* NODE 3: MULTI-STAGE PAYMENT SCHEDULE TABLE */}
                       {(activeStageTab === 'all' || activeStageTab === 'payments') && (
                       <div className="relative group">
-                        <div className={`absolute -left-[31px] sm:-left-[47px] top-0 w-6 h-6 rounded-full border-4 border-[#FAF8F5] flex items-center justify-center ${
+                        <div className={`hidden sm:flex absolute -left-[47px] top-0 w-6 h-6 rounded-full border-4 border-[#FAF8F5] items-center justify-center ${
                           paidVal > 0
                             ? 'bg-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.8)]'
                             : isOrderConfirmed
@@ -2697,8 +3241,49 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                           <CreditCard className="w-3.5 h-3.5" />
                         </div>
 
+                        {/* MOBILE ACCORDION HEADER (3. PAYMENTS) */}
+                        <button
+                          type="button"
+                          onClick={() => setMobileAccordionStage(currentActiveStage === 'payments' ? null : 'payments')}
+                          className="sm:hidden w-full p-3.5 rounded-2xl bg-white border border-[#E8D7B7] shadow-xs flex items-center justify-between gap-3 text-left transition-all cursor-pointer mb-3"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                              currentActiveStage === 'payments' ? 'bg-[#0B1330] text-[#F5E7A3]' : 'bg-[#FFF9EE] text-[#B88732] border border-[#E8D7B7]'
+                            }`}>
+                              <CreditCard className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="font-serif font-bold text-xs text-[#0B1330] block truncate">
+                                3. Order Payment Options
+                              </span>
+                              <span className="text-[10px] font-mono text-[#5A6679]">
+                                {isFullyPaid ? '100% Fully Settled' : isOrderConfirmed ? `Balance: ${formatINR(unpaidVal)}` : 'Awaiting Order Approval'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono font-bold uppercase ${
+                              isFullyPaid
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
+                                : isOrderConfirmed
+                                ? 'bg-amber-50 text-[#B88732] border border-[#E8D7B7]'
+                                : 'bg-slate-100 text-slate-600 border border-slate-300'
+                            }`}>
+                              {isFullyPaid ? '100% Paid' : isOrderConfirmed ? `${paidPct}% Paid` : 'Locked'}
+                            </span>
+                            {currentActiveStage === 'payments' ? (
+                              <ChevronUp className="w-4 h-4 text-[#B88732]" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-[#5A6679]" />
+                            )}
+                          </div>
+                        </button>
+
+                        {/* NODE 3 CONTENT WRAPPER */}
+                        <div className={activeStageTab === 'all' && currentActiveStage !== 'payments' ? 'hidden sm:block' : 'block'}>
                         <div className="space-y-4">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="hidden sm:flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <h3 className="font-serif text-xl font-bold text-[#0B1330] flex items-center gap-2.5 flex-wrap">
                               <span>3. Order Payment Options</span>
                               <span className="text-xs font-mono font-medium text-[#B88732] px-3 py-1 rounded-full bg-white border border-[#E8D7B7] shadow-sm">
@@ -2895,8 +3480,186 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                             </div>
                           )}
 
-                          {/* PAYMENT STAGES TABLE */}
-                          <div className="rounded-3xl bg-white border border-[#E8D7B7] overflow-hidden shadow-[0_12px_35px_rgba(184,135,50,0.06)]">
+                          {/* MOBILE PAYMENT CARDS (Zero Horizontal Overflow / Clean Mobile UX) */}
+                          <div className="block sm:hidden space-y-3">
+                            {!isOrderConfirmed ? (
+                              <>
+                                <div className="p-4 rounded-2xl bg-white border border-[#E8D7B7] space-y-2.5 shadow-xs">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-serif font-bold text-xs text-[#0B1330]">Stage 1: Booking Confirmation</span>
+                                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-mono font-bold">10% Split</span>
+                                  </div>
+                                  <div className="flex items-baseline justify-between">
+                                    <span className="text-sm font-serif font-bold text-[#B88732]">{hasOfficialQuote ? formatINR(totalVal * 0.1) : 'Quote Pending'}</span>
+                                    <span className="text-[10px] text-[#5A6679]">Due Immediately to Start CAD</span>
+                                  </div>
+                                  <div className="pt-2 border-t border-[#E8D7B7]/50 flex items-center justify-center">
+                                    <span className="inline-flex items-center gap-1.5 text-[11px] font-mono text-slate-500">
+                                      <Lock className="w-3.5 h-3.5" /> LOCKED (Pending Confirmation)
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="p-4 rounded-2xl bg-white border border-[#E8D7B7] space-y-2.5 shadow-xs">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-serif font-bold text-xs text-[#0B1330]">Stage 2: Design Approval</span>
+                                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-mono font-bold">30% Split</span>
+                                  </div>
+                                  <div className="flex items-baseline justify-between">
+                                    <span className="text-sm font-serif font-bold text-[#B88732]">{hasOfficialQuote ? formatINR(totalVal * 0.3) : 'Quote Pending'}</span>
+                                    <span className="text-[10px] text-[#5A6679]">Due on 3D Preview Approval</span>
+                                  </div>
+                                  <div className="pt-2 border-t border-[#E8D7B7]/50 flex items-center justify-center">
+                                    <span className="inline-flex items-center gap-1.5 text-[11px] font-mono text-slate-500">
+                                      <Lock className="w-3.5 h-3.5" /> LOCKED
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="p-4 rounded-2xl bg-white border border-[#E8D7B7] space-y-2.5 shadow-xs">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-serif font-bold text-xs text-[#0B1330]">Stage 3: Final CAD Delivery</span>
+                                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-mono font-bold">60% Split</span>
+                                  </div>
+                                  <div className="flex items-baseline justify-between">
+                                    <span className="text-sm font-serif font-bold text-[#B88732]">{hasOfficialQuote ? formatINR(totalVal * 0.6) : 'Quote Pending'}</span>
+                                    <span className="text-[10px] text-[#5A6679]">Due Before Final File Release</span>
+                                  </div>
+                                  <div className="pt-2 border-t border-[#E8D7B7]/50 flex items-center justify-center">
+                                    <span className="inline-flex items-center gap-1.5 text-[11px] font-mono text-slate-500">
+                                      <Lock className="w-3.5 h-3.5" /> LOCKED
+                                    </span>
+                                  </div>
+                                </div>
+                              </>
+                            ) : order?.payment_stages && order.payment_stages.length > 0 ? (
+                              order.payment_stages.map((st: any) => (
+                                <div key={st.id} className="p-4 rounded-2xl bg-white border border-[#E8D7B7] space-y-2.5 shadow-xs">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-serif font-bold text-xs text-[#0B1330]">{st.label}</span>
+                                    <span className="px-2 py-0.5 rounded-full bg-[#FFF9EE] text-[#B88732] border border-[#E8D7B7] text-[10px] font-mono font-bold">{st.percentage}% Split</span>
+                                  </div>
+                                  <div className="flex items-baseline justify-between">
+                                    <span className="text-base font-serif font-bold text-[#B88732]">{formatINR(st.amount)}</span>
+                                    <span className="text-[10px] text-[#5A6679]">
+                                      {st.trigger_type === 'immediate'
+                                        ? 'Due Immediately to Start CAD'
+                                        : st.trigger_type === 'on_design_approval'
+                                        ? 'Due on 3D Preview Approval'
+                                        : 'Due Before Final File Release'}
+                                    </span>
+                                  </div>
+                                  <div className="pt-2 border-t border-[#E8D7B7]/50">
+                                    {st.status === 'paid' ? (
+                                      <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-300 text-xs font-mono font-bold w-full justify-center">
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                        PAID &amp; CLEARED
+                                      </span>
+                                    ) : st.status === 'due' ? (
+                                      <button
+                                        onClick={() => handlePayStage(st, order?.id)}
+                                        className="w-full btn-gold-luxury py-2.5 rounded-xl text-xs font-black uppercase tracking-wider shadow-md cursor-pointer flex items-center justify-center gap-2"
+                                      >
+                                        <CreditCard className="w-3.5 h-3.5 text-[#0B1330]" />
+                                        <span>Pay Stage ({formatINR(st.amount)})</span>
+                                      </button>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 text-slate-500 border border-slate-300 text-xs font-mono w-full justify-center">
+                                        <Lock className="w-3.5 h-3.5" />
+                                        LOCKED (Complete Prior Stage)
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <>
+                                <div className="p-4 rounded-2xl bg-white border border-[#E8D7B7] space-y-2.5 shadow-xs">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-serif font-bold text-xs text-[#0B1330]">Stage 1: Booking Confirmation</span>
+                                    <span className="px-2 py-0.5 rounded-full bg-[#FFF9EE] text-[#B88732] border border-[#E8D7B7] text-[10px] font-mono font-bold">10.00%</span>
+                                  </div>
+                                  <div className="flex items-baseline justify-between">
+                                    <span className="text-base font-serif font-bold text-[#B88732]">{formatINR(totalVal * 0.1)}</span>
+                                    <span className="text-[10px] text-[#5A6679]">Due Immediately to Start CAD</span>
+                                  </div>
+                                  <div className="pt-2 border-t border-[#E8D7B7]/50">
+                                    <button
+                                      onClick={() => handlePayStage({ id: 1, stage_name: 'Stage 1: Booking Confirmation', amount: totalVal * 0.1, percentage: 10 }, order?.id)}
+                                      className="w-full btn-gold-luxury py-2.5 rounded-xl text-xs font-black uppercase tracking-wider shadow-md cursor-pointer flex items-center justify-center gap-2"
+                                    >
+                                      <CreditCard className="w-3.5 h-3.5 text-[#0B1330]" />
+                                      <span>Pay Stage 1 ({formatINR(totalVal * 0.1)})</span>
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="p-4 rounded-2xl bg-white border border-[#E8D7B7] space-y-2.5 shadow-xs">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-serif font-bold text-xs text-[#0B1330]">Stage 2: Design Approval</span>
+                                    <span className="px-2 py-0.5 rounded-full bg-[#FFF9EE] text-[#B88732] border border-[#E8D7B7] text-[10px] font-mono font-bold">30.00%</span>
+                                  </div>
+                                  <div className="flex items-baseline justify-between">
+                                    <span className="text-base font-serif font-bold text-[#B88732]">{formatINR(totalVal * 0.3)}</span>
+                                    <span className="text-[10px] text-[#5A6679]">Due on 3D Preview Approval</span>
+                                  </div>
+                                  <div className="pt-2 border-t border-[#E8D7B7]/50">
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 text-slate-500 border border-slate-300 text-xs font-mono w-full justify-center">
+                                      <Lock className="w-3.5 h-3.5" />
+                                      LOCKED
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="p-4 rounded-2xl bg-white border border-[#E8D7B7] space-y-2.5 shadow-xs">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-serif font-bold text-xs text-[#0B1330]">Stage 3: Final CAD Delivery</span>
+                                    <span className="px-2 py-0.5 rounded-full bg-[#FFF9EE] text-[#B88732] border border-[#E8D7B7] text-[10px] font-mono font-bold">60.00%</span>
+                                  </div>
+                                  <div className="flex items-baseline justify-between">
+                                    <span className="text-base font-serif font-bold text-[#B88732]">{formatINR(totalVal * 0.6)}</span>
+                                    <span className="text-[10px] text-[#5A6679]">Due Before File Release</span>
+                                  </div>
+                                  <div className="pt-2 border-t border-[#E8D7B7]/50">
+                                    <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 text-slate-500 border border-slate-300 text-xs font-mono w-full justify-center">
+                                      <Lock className="w-3.5 h-3.5" />
+                                      LOCKED
+                                    </span>
+                                  </div>
+                                </div>
+                              </>
+                            )}
+
+                            {/* Mobile Balance Summary & Pay Full */}
+                            {isOrderConfirmed && totalVal > 0 && (
+                              <div className="p-4 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-2.5">
+                                <div className="flex items-center justify-between text-xs font-mono">
+                                  <span className="text-[#5A6679]">Total Order Valuation:</span>
+                                  <span className="font-serif font-bold text-[#0B1330]">{formatINR(totalVal)}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-xs font-mono">
+                                  <span className="text-[#5A6679]">Paid Amount:</span>
+                                  <span className="font-bold text-emerald-600">{formatINR(paidVal)}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-xs font-mono">
+                                  <span className="text-[#5A6679]">Remaining Balance:</span>
+                                  <span className="font-bold text-[#B88732]">{formatINR(unpaidVal)}</span>
+                                </div>
+                                {isFullyPaid ? (
+                                  <span className="text-xs font-mono font-bold text-emerald-600 flex items-center justify-center gap-1 pt-1">
+                                    <CheckCircle2 className="w-3.5 h-3.5" /> 100% Fully Settled
+                                  </span>
+                                ) : unpaidVal > 0 ? (
+                                  <button
+                                    onClick={() => handlePayFullOrder(order || { id: req.id, is_file_edit: req.is_file_edit }, unpaidVal)}
+                                    className="w-full mt-2 btn-gold-luxury py-2.5 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer shadow flex items-center justify-center gap-2"
+                                  >
+                                    <CreditCard className="w-3.5 h-3.5 text-[#0B1330]" />
+                                    <span>Pay Full Balance ({formatINR(unpaidVal)})</span>
+                                  </button>
+                                ) : null}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* DESKTOP PAYMENT STAGES TABLE */}
+                          <div className="hidden sm:block overflow-x-auto rounded-3xl bg-white border border-[#E8D7B7] shadow-[0_12px_35px_rgba(184,135,50,0.06)]">
                             <table className="w-full text-left text-xs text-[#5A6679]">
                               <thead className="bg-[#FCFAF7] text-[#0B1330] font-serif border-b border-[#E8D7B7] uppercase text-[10px] tracking-wider">
                                 <tr>
@@ -3104,13 +3867,14 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                             </table>
                           </div>
                         </div>
+                        </div>
                       </div>
                       )}
 
                       {/* NODE 4: DESIGN PREVIEW & APPROVAL */}
                       {(activeStageTab === 'all' || activeStageTab === 'preview') && (
                       <div className="relative group">
-                        <div className={`absolute -left-[31px] sm:-left-[47px] top-0 w-6 h-6 rounded-full border-4 border-[#FAF8F5] flex items-center justify-center ${
+                        <div className={`hidden sm:flex absolute -left-[47px] top-0 w-6 h-6 rounded-full border-4 border-[#FAF8F5] items-center justify-center ${
                           order?.preview_image || order?.milestones?.some((m: any) => m.stage.includes('Approved'))
                             ? 'bg-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.8)]'
                             : 'bg-white border-2 border-[#E8D7B7] text-[#5A6679]'
@@ -3118,8 +3882,49 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                           <Eye className="w-3.5 h-3.5" />
                         </div>
 
+                        {/* MOBILE ACCORDION HEADER (4. 3D PREVIEW) */}
+                        <button
+                          type="button"
+                          onClick={() => setMobileAccordionStage(currentActiveStage === 'preview' ? null : 'preview')}
+                          className="sm:hidden w-full p-3.5 rounded-2xl bg-white border border-[#E8D7B7] shadow-xs flex items-center justify-between gap-3 text-left transition-all cursor-pointer mb-3"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                              currentActiveStage === 'preview' ? 'bg-[#0B1330] text-[#F5E7A3]' : 'bg-[#FFF9EE] text-[#B88732] border border-[#E8D7B7]'
+                            }`}>
+                              <Eye className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="font-serif font-bold text-xs text-[#0B1330] block truncate">
+                                4. In-Progress 3D CAD Preview Review
+                              </span>
+                              <span className="text-[10px] font-mono text-[#5A6679]">
+                                {order?.preview_image ? (order?.status === 'preview_ready' ? 'QC Verified & Ready' : order?.status === 'revision_requested' ? `Revision v${order.current_version || 1} Active` : 'Under QC Review') : assignedStaff ? 'Active 3D Sculpting in Rhino' : 'Awaiting Assignment'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono font-bold uppercase ${
+                              order?.milestones?.some((m: any) => m.stage.includes('Approved'))
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
+                                : order?.preview_image
+                                ? 'bg-blue-50 text-blue-700 border border-blue-300'
+                                : 'bg-slate-100 text-slate-600 border border-slate-300'
+                            }`}>
+                              {order?.milestones?.some((m: any) => m.stage.includes('Approved')) ? 'Approved' : order?.preview_image ? 'Ready' : 'In Progress'}
+                            </span>
+                            {currentActiveStage === 'preview' ? (
+                              <ChevronUp className="w-4 h-4 text-[#B88732]" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-[#5A6679]" />
+                            )}
+                          </div>
+                        </button>
+
+                        {/* NODE 4 CONTENT WRAPPER */}
+                        <div className={activeStageTab === 'all' && currentActiveStage !== 'preview' ? 'hidden sm:block' : 'block'}>
                         <div className="space-y-4">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="hidden sm:flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <h3 className="font-serif text-xl font-bold text-[#0B1330]">
                               4. In-Progress 3D CAD Preview Review
                             </h3>
@@ -3353,12 +4158,14 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                             </div>
                           )}
                         </div>
+                        </div>
                       </div>
                       )}
+
                       {/* NODE 5: DELIVERABLES & FINAL SOURCE FILES */}
                       {(activeStageTab === 'all' || activeStageTab === 'deliverables') && (
                       <div className="relative group">
-                        <div className={`absolute -left-[31px] sm:-left-[47px] top-0 w-6 h-6 rounded-full border-4 border-[#FAF8F5] flex items-center justify-center ${
+                        <div className={`hidden sm:flex absolute -left-[47px] top-0 w-6 h-6 rounded-full border-4 border-[#FAF8F5] items-center justify-center ${
                           isFullyPaid && (order?.download_enabled_by_admin || order?.can_download)
                             ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)] text-white'
                             : 'bg-white border-2 border-[#E8D7B7] text-[#5A6679]'
@@ -3366,12 +4173,89 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                           <Download className="w-3.5 h-3.5" />
                         </div>
 
+                        {/* MOBILE ACCORDION HEADER (5. DELIVERABLES) */}
+                        <button
+                          type="button"
+                          onClick={() => setMobileAccordionStage(currentActiveStage === 'deliverables' ? null : 'deliverables')}
+                          className="sm:hidden w-full p-3.5 rounded-2xl bg-white border border-[#E8D7B7] shadow-xs flex items-center justify-between gap-3 text-left transition-all cursor-pointer mb-3"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                              currentActiveStage === 'deliverables' ? 'bg-[#0B1330] text-[#F5E7A3]' : 'bg-[#FFF9EE] text-[#B88732] border border-[#E8D7B7]'
+                            }`}>
+                              <Download className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="font-serif font-bold text-xs text-[#0B1330] block truncate">
+                                5. Final Watertight Deliverables
+                              </span>
+                              <span className="text-[10px] font-mono text-[#5A6679]">
+                                {req.is_file_edit && (req.status === 'completed' || req.download_url)
+                                  ? 'Modification Completed & Ready'
+                                  : isFullyPaid && (order?.download_enabled_by_admin || order?.can_download)
+                                  ? 'Authorized & Ready for Download'
+                                  : isFullyPaid
+                                  ? '100% Paid • Awaiting Admin Toggle'
+                                  : 'Locked Until Milestone Payments Complete'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono font-bold uppercase ${
+                              (req.is_file_edit && (req.status === 'completed' || req.download_url)) || (isFullyPaid && (order?.download_enabled_by_admin || order?.can_download))
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
+                                : 'bg-slate-100 text-slate-600 border border-slate-300'
+                            }`}>
+                              {(req.is_file_edit && (req.status === 'completed' || req.download_url)) || (isFullyPaid && (order?.download_enabled_by_admin || order?.can_download)) ? 'Unlocked' : 'Locked'}
+                            </span>
+                            {currentActiveStage === 'deliverables' ? (
+                              <ChevronUp className="w-4 h-4 text-[#B88732]" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-[#5A6679]" />
+                            )}
+                          </div>
+                        </button>
+
+                        {/* NODE 5 CONTENT WRAPPER */}
+                        <div className={activeStageTab === 'all' && currentActiveStage !== 'deliverables' ? 'hidden sm:block' : 'block'}>
                         <div className="space-y-3">
-                          <h3 className="font-serif text-xl font-bold text-[#0B1330]">
+                          <h3 className="hidden sm:block font-serif text-xl font-bold text-[#0B1330]">
                             5. Final Watertight Deliverables (.3DM, .STL &amp; Master Production Pack)
                           </h3>
 
-                          {order ? (
+                          {req.is_file_edit && (req.status === 'completed' || req.download_url) ? (
+                            <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-[#09261A] via-[#0E3827] to-[#09261A] border-2 border-emerald-500/80 space-y-4 shadow-xl text-white">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="px-3 py-1 rounded-full bg-emerald-500 text-[#0B1330] text-[10px] font-mono font-bold uppercase tracking-wider">
+                                      MODIFIED CAD DELIVERABLE
+                                    </span>
+                                    <span className="text-emerald-300 text-xs font-mono font-bold">Ready</span>
+                                  </div>
+                                  <h4 className="font-serif text-lg font-bold text-white mt-1">
+                                    {req.original_file_name || `CAD Modification #${req.id}`}
+                                  </h4>
+                                  <p className="text-xs text-emerald-200/90 max-w-xl">
+                                    Your CAD file modification has been finalized and validated watertight by our Senior Engineers.
+                                  </p>
+                                </div>
+
+                                {req.download_url && (
+                                  <a
+                                    href={req.download_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    download
+                                    className="btn-gold-luxury px-6 py-3.5 rounded-2xl text-xs font-extrabold uppercase tracking-widest inline-flex items-center gap-2 shadow-xl shrink-0 cursor-pointer"
+                                  >
+                                    <Download className="w-4 h-4 text-[#0B1330]" />
+                                    <span>Download Modified CAD</span>
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          ) : order ? (
                             isFullyPaid && (order.download_enabled_by_admin || order.can_download) ? (
                               <div className="p-6 rounded-3xl bg-gradient-to-r from-[#09261A] via-[#0E3827] to-[#09261A] border-2 border-emerald-500/80 space-y-4 shadow-xl text-white">
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -3494,16 +4378,19 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                             </div>
                           )}
                         </div>
+                        </div>
                       </div>
                       )}
 
                     </div>
+                  );
+                })()}
 
                     {/* Bottom Navigation within Workspace */}
                     <div className="pt-6 border-t border-[#E8D7B7] flex items-center justify-between">
                       <button
                         type="button"
-                        onClick={() => setOpenedOrderId(null)}
+                        onClick={handleBackToGrid}
                         className="px-4 py-2.5 rounded-xl bg-white hover:bg-[#FCFAF7] border border-[#E8D7B7] hover:border-[#D4AF37] text-[#0B1330] font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-sm"
                       >
                         <ArrowLeft className="w-4 h-4 text-[#B88732]" />
@@ -3806,8 +4693,8 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                 </div>
               </div>
             ) : (
-              <div className="rounded-3xl bg-white border border-[#E8D7B7] overflow-hidden shadow-[0_12px_35px_rgba(184,135,50,0.06)]">
-                <table className="w-full text-left text-xs text-[#5A6679]">
+              <div className="w-full overflow-x-auto rounded-3xl bg-white border border-[#E8D7B7] shadow-[0_12px_35px_rgba(184,135,50,0.06)]">
+                <table className="w-full text-left text-xs text-[#5A6679] min-w-[620px]">
                   <thead className="bg-[#FCFAF7] text-[#0B1330] font-serif border-b border-[#E8D7B7] uppercase text-[10px] tracking-wider">
                     <tr>
                       <th className="p-4 font-bold">Order ID</th>
@@ -3841,32 +4728,34 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                         <td className="p-4 text-right">
                           <button
                             onClick={() => {
+                              let targetId = ord.id;
+                              let targetKey = `cr-${ord.id}`;
                               if (ord.order_type === 'file_edit' || ord.is_file_edit || ord.file_edit_request) {
                                 const feId = ord.file_edit_request?.id || ord.file_edit_request || (customRequests.find((r: any) => r.is_file_edit && (r.converted_order === ord.id || r.order?.id === ord.id))?.id);
                                 if (feId) {
-                                  setSelectedCustomReqId(feId);
-                                  setSelectedReqKey(`fe-${feId}`);
-                                  setOpenedOrderId(feId);
+                                  targetId = feId;
+                                  targetKey = `fe-${feId}`;
                                 }
                               } else if (ord.custom_request?.id) {
-                                setSelectedCustomReqId(ord.custom_request.id);
-                                setSelectedReqKey(`cr-${ord.custom_request.id}`);
-                                setOpenedOrderId(ord.custom_request.id);
+                                targetId = ord.custom_request.id;
+                                targetKey = `cr-${ord.custom_request.id}`;
                               } else if (ord.custom_request && typeof ord.custom_request === 'number') {
-                                setSelectedCustomReqId(ord.custom_request);
-                                setSelectedReqKey(`cr-${ord.custom_request}`);
-                                setOpenedOrderId(ord.custom_request);
+                                targetId = ord.custom_request;
+                                targetKey = `cr-${ord.custom_request}`;
                               } else {
                                 const matched = customRequests.find((r: any) => r.order?.id === ord.id || String(r.id) === String(ord.custom_request));
                                 if (matched) {
-                                  setSelectedCustomReqId(matched.id);
-                                  setSelectedReqKey(matched.is_file_edit ? `fe-${matched.id}` : `cr-${matched.id}`);
-                                  setOpenedOrderId(matched.id);
+                                  targetId = matched.id;
+                                  targetKey = matched.is_file_edit ? `fe-${matched.id}` : `cr-${matched.id}`;
                                 }
                               }
+                              setSelectedCustomReqId(targetId);
+                              setSelectedReqKey(targetKey);
+                              setOpenedOrderId(targetId);
+                              updateUrlParams('custom', targetKey);
                               setActiveTab('custom');
                             }}
-                            className="px-3 py-1.5 rounded-xl border border-[#E8D7B7] hover:border-[#D4AF37] text-[#0B1330] hover:bg-[#0B1330] hover:text-[#F5E7A3] text-xs font-semibold transition-all inline-flex items-center gap-1 cursor-pointer shadow-sm"
+                            className="px-3 py-2 min-h-[44px] rounded-xl border border-[#E8D7B7] hover:border-[#D4AF37] text-[#0B1330] hover:bg-[#0B1330] hover:text-[#F5E7A3] text-xs font-semibold transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-sm"
                           >
                             <Eye className="w-3.5 h-3.5 text-[#B88732]" />
                             <span>View Custom Journey</span>

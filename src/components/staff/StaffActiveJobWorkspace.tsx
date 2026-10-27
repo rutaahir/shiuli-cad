@@ -63,7 +63,9 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
 
   // File Upload & Progress State
   const [uploadingFileType, setUploadingFileType] = useState<string | null>(null);
+  const [selectedUploadFile, setSelectedUploadFile] = useState<{ file: File; fileType: string } | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const uploadAbortControllerRef = useRef<AbortController | null>(null);
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
   // Lightbox & Modal States
@@ -93,6 +95,15 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
     setLoading(true);
     fetchOrderDetails();
   }, [effectiveOrderId]);
+
+  // Abort any in-progress upload on workspace unmount
+  useEffect(() => {
+    return () => {
+      if (uploadAbortControllerRef.current) {
+        uploadAbortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   // Live SLA Countdown Calculation with Color Shifting
   useEffect(() => {
@@ -208,6 +219,21 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
     }
   };
 
+  // Cancel In-Progress Upload Flow (Aborts fetch, clears file selection, resets state)
+  const handleCancelUpload = (fileType?: string) => {
+    if (uploadAbortControllerRef.current) {
+      uploadAbortControllerRef.current.abort();
+      uploadAbortControllerRef.current = null;
+    }
+    const targetType = fileType || uploadingFileType || selectedUploadFile?.fileType;
+    if (targetType && fileInputRefs.current[targetType]) {
+      fileInputRefs.current[targetType]!.value = '';
+    }
+    setUploadingFileType(null);
+    setSelectedUploadFile(null);
+    setUploadError(null);
+  };
+
   // Handle File Upload to Backend with Strict Validation & Extension Check
   const handleFileSelected = async (fileType: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -234,7 +260,11 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
       return;
     }
 
+    const controller = new AbortController();
+    uploadAbortControllerRef.current = controller;
     setUploadingFileType(fileType);
+    setSelectedUploadFile({ file, fileType });
+
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -243,13 +273,20 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
       await api.request(`/orders/${effectiveOrderId}/deliverables/`, {
         method: 'POST',
         body: formData,
+        signal: controller.signal,
       });
 
       await fetchOrderDetails();
     } catch (err: any) {
-      setUploadError(err?.message || `Failed to upload ${fileType} file.`);
+      if (err?.name === 'AbortError' || controller.signal.aborted) {
+        console.log(`[Deliverable Upload] Aborted by staff for slot: ${fileType}`);
+      } else {
+        setUploadError(err?.message || `Failed to upload ${fileType} file.`);
+      }
     } finally {
+      uploadAbortControllerRef.current = null;
       setUploadingFileType(null);
+      setSelectedUploadFile(null);
       if (fileInputRefs.current[fileType]) {
         fileInputRefs.current[fileType]!.value = '';
       }
@@ -744,6 +781,27 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
               </div>
             </div>
 
+            {/* Uploading Notification Alert with Cancel Button */}
+            {uploadingFileType && (
+              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center justify-between shadow-xs animate-in fade-in duration-150">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Loader2 className="w-4 h-4 text-[#C9A227] animate-spin shrink-0" />
+                  <span className="truncate">
+                    Uploading <strong>{uploadingFileType.toUpperCase()}</strong> deliverable: <span className="font-mono text-[11px] font-semibold">{selectedUploadFile?.file?.name || 'File'}</span>
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCancelUpload(uploadingFileType)}
+                  className="px-3 py-1.5 rounded-lg bg-white hover:bg-rose-50 border border-rose-300 text-rose-700 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-2xs"
+                  title="Cancel upload and reset file"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Cancel Upload</span>
+                </button>
+              </div>
+            )}
+
             {/* Error Notification Alert for File Type Mismatch */}
             {uploadError && (
               <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-center justify-between">
@@ -777,18 +835,31 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                   className="hidden"
                 />
 
-                <button
-                  disabled={uploadingFileType === '3dm'}
-                  onClick={() => fileInputRefs.current['3dm']?.click()}
-                  className="w-full py-2.5 rounded-lg bg-[#09112B] hover:bg-[#122254] text-[#F5E7A3] font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {uploadingFileType === '3dm' ? (
-                    <Loader2 className="w-3.5 h-3.5 text-[#D4AF37] animate-spin" />
-                  ) : (
+                {uploadingFileType === '3dm' ? (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 py-2.5 rounded-lg bg-[#09112B] text-[#F5E7A3] font-bold text-xs flex items-center justify-center gap-2">
+                      <Loader2 className="w-3.5 h-3.5 text-[#D4AF37] animate-spin" />
+                      <span className="truncate">Uploading .3DM...</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCancelUpload('3dm')}
+                      className="py-2.5 px-3 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                      title="Cancel this upload"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      <span>Cancel</span>
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => fileInputRefs.current['3dm']?.click()}
+                    className="w-full py-2.5 rounded-lg bg-[#09112B] hover:bg-[#122254] text-[#F5E7A3] font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  >
                     <Upload className="w-3.5 h-3.5 text-[#D4AF37]" />
-                  )}
-                  <span>{rhinoDeliverable ? 'Replace .3DM File' : 'Upload .3DM File'}</span>
-                </button>
+                    <span>{rhinoDeliverable ? 'Replace .3DM File' : 'Upload .3DM File'}</span>
+                  </button>
+                )}
 
                 {rhinoDeliverable && (
                   <div className="text-[10px] font-mono text-emerald-800 bg-emerald-50 p-2.5 rounded border border-emerald-200 space-y-1">
@@ -825,18 +896,31 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                   className="hidden"
                 />
 
-                <button
-                  disabled={uploadingFileType === 'stl'}
-                  onClick={() => fileInputRefs.current['stl']?.click()}
-                  className="w-full py-2.5 rounded-lg bg-[#09112B] hover:bg-[#122254] text-[#F5E7A3] font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {uploadingFileType === 'stl' ? (
-                    <Loader2 className="w-3.5 h-3.5 text-[#D4AF37] animate-spin" />
-                  ) : (
+                {uploadingFileType === 'stl' ? (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 py-2.5 rounded-lg bg-[#09112B] text-[#F5E7A3] font-bold text-xs flex items-center justify-center gap-2">
+                      <Loader2 className="w-3.5 h-3.5 text-[#D4AF37] animate-spin" />
+                      <span className="truncate">Uploading .STL...</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCancelUpload('stl')}
+                      className="py-2.5 px-3 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                      title="Cancel this upload"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      <span>Cancel</span>
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => fileInputRefs.current['stl']?.click()}
+                    className="w-full py-2.5 rounded-lg bg-[#09112B] hover:bg-[#122254] text-[#F5E7A3] font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  >
                     <Upload className="w-3.5 h-3.5 text-[#D4AF37]" />
-                  )}
-                  <span>{stlDeliverable ? 'Replace .STL File' : 'Upload .STL File'}</span>
-                </button>
+                    <span>{stlDeliverable ? 'Replace .STL File' : 'Upload .STL File'}</span>
+                  </button>
+                )}
 
                 {stlDeliverable && (
                   <div className="text-[10px] font-mono text-emerald-800 bg-emerald-50 p-2.5 rounded border border-emerald-200 space-y-1">
@@ -873,18 +957,31 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                   className="hidden"
                 />
 
-                <button
-                  disabled={uploadingFileType === 'render'}
-                  onClick={() => fileInputRefs.current['render']?.click()}
-                  className="w-full py-2.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {uploadingFileType === 'render' ? (
-                    <Loader2 className="w-3.5 h-3.5 text-[#D4AF37] animate-spin" />
-                  ) : (
+                {uploadingFileType === 'render' ? (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 py-2.5 rounded-lg bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2">
+                      <Loader2 className="w-3.5 h-3.5 text-[#D4AF37] animate-spin" />
+                      <span className="truncate">Uploading Render...</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCancelUpload('render')}
+                      className="py-2.5 px-3 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                      title="Cancel this upload"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      <span>Cancel</span>
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => fileInputRefs.current['render']?.click()}
+                    className="w-full py-2.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  >
                     <ImageIcon className="w-3.5 h-3.5 text-[#D4AF37]" />
-                  )}
-                  <span>{renderDeliverable ? 'Replace Render' : 'Upload Render'}</span>
-                </button>
+                    <span>{renderDeliverable ? 'Replace Render' : 'Upload Render'}</span>
+                  </button>
+                )}
 
                 {renderDeliverable && (
                   <div className="text-[10px] font-mono text-emerald-800 bg-emerald-50 p-2.5 rounded border border-emerald-200 truncate">
@@ -917,18 +1014,31 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                   className="hidden"
                 />
 
-                <button
-                  disabled={uploadingFileType === 'video'}
-                  onClick={() => fileInputRefs.current['video']?.click()}
-                  className="w-full py-2.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {uploadingFileType === 'video' ? (
-                    <Loader2 className="w-3.5 h-3.5 text-[#D4AF37] animate-spin" />
-                  ) : (
+                {uploadingFileType === 'video' ? (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 py-2.5 rounded-lg bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2">
+                      <Loader2 className="w-3.5 h-3.5 text-[#D4AF37] animate-spin" />
+                      <span className="truncate">Uploading Video...</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCancelUpload('video')}
+                      className="py-2.5 px-3 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                      title="Cancel this upload"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      <span>Cancel</span>
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => fileInputRefs.current['video']?.click()}
+                    className="w-full py-2.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  >
                     <Video className="w-3.5 h-3.5 text-[#D4AF37]" />
-                  )}
-                  <span>{videoDeliverable ? 'Replace Video' : 'Upload Video'}</span>
-                </button>
+                    <span>{videoDeliverable ? 'Replace Video' : 'Upload Video'}</span>
+                  </button>
+                )}
 
                 {videoDeliverable && (
                   <div className="text-[10px] font-mono text-emerald-800 bg-emerald-50 p-2.5 rounded border border-emerald-200 truncate">

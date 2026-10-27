@@ -299,7 +299,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       actionFn: () => void | Promise<void>,
       options?: { intent?: AuthIntentType; message?: string; productId?: string; formData?: any }
     ): boolean => {
-      if (isLoggedIn) {
+      const hasToken = typeof window !== 'undefined' && Boolean(
+        localStorage.getItem('shiuli_access_token') || localStorage.getItem('shiuli_refresh_token')
+      );
+      if (isLoggedIn || hasToken) {
+        setAuthModalOpen(false);
+        setAuthModalMessage(null);
         actionFn();
         return true;
       }

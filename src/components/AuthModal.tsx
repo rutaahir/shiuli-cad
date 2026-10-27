@@ -292,10 +292,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (onLoginSuccess) {
           onLoginSuccess(data.user?.email || usernameOrEmail, userRole);
         }
+        handleClose();
         if (pendingIntent) {
           await executePendingIntent();
         } else {
-          handleClose();
           if (userRole === 'admin') {
             window.location.href = '/admin';
           } else if (userRole === 'staff') {
@@ -363,10 +363,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (onLoginSuccess) {
           onLoginSuccess(data.user?.email || usernameOrEmail, 'client');
         }
+        handleClose();
         if (pendingIntent) {
           await executePendingIntent();
-        } else {
-          handleClose();
         }
       }
     } catch (err: any) {

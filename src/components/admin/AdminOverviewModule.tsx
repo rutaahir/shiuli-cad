@@ -25,7 +25,8 @@ import {
   ExternalLink,
   Calendar,
   Briefcase,
-  UserCheck
+  UserCheck,
+  Sliders
 } from 'lucide-react';
 
 interface AdminOverviewModuleProps {
@@ -148,14 +149,57 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
   const activeStaffMembers = staffWithComputedLoads.filter((s) => s.status === 'active');
   const availableStaff = activeStaffMembers.filter((s) => s.currentLoad < s.maxJobLimit);
 
+  // Active non-deleted orders
+  const nonDeletedOrders = useMemo(() => {
+    return orders.filter((o) => !o.is_deleted);
+  }, [orders]);
+
+  const customOrdersCount = useMemo(() => {
+    return nonDeletedOrders.filter((o) => o.order_type === 'custom').length;
+  }, [nonDeletedOrders]);
+
+  const fileEditOrdersCount = useMemo(() => {
+    return nonDeletedOrders.filter((o) => o.order_type === 'file_edit').length;
+  }, [nonDeletedOrders]);
+
+  const totalOrdersCount = nonDeletedOrders.length;
+
+  // Active Master Orders where staff are CURRENTLY working (status with_designer, revision_requested, pending_review)
+  const masterOrdersList = useMemo(() => {
+    return nonDeletedOrders
+      .filter((o) => {
+        const hasStaff = Boolean(o.assigned_staff);
+        const isCurrentlyWorking = ['with_designer', 'revision_requested', 'pending_review'].includes(o.status);
+        return hasStaff && isCurrentlyWorking && !o.is_deleted;
+      })
+      .map((o) => {
+        let staffName = 'Staff';
+        if (o.assigned_staff) {
+          if (typeof o.assigned_staff === 'object') {
+            const fullName = `${o.assigned_staff.first_name || ''} ${o.assigned_staff.last_name || ''}`.trim();
+            staffName = (fullName && fullName !== 'Staff Staff') ? fullName : (o.assigned_staff.username || fullName || 'Staff');
+          } else if (typeof o.assigned_staff === 'string') {
+            staffName = o.assigned_staff;
+          }
+        }
+        const orderNumber = `SCS-2026-${String(o.id).padStart(4, '0')}`;
+        return {
+          id: o.id,
+          staffName,
+          orderNumber,
+          status: o.status,
+        };
+      });
+  }, [nonDeletedOrders]);
+
   // Orders placed today
   const todayOrders = useMemo(() => {
     const todayStr = new Date().toDateString();
-    return orders.filter((o) => {
+    return nonDeletedOrders.filter((o) => {
       if (!o.created_at) return false;
       return new Date(o.created_at).toDateString() === todayStr;
     });
-  }, [orders]);
+  }, [nonDeletedOrders]);
 
   // Pending Approvals count (Quality reviews awaiting admin + pending designer applications)
   const pendingQualityReviews = useMemo(() => {
@@ -312,38 +356,38 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
         {/* Stat 1: Total Orders Today */}
         <div
           onClick={() => onSelectModule('orders')}
-          className="bg-white p-4 rounded-2xl border border-[#E8D7B7] shadow-sm hover:border-[#C9A227]/40 transition-all space-y-2 cursor-pointer group"
+          className="bg-white p-4 rounded-2xl border border-[#E8D7B7] shadow-sm hover:border-[#C9A227]/40 transition-all space-y-2 cursor-pointer group min-w-0 overflow-hidden"
         >
           <div className="flex items-center justify-between text-xs text-[#6B7280]">
-            <span className="group-hover:text-[#17345C] transition-colors">Total Orders Today</span>
-            <span className="p-1 rounded-lg bg-[#17345C]/10 text-[#17345C]">
+            <span className="group-hover:text-[#17345C] transition-colors truncate">Total Orders Today</span>
+            <span className="p-1 rounded-lg bg-[#17345C]/10 text-[#17345C] shrink-0">
               <ArrowUpRight className="w-3.5 h-3.5" />
             </span>
           </div>
           <div className="font-serif text-2xl font-bold text-[#17243B]">
-            {loading ? <Loader2 className="w-5 h-5 animate-spin text-slate-400" /> : todayOrders.length > 0 ? todayOrders.length : orders.length}
+            {loading ? <Loader2 className="w-5 h-5 animate-spin text-slate-400" /> : todayOrders.length > 0 ? todayOrders.length : nonDeletedOrders.length}
           </div>
-          <div className="flex items-center gap-1 text-[11px] text-[#1F9D66] font-medium">
-            <span>{todayOrders.length > 0 ? `+${todayOrders.length} Today` : `+18.6%`}</span>
-            <span className="text-[#6B7280] font-normal">({orders.length} total)</span>
+          <div className="flex items-center gap-1 text-[11px] text-[#1F9D66] font-medium truncate">
+            <span>{todayOrders.length > 0 ? `+${todayOrders.length} Today` : `Active pipeline`}</span>
+            <span className="text-[#6B7280] font-normal">({nonDeletedOrders.length} total)</span>
           </div>
         </div>
 
         {/* Stat 2: Pending Approvals */}
         <div
           onClick={() => onSelectModule('approvals')}
-          className="bg-[#FAF9F5] p-4 rounded-2xl border border-[#C9A227]/30 shadow-sm hover:border-[#C9A227]/60 transition-all space-y-2 cursor-pointer group"
+          className="bg-[#FAF9F5] p-4 rounded-2xl border border-[#C9A227]/30 shadow-sm hover:border-[#C9A227]/60 transition-all space-y-2 cursor-pointer group min-w-0 overflow-hidden"
         >
           <div className="flex items-center justify-between text-xs text-[#6B7280]">
-            <span className="group-hover:text-[#C9A227] transition-colors">Pending Approvals</span>
-            <span className="p-1 rounded-lg bg-[#E8A93B]/10 text-[#E8A93B]">
+            <span className="group-hover:text-[#C9A227] transition-colors truncate">Pending Approvals</span>
+            <span className="p-1 rounded-lg bg-[#E8A93B]/10 text-[#E8A93B] shrink-0">
               <Clock className="w-3.5 h-3.5" />
             </span>
           </div>
           <div className="font-serif text-2xl font-bold text-[#17243B]">
             {loading ? <Loader2 className="w-5 h-5 animate-spin text-slate-400" /> : totalPendingApprovals}
           </div>
-          <div className="text-[11px] text-[#E8A93B] font-medium">
+          <div className="text-[11px] text-[#E8A93B] font-medium truncate">
             {totalPendingApprovals > 0 ? `${totalPendingApprovals} Needs review` : 'All clear'}
           </div>
         </div>
@@ -351,90 +395,107 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
         {/* Stat 3: Active Custom Requests */}
         <div
           onClick={() => onSelectModule('custom-requests')}
-          className="bg-white p-4 rounded-2xl border border-[#E8D7B7] shadow-sm hover:border-[#C9A227]/40 transition-all space-y-2 cursor-pointer group"
+          className="bg-white p-4 rounded-2xl border border-[#E8D7B7] shadow-sm hover:border-[#C9A227]/40 transition-all space-y-2 cursor-pointer group min-w-0 overflow-hidden"
         >
           <div className="flex items-center justify-between text-xs text-[#6B7280]">
-            <span className="group-hover:text-[#17345C] transition-colors">Active Custom Requests</span>
-            <span className="p-1 rounded-lg bg-[#17345C]/10 text-[#17345C]">
+            <span className="group-hover:text-[#17345C] transition-colors truncate">Active Custom Requests</span>
+            <span className="p-1 rounded-lg bg-[#17345C]/10 text-[#17345C] shrink-0">
               <Zap className="w-3.5 h-3.5" />
             </span>
           </div>
           <div className="font-serif text-2xl font-bold text-[#17243B]">
             {loading ? <Loader2 className="w-5 h-5 animate-spin text-slate-400" /> : activeCustomRequests.length}
           </div>
-          <div className="text-[11px] text-[#17345C] font-medium">
+          <div className="text-[11px] text-[#17345C] font-medium truncate">
             {activeCustomRequests.length > 0 ? `${activeCustomRequests.length} in negotiation` : 'Up to date'}
           </div>
         </div>
 
-        {/* Stat 4: Monthly Revenue */}
+        {/* Stat 4: File Modification Orders */}
         <div
-          onClick={() => {
-            try {
-              window.history.replaceState(null, '', '/admin?tab=payments&subtab=client-payments');
-            } catch {}
-            onSelectModule('payments');
-          }}
-          className="bg-white p-4 rounded-2xl border border-[#E8D7B7] shadow-sm hover:border-[#C9A227]/40 transition-all space-y-2 cursor-pointer group"
+          onClick={() => onSelectModule('orders')}
+          className="bg-white p-4 rounded-2xl border border-[#E8D7B7] shadow-sm hover:border-[#C9A227]/40 transition-all space-y-2 cursor-pointer group min-w-0 overflow-hidden"
         >
           <div className="flex items-center justify-between text-xs text-[#6B7280]">
-            <span className="group-hover:text-[#1F9D66] transition-colors">Monthly Revenue</span>
-            <span className="p-1 rounded-lg bg-[#1F9D66]/10 text-[#1F9D66]">
-              <IndianRupee className="w-3.5 h-3.5" />
+            <span className="group-hover:text-[#17345C] transition-colors truncate">File Modification Orders</span>
+            <span className="p-1 rounded-lg bg-[#C9A227]/10 text-[#C9A227] shrink-0">
+              <Sliders className="w-3.5 h-3.5" />
             </span>
           </div>
           <div className="font-serif text-2xl font-bold text-[#17243B]">
-            {loading ? <Loader2 className="w-5 h-5 animate-spin text-slate-400" /> : formatINR(totalCalculatedRevenue)}
+            {loading ? <Loader2 className="w-5 h-5 animate-spin text-slate-400" /> : fileEditOrdersCount}
           </div>
-          <div className="flex items-center justify-between text-[11px]">
-            <div className="flex items-center gap-1 text-[#1F9D66] font-medium">
-              <span>+24%</span>
-              <span className="text-[#6B7280] font-normal">vs target</span>
-            </div>
-            {analyticsData?.total_revenue_usd && (
-              <span className="text-[#6B7280] font-mono text-[10px]">
-                ≈ ${Number(analyticsData.total_revenue_usd).toFixed(2)} USD
-              </span>
-            )}
+          <div className="text-[11px] text-[#6B7280] font-normal truncate">
+            order_type = file_edit
           </div>
         </div>
 
-        {/* Stat 5: Available Staff */}
+        {/* Stat 5: Total Orders */}
         <div
-          onClick={() => onSelectModule('staff')}
-          className="bg-white p-4 rounded-2xl border border-[#E8D7B7] shadow-sm hover:border-[#C9A227]/40 transition-all space-y-2 cursor-pointer group"
+          onClick={() => onSelectModule('orders')}
+          className="bg-white p-4 rounded-2xl border border-[#E8D7B7] shadow-sm hover:border-[#C9A227]/40 transition-all space-y-2 cursor-pointer group min-w-0 overflow-hidden"
         >
           <div className="flex items-center justify-between text-xs text-[#6B7280]">
-            <span className="group-hover:text-[#1F9D66] transition-colors">Available Staff</span>
-            <span className="p-1 rounded-lg bg-[#1F9D66]/10 text-[#1F9D66]">
-              <Users className="w-3.5 h-3.5" />
+            <span className="group-hover:text-[#1F9D66] transition-colors truncate">Total Orders</span>
+            <span className="p-1 rounded-lg bg-[#1F9D66]/10 text-[#1F9D66] shrink-0">
+              <ShoppingBag className="w-3.5 h-3.5" />
             </span>
           </div>
           <div className="font-serif text-2xl font-bold text-[#17243B]">
+            {loading ? <Loader2 className="w-5 h-5 animate-spin text-slate-400" /> : totalOrdersCount}
+          </div>
+          <div className="text-[11px] text-[#1F9D66] font-medium truncate">
+            Excludes deleted orders
+          </div>
+        </div>
+
+        {/* Stat 6: Master Orders (Staff Name -> Order Number) */}
+        <div
+          onClick={() => onSelectModule('orders')}
+          className="bg-white p-4 rounded-2xl border border-[#E8D7B7] shadow-sm hover:border-[#C9A227]/40 transition-all space-y-2 cursor-pointer group flex flex-col justify-between min-w-0 overflow-hidden"
+        >
+          <div className="flex items-center justify-between text-xs text-[#6B7280]">
+            <span className="group-hover:text-[#17345C] transition-colors font-medium truncate">Master Orders</span>
+            <span className="p-1 rounded-lg bg-[#C9A227]/10 text-[#C9A227] shrink-0">
+              <ShoppingBag className="w-3.5 h-3.5" />
+            </span>
+          </div>
+
+          <div className="space-y-1.5 flex-1 min-h-[46px]">
             {loading ? (
-              <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+              <Loader2 className="w-5 h-5 animate-spin text-slate-400 my-auto" />
+            ) : masterOrdersList.length === 0 ? (
+              <div className="text-[11px] text-[#6B7280] italic py-1">
+                No staff currently working on orders
+              </div>
             ) : (
-              `${availableStaff.length} / ${activeStaffMembers.length}`
+              <div className="max-h-20 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                {masterOrdersList.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between text-[11px] gap-2">
+                    <span className="text-[#17243B] font-medium truncate" title={item.staffName}>
+                      {item.staffName}
+                    </span>
+                    <div className="flex items-center gap-1 shrink-0 font-mono">
+                      <span className="text-[#C9A227] font-semibold">→ {item.orderNumber}</span>
+                      <span className="text-[9px] px-1 py-0.2 rounded bg-slate-100 text-slate-600 capitalize font-sans">
+                        {item.status.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
-          <div className="text-[11px] text-[#1F9D66] font-medium">Ready for jobs</div>
-        </div>
 
-        {/* Stat 6: Avg Turnaround Time */}
-        <div
-          onClick={() => onSelectModule('analytics')}
-          className="bg-white p-4 rounded-2xl border border-[#E8D7B7] shadow-sm hover:border-[#C9A227]/40 transition-all space-y-2 cursor-pointer group"
-        >
-          <div className="flex items-center justify-between text-xs text-[#6B7280]">
-            <span className="group-hover:text-[#17345C] transition-colors">Avg Turnaround Time</span>
-            <span className="p-1 rounded-lg bg-[#17345C]/10 text-[#17345C]">
-              <Clock className="w-3.5 h-3.5" />
+          <div className="text-[10px] text-[#C9A227] font-semibold flex items-center justify-between pt-1 border-t border-[#E8D7B7]/40">
+            <span>
+              {masterOrdersList.length} {masterOrdersList.length === 1 ? 'order' : 'orders'} in pipeline
+            </span>
+            <span className="group-hover:underline flex items-center gap-0.5">
+              <span>View all</span>
+              <ChevronRight className="w-3 h-3" />
             </span>
           </div>
-          <div className="font-serif text-2xl font-bold text-[#17243B]">
-            {analyticsData?.avg_turnaround_hours ? `${analyticsData.avg_turnaround_hours} hrs` : '4.2 hrs'}
-          </div>
-          <div className="text-[11px] text-[#1F9D66] font-medium">-15 mins vs avg</div>
         </div>
       </div>
 

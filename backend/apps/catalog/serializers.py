@@ -98,6 +98,7 @@ class ProductListSerializer(serializers.ModelSerializer):
     parent_category_id = serializers.IntegerField(source='category.parent_id', read_only=True, allow_null=True)
     parent_category_slug = serializers.CharField(source='category.parent.slug', read_only=True, default='')
     parent_category_name = serializers.CharField(source='category.parent.name', read_only=True, default='')
+    style_tags = DesignStyleSerializer(many=True, read_only=True)
     primary_image = serializers.SerializerMethodField()
     uploaded_by_name = serializers.SerializerMethodField()
     uploaded_by_avatar = serializers.SerializerMethodField()
@@ -108,6 +109,7 @@ class ProductListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'slug', 'category', 'category_name', 'category_slug',
             'parent_category_id', 'parent_category_slug', 'parent_category_name',
+            'style_tags',
             'price', 'compare_at_price', 'staff_price', 'commission_rate', 'commission_amount',
             'pricing_mode', 'regional_pricing', 'resolved_pricing',
             'is_active', 'agreed_terms', 'uploaded_by', 'uploaded_by_name', 'uploaded_by_avatar',

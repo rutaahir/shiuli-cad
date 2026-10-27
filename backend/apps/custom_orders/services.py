@@ -67,6 +67,9 @@ def release_order_to_pool(order):
     settings_obj = get_platform_settings()
     assignment_mode = settings_obj.assignment_mode if settings_obj else "first_accept_wins"
 
+    if getattr(order, 'is_deleted', False):
+        return
+
     # Query all active staff users
     staff_profiles = StaffProfile.objects.filter(
         user__role=User.Role.STAFF,
@@ -80,7 +83,8 @@ def release_order_to_pool(order):
     for profile in staff_profiles:
         current_load = Order.objects.filter(
             assigned_staff=profile.user,
-            status=Order.Status.WITH_DESIGNER
+            status=Order.Status.WITH_DESIGNER,
+            is_deleted=False
         ).count()
         if current_load < profile.max_concurrent_jobs:
             eligible_staff.append(profile.user)
@@ -125,6 +129,9 @@ def accept_order(order_id, staff_user):
     with transaction.atomic():
         order = Order.objects.select_for_update().get(id=order_id)
 
+        if getattr(order, 'is_deleted', False):
+            raise OrderAlreadyTakenError("This order is no longer available.")
+
         if order.status != Order.Status.IN_DESIGN or order.assigned_staff is not None:
             raise OrderAlreadyTakenError("This order has already been accepted.")
 
@@ -133,7 +140,8 @@ def accept_order(order_id, staff_user):
 
         current_load = Order.objects.filter(
             assigned_staff=staff_user,
-            status=Order.Status.WITH_DESIGNER
+            status=Order.Status.WITH_DESIGNER,
+            is_deleted=False
         ).count()
 
         if current_load >= max_jobs:
@@ -176,6 +184,8 @@ def notify_order_taken(order, winning_staff):
 def complete_order(order_id, staff_user):
     """Marks an order as completed and handed over."""
     order = Order.objects.get(id=order_id)
+    if getattr(order, 'is_deleted', False):
+        raise InvalidOrderStateError("Order has been deleted.")
 
     if order.assigned_staff != staff_user:
         raise InvalidOrderStateError("You are not assigned to this order.")

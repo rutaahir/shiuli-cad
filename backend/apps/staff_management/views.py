@@ -37,8 +37,8 @@ class StaffViewSet(viewsets.ModelViewSet):
         if request.user.role != 'admin' and request.user != staff_user:
             return Response({"error": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
 
-        completed_orders = Order.objects.filter(assigned_staff=staff_user, status=Order.Status.COMPLETED)
-        active_orders = Order.objects.filter(assigned_staff=staff_user, status=Order.Status.WITH_DESIGNER)
+        completed_orders = Order.objects.filter(assigned_staff=staff_user, status=Order.Status.COMPLETED, is_deleted=False)
+        active_orders = Order.objects.filter(assigned_staff=staff_user, status=Order.Status.WITH_DESIGNER, is_deleted=False)
         profile = getattr(staff_user, 'staff_profile', None)
 
         return Response({
@@ -56,13 +56,14 @@ class StaffViewSet(viewsets.ModelViewSet):
         user = request.user
         profile = getattr(user, 'staff_profile', None)
 
-        active_orders = Order.objects.filter(assigned_staff=user, status=Order.Status.WITH_DESIGNER)
-        completed_count = Order.objects.filter(assigned_staff=user, status=Order.Status.COMPLETED).count()
+        active_orders = Order.objects.filter(assigned_staff=user, status=Order.Status.WITH_DESIGNER, is_deleted=False)
+        completed_count = Order.objects.filter(assigned_staff=user, status=Order.Status.COMPLETED, is_deleted=False).count()
 
         available_pool = Order.objects.filter(
             status=Order.Status.IN_DESIGN,
             assigned_staff__isnull=True,
-            advance_paid=True
+            advance_paid=True,
+            is_deleted=False
         ).count()
 
         return Response({

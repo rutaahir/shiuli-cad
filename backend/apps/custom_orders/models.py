@@ -302,6 +302,10 @@ class Order(models.Model):
     # Settlement Tracking (Stage 13)
     settlement_status = models.CharField(max_length=20, default='pending')
 
+    # Soft delete tracking
+    is_deleted = models.BooleanField(default=False, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
     unassigned_since = models.DateTimeField(null=True, blank=True)
     assigned_at = models.DateTimeField(null=True, blank=True)
     handed_over_at = models.DateTimeField(null=True, blank=True)

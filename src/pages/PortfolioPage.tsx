@@ -216,21 +216,10 @@ export const PortfolioPage: React.FC<PortfolioPageProps> = ({ onNavigate }) => {
           const mainOnly = cats.filter((c: any) => !c.parent && !isJunkCategory(c.name || c.slug));
           setDynamicCategories(mainOnly);
         }
-        if (data && data.length > 0) {
+        if (data && Array.isArray(data)) {
           setItems(data);
         } else {
-          const filtered = FALLBACK_PORTFOLIO_ITEMS.filter((item: any) => {
-            const matchesCat = !selectedCategory || (item.category_slug && (
-              item.category_slug === selectedCategory ||
-              item.category_slug.includes(selectedCategory) ||
-              (selectedCategory === 'rings' && item.category_slug.includes('ring') && !item.category_slug.includes('earring'))
-            ));
-            const matchesType = !selectedProjectType ||
-              (selectedProjectType === 'custom' && item.is_custom_project) ||
-              (selectedProjectType === 'ai' && item.is_ai_project);
-            return matchesCat && matchesType;
-          }) as PortfolioItemData[];
-          setItems(filtered);
+          setItems([]);
         }
       })
       .catch((err) => {

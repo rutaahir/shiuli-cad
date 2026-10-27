@@ -21,6 +21,10 @@ def sync_file_edit_to_order_pool(file_edit):
     if not order:
         order = Order.objects.filter(file_edit_request=file_edit).first()
 
+    if order and getattr(order, 'is_deleted', False):
+        logger.info(f"FileEditRequest #{file_edit.id} is linked to soft-deleted Order #{order.id}; skipping sync to pool.")
+        return order
+
     raw_price = Decimal(str(file_edit.agreed_price or file_edit.quoted_price or file_edit.estimated_price_shown or '100.00'))
     is_usd = (file_edit.currency or 'USD').upper() == 'USD'
     

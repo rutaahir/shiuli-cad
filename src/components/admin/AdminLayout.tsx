@@ -54,6 +54,80 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   const [showQuickNew, setShowQuickNew] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [orderResults, setOrderResults] = useState<any[]>([]);
+  const [customRequestResults, setCustomRequestResults] = useState<any[]>([]);
+  const [fileEditResults, setFileEditResults] = useState<any[]>([]);
+  const [isSearchingOrders, setIsSearchingOrders] = useState(false);
+
+  useEffect(() => {
+    if (!showCommandPalette || !searchQuery.trim()) {
+      setOrderResults([]);
+      setCustomRequestResults([]);
+      setFileEditResults([]);
+      setIsSearchingOrders(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearchingOrders(true);
+      const q = searchQuery.trim();
+      const qLower = q.toLowerCase();
+      const digitsMatches = q.match(/\d+/g);
+      const searchNum = digitsMatches ? parseInt(digitsMatches[digitsMatches.length - 1], 10) : null;
+
+      try {
+        const [ordersRes, customReqsRes, fileEditsRes] = await Promise.allSettled([
+          api.request<any>(`/orders/?search=${encodeURIComponent(q)}`),
+          api.getCustomRequests(),
+          api.getFileEditRequests(),
+        ]);
+
+        if (ordersRes.status === 'fulfilled') {
+          const res = ordersRes.value;
+          const list = Array.isArray(res) ? res : (res?.results || res?.data || []);
+          setOrderResults(list);
+        } else {
+          setOrderResults([]);
+        }
+
+        if (customReqsRes.status === 'fulfilled') {
+          const allReqs = (customReqsRes.value as any[]) || [];
+          const matched = allReqs.filter((r: any) => {
+            if (searchNum !== null && r.id === searchNum) return true;
+            if (r.contact_name?.toLowerCase().includes(qLower)) return true;
+            if (r.client?.username?.toLowerCase().includes(qLower)) return true;
+            if (r.client?.email?.toLowerCase().includes(qLower)) return true;
+            if (r.description?.toLowerCase().includes(qLower)) return true;
+            return false;
+          });
+          setCustomRequestResults(matched);
+        } else {
+          setCustomRequestResults([]);
+        }
+
+        if (fileEditsRes.status === 'fulfilled') {
+          const allEdits = (fileEditsRes.value as any[]) || [];
+          const matched = allEdits.filter((e: any) => {
+            if (searchNum !== null && e.id === searchNum) return true;
+            if (e.client_name?.toLowerCase().includes(qLower)) return true;
+            if (e.instructions?.toLowerCase().includes(qLower)) return true;
+            return false;
+          });
+          setFileEditResults(matched);
+        } else {
+          setFileEditResults([]);
+        }
+      } catch (err) {
+        setOrderResults([]);
+        setCustomRequestResults([]);
+        setFileEditResults([]);
+      } finally {
+        setIsSearchingOrders(false);
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, showCommandPalette]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -617,6 +691,150 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                     <span className="text-[10px] font-mono text-[#6B7280]">Jump to</span>
                   </button>
                 ))}
+              {/* Matching Orders & Requests */}
+              {isSearchingOrders ? (
+                <div className="p-3 text-center text-[11px] text-[#6B7280] flex items-center justify-center gap-2">
+                  <span className="w-3.5 h-3.5 border-2 border-[#C9A227] border-t-transparent rounded-full animate-spin" />
+                  <span>Searching orders &amp; requests...</span>
+                </div>
+              ) : (orderResults.length > 0 || customRequestResults.length > 0 || fileEditResults.length > 0) ? (
+                <div className="space-y-3 pt-2 border-t border-[#E8D7B7]/40">
+                  {/* Orders */}
+                  {orderResults.length > 0 && (
+                    <div className="space-y-1">
+                      <div className="px-3 py-1 font-mono text-[10px] uppercase text-[#6B7280] font-semibold flex items-center justify-between">
+                        <span>Matching Master Orders</span>
+                        <span className="text-[9px] text-[#B88732]">{orderResults.length} found</span>
+                      </div>
+                      {orderResults.map((order) => {
+                        const orderCode = `SCS-2026-${String(order.id).padStart(4, '0')}`;
+                        const clientName = order.client?.first_name
+                          ? `${order.client.first_name} ${order.client.last_name || ''}`.trim()
+                          : (order.custom_request?.contact_name || order.client?.username || 'Client');
+                        const reqId = order.custom_request?.id
+                          ? `REQ #${order.custom_request.id}`
+                          : (order.file_edit_request?.id ? `FILE #${order.file_edit_request.id}` : '');
+
+                        return (
+                          <button
+                            key={order.id}
+                            onClick={() => {
+                              onSelectModule('orders');
+                              setShowCommandPalette(false);
+                            }}
+                            className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-[#FAF8F5] text-left transition-colors border border-transparent hover:border-[#E8D7B7]/50"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <ShoppingBag className="w-4 h-4 text-[#C9A227] shrink-0" />
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-xs font-bold text-[#17345C]">
+                                    #{order.id} ({orderCode})
+                                  </span>
+                                  {reqId && (
+                                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                                      {reqId}
+                                    </span>
+                                  )}
+                                  {order.is_deleted ? (
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold uppercase bg-red-100 text-red-800 border border-red-300">
+                                      Deleted
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold uppercase bg-slate-100 text-slate-700">
+                                      {order.status}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[11px] text-[#6B7280] line-clamp-1">
+                                  Client: {clientName} • {order.product?.title || order.custom_request?.description || 'Custom CAD Order'}
+                                </div>
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-mono text-[#B88732] shrink-0">Open Master Orders →</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Custom Requests */}
+                  {customRequestResults.length > 0 && (
+                    <div className="space-y-1">
+                      <div className="px-3 py-1 font-mono text-[10px] uppercase text-[#6B7280] font-semibold flex items-center justify-between">
+                        <span>Matching Custom Requests</span>
+                        <span className="text-[9px] text-[#B88732]">{customRequestResults.length} found</span>
+                      </div>
+                      {customRequestResults.map((req) => (
+                        <button
+                          key={req.id}
+                          onClick={() => {
+                            onSelectModule('custom-requests');
+                            setShowCommandPalette(false);
+                          }}
+                          className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-[#FAF8F5] text-left transition-colors border border-transparent hover:border-[#E8D7B7]/50"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <MessageSquare className="w-4 h-4 text-[#C9A227] shrink-0" />
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-xs font-bold text-[#17345C]">
+                                  REQ #{req.id}
+                                </span>
+                                <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold uppercase bg-amber-100 text-amber-800 border border-amber-300">
+                                  {req.status}
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-[#6B7280] line-clamp-1">
+                                Contact: {req.contact_name || req.client?.username || 'Client'} • {req.description || 'Custom CAD Request'}
+                              </div>
+                            </div>
+                          </div>
+                          <span className="text-[10px] font-mono text-[#B88732] shrink-0">Open Custom Requests →</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* File Modifications */}
+                  {fileEditResults.length > 0 && (
+                    <div className="space-y-1">
+                      <div className="px-3 py-1 font-mono text-[10px] uppercase text-[#6B7280] font-semibold flex items-center justify-between">
+                        <span>Matching File Modifications</span>
+                        <span className="text-[9px] text-[#B88732]">{fileEditResults.length} found</span>
+                      </div>
+                      {fileEditResults.map((edit) => (
+                        <button
+                          key={edit.id}
+                          onClick={() => {
+                            onSelectModule('file-edits');
+                            setShowCommandPalette(false);
+                          }}
+                          className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-[#FAF8F5] text-left transition-colors border border-transparent hover:border-[#E8D7B7]/50"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Sliders className="w-4 h-4 text-[#C9A227] shrink-0" />
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-xs font-bold text-[#17345C]">
+                                  FILE #{edit.id}
+                                </span>
+                                <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold uppercase bg-blue-100 text-blue-800 border border-blue-300">
+                                  {edit.status}
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-[#6B7280] line-clamp-1">
+                                Client: {edit.client_name || 'Client'} • {edit.instructions || 'File Modification'}
+                              </div>
+                            </div>
+                          </div>
+                          <span className="text-[10px] font-mono text-[#B88732] shrink-0">Open File Edits →</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : null}
             </div>
 
             <div className="p-3 border-t border-[#E8D7B7] bg-[#FAF8F5] flex items-center justify-between text-[11px] text-[#6B7280]">

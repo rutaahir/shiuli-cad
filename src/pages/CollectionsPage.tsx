@@ -19,6 +19,7 @@ import {
   Layers,
   AlertTriangle,
   Lock,
+  Share2,
 } from 'lucide-react';
 import { RevealOnScroll } from '../components/motion/RevealOnScroll';
 import { StaggerGrid, StaggerItem } from '../components/motion/StaggerGrid';
@@ -30,6 +31,7 @@ import { getOptimizedImageUrl } from '../utils/imageHelper';
 import { isProductInCategory } from '../utils/categoryHelper';
 import { ProductPriceTag } from '../components/common/ProductPriceTag';
 import { useAuth } from '../context/AuthContext';
+import { ProductShareModal, ProductShareData } from '../components/common/ProductShareModal';
 
 interface CollectionsPageProps {
   initialCategory?: string;
@@ -78,6 +80,7 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
   const [sortBy, setSortBy] = useState<'popular' | 'price-asc' | 'price-desc' | 'newest'>('popular');
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [sharingProduct, setSharingProduct] = useState<ProductShareData | null>(null);
   const catalogTopRef = useRef<HTMLDivElement>(null);
 
   // ── Derived: max price across all products in customer currency ──
@@ -204,14 +207,18 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
           }
         }
 
-        // Style filter
+        // Style filter (supports both ID number and style name comparison)
         if (selectedStyleId !== 'all') {
           const sId = Number(selectedStyleId);
-          const hasStyle = (p.style_tags || []).some((st: any) =>
-            typeof st === 'number'
-              ? st === sId
-              : st.id === sId || st.name?.toLowerCase() === selectedStyleId.toLowerCase()
-          );
+          const hasStyle = (p.style_tags || []).some((st: any) => {
+            if (typeof st === 'number') return st === sId;
+            if (!st) return false;
+            return (
+              (sId && st.id === sId) ||
+              String(st.id) === selectedStyleId ||
+              (st.name && st.name.toLowerCase() === selectedStyleId.toLowerCase())
+            );
+          });
           if (!hasStyle) return false;
         }
 
@@ -744,19 +751,41 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
                               )}
                             </div>
 
-                            {/* Wishlist */}
-                            <button
-                              onClick={(e) => { e.stopPropagation(); onToggleWishlist(product); }}
-                              className={`absolute top-2 sm:top-3 right-2 sm:right-3 z-10 p-1.5 sm:p-2 rounded-full backdrop-blur-md transition-colors shadow-xs ${
-                                isWishlisted
-                                  ? 'bg-[#B88732] text-white'
-                                  : 'bg-white/95 text-[#0B1330] hover:text-[#B88732] border border-[#E8D7B7]/60'
-                              }`}
-                              title={isWishlisted ? 'Remove from Wishlist' : 'Add to Wishlist'}
-                              aria-label="Wishlist"
-                            >
-                              <Heart className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${isWishlisted ? 'fill-current' : ''}`} />
-                            </button>
+                            {/* Action Buttons: Wishlist & Share */}
+                            <div className="absolute top-2 sm:top-3 right-2 sm:right-3 z-10 flex items-center gap-1.5">
+                              {/* Share Button */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSharingProduct({
+                                    id: product.id,
+                                    title: product.title,
+                                    image: product.primaryImage,
+                                    category: product.category,
+                                    price: product.price,
+                                  });
+                                }}
+                                className="p-1.5 sm:p-2 rounded-full backdrop-blur-md transition-colors shadow-xs bg-white/95 text-[#0B1330] hover:text-[#B88732] border border-[#E8D7B7]/60 cursor-pointer"
+                                title="Share CAD File"
+                                aria-label="Share"
+                              >
+                                <Share2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#B88732]" />
+                              </button>
+
+                              {/* Wishlist */}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); onToggleWishlist(product); }}
+                                className={`p-1.5 sm:p-2 rounded-full backdrop-blur-md transition-colors shadow-xs cursor-pointer ${
+                                  isWishlisted
+                                    ? 'bg-[#B88732] text-white'
+                                    : 'bg-white/95 text-[#0B1330] hover:text-[#B88732] border border-[#E8D7B7]/60'
+                                }`}
+                                title={isWishlisted ? 'Remove from Wishlist' : 'Add to Wishlist'}
+                                aria-label="Wishlist"
+                              >
+                                <Heart className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${isWishlisted ? 'fill-current' : ''}`} />
+                              </button>
+                            </div>
 
                             {/* Quick View (Desktop) */}
                             <button
@@ -946,6 +975,13 @@ export const CollectionsPage: React.FC<CollectionsPageProps> = ({
           </div>
         </div>
       )}
+
+      {/* Product Share Modal */}
+      <ProductShareModal
+        product={sharingProduct}
+        isOpen={Boolean(sharingProduct)}
+        onClose={() => setSharingProduct(null)}
+      />
     </div>
   );
 };

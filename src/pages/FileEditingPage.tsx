@@ -331,7 +331,10 @@ Please confirm feasibility and provide the production quotation.`;
   };
 
   const handleSubmit = async () => {
-    if (!isLoggedIn) {
+    const hasToken = typeof window !== 'undefined' && Boolean(
+      localStorage.getItem('shiuli_access_token') || localStorage.getItem('shiuli_refresh_token')
+    );
+    if (!isLoggedIn && !hasToken) {
       setErrorMsg('Only logged-in clients can submit CAD file edit requests. Please sign in or register.');
       requireAuth(() => {
         handleSubmit();
@@ -340,6 +343,21 @@ Please confirm feasibility and provide the production quotation.`;
         message: 'Please sign in or create an account to submit your CAD file modification request.',
       });
       return;
+    }
+
+    // Auto-fill client details from saved user session if left blank
+    const savedUserStr = localStorage.getItem('shiuli_user');
+    const activeUser = user || (savedUserStr ? JSON.parse(savedUserStr) : null);
+    if (activeUser) {
+      if (!clientName.trim() && (activeUser.first_name || activeUser.username)) {
+        setClientName(`${activeUser.first_name || ''} ${activeUser.last_name || ''}`.trim() || activeUser.username);
+      }
+      if (!clientEmail.trim() && activeUser.email) {
+        setClientEmail(activeUser.email);
+      }
+      if (!clientPhone.trim() && activeUser.phone_number) {
+        setClientPhone(activeUser.phone_number);
+      }
     }
 
     // Comprehensive contextual validation
@@ -563,7 +581,14 @@ Please confirm feasibility and provide the production quotation.`;
                 <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
                   <button
                     type="button"
-                    onClick={() => openAuthModal('Please log in to submit your CAD file modification request.')}
+                    onClick={() => {
+                      requireAuth(() => {
+                        handleSubmit();
+                      }, {
+                        intent: 'custom-request',
+                        message: 'Please log in to submit your CAD file modification request.',
+                      });
+                    }}
                     className="flex-1 sm:flex-initial px-3.5 py-1.5 btn-gold-luxury text-[#17345C] font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
                   >
                     <LogIn className="w-3.5 h-3.5" /> Log In
@@ -1203,7 +1228,14 @@ Please confirm feasibility and provide the production quotation.`;
                 </div>
                 <button
                   type="button"
-                  onClick={() => openAuthModal('Please sign in to submit your CAD file modification request.')}
+                  onClick={() => {
+                    requireAuth(() => {
+                      handleSubmit();
+                    }, {
+                      intent: 'custom-request',
+                      message: 'Please sign in to submit your CAD file modification request.',
+                    });
+                  }}
                   className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#C99A45] via-[#D6AD62] to-[#B88735] text-[#17345C] font-bold text-xs shrink-0 shadow-sm hover:opacity-95 transition-all text-center cursor-pointer"
                 >
                   Sign In / Register
