@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { StaffMember, AdminModuleId, ActivityLogItem } from '../../types';
 import { api } from '../../services/api';
 import { getOptimizedImageUrl } from '../../utils/imageHelper';
@@ -52,7 +52,6 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
   activityLogs,
 }) => {
   const [selectedStaffDrawer, setSelectedStaffDrawer] = useState<StaffMember | null>(null);
-  const [chartRange, setChartRange] = useState<'7D' | '30D' | '90D'>('30D');
 
   // Real dynamic states
   const [orders, setOrders] = useState<any[]>([]);
@@ -74,10 +73,15 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
     setTimeout(() => setToastMessage(null), 4000);
   };
 
+  const initialLoadedRef = useRef(false);
+
   // Fetch all live data from backend APIs
   const fetchAllData = async (isManualRefresh = false) => {
-    if (isManualRefresh) setRefreshing(true);
-    else setLoading(true);
+    if (isManualRefresh) {
+      setRefreshing(true);
+    } else if (!initialLoadedRef.current) {
+      setLoading(true);
+    }
 
     try {
       try { api.ensureAdminToken(); } catch {}
@@ -116,6 +120,7 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
     } catch (err) {
       console.warn('[AdminOverview] Error fetching live dashboard data:', err);
     } finally {
+      initialLoadedRef.current = true;
       setLoading(false);
       setRefreshing(false);
     }
@@ -164,16 +169,12 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
 
   const totalOrdersCount = nonDeletedOrders.length;
 
-  // Active Master Orders where staff are CURRENTLY working (status with_designer, revision_requested, pending_review)
+  // Active Master Orders in studio pipeline (excluding completed/cancelled)
   const masterOrdersList = useMemo(() => {
     return nonDeletedOrders
-      .filter((o) => {
-        const hasStaff = Boolean(o.assigned_staff);
-        const isCurrentlyWorking = ['with_designer', 'revision_requested', 'pending_review'].includes(o.status);
-        return hasStaff && isCurrentlyWorking && !o.is_deleted;
-      })
+      .filter((o) => !['completed', 'cancelled'].includes(o.status) && !o.is_deleted)
       .map((o) => {
-        let staffName = 'Staff';
+        let staffName = 'Unassigned Pool';
         if (o.assigned_staff) {
           if (typeof o.assigned_staff === 'object') {
             const fullName = `${o.assigned_staff.first_name || ''} ${o.assigned_staff.last_name || ''}`.trim();
@@ -188,6 +189,7 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
           staffName,
           orderNumber,
           status: o.status,
+          totalPrice: o.total_price,
         };
       });
   }, [nonDeletedOrders]);
@@ -203,7 +205,7 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
 
   // Pending Approvals count (Quality reviews awaiting admin + pending designer applications)
   const pendingQualityReviews = useMemo(() => {
-    return orders.filter((o) => o.status === 'pending_review' || o.status === 'preview_ready');
+    return orders.filter((o) => o.status === 'pending_review');
   }, [orders]);
   const totalPendingApprovals = pendingQualityReviews.length + pendingAppsCount;
 
@@ -223,33 +225,38 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
     const orderSum = orders
       .filter((o) => ['completed', 'preview_ready', 'pending_final_payment', 'with_designer'].includes(o.status))
       .reduce((acc, o) => acc + (parseFloat(o.total_price) || 0), 0);
-    return orderSum > 0 ? orderSum : 184200;
+    return orderSum;
   }, [analyticsData, orders]);
+
+  // Helper to format wait time in professional human-readable format
+  const formatWaitTime = (totalMinutes: number) => {
+    if (totalMinutes < 60) return `${Math.max(1, totalMinutes)}m wait`;
+    const hours = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
+    if (hours < 24) return `${hours}h ${mins > 0 ? `${mins}m ` : ''}wait`;
+    const days = Math.floor(hours / 24);
+    const remHours = hours % 24;
+    return `${days}d ${remHours > 0 ? `${remHours}h ` : ''}wait`;
+  };
 
   // Orders Requiring Attention (Real urgent pipeline)
   const urgentOrders = useMemo(() => {
     // 1. Unassigned orders in pool
-    const unassigned = orders.filter((o) => !o.assigned_staff || o.status === 'in_design');
+    const unassigned = orders.filter((o) => (!o.assigned_staff || o.status === 'in_design') && !['completed', 'cancelled'].includes(o.status));
     // 2. Pending admin quality review
     const pendingRev = orders.filter((o) => o.status === 'pending_review');
     // 3. Overdue orders
-    const overdue = orders.filter((o) => o.is_overdue || (o.due_at && new Date(o.due_at) < new Date()));
+    const overdue = orders.filter((o) => (o.is_overdue || (o.due_at && new Date(o.due_at) < new Date())) && !['completed', 'cancelled'].includes(o.status));
     // 4. Revision requested
     const revisions = orders.filter((o) => o.status === 'revision_requested');
 
     // Combine uniquely by order ID
     const map = new Map<number, any>();
     [...unassigned, ...overdue, ...pendingRev, ...revisions].forEach((o) => {
-      if (!map.has(o.id)) map.set(o.id, o);
+      if (!map.has(o.id) && !o.is_deleted) map.set(o.id, o);
     });
 
-    const list = Array.from(map.values());
-
-    // Fallback if none exist in DB so the section always has actionable items
-    if (list.length === 0 && orders.length > 0) {
-      return orders.slice(0, 3);
-    }
-    return list;
+    return Array.from(map.values());
   }, [orders]);
 
   // Handle Quick Modeller Reassign / Assign
@@ -646,7 +653,7 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
               {urgentOrders.length === 0 ? (
                 <div className="py-8 text-center text-slate-500 space-y-2">
                   <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
-                  <p className="text-xs font-semibold text-[#17243B]">All Orders Assigned & On Track</p>
+                  <p className="text-xs font-semibold text-[#17243B]">All Orders Assigned &amp; On Track</p>
                   <p className="text-[11px] text-slate-400">No overdue orders or unassigned pool items.</p>
                 </div>
               ) : (
@@ -656,9 +663,13 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
                   const isEscalated = order.is_overdue || unassignedMinutes > escalationTimerMinutes;
 
                   const orderTitle =
-                    order.custom_request?.description ||
+                    order.custom_request?.category_name ? `Bespoke ${order.custom_request.category_name}` :
+                    (order.custom_request?.description?.match(/(?:Requirement|Category|Design Requirement):\s*([^\n•]+)/i)?.[1]?.trim()
+                      ? `Bespoke ${order.custom_request.description.match(/(?:Requirement|Category|Design Requirement):\s*([^\n•]+)/i)[1].trim()}`
+                      : null) ||
                     order.product?.title ||
-                    (order.custom_request?.category?.name ? `${order.custom_request.category.name} CAD Design` : 'Bespoke Custom CAD Design');
+                    order.custom_request?.title ||
+                    'Bespoke Custom CAD Design';
 
                   const clientName =
                     order.client?.first_name
@@ -666,6 +677,9 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
                       : (order.custom_request?.contact_name || order.client?.username || 'Client');
 
                   const orderCode = `SCS-2026-${String(order.id).padStart(4, '0')}`;
+                  const isAssigned = Boolean(order.assigned_staff);
+                  const isPendingQC = order.status === 'pending_review';
+                  const isRevision = order.status === 'revision_requested';
 
                   return (
                     <div
@@ -676,30 +690,30 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
                           : 'bg-[#E8A93B]/5 border-l-4 border-l-[#E8A93B] border-y-[#E8D7B7] border-r-[#E8D7B7]'
                       }`}
                     >
-                      <div className="flex items-start justify-between">
-                        <div>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
                           <span className="font-mono text-[10px] font-bold text-[#17345C]">
                             {orderCode}
                           </span>
-                          <h4 className="font-semibold text-xs text-[#17243B] line-clamp-1">{orderTitle}</h4>
+                          <h4 className="font-semibold text-xs text-[#17243B] truncate" title={orderTitle}>{orderTitle}</h4>
                           <div className="text-[10px] text-[#6B7280]">Client: {clientName}</div>
                         </div>
 
-                        <div className="text-right">
+                        <div className="text-right shrink-0">
                           <span
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
                               isEscalated
-                                ? 'bg-[#D14343] text-white animate-pulse'
+                                ? 'bg-[#D14343] text-white'
                                 : 'bg-[#E8A93B]/20 text-[#17243B]'
                             }`}
                           >
                             <Clock className="w-3 h-3" />
-                            <span>{unassignedMinutes}m wait</span>
+                            <span>{formatWaitTime(unassignedMinutes)}</span>
                           </span>
                           {isEscalated && (
                             <div className="text-[9px] text-[#D14343] font-bold mt-1 uppercase flex items-center justify-end gap-1">
                               <ShieldAlert className="w-3 h-3" />
-                              OVERDUE ESCALATED!
+                              {isPendingQC ? 'QC REVIEW NEEDED' : isRevision ? 'REVISION OVERDUE' : 'OVERDUE ESCALATED!'}
                             </div>
                           )}
                         </div>
@@ -709,16 +723,25 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
                         <span className="font-semibold text-[#17243B]">
                           {formatINR(order.total_price)}
                         </span>
-                        <button
-                          onClick={() => {
-                            setAssignModalOrder(order);
-                            setSelectedModellerId('');
-                            setAssignError(null);
-                          }}
-                          className="px-2.5 py-1 rounded-lg bg-[#17345C] hover:bg-[#12245E] text-white transition-colors text-[11px] font-medium cursor-pointer shadow-xs flex items-center gap-1"
-                        >
-                          <span>Assign Modeller Now</span>
-                        </button>
+                        {isPendingQC ? (
+                          <button
+                            onClick={() => onSelectModule('approvals')}
+                            className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors text-[11px] font-medium cursor-pointer shadow-xs flex items-center gap-1"
+                          >
+                            <span>Review Handover</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setAssignModalOrder(order);
+                              setSelectedModellerId(order.assigned_staff?.id ? String(order.assigned_staff.id) : '');
+                              setAssignError(null);
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-[#17345C] hover:bg-[#12245E] text-white transition-colors text-[11px] font-medium cursor-pointer shadow-xs flex items-center gap-1"
+                          >
+                            <span>{isAssigned ? 'Reassign Modeller' : 'Assign Modeller Now'}</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
@@ -738,163 +761,6 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
         </div>
       </div>
 
-      {/* Section 4 & 5: Revenue Chart & Activity Feed */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Revenue & Orders Chart */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-[#E8D7B7] p-5 shadow-sm space-y-4">
-          <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-3">
-            <div>
-              <h2 className="font-serif text-base font-bold text-[#17243B]">
-                Revenue & Orders Trend
-              </h2>
-              <p className="text-xs text-[#6B7280]">
-                Monthly performance overview across ready downloads & custom engineering.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-1 bg-[#FAF8F5] p-1 rounded-xl border border-[#E8D7B7] text-xs font-mono">
-              {(['7D', '30D', '90D'] as const).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setChartRange(r)}
-                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                    chartRange === r
-                      ? 'bg-[#17345C] text-white font-bold shadow-xs'
-                      : 'text-[#6B7280] hover:text-[#17243B]'
-                  }`}
-                >
-                  {r}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Graphic SVG Chart Simulation with dynamic points */}
-          <div className="h-64 w-full pt-4 flex flex-col justify-between relative">
-            <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20">
-              <div className="border-b border-[#6B7280]" />
-              <div className="border-b border-[#6B7280]" />
-              <div className="border-b border-[#6B7280]" />
-              <div className="border-b border-[#6B7280]" />
-            </div>
-
-            <svg className="w-full h-48 overflow-visible" viewBox="0 0 500 150">
-              <defs>
-                <linearGradient id="goldRevenueGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#C9A227" stopOpacity="0.25" />
-                  <stop offset="100%" stopColor="#C9A227" stopOpacity="0.0" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M 0 110 Q 50 80, 100 95 T 200 40 T 300 65 T 400 20 T 500 35 L 500 150 L 0 150 Z"
-                fill="url(#goldRevenueGrad)"
-              />
-              <path
-                d="M 0 110 Q 50 80, 100 95 T 200 40 T 300 65 T 400 20 T 500 35"
-                fill="none"
-                stroke="#C9A227"
-                strokeWidth="3"
-                className="drop-shadow-md"
-              />
-              <path
-                d="M 0 130 Q 50 110, 100 120 T 200 80 T 300 100 T 400 50 T 500 60"
-                fill="none"
-                stroke="#17345C"
-                strokeWidth="2"
-                strokeDasharray="4 4"
-              />
-            </svg>
-
-            <div className="flex justify-between text-[11px] font-mono text-[#6B7280] pt-2 border-t border-[#E8D7B7]">
-              <span>Week 1</span>
-              <span>Week 2</span>
-              <span>Week 3</span>
-              <span>Week 4 (Current)</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Activity Feed */}
-        <div className="bg-white rounded-2xl border border-[#E8D7B7] p-5 shadow-sm space-y-4">
-          <div className="border-b border-[#E8D7B7] pb-3 flex items-center justify-between">
-            <h2 className="font-serif text-base font-bold text-[#17243B]">Recent Studio Activity</h2>
-            <span className="text-[10px] font-mono text-[#6B7280]">Live feed</span>
-          </div>
-
-          <div className="space-y-4 max-h-72 overflow-y-auto pr-1">
-            {/* Real activities from orders */}
-            {orders.slice(0, 3).map((ord) => (
-              <div key={`ord-act-${ord.id}`} className="flex items-start gap-3 text-xs">
-                <div className="w-7 h-7 rounded-full bg-[#17345C] text-[#F5E7A3] font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5 border border-[#C9A227]/40">
-                  #{ord.id}
-                </div>
-                <div className="flex-1">
-                  <div>
-                    <strong className="text-[#17243B]">
-                      {ord.client?.first_name ? `${ord.client.first_name} ${ord.client.last_name || ''}`.trim() : (ord.client?.username || 'Client')}
-                    </strong>{' '}
-                    <span className="text-[#6B7280]">
-                      {ord.status === 'completed'
-                        ? 'completed CAD order'
-                        : ord.status === 'pending_review'
-                        ? 'submitted 3D model for review'
-                        : 'placed master CAD brief'}
-                    </span>
-                  </div>
-                  <div className="font-medium text-[#17345C] mt-0.5">
-                    {ord.custom_request?.description || ord.product?.title || 'Custom CAD Design'} ({formatINR(ord.total_price)})
-                  </div>
-                  <div className="text-[10px] text-[#6B7280] font-mono mt-1">
-                    {ord.created_at ? new Date(ord.created_at).toLocaleDateString() : 'Recent'}
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {/* Custom Requests activities */}
-            {customRequests.slice(0, 2).map((cr) => (
-              <div key={`cr-act-${cr.id}`} className="flex items-start gap-3 text-xs">
-                <div className="w-7 h-7 rounded-full bg-[#C9A227]/15 text-[#C9A227] font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5 border border-[#C9A227]/30">
-                  CR
-                </div>
-                <div className="flex-1">
-                  <div>
-                    <strong className="text-[#17243B]">{cr.contact_name || 'Client'}</strong>{' '}
-                    <span className="text-[#6B7280]">submitted custom design specification</span>
-                  </div>
-                  <div className="font-medium text-[#17345C] mt-0.5">
-                    {cr.description?.slice(0, 45) || 'Custom jewellery CAD'}
-                  </div>
-                  <div className="text-[10px] text-[#6B7280] font-mono mt-1">
-                    {cr.created_at ? new Date(cr.created_at).toLocaleDateString() : 'Recent'}
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {activityLogs.slice(0, 2).map((log) => (
-              <div key={log.id} className="flex items-start gap-3 text-xs">
-                <img
-                  src={
-                    log.userAvatar ||
-                    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80'
-                  }
-                  alt=""
-                  className="w-7 h-7 rounded-full object-cover border border-[#E8D7B7] mt-0.5"
-                />
-                <div className="flex-1">
-                  <div>
-                    <strong className="text-[#17243B]">{log.user}</strong>{' '}
-                    <span className="text-[#6B7280]">{log.action}</span>
-                  </div>
-                  <div className="font-medium text-[#17345C] mt-0.5">{log.target}</div>
-                  <div className="text-[10px] text-[#6B7280] font-mono mt-1">{log.timestamp}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
       {/* Staff Drawer Modal */}
       {selectedStaffDrawer && (

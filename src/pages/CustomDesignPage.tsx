@@ -208,6 +208,32 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
     return carat;
   }, [carat, customCarat]);
 
+  const fullMetalName = useMemo(() => {
+    if (material === 'Gold') {
+      return `${effectiveCarat} ${goldColor}`;
+    }
+    if (material === 'Platinum') {
+      return effectiveCarat.toLowerCase().includes('platinum') ? effectiveCarat : `${effectiveCarat} Platinum`;
+    }
+    if (material === 'Silver') {
+      return effectiveCarat.toLowerCase().includes('silver') ? effectiveCarat : `${effectiveCarat} Silver`;
+    }
+    return customMaterial.trim() || 'Custom Alloy';
+  }, [material, effectiveCarat, goldColor, customMaterial]);
+
+  const handleMaterialChange = (mat: 'Gold' | 'Silver' | 'Platinum' | 'Other') => {
+    setMaterial(mat);
+    if (mat === 'Platinum') {
+      setCarat('950 Platinum');
+    } else if (mat === 'Silver') {
+      setCarat('925 Sterling');
+    } else if (mat === 'Gold') {
+      setCarat('18K');
+    } else {
+      setCarat('Other');
+    }
+  };
+
   // Dynamic Expected Delivery Date calculation
   const expectedDateString = useMemo(() => {
     if (customDate) {
@@ -526,6 +552,7 @@ export const CustomDesignPage: React.FC<CustomDesignPageProps> = ({
 ✨ Metal & Carat Specifications:
 • Material: ${effectiveMaterial}
 • Carat / Purity: ${effectiveCarat}
+• Full Metal Alloy: ${fullMetalName}
 
 📎 Attached References:
 • Uploaded Pictures (${pictureFiles.length}): ${pictureNames}
@@ -637,6 +664,12 @@ Please confirm feasibility and provide the production CAD quotation.`;
 
       const fullOrderDetails = generateCompleteOrderText();
 
+      const categoryToSubmit =
+        selectedCatalogItem?.category?.name ||
+        selectedCatalogItem?.category_name ||
+        customDesignText.trim() ||
+        'Custom Jewellery';
+
       const formData = new FormData();
       formData.append('request_mode', 'step_by_step');
       formData.append('client_name', clientName.trim());
@@ -644,9 +677,11 @@ Please confirm feasibility and provide the production CAD quotation.`;
       formData.append('contact_phone', contactPhone.trim());
       formData.append('contact_email', contactEmail.trim());
       formData.append('title', designTitle);
+      formData.append('category', categoryToSubmit);
+      formData.append('category_name', categoryToSubmit);
       formData.append('description', fullOrderDetails);
       formData.append('special_instructions', additionalDetails.trim());
-      formData.append('metal_alloy_name', `${effectiveCarat} ${effectiveMaterial}`);
+      formData.append('metal_alloy_name', fullMetalName);
       formData.append('timeline', `${deliveryDays} Days`);
       formData.append('needed_by_date', neededByIsoDate);
       formData.append('submission_intent', 'place_order');
@@ -1029,11 +1064,17 @@ Please confirm feasibility and provide the production CAD quotation.`;
               {/* Attached catalogue product badge */}
               {selectedCatalogItem && (
                 <div className="flex items-center gap-3 p-2.5 rounded-xl bg-[#FFF9F0] border border-[#D6AD62] text-xs text-[#17345C]">
-                  <img
-                    src={selectedCatalogItem.image || selectedCatalogItem.primaryImage}
-                    alt=""
-                    className="w-10 h-10 rounded-lg object-contain bg-white border border-[#E8D7B7]"
-                  />
+                  {(selectedCatalogItem.image || selectedCatalogItem.primaryImage) ? (
+                    <img
+                      src={selectedCatalogItem.image || selectedCatalogItem.primaryImage}
+                      alt=""
+                      className="w-10 h-10 rounded-lg object-contain bg-white border border-[#E8D7B7]"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-white border border-[#E8D7B7] flex items-center justify-center text-[#B88735]">
+                      <Gem className="w-5 h-5" />
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="font-bold truncate">{selectedCatalogItem.title}</div>
                     <div className="text-xs text-[#475569] font-medium">Catalogue Reference Template</div>
@@ -1075,7 +1116,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
                       <button
                         key={mat}
                         type="button"
-                        onClick={() => setMaterial(mat)}
+                        onClick={() => handleMaterialChange(mat)}
                         className={`py-2 text-xs font-semibold rounded-xl border transition-all cursor-pointer ${
                           material === mat
                             ? 'bg-[#17345C] text-white border-[#17345C] shadow-xs'
@@ -1697,11 +1738,15 @@ Please confirm feasibility and provide the production CAD quotation.`;
                     }`}
                   >
                     <div className="w-full h-24 rounded-xl bg-white p-1 mb-2 border border-[#E8D7B7]/40 flex items-center justify-center overflow-hidden">
-                      <img
-                        src={item.image || item.primaryImage}
-                        alt={item.title}
-                        className="w-full h-full object-contain"
-                      />
+                      {(item.image || item.primaryImage) ? (
+                        <img
+                          src={item.image || item.primaryImage}
+                          alt={item.title}
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <Gem className="w-8 h-8 text-[#B88735]" />
+                      )}
                     </div>
                     <div className="space-y-0.5">
                       <div className="text-xs font-bold text-[#17345C] line-clamp-1">{item.title}</div>

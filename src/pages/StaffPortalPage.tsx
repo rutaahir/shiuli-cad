@@ -54,7 +54,7 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
   onNavigate,
   initialTab,
 }) => {
-  const { openAuthModal } = useAuth();
+  const { openAuthModal, user, isLoggedIn } = useAuth();
   const [activeTab, setActiveTabState] = useState<StaffPortalTab>(initialTab || 'workbench');
   const [selectedActiveJobId, setSelectedActiveJobId] = useState<string | null>(null);
   const [authWarning, setAuthWarning] = useState<string | null>(null);
@@ -103,11 +103,38 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
     }
     return DEFAULT_STAFF_FALLBACK;
   });
+
+  // Re-sync staff identity whenever user session changes
+  useEffect(() => {
+    if (user) {
+      const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username;
+      const isStaffOrAdmin = user.role === 'staff' || user.role === 'admin' || user.is_staff || user.is_superuser;
+      setStaff((prev) => ({
+        ...prev,
+        id: `STF-${user.id || '102'}`,
+        name: fullName || prev.name,
+        email: user.email || prev.email,
+        phone: user.phone_number || prev.phone,
+        avatar: user.profile_photo || prev.avatar,
+        role: (user as any).staff_profile?.specialty_tags || prev.role,
+        status: (user as any).is_active_staff !== false ? 'active' : 'inactive',
+        maxJobLimit: (user as any).staff_profile?.max_concurrent_jobs || prev.maxJobLimit || 3,
+        jobsCompleted: (user as any).staff_profile?.total_jobs_completed || prev.jobsCompleted,
+        rating: parseFloat((user as any).staff_profile?.rating_average || '5.0') || prev.rating,
+      }));
+      if (isStaffOrAdmin) {
+        setAuthWarning(null);
+      }
+    }
+  }, [user]);
+
   const [availableJobs, setAvailableJobs] = useState<AvailableJob[]>([]);
-  const [activeJobs, setActiveJobs] = useState<StaffActiveJob[]>(() => appStore.getActiveJobs());
+  const [activeJobs, setActiveJobs] = useState<StaffActiveJob[]>([]);
+  const [loadingActiveJobs, setLoadingActiveJobs] = useState<boolean>(true);
   const [submissions, setSubmissions] = useState<StaffSubmission[]>(() => appStore.getSubmissions());
   const [earnings, setEarnings] = useState<StaffEarningsRecord[]>([]);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
+  const [avgTurnaroundHours, setAvgTurnaroundHours] = useState<number>(24.0);
 
   // Wax-Seal Animation Overlay state
   const [waxSeal, setWaxSeal] = useState<WaxSealState>({
@@ -137,6 +164,8 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
               agreedPayout: rawPayout,
               clientBudget: rawPayout > 0 ? `₹${rawPayout.toLocaleString('en-IN')}` : '',
               deadlineHours: ord.deadline_hours || 48,
+              dueAt: ord.due_at,
+              neededByDate: fe?.needed_by_date,
               releasedTimeAgo: ord.unassigned_since
                 ? new Date(ord.unassigned_since).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 : 'Recently',
@@ -166,16 +195,29 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
           const stoneCount = (req?.stones && Array.isArray(req.stones) ? req.stones.length : 0) +
                              (req?.gemstones && Array.isArray(req.gemstones) ? req.gemstones.length : 0);
           const selMetal = req?.selections?.find((s: any) => s.group_key === 'metal' || s.group_label?.toLowerCase().includes('metal'));
-          const metalPreference = selMetal?.value_label || req?.metal_alloy_name || '';
+          const descStr = `${req?.description || ''} ${req?.special_instructions || ''}`;
+          const parsedCategory = descStr.match(/(?:Requirement|Category|Design Requirement):\s*([^\n\r•]+)/i)?.[1]?.trim();
+          const category = req?.category_name || (parsedCategory && parsedCategory.toLowerCase() !== 'null' ? parsedCategory : 'Custom Jewellery');
+          
+          const parsedMetal = descStr.match(/(?:Full Metal Specification|Full Metal Alloy|Alloy|Material):\s*([^\n\r•]+)/i)?.[1]?.trim();
+          const metalPreference = selMetal?.value_label || req?.metal_alloy_name || (parsedMetal && parsedMetal.toLowerCase() !== 'null' ? parsedMetal : '');
+
+          const parsedWeight = descStr.match(/(?:Weight|Target Weight):\s*([^\n\r•]+)/i)?.[1]?.trim();
+          const weightEst = req?.target_weight_grams ? `${req.target_weight_grams} gm` : (parsedWeight || (metalPreference ? `${metalPreference}` : 'As per brief'));
+
+          const parsedRingSize = descStr.match(/(?:Ring Size|Size):\s*([^\n\r•]+)/i)?.[1]?.trim();
+          const ringSize = req?.ring_size ? `${req.ring_size} (${req.ring_size_standard || 'US'})` : parsedRingSize;
 
           return {
             id: ord.id.toString(),
             orderNumber: `ORD-${ord.id}`,
-            title: req?.category_name ? `Bespoke ${req.category_name}` : `Custom Design #${ord.id}`,
-            category: req?.category_name || 'Custom Jewellery',
+            title: category && category !== 'Custom Jewellery' ? `Bespoke ${category}` : `Bespoke CAD Design #${ord.id}`,
+            category: category,
             agreedPayout: rawPayout,
             clientBudget: rawPayout > 0 ? `₹${rawPayout.toLocaleString('en-IN')}` : '',
             deadlineHours: ord.deadline_hours || 48,
+            dueAt: ord.due_at,
+            neededByDate: req?.needed_by_date,
             releasedTimeAgo: ord.unassigned_since
               ? new Date(ord.unassigned_since).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               : 'Recently',
@@ -184,8 +226,8 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
             metalPreference: metalPreference,
             specsSummary: {
               diamondCount: stoneCount,
-              weightEst: req?.target_weight_grams ? `${req.target_weight_grams} gm` : (metalPreference || 'As per CAD'),
-              ringSize: req?.ring_size ? `${req.ring_size} (${req.ring_size_standard || 'US'})` : undefined,
+              weightEst: weightEst,
+              ringSize: ringSize,
             },
             status: 'available',
             rawDetails: req,
@@ -209,13 +251,40 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
       };
       const orderList = ensureArray(res);
       if (orderList.length > 0) {
-        // Filter out finished/completed/delivered orders from active workbench tray
-        const activeOrders = orderList.filter(
-          (ord: any) => ord.status !== 'completed' && ord.status !== 'delivered'
-        );
-        const completedOrders = orderList.filter(
-          (ord: any) => ord.status === 'completed' || ord.status === 'delivered'
-        );
+        // Determine whether the craftsman's task on this order is fully completed
+        // "when whole process is completed ....like admin approve and aslo client not have any querry then make slot empty and move order to completed orders"
+        const isOrderFullyCompleted = (ord: any) => {
+          if (ord.status === 'completed' || ord.status === 'delivered') return true;
+          if (ord.status === 'cancelled') return false;
+
+          const milestones: any[] = ord.milestones || [];
+          const revisions: any[] = ord.revision_requests || [];
+          const hasOpenRevisions = revisions.some(
+            (r: any) => r.status === 'open' || r.status === 'in_progress'
+          ) || ord.status === 'revision_requested';
+
+          const isAdminApproved = Boolean(ord.quality_approved) || milestones.some((m: any) =>
+            (m.stage || '').toLowerCase().includes('approved by admin') ||
+            (m.stage || '').toLowerCase().includes('qc approved')
+          );
+
+          const isClientApproved = milestones.some((m: any) =>
+            (m.stage || '').toLowerCase().includes('approved by client') ||
+            (m.stage || '').toLowerCase().includes('preview approved')
+          );
+
+          // Admin approved AND client has no pending queries or revisions
+          if (isAdminApproved && !hasOpenRevisions) {
+            if (isClientApproved || ord.status === 'preview_ready' || ord.balance_paid) {
+              return true;
+            }
+          }
+
+          return false;
+        };
+
+        const activeOrders = orderList.filter((ord: any) => !isOrderFullyCompleted(ord) && ord.status !== 'cancelled');
+        const completedOrders = orderList.filter((ord: any) => isOrderFullyCompleted(ord));
 
         const mappedActive: StaffActiveJob[] = activeOrders.map((ord: any) => {
           const isFileEdit = ord.order_type === 'file_edit' || Boolean(ord.file_edit_request) || Boolean(ord.is_file_edit);
@@ -223,68 +292,79 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
           const req = ord.custom_request;
           const total = parseFloat(ord.total_price || '200');
 
-          // Dynamically compute real milestone and progress percentage from backend
+          // Compute milestone and progress strictly reflecting real CAD progress
           const milestones: any[] = ord.milestones || [];
           const deliverables: any[] = ord.deliverables || [];
           let currentMilestone: StaffActiveJob['currentMilestone'] = 'Just Accepted';
           let progressPercentage = 0;
 
-          const isClientApproved = milestones.some((m: any) => 
-            (m.stage || '').toLowerCase().includes('approved by client') || (m.stage || '').toLowerCase().includes('preview approved')
-          );
-
           if (ord.status === 'completed' || ord.status === 'delivered') {
             currentMilestone = 'Ready for Delivery';
             progressPercentage = 100;
-          } else if (isClientApproved) {
-            currentMilestone = 'Ready for Delivery';
-            progressPercentage = 95;
-          } else if (ord.status === 'pending_review') {
-            currentMilestone = 'Pending Review';
-            progressPercentage = 90;
-          } else if (ord.status === 'preview_ready') {
+          } else if (ord.status === 'pending_review' || ord.status === 'preview_ready') {
             currentMilestone = 'Refining';
             progressPercentage = 85;
-          } else if (milestones.length > 0) {
-            const stageNames = milestones.map((m: any) => m.stage);
-            if (stageNames.some((s: string) => s.includes('04.') || s.includes('Ready for Delivery') || s.includes('Final'))) {
-              currentMilestone = 'Ready for Delivery';
-              progressPercentage = 95;
-            } else if (stageNames.some((s: string) => s.includes('03.') || s.includes('Refining') || s.includes('Tolerances'))) {
-              currentMilestone = 'Refining';
-              progressPercentage = 85;
-            } else if (stageNames.some((s: string) => s.includes('02.') || s.includes('Modeling') || s.includes('Modifications'))) {
-              currentMilestone = 'Modeling';
-              progressPercentage = 60;
-            } else if (stageNames.some((s: string) => s.includes('01.') || s.includes('Started') || s.includes('Inspected'))) {
-              currentMilestone = 'Started';
-              progressPercentage = 25;
-            }
-          } else if (deliverables.length > 0) {
-            if (deliverables.length >= 3) {
-              currentMilestone = 'Refining';
-              progressPercentage = 85;
-            } else if (deliverables.length >= 2) {
-              currentMilestone = 'Modeling';
-              progressPercentage = 60;
-            } else {
-              currentMilestone = 'Started';
-              progressPercentage = 25;
-            }
           } else {
-            // Freshly accepted order: 0% real progress!
-            currentMilestone = 'Just Accepted';
-            progressPercentage = 0;
+            // Order is active with designer (with_designer or revision_requested)
+            // Progress strictly comes from craftsman milestone advancements or uploaded deliverables
+            const stageNames = milestones.map((m: any) => (m.stage || '').toLowerCase());
+            let highestIdx = -1;
+
+            if (stageNames.some((s: string) => s.includes('04.') || s.includes('ready for delivery') || s.includes('final stl export') || s.includes('watertight cad export'))) {
+              if (deliverables.length > 0) highestIdx = 3;
+              else highestIdx = 2;
+            } else if (stageNames.some((s: string) => s.includes('03.') || s.includes('refining') || s.includes('tolerances') || s.includes('admin qc'))) {
+              highestIdx = 2;
+            } else if (stageNames.some((s: string) => s.includes('02.') || s.includes('modeling') || s.includes('modifications') || s.includes('stone seats'))) {
+              highestIdx = 1;
+            } else if (stageNames.some((s: string) => s.includes('01.') || s.includes('started') || s.includes('mesh blocking') || s.includes('mesh inspected'))) {
+              highestIdx = 0;
+            }
+
+            // Fallback to deliverables count if no milestone markers clicked yet
+            if (highestIdx === -1) {
+              if (deliverables.length >= 3) highestIdx = 2;
+              else if (deliverables.length >= 2) highestIdx = 1;
+              else if (deliverables.length >= 1) highestIdx = 0;
+            }
+
+            if (highestIdx === 3) {
+              currentMilestone = 'Ready for Delivery';
+              progressPercentage = 100;
+            } else if (highestIdx === 2) {
+              currentMilestone = 'Refining';
+              progressPercentage = 85;
+            } else if (highestIdx === 1) {
+              currentMilestone = 'Modeling';
+              progressPercentage = 60;
+            } else if (highestIdx === 0) {
+              currentMilestone = 'Started';
+              progressPercentage = 25;
+            } else {
+              // 0 deliverables, no milestone stage clicked: 0% real progress!
+              currentMilestone = 'Just Accepted';
+              progressPercentage = 0;
+            }
           }
 
           let displayStatus: StaffActiveJob['status'] = 'With CAD Designer';
           if (ord.status === 'pending_review') {
             displayStatus = 'Pending Admin QC Review' as any;
           } else if (ord.status === 'preview_ready') {
-            displayStatus = isClientApproved 
-              ? 'Client Approved • Upload Master Deliverables' as any
-              : 'In Client 3D Review' as any;
+            displayStatus = 'In Client 3D Review' as any;
+          } else if (ord.status === 'revision_requested') {
+            displayStatus = 'Client Requested Adjustments' as any;
           }
+
+          // Real dynamic SLA target calculation
+          const nowMs = Date.now();
+          const targetTimeMs = ord.due_at
+            ? new Date(ord.due_at).getTime()
+            : (ord.assigned_at ? new Date(ord.assigned_at).getTime() : nowMs) + (ord.deadline_hours || 48) * 3600 * 1000;
+          const dynamicRemainingHours = Math.max(0, Math.round((targetTimeMs - nowMs) / (3600 * 1000)));
+          const deadlineText = ord.due_at
+            ? new Date(ord.due_at).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+            : `${ord.deadline_hours || 48} Hours`;
 
           if (isFileEdit && fe) {
             const formatStr = (fe.original_file_format || '3dm').toUpperCase();
@@ -295,8 +375,11 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
               category: `CAD File Modification (${formatStr})`,
               referenceImage: fe.reference_image || ord.preview_image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&q=80&w=600',
               acceptedAt: ord.assigned_at ? new Date(ord.assigned_at).toLocaleDateString() : 'Active',
-              deadline: 'In 48 Hours',
-              hoursRemaining: 48,
+              assignedAt: ord.assigned_at,
+              dueAt: ord.due_at,
+              deadlineHours: ord.deadline_hours || 48,
+              deadline: deadlineText,
+              hoursRemaining: dynamicRemainingHours,
               payoutAmount: Number(ord.staff_payout_price ?? ord.payout_price ?? (total ? Math.round(total * 0.8) : 0)),
               clientName: fe.contact_name || fe.client_display_name || ord.client?.first_name || 'Jewellery Atelier',
               clientNotes: fe.description || 'CAD File Modification',
@@ -323,8 +406,11 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
             category: req?.category_name || 'Custom Jewellery',
             referenceImage: req?.catalog_references?.[0]?.image || req?.reference_image || req?.sketches?.[0]?.image_url || req?.sketches?.[0]?.image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&q=80&w=600',
             acceptedAt: ord.assigned_at ? new Date(ord.assigned_at).toLocaleDateString() : 'Active',
-            deadline: 'In 48 Hours',
-            hoursRemaining: 48,
+            assignedAt: ord.assigned_at,
+            dueAt: ord.due_at,
+            deadlineHours: ord.deadline_hours || 48,
+            deadline: deadlineText,
+            hoursRemaining: dynamicRemainingHours,
             payoutAmount: Number(ord.staff_payout_price ?? ord.payout_price ?? (total ? Math.round(total * 0.8) : 0)),
             clientName: req?.contact_name || ord.client?.first_name || 'Jewellery Atelier',
             clientNotes: req?.description || 'Watertight 3D CAD design request.',
@@ -339,31 +425,78 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
         setStaff((prev) => ({
           ...prev,
           currentLoad: mappedActive.length,
-          jobsCompleted: Math.max(prev.jobsCompleted, completedOrders.length),
+          jobsCompleted: completedOrders.length,
         }));
+
+        // Dynamically compute real average turnaround hours from completed orders
+        if (completedOrders.length > 0) {
+          const list: number[] = [];
+          completedOrders.forEach((co: any) => {
+            const start = co.assigned_at ? new Date(co.assigned_at).getTime() : (co.created_at ? new Date(co.created_at).getTime() : null);
+            const end = co.handed_over_at ? new Date(co.handed_over_at).getTime() : (co.updated_at ? new Date(co.updated_at).getTime() : null);
+            if (start && end && end > start) {
+              list.push((end - start) / (3600 * 1000));
+            }
+          });
+          if (list.length > 0) {
+            const avg = list.reduce((a, b) => a + b, 0) / list.length;
+            setAvgTurnaroundHours(Math.round(avg * 10) / 10);
+          }
+
+          const mappedEarnings: StaffEarningsRecord[] = completedOrders.map((cord: any) => {
+            const total = parseFloat(cord.total_price || '200');
+            const payout = Number(cord.staff_payout_price ?? cord.payout_price ?? (total ? Math.round(total * 0.8) : 0));
+            const req = cord.custom_request;
+            const fe = cord.file_edit_request;
+            const title = fe?.original_file_name ? `CAD Modification: ${fe.original_file_name}` : req?.category_name ? `Bespoke ${req.category_name}` : `Custom Design #${cord.id}`;
+            const dateStr = cord.handed_over_at ? new Date(cord.handed_over_at).toISOString().split('T')[0] : (cord.updated_at ? new Date(cord.updated_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
+
+            return {
+              id: `EARN-ORD-${cord.id}`,
+              orderNumber: cord.order_type === 'file_edit' ? `FE-ORD-${cord.id}` : `ORD-${cord.id}`,
+              title: title,
+              completedDate: dateStr,
+              amount: payout,
+              status: cord.balance_paid ? 'Settled & Paid' : 'Pending Settlement',
+            };
+          });
+          setEarnings(mappedEarnings);
+        }
       }
     } catch (e) {
       console.warn('Failed to fetch my active jobs:', e);
+    } finally {
+      setLoadingActiveJobs(false);
     }
   };
 
   const fetchStaffDashboard = async () => {
+    const isStaffOrAdmin = Boolean(
+      user && (user.role === 'staff' || user.role === 'admin' || user.is_staff || user.is_superuser)
+    );
+
     try {
       const dash: any = await api.request('/staff/me/dashboard/');
       if (dash) {
         setAuthWarning(null);
+        if (dash.avg_turnaround_hours) {
+          setAvgTurnaroundHours(Number(dash.avg_turnaround_hours));
+        }
         setStaff((prev) => ({
           ...prev,
           name: `${dash.user?.first_name || ''} ${dash.user?.last_name || ''}`.trim() || dash.user?.username || prev.name,
           email: dash.user?.email || prev.email,
-          maxJobLimit: dash.max_concurrent_jobs || prev.maxJobLimit || 2,
+          maxJobLimit: dash.max_concurrent_jobs || prev.maxJobLimit || 3,
           currentLoad: dash.active_jobs_count ?? prev.currentLoad,
-          jobsCompleted: dash.total_completed ?? prev.jobsCompleted,
+          jobsCompleted: dash.total_completed !== undefined ? dash.total_completed : prev.jobsCompleted,
           rating: dash.user?.rating_average ? parseFloat(dash.user.rating_average) : prev.rating,
         }));
       }
     } catch (e: any) {
-      if (e?.status === 403 || e?.status === 401) {
+      if (isStaffOrAdmin) {
+        // Authenticated staff or admin should never be treated as guest
+        setAuthWarning(null);
+      } else if (e?.status === 403 || e?.status === 401) {
         setAuthWarning(
           'You are currently viewing the Artisan Portal in Guest / Preview Mode. Sign in with an authorized CAD Staff account (e.g. designer_rahul / staff123) or Admin to access real-time job assignments and live payouts.'
         );
@@ -434,7 +567,7 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
     fetchPoolJobs();
     fetchMyActiveJobs();
     fetchSettlements();
-  }, [activeTab]);
+  }, [activeTab, user]);
 
   // Action 1: Accept Job from Job Pool (First-Accept-Wins Race Mechanic)
   const handleAcceptJob = async (jobId: string) => {
@@ -555,8 +688,8 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
         }}
       />
 
-      {/* Staff Auth Notice Banner */}
-      {authWarning && (
+      {/* Staff Auth Notice Banner (only displayed for guest/unauthorized sessions) */}
+      {authWarning && (!user || (user.role !== 'staff' && user.role !== 'admin' && !user.is_staff && !user.is_superuser)) && (
         <div className="mb-5 p-4 rounded-2xl bg-[#FFF9F0] border border-[#E8D7B7] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-[#17345C] shadow-2xs animate-in fade-in">
           <div className="flex items-center gap-2.5">
             <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0 animate-pulse" />
@@ -576,6 +709,8 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
         <StaffWorkbenchTab
           staff={staff}
           activeJobs={activeJobs}
+          loading={loadingActiveJobs}
+          avgTurnaroundHours={avgTurnaroundHours}
           onOpenActiveWorkspace={handleOpenActiveWorkspace}
           onNavigateToTab={handleTabChange}
         />

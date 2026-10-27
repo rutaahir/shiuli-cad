@@ -201,8 +201,8 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
     <div className="w-full space-y-6">
       {/* Toast Banner */}
       {toastMsg && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl bg-[#09112B] border border-[#D4AF37] text-white text-xs shadow-2xl animate-in slide-in-from-bottom">
-          <CheckCircle2 className="w-4 h-4 text-[#D4AF37]" />
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl bg-[#17345C] border border-[#B88732] text-[#FFF9F0] text-xs shadow-2xl animate-in slide-in-from-bottom">
+          <CheckCircle2 className="w-4 h-4 text-[#B88732]" />
           <span>{toastMsg}</span>
         </div>
       )}
@@ -211,22 +211,22 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-[#E8D7B7] shadow-sm">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-[#09112B] text-[#F5E7A3] text-[10px] font-mono font-bold uppercase tracking-widest">
+            <span className="px-2.5 py-0.5 rounded-full bg-[#FFF9F0] text-[#B88732] border border-[#E8D7B7] text-[10px] font-mono font-bold uppercase tracking-widest shadow-2xs">
               Designer Workspace
             </span>
-            <span className="text-xs text-[#6B7280] font-mono">• My Uploaded CAD Designs</span>
+            <span className="text-xs text-[#687386] font-mono">• My Uploaded CAD Designs</span>
           </div>
           <h1 className="font-serif text-2xl font-bold text-[#17243B] tracking-tight">
-            My Designs & Storefront Catalog
+            My Designs &amp; Storefront Catalog
           </h1>
-          <p className="text-xs text-[#6B7280] max-w-2xl font-light">
+          <p className="text-xs text-[#687386] max-w-2xl font-light">
             Upload and manage your personal jewellery CAD models. Check real-time dynamic category commissions, monitor net earnings, and toggle designs active or disabled on the live storefront.
           </p>
         </div>
 
         <button
           onClick={handleOpenAdd}
-          className="btn-gold-luxury px-5 py-3 rounded-xl text-xs font-semibold uppercase tracking-wider shadow-md flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5 shrink-0"
+          className="btn-gold-luxury px-5 py-3 rounded-xl text-xs font-semibold uppercase tracking-wider shadow-md flex items-center justify-center gap-2 transition-all transform hover:-translate-y-0.5 shrink-0 cursor-pointer"
         >
           <Plus className="w-4 h-4 stroke-[3]" />
           <span>Add New Product</span>
@@ -276,7 +276,7 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
             <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-[#09112B] text-[#F5E7A3] text-[11px] font-mono uppercase tracking-wider">
+                <tr className="bg-[#FFF9F0] text-[#17345C] text-[11px] font-mono uppercase tracking-wider border-b border-[#E8D7B7] font-bold">
                   <th className="p-4 font-medium">Design & Title</th>
                   <th className="p-4 font-medium">Category</th>
                   <th className="p-4 font-medium">Pricing & Payout</th>
@@ -489,7 +489,7 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
                           onClick={() => setCurrentPage(pageNum as number)}
                           className={`min-w-7 h-7 px-2 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
                             activePage === pageNum
-                              ? 'bg-[#09112B] text-[#F5E7A3] shadow-xs'
+                              ? 'bg-[#17345C] text-[#FFF9F0] shadow-xs'
                               : 'bg-white text-[#17243B] border border-[#E8D7B7] hover:bg-slate-100'
                           }`}
                         >

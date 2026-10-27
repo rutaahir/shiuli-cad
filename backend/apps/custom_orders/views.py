@@ -972,10 +972,82 @@ class OrderViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({"error": f"Unable to stream deliverable: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    # SUBMIT & COMPLETE JOB ACTION (Pending Admin QC)
-    @action(detail=True, methods=['post'], permission_classes=[IsStaff], url_path='complete')
+    # SUBMIT & COMPLETE JOB ACTION (Pending Admin QC or Final Handover)
+    @action(detail=True, methods=['post'], permission_classes=[IsStaffOrAdmin], url_path='complete')
     def complete_order_action(self, request, pk=None):
-        return self.submit_for_review(request, pk)
+        order = self.get_object()
+        if getattr(order, 'is_deleted', False):
+            return Response({"error": "Order has been deleted."}, status=status.HTTP_404_NOT_FOUND)
+
+        # If order hasn't passed QC yet and has no deliverables, submit for review
+        if not order.quality_approved and order.status != Order.Status.PREVIEW_READY:
+            return self.submit_for_review(request, pk)
+
+        # Whole process completed: mark order completed, free the staff slot, and record handover
+        order.status = Order.Status.COMPLETED
+        order.handed_over_at = timezone.now()
+        order.save(update_fields=['status', 'handed_over_at'])
+
+        OrderMilestone.objects.create(
+            order=order,
+            stage=f"CAD Order #{order.id} Fully Completed & Handed Over"
+        )
+
+        if order.assigned_staff:
+            try:
+                from apps.payments.models import Settlement
+                Settlement.objects.get_or_create(
+                    order=order,
+                    staff=order.assigned_staff,
+                    defaults={
+                        'amount': order.calculate_staff_payout(),
+                        'status': Settlement.Status.PENDING
+                    }
+                )
+            except Exception:
+                pass
+
+        return Response({
+            "message": f"Order #{order.id} marked as completed. Workbench slot cleared.",
+            "status": "completed",
+            "order": StaffOrderSerializer(order, context={'request': request}).data
+        })
+
+    # ADMIN EXPLICIT MARK COMPLETED
+    @action(detail=True, methods=['post'], permission_classes=[IsAdmin], url_path='mark-complete')
+    def mark_complete(self, request, pk=None):
+        order = self.get_object()
+        if getattr(order, 'is_deleted', False):
+            return Response({"error": "Order has been deleted."}, status=status.HTTP_404_NOT_FOUND)
+
+        order.status = Order.Status.COMPLETED
+        order.quality_approved = True
+        order.handed_over_at = timezone.now()
+        order.save(update_fields=['status', 'quality_approved', 'handed_over_at'])
+
+        OrderMilestone.objects.create(
+            order=order,
+            stage=f"Order Marked Completed by Studio Super Admin"
+        )
+
+        if order.assigned_staff:
+            try:
+                from apps.payments.models import Settlement
+                Settlement.objects.get_or_create(
+                    order=order,
+                    staff=order.assigned_staff,
+                    defaults={
+                        'amount': order.calculate_staff_payout(),
+                        'status': Settlement.Status.PENDING
+                    }
+                )
+            except Exception:
+                pass
+
+        return Response({
+            "message": f"Order #{order.id} has been marked completed by Admin.",
+            "status": "completed"
+        })
 
     @action(detail=True, methods=['post'], permission_classes=[IsStaff], url_path='submit-for-review')
     def submit_for_review(self, request, pk=None):
@@ -1022,14 +1094,24 @@ class OrderViewSet(viewsets.ModelViewSet):
         order = self.get_object()
         if getattr(order, 'is_deleted', False):
             return Response({"error": "Cannot review a deleted order."}, status=status.HTTP_404_NOT_FOUND)
-        decision = request.data.get('decision')  # 'approve' or 'reject'
+        decision = request.data.get('decision') or request.data.get('action')  # 'approve' or 'reject'
         notes = request.data.get('notes', '')
 
         if decision == 'approve':
-            order.status = Order.Status.PREVIEW_READY
+            # Check if all stages are paid or balance is paid and no open revisions exist
+            has_open_revisions = order.revision_requests.filter(
+                status__in=[RevisionRequest.Status.OPEN, RevisionRequest.Status.IN_PROGRESS]
+            ).exists()
+
+            if (order.balance_paid or not order.payment_stages.exclude(status='paid').exists()) and not has_open_revisions:
+                order.status = Order.Status.COMPLETED
+                order.handed_over_at = timezone.now()
+            else:
+                order.status = Order.Status.PREVIEW_READY
+
             order.quality_approved = True
             order.admin_review_notes = notes
-            order.save(update_fields=['status', 'quality_approved', 'admin_review_notes'])
+            order.save(update_fields=['status', 'quality_approved', 'admin_review_notes', 'handed_over_at'] if order.handed_over_at else ['status', 'quality_approved', 'admin_review_notes'])
 
             OrderMilestone.objects.create(order=order, stage=f"3D CAD Preview v{order.current_version} Approved by Admin QC")
 
@@ -1135,6 +1217,16 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         from apps.payments.services import approve_design_preview_and_unlock_stage
         approve_design_preview_and_unlock_stage(order)
+
+        # If order passed QC and client has no open revisions, complete order and clear craftsman slot
+        has_open_revisions = order.revision_requests.filter(
+            status__in=[RevisionRequest.Status.OPEN, RevisionRequest.Status.IN_PROGRESS]
+        ).exists()
+        if order.quality_approved and not has_open_revisions and (order.balance_paid or not order.payment_stages.exclude(status='paid').exists()):
+            order.status = Order.Status.COMPLETED
+            order.handed_over_at = timezone.now()
+            order.save(update_fields=['status', 'handed_over_at'])
+
         return Response(ClientOrderSerializer(order, context={'request': request}).data)
 
     # STAGE 11B — CLIENT IN-APP REVISION REQUESTS (GET & POST)
@@ -1640,12 +1732,31 @@ class OrderViewSet(viewsets.ModelViewSet):
         category_id = data.get('category_id') or data.get('category')
         category = Category.objects.filter(id=int(category_id)).first() if category_id and str(category_id).isdigit() else None
         if not category and category_id:
-            category = Category.objects.filter(name__iexact=str(category_id)).first()
+            cat_str = str(category_id).strip()
+            category = (
+                Category.objects.filter(name__iexact=cat_str).first() or
+                Category.objects.filter(slug__iexact=cat_str).first() or
+                Category.objects.filter(slug__iexact=cat_str.replace(' ', '-').replace('&', 'and')).first()
+            )
+            if not category:
+                for c in Category.objects.all():
+                    if c.name.lower() in cat_str.lower() or cat_str.lower() in c.name.lower():
+                        category = c
+                        break
 
         metal_alloy_id = data.get('metal_alloy_id') or data.get('metal_alloy')
         metal_alloy = MetalAlloy.objects.filter(id=int(metal_alloy_id)).first() if metal_alloy_id and str(metal_alloy_id).isdigit() else None
         if not metal_alloy and metal_alloy_id:
-            metal_alloy = MetalAlloy.objects.filter(name__iexact=str(metal_alloy_id)).first()
+            ma_str = str(metal_alloy_id).strip()
+            metal_alloy = MetalAlloy.objects.filter(name__iexact=ma_str).first()
+            if not metal_alloy:
+                for m in MetalAlloy.objects.all():
+                    if m.name.lower() in ma_str.lower() or ma_str.lower() in m.name.lower():
+                        metal_alloy = m
+                        break
+            if not metal_alloy:
+                swatch = '#E5E7EB' if any(x in ma_str.lower() for x in ['platinum', 'white', 'silver']) else '#F3C544'
+                metal_alloy, _ = MetalAlloy.objects.get_or_create(name=ma_str, defaults={'swatch_color': swatch})
 
         ring_size = data.get('ring_size', '')
         ring_size_standard = data.get('ring_size_standard', 'US')
@@ -1692,44 +1803,89 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         order_status = Order.Status.WITH_DESIGNER if assigned_staff else Order.Status.IN_DESIGN
 
-        # 5. Create CustomRequest
-        custom_req = CustomRequest.objects.create(
-            client=client,
-            request_mode='direct',
-            status=CustomRequest.Status.AGREED,
-            category=category,
-            metal_alloy=metal_alloy,
-            ring_size=ring_size,
-            ring_size_standard=ring_size_standard,
-            target_weight_grams=Decimal(str(target_weight_grams)) if target_weight_grams else None,
-            description=description,
-            special_instructions=special_instructions,
-            needed_by_date=needed_by_date if needed_by_date else None,
-            agreed_price=total_price,
-            contact_name=client_name or client.get_full_name() or client.username,
-            contact_email=client_email or client.email,
-            contact_phone=client_phone or client.phone_number,
-            admin_call_notes=admin_call_notes
-        )
+        # 5. Link existing CustomRequest OR create new one
+        custom_request_id = data.get('custom_request_id')
+        custom_req = None
+        if custom_request_id and str(custom_request_id).isdigit():
+            custom_req = CustomRequest.objects.filter(id=int(custom_request_id)).first()
+            if custom_req:
+                custom_req.status = CustomRequest.Status.AGREED
+                custom_req.agreed_price = total_price
+                if category:
+                    custom_req.category = category
+                if metal_alloy:
+                    custom_req.metal_alloy = metal_alloy
+                if ring_size:
+                    custom_req.ring_size = ring_size
+                if ring_size_standard:
+                    custom_req.ring_size_standard = ring_size_standard
+                if target_weight_grams:
+                    custom_req.target_weight_grams = Decimal(str(target_weight_grams))
+                if needed_by_date:
+                    custom_req.needed_by_date = needed_by_date
+                if admin_call_notes:
+                    if custom_req.admin_call_notes and admin_call_notes not in custom_req.admin_call_notes:
+                        custom_req.admin_call_notes = f"{custom_req.admin_call_notes}\n\n{admin_call_notes}".strip()
+                    else:
+                        custom_req.admin_call_notes = admin_call_notes
+                custom_req.save()
 
-        # 6. Create Order
-        order = Order.objects.create(
-            client=client,
-            order_type=Order.OrderType.CUSTOM,
-            custom_request=custom_req,
-            assigned_staff=assigned_staff,
-            total_price=total_price,
-            admin_commission_percentage=commission_pct,
-            staff_payout_price=staff_payout_price,
-            advance_amount=advance_amount,
-            advance_paid=advance_paid,
-            deadline_hours=deadline_hours,
-            due_at=due_at,
-            status=order_status,
-            admin_call_notes=admin_call_notes,
-            assigned_at=timezone.now() if assigned_staff else None,
-            unassigned_since=None if assigned_staff else timezone.now()
-        )
+        if not custom_req:
+            custom_req = CustomRequest.objects.create(
+                client=client,
+                request_mode='direct',
+                status=CustomRequest.Status.AGREED,
+                category=category,
+                metal_alloy=metal_alloy,
+                ring_size=ring_size,
+                ring_size_standard=ring_size_standard,
+                target_weight_grams=Decimal(str(target_weight_grams)) if target_weight_grams else None,
+                description=description,
+                special_instructions=special_instructions,
+                needed_by_date=needed_by_date if needed_by_date else None,
+                agreed_price=total_price,
+                contact_name=client_name or client.get_full_name() or client.username,
+                contact_email=client_email or client.email,
+                contact_phone=client_phone or client.phone_number,
+                admin_call_notes=admin_call_notes
+            )
+
+        # 6. Create or update Order linked to custom_req
+        existing_order = Order.objects.filter(custom_request=custom_req).first() if custom_req else None
+        if existing_order:
+            order = existing_order
+            order.assigned_staff = assigned_staff
+            order.total_price = total_price
+            order.admin_commission_percentage = commission_pct
+            order.staff_payout_price = staff_payout_price
+            order.advance_amount = advance_amount
+            order.advance_paid = advance_paid
+            order.deadline_hours = deadline_hours
+            order.due_at = due_at
+            order.status = order_status
+            if admin_call_notes:
+                order.admin_call_notes = admin_call_notes
+            if assigned_staff and not order.assigned_at:
+                order.assigned_at = timezone.now()
+            order.save()
+        else:
+            order = Order.objects.create(
+                client=client,
+                order_type=Order.OrderType.CUSTOM,
+                custom_request=custom_req,
+                assigned_staff=assigned_staff,
+                total_price=total_price,
+                admin_commission_percentage=commission_pct,
+                staff_payout_price=staff_payout_price,
+                advance_amount=advance_amount,
+                advance_paid=advance_paid,
+                deadline_hours=deadline_hours,
+                due_at=due_at,
+                status=order_status,
+                admin_call_notes=admin_call_notes,
+                assigned_at=timezone.now() if assigned_staff else None,
+                unassigned_since=None if assigned_staff else timezone.now()
+            )
 
         # 7. Payment Stages
         stage0_status = OrderPaymentStage.Status.PAID if advance_paid else OrderPaymentStage.Status.DUE
@@ -1853,6 +2009,18 @@ class OrderViewSet(viewsets.ModelViewSet):
             req.target_weight_grams = Decimal(str(val)) if val else None
         if req and 'needed_by_date' in data:
             req.needed_by_date = data.get('needed_by_date') or None
+            if req.needed_by_date:
+                try:
+                    from datetime import datetime, time
+                    from django.utils.dateparse import parse_date
+                    nb_val = req.needed_by_date
+                    if isinstance(nb_val, str):
+                        nb_val = parse_date(nb_val)
+                    if nb_val:
+                        order.due_at = timezone.make_aware(datetime.combine(nb_val, time(23, 59, 59)))
+                        order.deadline_hours = max(1, int((order.due_at - timezone.now()).total_seconds() / 3600))
+                except Exception:
+                    pass
 
         # 3. Customer Info Updates
         client_name = data.get('client_name')
@@ -1899,15 +2067,29 @@ class OrderViewSet(viewsets.ModelViewSet):
             order.advance_paid = bool(data['advance_paid'])
 
         # 5. Deadlines & Schedule
-        if 'deadline_hours' in data and data['deadline_hours'] is not None:
+        if 'due_at' in data and data['due_at']:
             try:
-                order.deadline_hours = int(data['deadline_hours'])
-                order.due_at = (order.assigned_at or order.created_at or timezone.now()) + timedelta(hours=order.deadline_hours)
+                from django.utils.dateparse import parse_datetime, parse_date
+                from datetime import datetime, time
+                raw_due = data['due_at']
+                parsed = parse_datetime(str(raw_due))
+                if not parsed:
+                    p_date = parse_date(str(raw_due))
+                    if p_date:
+                        parsed = datetime.combine(p_date, time(23, 59, 59))
+                if parsed:
+                    if timezone.is_naive(parsed):
+                        parsed = timezone.make_aware(parsed)
+                    order.due_at = parsed
+                    order.deadline_hours = max(1, int((order.due_at - timezone.now()).total_seconds() / 3600))
             except Exception:
                 pass
-
-        if 'due_at' in data and data['due_at']:
-            order.due_at = data['due_at']
+        elif 'deadline_hours' in data and data['deadline_hours'] is not None:
+            try:
+                order.deadline_hours = int(data['deadline_hours'])
+                order.due_at = timezone.now() + timedelta(hours=order.deadline_hours)
+            except Exception:
+                pass
 
         # 6. Status
         old_status = order.status

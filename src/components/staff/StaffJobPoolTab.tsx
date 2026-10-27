@@ -18,7 +18,9 @@ import {
   CheckSquare,
   Download,
   Wrench,
-  Volume2
+  Volume2,
+  Calendar,
+  Maximize2
 } from 'lucide-react';
 
 interface StaffJobPoolTabProps {
@@ -81,14 +83,14 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
         </div>
 
         {/* Capacity Indicator Widget */}
-        <div className="px-4 py-3 rounded-2xl bg-[#09112B] text-white text-right shrink-0 shadow-md">
-          <div className="text-[10px] uppercase tracking-wider text-[#F5E7A3] font-mono">Workbench Capacity</div>
+        <div className="px-4 py-3 rounded-2xl bg-[#FFF9F0] border border-[#E8D7B7] text-[#17345C] text-right shrink-0 shadow-2xs">
+          <div className="text-[10px] uppercase tracking-wider text-[#B88732] font-mono font-bold">Workbench Capacity</div>
           <div className="text-base font-bold font-mono flex items-center justify-end gap-2 mt-0.5">
-            <span className={isFullCapacity ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold'}>
+            <span className={isFullCapacity ? 'text-rose-600 font-bold' : 'text-emerald-700 font-bold'}>
               {activeJobsCount} / {staff.maxJobLimit} Occupied
             </span>
-            <span className="text-[#C9C2A6] text-xs">
-              ({staff.maxJobLimit - activeJobsCount} Open)
+            <span className="text-[#687386] text-xs">
+              ({Math.max(0, staff.maxJobLimit - activeJobsCount)} Open)
             </span>
           </div>
         </div>
@@ -145,7 +147,7 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
                       </span>
                     )}
                   </div>
-                  <span className="px-2 py-0.5 rounded bg-[#09112B] text-[#F5E7A3] text-[10px] font-mono font-bold">
+                  <span className="px-2 py-0.5 rounded bg-[#17345C] text-[#FFF9F0] text-[10px] font-mono font-bold shadow-2xs">
                     {job.orderNumber}
                   </span>
                 </div>
@@ -210,6 +212,20 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
                         {job.specsSummary.ringSize}
                       </div>
                     )}
+                  </div>
+
+                  {/* Delivery Deadline / Target Schedule */}
+                  <div className="flex items-center justify-between text-xs py-2 px-3 rounded-xl bg-[#FFF9EE] border border-[#E8D7B7] text-[#17243B] font-mono shadow-2xs">
+                    <span className="flex items-center gap-1.5 text-[11px] text-[#8C6D2B] font-bold">
+                      <Clock className="w-3.5 h-3.5 text-[#B88732]" /> Target Deadline:
+                    </span>
+                    <span className="text-[11px] font-bold text-[#17243B]">
+                      {job.dueAt
+                        ? new Date(job.dueAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                        : job.neededByDate
+                        ? new Date(job.neededByDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                        : `${job.deadlineHours || 48}h SLA (${Math.round((job.deadlineHours || 48) / 24)}d)`}
+                    </span>
                   </div>
 
                   {/* Staff Payout Price Display (After Admin Commission Deducted) */}
@@ -277,369 +293,488 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
       )}
 
       {/* RIGHT SIDEBAR / SLIDE-OVER DRAWER FOR ORDER SPECIFICATIONS */}
+      {/* RIGHT SIDEBAR / SLIDE-OVER DRAWER FOR ORDER SPECIFICATIONS */}
       {selectedJobDrawer && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-end">
-          <div className="w-full max-w-xl bg-[#09112B] text-[#FAF8F3] h-full shadow-2xl p-6 sm:p-8 overflow-y-auto space-y-6 animate-in slide-in-from-right duration-300 border-l border-[#D4AF37]/30">
-            
-            {/* Drawer Header */}
-            <div className="flex items-center justify-between border-b border-white/10 pb-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full bg-[#12204D] border border-[#D4AF37]/40 text-[#F5E7A3] font-mono text-[10px] font-bold">
-                    {selectedJobDrawer.orderNumber}
-                  </span>
-                  <span className="text-xs font-mono text-[#C9C2A6]">
-                    Released {selectedJobDrawer.releasedTimeAgo}
-                  </span>
+        <div
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex justify-end animate-in fade-in duration-200"
+          onClick={() => setSelectedJobDrawer(null)}
+        >
+          <div
+            className="w-full max-w-2xl bg-gradient-to-b from-[#0B1536] via-[#09112B] to-[#060B1E] text-[#FAF8F3] h-full shadow-[0_0_60px_rgba(0,0,0,0.85),-5px_0_35px_rgba(212,175,55,0.15)] flex flex-col border-l border-[#D4AF37]/40 animate-in slide-in-from-right duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Top Luxury Gradient Hairline */}
+            <div className="h-1 w-full bg-gradient-to-r from-transparent via-[#F3E5AB] to-transparent shrink-0" />
+
+            {/* Fixed Drawer Header */}
+            <div className="p-5 sm:p-6 border-b border-white/10 bg-[#09112B]/95 backdrop-blur-md shrink-0 flex items-center justify-between">
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#D4AF37]/25 to-[#09112B] border border-[#D4AF37]/50 flex items-center justify-center text-[#F3E5AB] shrink-0 shadow-inner">
+                  <Sparkles className="w-5 h-5 text-[#D4AF37]" />
                 </div>
-                <h2 className="font-serif text-2xl font-bold text-[#FAF8F3] mt-1">
-                  {selectedJobDrawer.title}
-                </h2>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#12204D] border border-[#D4AF37]/40 text-[#F5E7A3] font-mono text-[10px] font-bold">
+                      {selectedJobDrawer.orderNumber}
+                    </span>
+                    <span className="text-xs font-mono text-[#C9C2A6]">
+                      Released {selectedJobDrawer.releasedTimeAgo}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-mono font-bold uppercase">
+                      Available In Pool
+                    </span>
+                  </div>
+                  <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#FAF8F3] mt-1 truncate">
+                    {selectedJobDrawer.title}
+                  </h2>
+                </div>
               </div>
               <button
                 onClick={() => setSelectedJobDrawer(null)}
-                className="p-2 rounded-xl text-[#C9C2A6] hover:text-[#FAF8F3] hover:bg-white/10 transition-colors"
+                className="p-2.5 rounded-full text-[#C9C2A6] hover:text-white hover:bg-white/10 border border-transparent hover:border-white/10 transition-all cursor-pointer shrink-0 ml-3"
+                title="Close Drawer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Modeller Payout Banner */}
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-[#0C1536] to-[#12204E] border border-[#D4AF37]/50 flex items-center justify-between shadow-lg">
-              <div>
-                <span className="text-xs font-mono uppercase font-bold text-[#F5E7A3] flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-[#D4AF37]" /> Modeller Commission Payout
-                </span>
-                <p className="text-[11px] text-slate-300 font-mono mt-0.5">
-                  Guaranteed net payout credited upon final watertight CAD approval
-                </p>
+            {/* Scrollable Content Body */}
+            <div className="flex-1 overflow-y-auto p-5 sm:p-7 space-y-6">
+              {/* Modeller Payout Banner */}
+              <div className="p-5 rounded-2xl bg-gradient-to-r from-[#0C1638] via-[#101F4E] to-[#0C1638] border border-[#D4AF37]/60 flex items-center justify-between shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-[#D4AF37]/5 rounded-full blur-2xl pointer-events-none" />
+                <div className="space-y-1 z-10">
+                  <span className="text-[11px] font-mono uppercase font-bold text-[#F5E7A3] flex items-center gap-1.5 tracking-wider">
+                    <Sparkles className="w-4 h-4 text-[#D4AF37]" /> Modeller Commission Payout
+                  </span>
+                  <p className="text-xs text-slate-300 font-sans">
+                    Guaranteed net earnings credited upon final watertight CAD approval
+                  </p>
+                </div>
+                <div className="text-right z-10 shrink-0 ml-4">
+                  <span className="text-3xl font-mono font-extrabold text-[#F5E7A3] tracking-tight block">
+                    {selectedJobDrawer.agreedPayout > 0 ? `₹${selectedJobDrawer.agreedPayout.toLocaleString('en-IN')}` : '₹—'}
+                  </span>
+                  <span className="text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-wider">
+                    ● 100% Guaranteed Payout
+                  </span>
+                </div>
               </div>
-              <div className="text-right">
-                <span className="text-2xl font-mono font-bold text-[#F5E7A3]">
-                  {selectedJobDrawer.agreedPayout > 0 ? `₹${selectedJobDrawer.agreedPayout.toLocaleString('en-IN')}` : '₹—'}
-                </span>
-              </div>
-            </div>
 
-            {/* Customer's Original CAD File Box (For File Editing Jobs) */}
-            {selectedJobDrawer.isFileEdit && (
-              <div className="p-4 rounded-2xl bg-[#06122C] border-2 border-cyan-500/40 space-y-3 shadow-lg">
+              {/* Target Production SLA & Delivery Deadline Schedule */}
+              <div className="p-4 rounded-2xl bg-[#091333] border border-[#D4AF37]/40 space-y-3 shadow-lg">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <span className="p-2 rounded-xl bg-cyan-950 text-cyan-400 border border-cyan-500/40">
-                      <Wrench className="w-5 h-5" />
-                    </span>
-                    <div>
-                      <span className="text-xs font-mono font-bold text-cyan-300 uppercase tracking-wider block">
-                        Customer's Original CAD Model
-                      </span>
-                      <span className="text-[11px] text-slate-300 font-mono">
-                        Format: .{selectedJobDrawer.originalFileFormat?.toUpperCase() || '3DM'} • {selectedJobDrawer.originalFileName || 'Customer_Model'}
-                      </span>
-                    </div>
-                  </div>
-                  {selectedJobDrawer.originalFileUrl && (
-                    <a
-                      href={selectedJobDrawer.originalFileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold font-mono flex items-center gap-1.5 shadow transition-all cursor-pointer"
-                    >
-                      <Download className="w-4 h-4" />
-                      <span>Download File</span>
-                    </a>
-                  )}
+                  <span className="text-xs font-mono uppercase font-bold text-[#F5E7A3] flex items-center gap-1.5 tracking-wide">
+                    <Clock className="w-4 h-4 text-[#D4AF37]" /> Target SLA &amp; Completion Schedule
+                  </span>
+                  <span className="px-3 py-1 rounded-full bg-amber-400/15 text-[#F5E7A3] border border-[#D4AF37]/40 text-[10px] font-mono font-bold shadow-2xs">
+                    ⏱ {selectedJobDrawer.deadlineHours || 48} Hours SLA
+                  </span>
                 </div>
 
-                {selectedJobDrawer.modificationTypes && selectedJobDrawer.modificationTypes.length > 0 && (
-                  <div>
-                    <span className="text-[10px] font-mono text-[#F5E7A3] uppercase font-bold block mb-1.5">
-                      Required Modifications:
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-3.5 rounded-xl bg-[#060D24] border border-white/10 space-y-1">
+                    <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">
+                      Target Due Date &amp; Time
                     </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {selectedJobDrawer.modificationTypes.map((mod: string, mIdx: number) => (
-                        <span key={mIdx} className="px-2.5 py-1 rounded-lg bg-cyan-900/60 text-cyan-200 border border-cyan-600/40 text-[11px] font-mono font-medium">
-                          ✓ {mod}
+                    <p className="text-xs font-mono font-bold text-[#FAF8F3]">
+                      {selectedJobDrawer.dueAt
+                        ? new Date(selectedJobDrawer.dueAt).toLocaleString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : selectedJobDrawer.neededByDate
+                        ? new Date(selectedJobDrawer.neededByDate + 'T00:00:00').toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })
+                        : `Within ${selectedJobDrawer.deadlineHours || 48}h of accepting`}
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-[#060D24] border border-white/10 space-y-1">
+                    <span className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">
+                      Turnaround Schedule
+                    </span>
+                    <p className="text-xs font-mono font-bold text-emerald-400 capitalize">
+                      {selectedJobDrawer.rawDetails?.timeline
+                        ? selectedJobDrawer.rawDetails.timeline === 'standard'
+                          ? 'Standard Delivery (2–3 Days)'
+                          : selectedJobDrawer.rawDetails.timeline === 'express'
+                          ? 'Express Priority (24–48 Hours)'
+                          : selectedJobDrawer.rawDetails.timeline === 'urgent'
+                          ? 'Urgent Priority (24 Hours)'
+                          : selectedJobDrawer.rawDetails.timeline
+                        : `${Math.round((selectedJobDrawer.deadlineHours || 48) / 24)} Days Delivery`}
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-[#C9C2A6] font-mono flex items-center gap-1.5 pt-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping shrink-0" />
+                  Realtime countdown begins immediately upon securing this commission.
+                </p>
+              </div>
+
+              {/* Customer's Original CAD File Box (For File Editing Jobs) */}
+              {selectedJobDrawer.isFileEdit && (
+                <div className="p-4 rounded-2xl bg-[#06122C] border-2 border-cyan-500/40 space-y-3 shadow-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <span className="p-2 rounded-xl bg-cyan-950 text-cyan-400 border border-cyan-500/40">
+                        <Wrench className="w-5 h-5" />
+                      </span>
+                      <div>
+                        <span className="text-xs font-mono font-bold text-cyan-300 uppercase tracking-wider block">
+                          Customer's Original CAD Model
                         </span>
+                        <span className="text-[11px] text-slate-300 font-mono">
+                          Format: .{selectedJobDrawer.originalFileFormat?.toUpperCase() || '3DM'} • {selectedJobDrawer.originalFileName || 'Customer_Model'}
+                        </span>
+                      </div>
+                    </div>
+                    {selectedJobDrawer.originalFileUrl && (
+                      <a
+                        href={selectedJobDrawer.originalFileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold font-mono flex items-center gap-1.5 shadow transition-all cursor-pointer"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>Download File</span>
+                      </a>
+                    )}
+                  </div>
+
+                  {selectedJobDrawer.modificationTypes && selectedJobDrawer.modificationTypes.length > 0 && (
+                    <div>
+                      <span className="text-[10px] font-mono text-[#F5E7A3] uppercase font-bold block mb-1.5">
+                        Required Modifications:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedJobDrawer.modificationTypes.map((mod: string, mIdx: number) => (
+                          <span key={mIdx} className="px-2.5 py-1 rounded-lg bg-cyan-900/60 text-cyan-200 border border-cyan-600/40 text-[11px] font-mono font-medium">
+                            ✓ {mod}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedJobDrawer.voiceNoteUrl && (
+                    <div className="p-3 rounded-xl bg-[#03091A] border border-cyan-500/30 space-y-1.5">
+                      <span className="text-[10px] font-mono text-cyan-300 flex items-center gap-1.5 font-bold">
+                        <Volume2 className="w-4 h-4" /> Customer Audio Instructions:
+                      </span>
+                      <audio controls src={selectedJobDrawer.voiceNoteUrl} className="w-full h-8" />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Primary Visual Preview with Enlarge Option */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-mono uppercase tracking-wider text-[#D4AF37] font-bold">
+                    Client Design Reference &amp; Visuals
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveZoomSketch(selectedJobDrawer.referenceImage)}
+                    className="text-[11px] text-[#F3E5AB] hover:underline flex items-center gap-1 font-mono font-semibold cursor-pointer"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5" /> Enlarge Photo
+                  </button>
+                </div>
+                <div
+                  onClick={() => setActiveZoomSketch(selectedJobDrawer.referenceImage)}
+                  className="relative aspect-video rounded-2xl overflow-hidden border border-white/10 bg-[#060B1E] group cursor-pointer shadow-lg"
+                >
+                  <img
+                    src={selectedJobDrawer.referenceImage}
+                    alt={selectedJobDrawer.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-mono font-bold gap-2">
+                    <Maximize2 className="w-4 h-4 text-[#D4AF37]" /> Click to view high-resolution photo
+                  </div>
+                </div>
+
+                {/* Studio Catalog Design References */}
+                {selectedJobDrawer.rawDetails?.catalog_references && selectedJobDrawer.rawDetails.catalog_references.length > 0 && (
+                  <div className="pt-2">
+                    <span className="text-[10px] font-mono text-[#D4AF37] uppercase font-bold block mb-1.5 flex items-center gap-1">
+                      <CheckSquare className="w-3 h-3" /> Studio Catalog References ({selectedJobDrawer.rawDetails.catalog_references.length})
+                    </span>
+                    <div className="grid grid-cols-1 gap-2">
+                      {selectedJobDrawer.rawDetails.catalog_references.map((catRef: any, cIdx: number) => (
+                        <div
+                          key={cIdx}
+                          onClick={() => catRef.image && setActiveZoomSketch(catRef.image)}
+                          className="p-2.5 rounded-xl bg-[#070D22] border border-[#D4AF37]/30 hover:border-[#D4AF37] flex items-center gap-3 cursor-pointer transition-all hover:bg-[#0c1436]"
+                        >
+                          {catRef.image ? (
+                            <img src={catRef.image} alt={catRef.title} className="w-12 h-12 rounded-lg object-cover border border-white/10 shrink-0" />
+                          ) : (
+                            <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center text-[10px] text-[#C9C2A6] shrink-0 font-mono">CAD</div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <span className="text-[10px] font-mono text-[#D4AF37] block font-bold">{catRef.sku || `SKU-${catRef.id}`}</span>
+                            <p className="text-xs font-semibold text-[#FAF8F3] truncate">{catRef.title}</p>
+                            <span className="text-[9px] text-[#C9C2A6] block">Click to enlarge reference photo</span>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {selectedJobDrawer.voiceNoteUrl && (
-                  <div className="p-3 rounded-xl bg-[#03091A] border border-cyan-500/30 space-y-1.5">
-                    <span className="text-[10px] font-mono text-cyan-300 flex items-center gap-1.5 font-bold">
-                      <Volume2 className="w-4 h-4" /> Customer Audio Instructions:
+                {/* Multiple Uploaded Sketches Gallery */}
+                {selectedJobDrawer.rawDetails?.sketches && selectedJobDrawer.rawDetails.sketches.length > 0 && (
+                  <div className="pt-2">
+                    <span className="text-[10px] font-mono text-[#C9C2A6] block mb-1 font-bold">
+                      Uploaded Sketches &amp; Moodboard ({selectedJobDrawer.rawDetails.sketches.length})
                     </span>
-                    <audio controls src={selectedJobDrawer.voiceNoteUrl} className="w-full h-8" />
+                    <div className="flex flex-wrap gap-2">
+                      {selectedJobDrawer.rawDetails.sketches.map((sk: any) => {
+                        const imgUrl = sk.image_url || sk.image;
+                        return (
+                          <img
+                            key={sk.id}
+                            src={imgUrl}
+                            alt="Sketch"
+                            onClick={() => setActiveZoomSketch(imgUrl)}
+                            className="w-16 h-16 rounded-xl object-cover border border-white/20 hover:border-[#D4AF37] cursor-pointer transition-all hover:scale-105 shadow-md"
+                          />
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
-            )}
 
-            {/* Primary Visual Preview */}
-            <div className="space-y-2">
-              <span className="text-[11px] font-mono uppercase tracking-wider text-[#D4AF37] font-bold">
-                Client Design Reference &amp; Visuals
-              </span>
-              <div className="relative aspect-video rounded-2xl overflow-hidden border border-white/10 bg-[#060B1E]">
-                <img
-                  src={selectedJobDrawer.referenceImage}
-                  alt={selectedJobDrawer.title}
-                  className="w-full h-full object-cover"
-                />
+              {/* Full Technical Specifications Grid */}
+              <div className="space-y-3">
+                <span className="text-[11px] font-mono uppercase tracking-wider text-[#D4AF37] font-bold">
+                  Core Jewellery Parameters
+                </span>
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="p-3.5 rounded-xl bg-[#0B1536] border border-white/10 space-y-1">
+                    <span className="text-[10px] font-mono text-[#C9C2A6] uppercase tracking-wider">Category</span>
+                    <p className="font-bold text-[#FAF8F3] text-sm">{selectedJobDrawer.category}</p>
+                  </div>
+                  
+                  <div className="p-3.5 rounded-xl bg-[#0B1536] border border-white/10 space-y-1">
+                    <span className="text-[10px] font-mono text-[#C9C2A6] uppercase tracking-wider">Metal Alloy</span>
+                    <p className="font-bold text-[#FAF8F3] text-sm">
+                      {selectedJobDrawer.metalPreference || selectedJobDrawer.rawDetails?.metal_alloy_name || selectedJobDrawer.specsSummary?.weightEst || '18K Standard / As per Brief'}
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-[#0B1536] border border-white/10 space-y-1">
+                    <span className="text-[10px] font-mono text-[#C9C2A6] uppercase tracking-wider">Target Weight</span>
+                    <p className="font-bold text-[#FAF8F3] text-sm">
+                      {selectedJobDrawer.rawDetails?.target_weight_grams 
+                        ? `${selectedJobDrawer.rawDetails.target_weight_grams} grams` 
+                        : (selectedJobDrawer.specsSummary?.weightEst || 'Standard CAD Casting')}
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-[#0B1536] border border-white/10 space-y-1">
+                    <span className="text-[10px] font-mono text-[#C9C2A6] uppercase tracking-wider">Ring Sizing</span>
+                    <p className="font-bold text-[#FAF8F3] text-sm">
+                      {selectedJobDrawer.rawDetails?.ring_size 
+                        ? `Size ${selectedJobDrawer.rawDetails.ring_size} (${selectedJobDrawer.rawDetails.ring_size_standard || 'US'})`
+                        : (selectedJobDrawer.specsSummary?.ringSize || 'Standard Sizing')}
+                    </p>
+                  </div>
+
+                  {selectedJobDrawer.rawDetails?.aesthetic_style_name && (
+                    <div className="p-3.5 rounded-xl bg-[#0B1536] border border-white/10 space-y-1">
+                      <span className="text-[10px] font-mono text-[#C9C2A6] uppercase tracking-wider">Aesthetic Style</span>
+                      <p className="font-bold text-[#FAF8F3] text-sm">{selectedJobDrawer.rawDetails.aesthetic_style_name}</p>
+                    </div>
+                  )}
+
+                  <div className="p-3.5 rounded-xl bg-[#0B1536] border border-white/10 space-y-1">
+                    <span className="text-[10px] font-mono text-[#C9C2A6] uppercase tracking-wider">Complexity Tier</span>
+                    <p className="font-bold text-[#F5E7A3] text-sm">{selectedJobDrawer.rawDetails?.budget_range || 'Atelier Bespoke Tier'}</p>
+                  </div>
+
+                  {(selectedJobDrawer.dueAt || selectedJobDrawer.rawDetails?.needed_by_date || selectedJobDrawer.neededByDate) && (
+                    <div className="p-3.5 rounded-xl bg-[#0B1536] border border-white/10 space-y-1 col-span-2">
+                      <span className="text-[10px] font-mono text-[#C9C2A6] uppercase tracking-wider">Delivery Target Date</span>
+                      <p className="font-bold text-[#F5E7A3] text-sm">
+                        {selectedJobDrawer.dueAt
+                          ? new Date(selectedJobDrawer.dueAt).toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' })
+                          : new Date((selectedJobDrawer.neededByDate || selectedJobDrawer.rawDetails?.needed_by_date) + 'T00:00:00').toLocaleDateString('en-US', { dateStyle: 'full' })}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Studio Catalog Design References */}
-              {selectedJobDrawer.rawDetails?.catalog_references && selectedJobDrawer.rawDetails.catalog_references.length > 0 && (
-                <div className="pt-2">
-                  <span className="text-[10px] font-mono text-[#D4AF37] uppercase font-bold block mb-1.5 flex items-center gap-1">
-                    <CheckSquare className="w-3 h-3" /> Studio Catalog References ({selectedJobDrawer.rawDetails.catalog_references.length})
-                  </span>
-                  <div className="grid grid-cols-1 gap-2">
-                    {selectedJobDrawer.rawDetails.catalog_references.map((catRef: any, cIdx: number) => (
-                      <div
-                        key={cIdx}
-                        onClick={() => catRef.image && setActiveZoomSketch(catRef.image)}
-                        className="p-2.5 rounded-xl bg-[#070D22] border border-[#D4AF37]/30 hover:border-[#D4AF37] flex items-center gap-3 cursor-pointer transition-all hover:bg-[#0c1436]"
-                      >
-                        {catRef.image ? (
-                          <img src={catRef.image} alt={catRef.title} className="w-12 h-12 rounded-lg object-cover border border-white/10 shrink-0" />
-                        ) : (
-                          <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center text-[10px] text-[#C9C2A6] shrink-0 font-mono">CAD</div>
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <span className="text-[10px] font-mono text-[#D4AF37] block font-bold">{catRef.sku || `SKU-${catRef.id}`}</span>
-                          <p className="text-xs font-semibold text-[#FAF8F3] truncate">{catRef.title}</p>
-                          <span className="text-[9px] text-[#C9C2A6] block">Click to enlarge reference photo</span>
+              {/* Gemstones & Stone Configurations */}
+              <div className="space-y-2">
+                <span className="text-[11px] font-mono uppercase tracking-wider text-[#D4AF37] font-bold flex items-center gap-1.5">
+                  <Gem className="w-3.5 h-3.5" />
+                  Gemstones &amp; Diamond Setting Plan
+                </span>
+                {selectedJobDrawer.rawDetails?.is_metal_only ? (
+                  <div className="p-3.5 rounded-xl bg-[#0B1536] border border-white/10 text-xs text-[#C9C2A6]">
+                    Metal Only piece — No stone seats or prongs required.
+                  </div>
+                ) : selectedJobDrawer.rawDetails?.stones && selectedJobDrawer.rawDetails.stones.length > 0 ? (
+                  <div className="p-3.5 rounded-xl bg-[#0B1536] border border-white/10 space-y-2 text-xs">
+                    {selectedJobDrawer.rawDetails.stones.map((st: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between border-b border-white/5 pb-2 last:border-0 last:pb-0 gap-2">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-[#FAF8F3]">{st.stone_type || 'Diamond'} ({st.shape || 'Standard'})</span>
+                            {st.is_center_stone && (
+                              <span className="px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/40 font-mono text-[9px] font-bold uppercase">
+                                Center Stone
+                              </span>
+                            )}
+                          </div>
+                          {[st.clarity, st.color].filter(Boolean).length > 0 && (
+                            <div className="text-[10px] font-mono text-[#C9C2A6] mt-0.5">
+                              Grade: {[st.clarity, st.color].filter(Boolean).join(' • ')}
+                            </div>
+                          )}
                         </div>
+                        <div className="text-right font-mono text-xs">
+                          <span className="text-[#F5E7A3] font-bold block">
+                            {st.quantity || st.count || 1}x {st.size_value ? `(${st.size_value} ${st.size_unit || 'ct'})` : ''}
+                          </span>
+                          <span className="text-[#C9C2A6] text-[10px]">{st.setting_style || 'Prong'}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : selectedJobDrawer.rawDetails?.gemstones && selectedJobDrawer.rawDetails.gemstones.length > 0 ? (
+                  <div className="p-3.5 rounded-xl bg-[#0B1536] border border-white/10 space-y-2 text-xs">
+                    {selectedJobDrawer.rawDetails.gemstones.map((gem: any, idx: number) => (
+                      <div key={idx} className="flex justify-between border-b border-white/5 pb-1.5 last:border-0 last:pb-0">
+                        <span className="font-medium text-[#FAF8F3]">{gem.gemstone_type || 'Gemstone'} ({gem.shape || 'Standard'})</span>
+                        <span className="font-mono text-[#F5E7A3]">
+                          {gem.quantity ? `${gem.quantity} stones` : ''} {gem.carat_weight ? `• ${gem.carat_weight} ct` : ''}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-3.5 rounded-xl bg-[#0B1536] border border-white/10 text-xs text-[#C9C2A6]">
+                    {selectedJobDrawer.rawDetails?.gemstone_preference_open ? 'Client selected: Let Designer Decide optimal stone layout' : 'Plain metal piece — No gemstones specified by client.'}
+                  </div>
+                )}
+              </div>
+
+              {/* Dynamic Atelier Selections */}
+              {selectedJobDrawer.rawDetails?.selections && selectedJobDrawer.rawDetails.selections.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-[11px] font-mono uppercase tracking-wider text-[#D4AF37] font-bold flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5" />
+                    Atelier Component Selections
+                  </span>
+                  <div className="p-3.5 rounded-xl bg-[#0B1536] border border-white/10 space-y-2 text-xs">
+                    {selectedJobDrawer.rawDetails.selections.map((sel: any, idx: number) => (
+                      <div key={idx} className="flex justify-between items-center border-b border-white/5 pb-1.5 last:border-0 last:pb-0">
+                        <span className="text-[#C9C2A6]">{sel.group_label || 'Configuration'}:</span>
+                        <span className="font-bold text-[#FAF8F3] flex items-center gap-1.5">
+                          {sel.swatch_color && (
+                            <span className="w-2.5 h-2.5 rounded-full border border-white/30 shrink-0" style={{ backgroundColor: sel.swatch_color }} />
+                          )}
+                          {sel.value_label || sel.other_text || 'Standard'}
+                        </span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Multiple Uploaded Sketches Gallery */}
-              {selectedJobDrawer.rawDetails?.sketches && selectedJobDrawer.rawDetails.sketches.length > 0 && (
-                <div className="pt-2">
-                  <span className="text-[10px] font-mono text-[#C9C2A6] block mb-1 font-bold">
-                    Uploaded Sketches &amp; Moodboard ({selectedJobDrawer.rawDetails.sketches.length})
+              {/* Brand Logo Hallmark Stamping */}
+              {selectedJobDrawer.rawDetails?.has_logo && (
+                <div className="p-3.5 rounded-xl bg-[#0B1536] border border-white/10 space-y-1 text-xs">
+                  <span className="text-[10px] font-mono text-emerald-400 uppercase font-bold flex items-center gap-1">
+                    ✓ Custom Brand Hallmark Stamping Required
                   </span>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedJobDrawer.rawDetails.sketches.map((sk: any) => {
-                      const imgUrl = sk.image_url || sk.image;
-                      return (
-                        <img
-                          key={sk.id}
-                          src={imgUrl}
-                          alt="Sketch"
-                          onClick={() => setActiveZoomSketch(imgUrl)}
-                          className="w-16 h-16 rounded-xl object-cover border border-white/20 hover:border-[#D4AF37] cursor-pointer transition-all hover:scale-105 shadow-md"
-                        />
-                      );
-                    })}
+                  {selectedJobDrawer.rawDetails.logo_file ? (
+                    <a
+                      href={selectedJobDrawer.rawDetails.logo_file}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#D4AF37] hover:underline text-[11px] font-mono flex items-center gap-1 mt-1 font-bold"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Download Client Hallmark Vector File
+                    </a>
+                  ) : (
+                    <p className="text-[10px] text-[#C9C2A6]">Hallmark vector file provided with order.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Custom Engraving Details */}
+              {selectedJobDrawer.rawDetails?.engraving_text && (
+                <div className="p-3.5 rounded-xl bg-[#0B1536] border border-white/10 space-y-1 text-xs">
+                  <span className="text-[10px] font-mono text-[#D4AF37] uppercase font-bold">Custom Laser Engraving</span>
+                  <p className="font-serif italic text-[#F5E7A3] text-sm">
+                    "{selectedJobDrawer.rawDetails.engraving_text}"
+                  </p>
+                  <div className="flex gap-3 text-[10px] text-[#C9C2A6] pt-1">
+                    <span>Font: {selectedJobDrawer.rawDetails.engraving_font || 'Script'}</span>
+                    <span>•</span>
+                    <span>Placement: {selectedJobDrawer.rawDetails.engraving_placement || 'Inside Shank'}</span>
                   </div>
                 </div>
               )}
-            </div>
 
-            {/* Full Technical Specifications Grid */}
-            <div className="space-y-3">
-              <span className="text-[11px] font-mono uppercase tracking-wider text-[#D4AF37] font-bold">
-                Core Jewellery Parameters
-              </span>
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="p-3.5 rounded-xl bg-[#070D22] border border-white/5 space-y-1">
-                  <span className="text-[10px] font-mono text-[#C9C2A6] uppercase">Category</span>
-                  <p className="font-bold text-[#FAF8F3]">{selectedJobDrawer.category}</p>
-                </div>
-                {selectedJobDrawer.metalPreference && (
-                  <div className="p-3.5 rounded-xl bg-[#070D22] border border-white/5 space-y-1">
-                    <span className="text-[10px] font-mono text-[#C9C2A6] uppercase">Metal Alloy</span>
-                    <p className="font-bold text-[#FAF8F3]">{selectedJobDrawer.metalPreference}</p>
-                  </div>
-                )}
-                {selectedJobDrawer.rawDetails?.aesthetic_style_name && (
-                  <div className="p-3.5 rounded-xl bg-[#070D22] border border-white/5 space-y-1">
-                    <span className="text-[10px] font-mono text-[#C9C2A6] uppercase">Aesthetic Style</span>
-                    <p className="font-bold text-[#FAF8F3]">{selectedJobDrawer.rawDetails.aesthetic_style_name}</p>
-                  </div>
-                )}
-                {selectedJobDrawer.rawDetails?.target_weight_grams && (
-                  <div className="p-3.5 rounded-xl bg-[#070D22] border border-white/5 space-y-1">
-                    <span className="text-[10px] font-mono text-[#C9C2A6] uppercase">Target Weight</span>
-                    <p className="font-bold text-[#FAF8F3]">
-                      {selectedJobDrawer.rawDetails.target_weight_grams} grams
-                    </p>
-                  </div>
-                )}
-                {selectedJobDrawer.rawDetails?.ring_size && (
-                  <div className="p-3.5 rounded-xl bg-[#070D22] border border-white/5 space-y-1">
-                    <span className="text-[10px] font-mono text-[#C9C2A6] uppercase">Ring Sizing</span>
-                    <p className="font-bold text-[#FAF8F3]">
-                      Size {selectedJobDrawer.rawDetails.ring_size} ({selectedJobDrawer.rawDetails.ring_size_standard || 'US'} Standard)
-                    </p>
-                  </div>
-                )}
-                {selectedJobDrawer.rawDetails?.budget_range && (
-                  <div className="p-3.5 rounded-xl bg-[#070D22] border border-white/5 space-y-1">
-                    <span className="text-[10px] font-mono text-[#C9C2A6] uppercase">Complexity Tier</span>
-                    <p className="font-bold text-[#F5E7A3]">{selectedJobDrawer.rawDetails.budget_range}</p>
-                  </div>
-                )}
-                {selectedJobDrawer.rawDetails?.needed_by_date && (
-                  <div className="p-3.5 rounded-xl bg-[#070D22] border border-white/5 space-y-1">
-                    <span className="text-[10px] font-mono text-[#C9C2A6] uppercase">Target Completion</span>
-                    <p className="font-bold text-[#F5E7A3]">
-                      {new Date(selectedJobDrawer.rawDetails.needed_by_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Gemstones & Stone Configurations */}
-            <div className="space-y-2">
-              <span className="text-[11px] font-mono uppercase tracking-wider text-[#D4AF37] font-bold flex items-center gap-1.5">
-                <Gem className="w-3.5 h-3.5" />
-                Gemstones &amp; Diamond Setting Plan
-              </span>
-              {selectedJobDrawer.rawDetails?.is_metal_only ? (
-                <div className="p-3 rounded-xl bg-[#070D22] border border-white/5 text-xs text-[#C9C2A6]">
-                  Metal Only piece — No stone seats or prongs required.
-                </div>
-              ) : selectedJobDrawer.rawDetails?.stones && selectedJobDrawer.rawDetails.stones.length > 0 ? (
-                <div className="p-3 rounded-xl bg-[#070D22] border border-white/5 space-y-2 text-xs">
-                  {selectedJobDrawer.rawDetails.stones.map((st: any, idx: number) => (
-                    <div key={idx} className="flex items-center justify-between border-b border-white/5 pb-2 last:border-0 last:pb-0 gap-2">
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-[#FAF8F3]">{st.stone_type || 'Diamond'} ({st.shape || 'Standard'})</span>
-                          {st.is_center_stone && (
-                            <span className="px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/40 font-mono text-[9px] font-bold uppercase">
-                              Center Stone
-                            </span>
-                          )}
-                        </div>
-                        {[st.clarity, st.color].filter(Boolean).length > 0 && (
-                          <div className="text-[10px] font-mono text-[#C9C2A6] mt-0.5">
-                            Grade: {[st.clarity, st.color].filter(Boolean).join(' • ')}
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-right font-mono text-xs">
-                        <span className="text-[#F5E7A3] font-bold block">
-                          {st.quantity || st.count || 1}x {st.size_value ? `(${st.size_value} ${st.size_unit || 'ct'})` : ''}
-                        </span>
-                        <span className="text-[#C9C2A6] text-[10px]">{st.setting_style || 'Prong'}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : selectedJobDrawer.rawDetails?.gemstones && selectedJobDrawer.rawDetails.gemstones.length > 0 ? (
-                <div className="p-3 rounded-xl bg-[#070D22] border border-white/5 space-y-2 text-xs">
-                  {selectedJobDrawer.rawDetails.gemstones.map((gem: any, idx: number) => (
-                    <div key={idx} className="flex justify-between border-b border-white/5 pb-1.5 last:border-0 last:pb-0">
-                      <span className="font-medium text-[#FAF8F3]">{gem.gemstone_type || 'Gemstone'} ({gem.shape || 'Standard'})</span>
-                      <span className="font-mono text-[#F5E7A3]">
-                        {gem.quantity ? `${gem.quantity} stones` : ''} {gem.carat_weight ? `• ${gem.carat_weight} ct` : ''}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-3 rounded-xl bg-[#070D22] border border-white/5 text-xs text-[#C9C2A6]">
-                  {selectedJobDrawer.rawDetails?.gemstone_preference_open ? 'Client selected: Let Designer Decide optimal stone layout' : 'Plain metal piece — No gemstones specified by client.'}
-                </div>
-              )}
-            </div>
-
-            {/* Dynamic Atelier Selections */}
-            {selectedJobDrawer.rawDetails?.selections && selectedJobDrawer.rawDetails.selections.length > 0 && (
+              {/* Client Brief & Instructions */}
               <div className="space-y-2">
                 <span className="text-[11px] font-mono uppercase tracking-wider text-[#D4AF37] font-bold flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5" />
-                  Atelier Component Selections
+                  <FileText className="w-3.5 h-3.5" />
+                  Artisan Brief &amp; Special Instructions
                 </span>
-                <div className="p-3 rounded-xl bg-[#070D22] border border-white/5 space-y-2 text-xs">
-                  {selectedJobDrawer.rawDetails.selections.map((sel: any, idx: number) => (
-                    <div key={idx} className="flex justify-between items-center border-b border-white/5 pb-1.5 last:border-0 last:pb-0">
-                      <span className="text-[#C9C2A6]">{sel.group_label || 'Configuration'}:</span>
-                      <span className="font-bold text-[#FAF8F3] flex items-center gap-1.5">
-                        {sel.swatch_color && (
-                          <span className="w-2.5 h-2.5 rounded-full border border-white/30 shrink-0" style={{ backgroundColor: sel.swatch_color }} />
-                        )}
-                        {sel.value_label || sel.other_text || 'Standard'}
-                      </span>
+                <div className="p-4 rounded-xl bg-[#0B1536] border border-white/10 text-xs text-[#FAF8F3] leading-relaxed space-y-2">
+                  <p>{selectedJobDrawer.description}</p>
+                  {selectedJobDrawer.rawDetails?.special_instructions && (
+                    <div className="pt-2 border-t border-white/10 text-amber-300/90">
+                      <strong className="text-amber-200">Special Note:</strong> {selectedJobDrawer.rawDetails.special_instructions}
                     </div>
-                  ))}
+                  )}
                 </div>
-              </div>
-            )}
-
-            {/* Brand Logo Hallmark Stamping */}
-            {selectedJobDrawer.rawDetails?.has_logo && (
-              <div className="p-3.5 rounded-xl bg-[#070D22] border border-white/5 space-y-1 text-xs">
-                <span className="text-[10px] font-mono text-emerald-400 uppercase font-bold flex items-center gap-1">
-                  ✓ Custom Brand Hallmark Stamping Required
-                </span>
-                {selectedJobDrawer.rawDetails.logo_file ? (
-                  <a
-                    href={selectedJobDrawer.rawDetails.logo_file}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#D4AF37] hover:underline text-[11px] font-mono flex items-center gap-1 mt-1 font-bold"
-                  >
-                    <Download className="w-3.5 h-3.5" /> Download Client Hallmark Vector File
-                  </a>
-                ) : (
-                  <p className="text-[10px] text-[#C9C2A6]">Hallmark vector file provided with order.</p>
-                )}
-              </div>
-            )}
-
-            {/* Custom Engraving Details */}
-            {selectedJobDrawer.rawDetails?.engraving_text && (
-              <div className="p-3.5 rounded-xl bg-[#070D22] border border-white/5 space-y-1 text-xs">
-                <span className="text-[10px] font-mono text-[#D4AF37] uppercase font-bold">Custom Laser Engraving</span>
-                <p className="font-serif italic text-[#F5E7A3] text-sm">
-                  "{selectedJobDrawer.rawDetails.engraving_text}"
-                </p>
-                <div className="flex gap-3 text-[10px] text-[#C9C2A6] pt-1">
-                  <span>Font: {selectedJobDrawer.rawDetails.engraving_font || 'Script'}</span>
-                  <span>•</span>
-                  <span>Placement: {selectedJobDrawer.rawDetails.engraving_placement || 'Inside Shank'}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Client Brief & Instructions */}
-            <div className="space-y-2">
-              <span className="text-[11px] font-mono uppercase tracking-wider text-[#D4AF37] font-bold flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5" />
-                Artisan Brief &amp; Special Instructions
-              </span>
-              <div className="p-4 rounded-xl bg-[#070D22] border border-white/5 text-xs text-[#FAF8F3] leading-relaxed space-y-2">
-                <p>{selectedJobDrawer.description}</p>
-                {selectedJobDrawer.rawDetails?.special_instructions && (
-                  <div className="pt-2 border-t border-white/10 text-amber-300/90">
-                    <strong className="text-amber-200">Special Note:</strong> {selectedJobDrawer.rawDetails.special_instructions}
-                  </div>
-                )}
               </div>
             </div>
 
-            {/* Action Footer Inside Drawer */}
-            <div className="pt-4 border-t border-white/10 space-y-2">
+            {/* Fixed / Sticky Action Footer */}
+            <div className="p-5 border-t border-white/10 bg-[#09112B]/95 backdrop-blur-md shrink-0 shadow-2xl flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <span className="text-[10px] font-mono uppercase text-[#F5E7A3] font-bold block flex items-center gap-1">
+                  <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" /> Net Modeller Payout
+                </span>
+                <span className="text-2xl font-mono font-extrabold text-[#F5E7A3] tracking-tight">
+                  {selectedJobDrawer.agreedPayout > 0 ? `₹${selectedJobDrawer.agreedPayout.toLocaleString('en-IN')}` : '₹—'}
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono block">
+                  {selectedJobDrawer.deadlineHours || 48}h SLA Turnaround
+                </span>
+              </div>
+
               <button
-                disabled={securingJobId === selectedJobDrawer.id}
+                disabled={securingJobId === selectedJobDrawer.id || isFullCapacity}
                 onClick={() => handleClaimClick(selectedJobDrawer.id)}
-                className={`w-full py-4 rounded-2xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-xl transition-all ${
+                className={`flex-1 py-3.5 px-6 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl transition-all ${
                   isFullCapacity
                     ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
                     : securingJobId === selectedJobDrawer.id
                     ? 'bg-[#12204D] text-[#F5E7A3] border border-[#D4AF37] animate-pulse'
-                    : 'btn-gold-luxury'
+                    : 'btn-gold-luxury transform hover:-translate-y-0.5 cursor-pointer font-bold'
                 }`}
               >
                 {securingJobId === selectedJobDrawer.id ? (
@@ -650,17 +785,16 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
                 ) : isFullCapacity ? (
                   <>
                     <Lock className="w-4 h-4" />
-                    <span>Workbench Capacity Full ({staff.maxJobLimit}/{staff.maxJobLimit})</span>
+                    <span>Workbench Full ({staff.maxJobLimit}/{staff.maxJobLimit})</span>
                   </>
                 ) : (
                   <>
                     <Zap className="w-4 h-4 fill-[#0B1330]" />
-                    <span>Accept Commission {selectedJobDrawer.agreedPayout > 0 ? `(₹${selectedJobDrawer.agreedPayout.toLocaleString('en-IN')})` : ''} &amp; Move to Workbench</span>
+                    <span>Accept Commission &amp; Move to Workbench</span>
                   </>
                 )}
               </button>
             </div>
-
           </div>
         </div>
       )}

@@ -321,10 +321,32 @@ class Order(models.Model):
 
     def save(self, *args, **kwargs):
         from decimal import Decimal
+        from django.utils import timezone
+        from datetime import timedelta, datetime, time
+
         if self.admin_commission_percentage is None:
             self.admin_commission_percentage = Decimal('20.00')
         if self.staff_payout_price is None and self.total_price is not None:
             self.staff_payout_price = self.calculate_staff_payout()
+
+        # Dynamic deadline & due_at auto-synchronization
+        if not self.due_at:
+            if self.custom_request and self.custom_request.needed_by_date:
+                try:
+                    nb = self.custom_request.needed_by_date
+                    if isinstance(nb, str):
+                        from django.utils.dateparse import parse_date
+                        nb = parse_date(nb)
+                    if nb:
+                        self.due_at = timezone.make_aware(datetime.combine(nb, time(23, 59, 59)))
+                        diff_h = max(1, int((self.due_at - timezone.now()).total_seconds() / 3600))
+                        self.deadline_hours = diff_h
+                except Exception:
+                    pass
+            if not self.due_at and self.deadline_hours:
+                base_time = self.assigned_at or self.created_at or timezone.now()
+                self.due_at = base_time + timedelta(hours=self.deadline_hours)
+
         super().save(*args, **kwargs)
 
     def __str__(self):

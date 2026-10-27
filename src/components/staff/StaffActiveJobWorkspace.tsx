@@ -127,20 +127,24 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
       if (diffMs <= 0) {
         const overdueMs = Math.abs(diffMs);
         const overTotalSecs = Math.floor(overdueMs / 1000);
-        const overHours = Math.floor(overTotalSecs / 3600);
+        const overDays = Math.floor(overTotalSecs / 86400);
+        const overHours = Math.floor((overTotalSecs % 86400) / 3600);
         const overMins = Math.floor((overTotalSecs % 3600) / 60);
 
-        setRemainingTimeStr(`OVERDUE by ${overHours}h ${overMins}m`);
+        setRemainingTimeStr(`OVERDUE by ${overDays > 0 ? `${overDays}d ` : ''}${overHours}h ${overMins}m`);
         setTimerColorClass('text-rose-700 bg-rose-50 border-rose-300 font-extrabold animate-pulse');
         return;
       }
 
       const totalSecs = Math.floor(diffMs / 1000);
-      const hours = Math.floor(totalSecs / 3600);
+      const days = Math.floor(totalSecs / 86400);
+      const hours = Math.floor((totalSecs % 86400) / 3600);
       const mins = Math.floor((totalSecs % 3600) / 60);
       const secs = totalSecs % 60;
 
-      const formatted = `${hours}h ${mins.toString().padStart(2, '0')}m ${secs.toString().padStart(2, '0')}s`;
+      const formatted = days > 0
+        ? `${days}d ${hours}h ${mins.toString().padStart(2, '0')}m ${secs.toString().padStart(2, '0')}s`
+        : `${hours}h ${mins.toString().padStart(2, '0')}m ${secs.toString().padStart(2, '0')}s`;
       setRemainingTimeStr(formatted);
 
       // Ratio thresholds: >50% Gold, 20-50% Amber, <20% Red
@@ -176,7 +180,8 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
 
   // Determine current milestone stage from backend milestones
   const getLatestMilestoneIndex = () => {
-    if (orderData?.status === 'completed' || orderData?.status === 'pending_review') return 3;
+    if (orderData?.status === 'completed' || orderData?.status === 'delivered') return 3;
+    if (orderData?.status === 'pending_review' || orderData?.status === 'preview_ready') return 2;
 
     if (!milestonesList || milestonesList.length === 0) {
       if (deliverablesList.length >= 3) return 2;
@@ -185,13 +190,19 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
       return -1; // Freshly accepted order: no milestone marked yet (0% progress)
     }
 
-    const stageNames = milestonesList.map((m: any) => m.stage);
+    const stageNames = milestonesList.map((m: any) => (m.stage || '').toLowerCase());
     let highestIdx = -1;
     activeMilestones.forEach((m, idx) => {
-      if (stageNames.includes(m.name) || stageNames.includes(m.label)) {
+      if (stageNames.some((s: string) => s.includes(m.name.toLowerCase()) || s.includes(m.label.toLowerCase()) || s.includes(`0${idx + 1}.`))) {
         highestIdx = idx;
       }
     });
+
+    if (highestIdx === -1) {
+      if (deliverablesList.length >= 3) return 2;
+      if (deliverablesList.length >= 2) return 1;
+      if (deliverablesList.length >= 1) return 0;
+    }
 
     return highestIdx;
   };
@@ -202,7 +213,7 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
 
   // Advance Milestone via API
   const handleStepClick = async (targetIdx: number) => {
-    const targetMilestone = MILESTONES[targetIdx];
+    const targetMilestone = activeMilestones[targetIdx];
     try {
       await api.request(`/orders/${effectiveOrderId}/milestone/`, {
         method: 'POST',
@@ -356,7 +367,7 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
         </div>
         <button
           onClick={onBack}
-          className="px-4 py-2 bg-[#09112B] text-[#F5E7A3] text-xs font-bold rounded-xl"
+          className="btn-gold-luxury px-4 py-2 text-xs font-bold rounded-xl cursor-pointer"
         >
           Back to Workbench
         </button>
@@ -370,13 +381,13 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E8D7B7] pb-4">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-[#17243B] font-bold text-xs border border-[#E8D7B7] shadow-sm transition-colors w-fit"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-[#FFF9F0] text-[#17345C] font-semibold text-xs border border-[#E8D7B7] hover:border-[#B88732] shadow-2xs transition-colors w-fit cursor-pointer"
         >
-          <ArrowLeft className="w-4 h-4 text-[#C9A227]" /> Back to Workbench
+          <ArrowLeft className="w-4 h-4 text-[#B88732]" /> Back to Workbench
         </button>
 
         <div className="flex items-center gap-3">
-          <span className="px-3.5 py-1.5 rounded-full bg-[#09112B] text-[#F5E7A3] border border-[#D4AF37]/40 text-xs font-mono font-bold">
+          <span className="px-3.5 py-1.5 rounded-full bg-[#17345C] text-[#FFF9F0] text-xs font-mono font-bold shadow-2xs">
             Order: ORD-{orderData.id}
           </span>
           <span className={`px-3.5 py-1.5 rounded-full text-xs font-mono font-bold uppercase ${
@@ -495,10 +506,20 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                     <Wrench className="w-4 h-4 text-cyan-600" />
                     CAD FILE MODIFICATION STUDIO • CLIENT: {fe?.client_display_name || fe?.contact_name || 'VALUED CLIENT'}
                   </span>
-                  <span className={`flex items-center gap-1.5 text-xs font-mono px-3.5 py-1.5 rounded-full border font-bold ${timerColorClass}`}>
-                    <Clock className="w-3.5 h-3.5 animate-pulse" />
-                    {remainingTimeStr}
-                  </span>
+                  <div className="flex flex-col sm:items-end gap-1">
+                    <span className={`flex items-center gap-1.5 text-xs font-mono px-3.5 py-1.5 rounded-full border font-bold ${timerColorClass}`}>
+                      <Clock className="w-3.5 h-3.5 animate-pulse" />
+                      {remainingTimeStr}
+                    </span>
+                    <span className="text-[11px] font-mono text-slate-500 flex items-center gap-1">
+                      <Calendar className="w-3 h-3 text-cyan-600" />
+                      Target Due: <strong className="text-slate-800">
+                        {orderData.due_at
+                          ? new Date(orderData.due_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                          : `Within ${orderData.deadline_hours || 48}h`}
+                      </strong>
+                    </span>
+                  </div>
                 </div>
 
                 <div>
@@ -618,92 +639,134 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
               </div>
             ) : (
               <>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <span className="text-xs font-mono uppercase tracking-widest text-[#C9A227] font-bold">
-                    {req.category_name || 'Custom Jewellery'} • CLIENT: {req.client_display_name || 'VALUED CLIENT'}
-                  </span>
-                  <span className={`flex items-center gap-1.5 text-xs font-mono px-3.5 py-1.5 rounded-full border font-bold ${timerColorClass}`}>
-                    <Clock className="w-3.5 h-3.5 animate-pulse" />
-                    {remainingTimeStr}
-                  </span>
-                </div>
+                {(() => {
+                  const categoryDisplay =
+                    req.category_name ||
+                    req.description?.match(/(?:Requirement|Category|Design Requirement):\s*([^\n•]+)/i)?.[1]?.trim() ||
+                    'Custom Jewellery';
 
-                <div>
-                  <h2 className="text-2xl font-serif font-bold text-[#17243B]">
-                    Bespoke {req.category_name || 'Custom Piece'} — Order #ORD-{orderData.id}
-                  </h2>
-                </div>
+                  const metalDisplay =
+                    req.metal_alloy_name ||
+                    req.description?.match(/(?:Full Metal Specification|Full Metal Alloy|Alloy):\s*([^\n•]+)/i)?.[1]?.trim() ||
+                    req.description?.match(/Material:\s*([^\n•]+)/i)?.[1]?.trim() ||
+                    'Custom Metal Alloy';
 
-                {/* Configurator Attributes Strip */}
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {req.aesthetic_style_name && (
-                    <span className="px-3 py-1 rounded-lg bg-[#F1F5F9] border border-slate-200 text-xs text-[#09112B] font-medium flex items-center gap-1">
-                      <Sparkles className="w-3.5 h-3.5 text-[#C9A227]" /> Style: {req.aesthetic_style_name}
-                    </span>
-                  )}
+                  const purityDisplay =
+                    req.description?.match(/(?:Carat \/ Purity|Purity|Carat):\s*([^\n•]+)/i)?.[1]?.trim();
 
-                  {req.metal_alloy_name && (
-                    <span className="px-3 py-1 rounded-lg bg-[#F1F5F9] border border-slate-200 text-xs text-[#09112B] font-medium flex items-center gap-1.5">
-                      {req.metal_swatch_color && (
-                        <span
-                          className="w-3 h-3 rounded-full border border-black/20"
-                          style={{ backgroundColor: req.metal_swatch_color }}
-                        />
-                      )}
-                      Metal: {req.metal_alloy_name}
-                    </span>
-                  )}
+                  return (
+                    <>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <span className="text-xs font-mono uppercase tracking-widest text-[#C9A227] font-bold">
+                          {categoryDisplay} • CLIENT: {req.contact_name || req.client_name || req.client_display_name || 'VALUED CLIENT'}
+                        </span>
+                        <div className="flex flex-col sm:items-end gap-1">
+                          <span className={`flex items-center gap-1.5 text-xs font-mono px-3.5 py-1.5 rounded-full border font-bold ${timerColorClass}`}>
+                            <Clock className="w-3.5 h-3.5 animate-pulse" />
+                            {remainingTimeStr}
+                          </span>
+                          <span className="text-[11px] font-mono text-slate-500 flex items-center gap-1">
+                            <Calendar className="w-3 h-3 text-[#B88732]" />
+                            Target Due: <strong className="text-slate-800">
+                              {orderData.due_at
+                                ? new Date(orderData.due_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                : `Within ${orderData.deadline_hours || 48}h`}
+                            </strong>
+                          </span>
+                        </div>
+                      </div>
 
-                  {req.gemstone_preference_open ? (
-                    <span className="px-3 py-1 rounded-lg bg-emerald-50 border border-emerald-300 text-xs text-emerald-800 font-medium flex items-center gap-1">
-                      <Gem className="w-3.5 h-3.5 text-emerald-600" />
-                      Open Preference (Let Designer Decide)
-                    </span>
-                  ) : gemstonesList.length > 0 ? (
-                    <button
-                      onClick={() => setShowGemstonesModal(true)}
-                      className="px-3 py-1 rounded-lg bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-xs text-indigo-800 font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
-                    >
-                      <Gem className="w-3.5 h-3.5 text-indigo-600" />
-                      <span>{gemstonesList.length} Gemstone Spec(s) Defined (Click to View)</span>
-                    </button>
-                  ) : (
-                    <span className="px-3 py-1 rounded-lg bg-slate-100 border border-slate-200 text-xs text-slate-600 font-medium">
-                      Standard Metal Only (No Stones)
-                    </span>
-                  )}
+                      <div>
+                        <h2 className="text-2xl font-serif font-bold text-[#17243B]">
+                          Bespoke {categoryDisplay} — Order #ORD-{orderData.id}
+                        </h2>
+                      </div>
 
-                  {req.ring_size && (
-                    <span className="px-3 py-1 rounded-lg bg-[#F1F5F9] border border-slate-200 text-xs text-[#09112B] font-medium flex items-center gap-1">
-                      Size: {req.ring_size} ({req.ring_size_standard?.toUpperCase() || 'US'})
-                    </span>
-                  )}
+                      {/* Configurator Attributes Strip */}
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {req.aesthetic_style_name && (
+                          <span className="px-3 py-1 rounded-lg bg-[#F1F5F9] border border-slate-200 text-xs text-[#09112B] font-medium flex items-center gap-1">
+                            <Sparkles className="w-3.5 h-3.5 text-[#C9A227]" /> Style: {req.aesthetic_style_name}
+                          </span>
+                        )}
 
-                  {req.target_weight_grams && (
-                    <span className="px-3 py-1 rounded-lg bg-[#F1F5F9] border border-slate-200 text-xs text-[#09112B] font-medium flex items-center gap-1">
-                      Target Weight: {req.target_weight_grams}g
-                    </span>
-                  )}
+                        <span className="px-3 py-1 rounded-lg bg-[#F1F5F9] border border-slate-200 text-xs text-[#09112B] font-medium flex items-center gap-1.5">
+                          {req.metal_swatch_color && (
+                            <span
+                              className="w-3 h-3 rounded-full border border-black/20"
+                              style={{ backgroundColor: req.metal_swatch_color }}
+                            />
+                          )}
+                          Metal: <strong>{metalDisplay}</strong>
+                        </span>
 
-                  {req.needed_by_date && (
-                    <span className="px-3 py-1 rounded-lg bg-amber-50 border border-amber-300 text-xs text-amber-900 font-medium flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5 text-[#C9A227]" />
-                      Due: {new Date(req.needed_by_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </span>
-                  )}
+                        {purityDisplay && !metalDisplay.includes(purityDisplay) && (
+                          <span className="px-3 py-1 rounded-lg bg-[#F1F5F9] border border-slate-200 text-xs text-[#09112B] font-medium flex items-center gap-1">
+                            Purity: <strong>{purityDisplay}</strong>
+                          </span>
+                        )}
 
-                  {req.selections?.map((sel: any, idx: number) => (
-                    <span key={idx} className="px-3 py-1 rounded-lg bg-[#F1F5F9] border border-slate-200 text-xs text-[#09112B] font-medium flex items-center gap-1">
-                      {sel.group_label}: <strong className="ml-0.5">{sel.value_label || sel.other_text}</strong>
-                    </span>
-                  ))}
-                </div>
+                        {req.gemstone_preference_open ? (
+                          <span className="px-3 py-1 rounded-lg bg-emerald-50 border border-emerald-300 text-xs text-emerald-800 font-medium flex items-center gap-1">
+                            <Gem className="w-3.5 h-3.5 text-emerald-600" />
+                            Open Preference (Let Designer Decide)
+                          </span>
+                        ) : gemstonesList.length > 0 ? (
+                          <button
+                            onClick={() => setShowGemstonesModal(true)}
+                            className="px-3 py-1 rounded-lg bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-xs text-indigo-800 font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                          >
+                            <Gem className="w-3.5 h-3.5 text-indigo-600" />
+                            <span>{gemstonesList.length} Gemstone Spec(s) Defined (Click to View)</span>
+                          </button>
+                        ) : req.is_metal_only ? (
+                          <span className="px-3 py-1 rounded-lg bg-slate-100 border border-slate-200 text-xs text-slate-600 font-medium">
+                            Metal Only (No Stones)
+                          </span>
+                        ) : null}
 
-                {/* Client Notes / Instructions */}
-                <div className="text-xs text-[#4B5563] leading-relaxed bg-[#F8FAFC] p-4 rounded-xl border border-[#E8D7B7]">
-                  <strong className="text-[#17243B] font-bold block mb-1">Client Brief &amp; Written Instructions:</strong>
-                  <p className="italic text-slate-700">{req.description || 'No detailed written instructions provided by client.'}</p>
-                </div>
+                        {req.ring_size && (
+                          <span className="px-3 py-1 rounded-lg bg-[#F1F5F9] border border-slate-200 text-xs text-[#09112B] font-medium flex items-center gap-1">
+                            Size: {req.ring_size} ({req.ring_size_standard?.toUpperCase() || 'US'})
+                          </span>
+                        )}
+
+                        {req.target_weight_grams && (
+                          <span className="px-3 py-1 rounded-lg bg-[#F1F5F9] border border-slate-200 text-xs text-[#09112B] font-medium flex items-center gap-1">
+                            Target Weight: {req.target_weight_grams}g
+                          </span>
+                        )}
+
+                        {req.needed_by_date && (
+                          <span className="px-3 py-1 rounded-lg bg-amber-50 border border-amber-300 text-xs text-amber-900 font-medium flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5 text-[#C9A227]" />
+                            Due: {new Date(req.needed_by_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                        )}
+
+                        {req.selections?.map((sel: any, idx: number) => (
+                          <span key={idx} className="px-3 py-1 rounded-lg bg-[#F1F5F9] border border-slate-200 text-xs text-[#09112B] font-medium flex items-center gap-1">
+                            {sel.group_label}: <strong className="ml-0.5">{sel.value_label || sel.other_text}</strong>
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* Client Notes / Instructions */}
+                      <div className="text-xs text-[#4B5563] leading-relaxed bg-[#F8FAFC] p-5 rounded-2xl border border-[#E8D7B7] space-y-2 shadow-2xs">
+                        <div className="flex items-center justify-between border-b border-[#E8D7B7]/60 pb-2">
+                          <strong className="text-[#17243B] font-serif font-bold text-sm flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-[#C9A227]" />
+                            Client Brief &amp; Written Instructions
+                          </strong>
+                          <span className="text-[10px] font-mono text-[#6B7280]">Original Customer Specifications</span>
+                        </div>
+                        <div className="whitespace-pre-line text-slate-800 font-sans leading-relaxed text-xs pt-1">
+                          {req.description || 'No detailed written instructions provided by client.'}
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
               </>
             )}
           </div>
@@ -717,7 +780,7 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                   Craftsman Milestone Stepper
                 </h3>
               </div>
-              <span className="text-xs font-mono text-[#09112B] font-bold bg-[#F1F5F9] px-3 py-1 rounded-lg border border-slate-200">
+              <span className="text-xs font-mono text-[#17345C] font-bold bg-[#FFF9F0] px-3 py-1 rounded-lg border border-[#E8D7B7] shadow-2xs">
                 Progress: {progressPercentage}%
               </span>
             </div>
@@ -735,20 +798,20 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                     onClick={() => handleStepClick(idx)}
                     className={`p-3.5 rounded-xl border text-left transition-all relative flex flex-col justify-between cursor-pointer ${
                       isActive
-                        ? 'bg-[#09112B] border-[#D4AF37] text-white font-bold shadow-md scale-105'
+                        ? 'bg-[#17345C] border-[#B88732] text-[#FFF9F0] font-bold shadow-md scale-105'
                         : isPassed
                         ? 'bg-emerald-50 border-emerald-300 text-emerald-800 font-semibold'
-                        : 'bg-[#F8FAFC] border-[#E8D7B7] text-slate-400 hover:border-slate-300'
+                        : 'bg-[#FFFDF9] border-[#E8D7B7] text-[#687386] hover:border-[#B88732]'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <span className={`text-[10px] font-mono uppercase tracking-wider font-bold ${isActive ? 'text-[#F5E7A3]' : ''}`}>
+                      <span className={`text-[10px] font-mono uppercase tracking-wider font-bold ${isActive ? 'text-[#D9B66F]' : ''}`}>
                         Step 0{idx + 1}
                       </span>
                       {isPassed && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
                     </div>
                     <div className="text-xs font-bold font-serif">{m.name}</div>
-                    <div className={`text-[9px] font-mono mt-1 ${isActive ? 'text-[#F5E7A3]' : 'text-slate-500'}`}>
+                    <div className={`text-[9px] font-mono mt-1 ${isActive ? 'text-[#D9B66F]' : 'text-slate-500'}`}>
                       {m.progress}% Weight
                     </div>
                   </button>
@@ -837,14 +900,14 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
 
                 {uploadingFileType === '3dm' ? (
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 py-2.5 rounded-lg bg-[#09112B] text-[#F5E7A3] font-bold text-xs flex items-center justify-center gap-2">
-                      <Loader2 className="w-3.5 h-3.5 text-[#D4AF37] animate-spin" />
+                    <div className="flex-1 py-2.5 rounded-xl bg-[#17345C] text-[#FFF9F0] font-bold text-xs flex items-center justify-center gap-2">
+                      <Loader2 className="w-3.5 h-3.5 text-[#D9B66F] animate-spin" />
                       <span className="truncate">Uploading .3DM...</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleCancelUpload('3dm')}
-                      className="py-2.5 px-3 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                      className="py-2.5 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0"
                       title="Cancel this upload"
                     >
                       <X className="w-3.5 h-3.5" />
@@ -854,9 +917,9 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                 ) : (
                   <button
                     onClick={() => fileInputRefs.current['3dm']?.click()}
-                    className="w-full py-2.5 rounded-lg bg-[#09112B] hover:bg-[#122254] text-[#F5E7A3] font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                    className="btn-gold-luxury w-full py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
                   >
-                    <Upload className="w-3.5 h-3.5 text-[#D4AF37]" />
+                    <Upload className="w-3.5 h-3.5" />
                     <span>{rhinoDeliverable ? 'Replace .3DM File' : 'Upload .3DM File'}</span>
                   </button>
                 )}
@@ -873,9 +936,9 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
               </div>
 
               {/* Slot 2: Castable Mesh (.STL) — Protected Storage */}
-              <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E8D7B7] space-y-3">
+              <div className="p-4 rounded-xl bg-[#FFFDF9] border border-[#E8D7B7] space-y-3">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-mono font-bold text-[#17243B]">2. Castable Mesh (.STL)</span>
+                  <span className="font-mono font-bold text-[#17345C]">2. Castable Mesh (.STL)</span>
                   {stlDeliverable ? (
                     <span className="text-emerald-700 font-bold text-[10px] flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                       <CheckCircle2 className="w-3 h-3" /> Attached
@@ -884,7 +947,7 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                     <span className="text-slate-500 font-medium text-[10px]">Optional</span>
                   )}
                 </div>
-                <p className="text-[11px] text-[#6B7280]">
+                <p className="text-[11px] text-[#687386]">
                   Watertight STL mesh ready for resin 3D printing.
                 </p>
 
@@ -898,14 +961,14 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
 
                 {uploadingFileType === 'stl' ? (
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 py-2.5 rounded-lg bg-[#09112B] text-[#F5E7A3] font-bold text-xs flex items-center justify-center gap-2">
-                      <Loader2 className="w-3.5 h-3.5 text-[#D4AF37] animate-spin" />
+                    <div className="flex-1 py-2.5 rounded-xl bg-[#17345C] text-[#FFF9F0] font-bold text-xs flex items-center justify-center gap-2">
+                      <Loader2 className="w-3.5 h-3.5 text-[#D9B66F] animate-spin" />
                       <span className="truncate">Uploading .STL...</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleCancelUpload('stl')}
-                      className="py-2.5 px-3 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                      className="py-2.5 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0"
                       title="Cancel this upload"
                     >
                       <X className="w-3.5 h-3.5" />
@@ -915,9 +978,9 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                 ) : (
                   <button
                     onClick={() => fileInputRefs.current['stl']?.click()}
-                    className="w-full py-2.5 rounded-lg bg-[#09112B] hover:bg-[#122254] text-[#F5E7A3] font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                    className="btn-gold-luxury w-full py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
                   >
-                    <Upload className="w-3.5 h-3.5 text-[#D4AF37]" />
+                    <Upload className="w-3.5 h-3.5" />
                     <span>{stlDeliverable ? 'Replace .STL File' : 'Upload .STL File'}</span>
                   </button>
                 )}
@@ -1254,7 +1317,7 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
             <div className="pt-2 text-right">
               <button
                 onClick={() => setShowGemstonesModal(false)}
-                className="px-4 py-2 rounded-xl bg-[#09112B] text-white text-xs font-bold"
+                className="btn-gold-luxury px-4 py-2 rounded-xl text-xs font-bold cursor-pointer"
               >
                 Close Specifications
               </button>
@@ -1286,12 +1349,12 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl border border-[#E8D7B7] shadow-2xl p-6 max-w-md w-full space-y-5 animate-in zoom-in-95 duration-200">
             <div className="flex items-center gap-3 border-b border-[#E8D7B7] pb-3">
-              <div className="p-2.5 rounded-xl bg-[#09112B] text-[#D4AF37]">
+              <div className="p-2.5 rounded-xl bg-[#FFF9F0] text-[#B88732] border border-[#E8D7B7] shadow-2xs">
                 <Award className="w-6 h-6" />
               </div>
               <div>
                 <h3 className="font-serif text-lg font-bold text-[#17243B]">Hand Over CAD Deliverables (v{orderData?.current_version || 1})</h3>
-                <span className="text-xs font-mono text-[#6B7280]">Order #ORD-{effectiveOrderId} &bull; Target Iteration v{orderData?.current_version || 1}</span>
+                <span className="text-xs font-mono text-[#687386]">Order #ORD-{effectiveOrderId} &bull; Target Iteration v{orderData?.current_version || 1}</span>
               </div>
             </div>
 
@@ -1321,10 +1384,10 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                 className="btn-gold-luxury px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-md cursor-pointer"
               >
                 {isCompleting ? (
-                  <Loader2 className="w-4 h-4 text-[#09112B] animate-spin" />
+                  <Loader2 className="w-4 h-4 text-[#17345C] animate-spin" />
                 ) : (
                   <>
-                    <Send className="w-4 h-4 text-[#09112B]" />
+                    <Send className="w-4 h-4 text-[#17345C]" />
                     <span>Confirm &amp; Complete Handover</span>
                   </>
                 )}

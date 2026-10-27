@@ -253,7 +253,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
 
   useEffect(() => {
     fetchAllCounts();
-    const interval = setInterval(fetchAllCounts, 8000);
+    const interval = setInterval(fetchAllCounts, 30000);
     return () => clearInterval(interval);
   }, []);
 

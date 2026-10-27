@@ -471,6 +471,8 @@ export interface AvailableJob {
   clientBudget: string;
   releasedTimeAgo: string;
   deadlineHours: number;
+  dueAt?: string;
+  neededByDate?: string;
   referenceImage: string;
   description: string;
   specsSummary: {
@@ -502,7 +504,10 @@ export interface StaffActiveJob {
   category: string;
   referenceImage: string;
   acceptedAt: string;
+  assignedAt?: string;
   deadline: string;
+  dueAt?: string;
+  deadlineHours?: number;
   hoursRemaining: number;
   payoutAmount: number;
   clientName: string;

@@ -222,12 +222,59 @@ def resolve_reference_image(obj, request=None):
     return None
 
 
+def resolve_custom_request_category(obj):
+    if obj.category and obj.category.name:
+        return obj.category.name
+    desc = f"{getattr(obj, 'description', '') or ''} {getattr(obj, 'special_instructions', '') or ''}"
+    import re
+    m = re.search(r'(?:Requirement|Category|Design Requirement):\s*([^\n\r•]+)', desc, re.IGNORECASE)
+    if m:
+        val = m.group(1).strip()
+        if val and val.lower() not in ['none', 'not provided', 'null', 'custom jewellery cad design']:
+            return val
+    if obj.reference_product and obj.reference_product.category:
+        return obj.reference_product.category.name
+    return None
+
+
+def resolve_custom_request_metal(obj):
+    if obj.metal_alloy and obj.metal_alloy.name:
+        return obj.metal_alloy.name
+    desc = f"{getattr(obj, 'description', '') or ''} {getattr(obj, 'special_instructions', '') or ''}"
+    import re
+    full_m = re.search(r'(?:Full Metal Specification|Full Metal Alloy|Alloy):\s*([^\n\r•]+)', desc, re.IGNORECASE)
+    if full_m and full_m.group(1).strip():
+        return full_m.group(1).strip()
+    mat_m = re.search(r'Material:\s*([^\n\r•]+)', desc, re.IGNORECASE)
+    carat_m = re.search(r'(?:Carat / Purity|Purity|Carat):\s*([^\n\r•]+)', desc, re.IGNORECASE)
+    if mat_m or carat_m:
+        mat = mat_m.group(1).strip() if mat_m else ''
+        carat = carat_m.group(1).strip() if carat_m else ''
+        if mat and carat and carat.lower() not in mat.lower() and mat.lower() not in carat.lower():
+            return f"{carat} {mat}"
+        return mat or carat
+    return None
+
+
+def resolve_custom_request_swatch(obj):
+    if obj.metal_alloy and obj.metal_alloy.swatch_color:
+        return obj.metal_alloy.swatch_color
+    metal_name = (resolve_custom_request_metal(obj) or '').lower()
+    if 'rose' in metal_name:
+        return '#E0A899'
+    elif 'white' in metal_name or 'platinum' in metal_name or 'silver' in metal_name:
+        return '#E5E7EB'
+    elif 'gold' in metal_name or 'yellow' in metal_name:
+        return '#F3C544'
+    return '#CBD5E1'
+
+
 class CustomRequestSerializer(serializers.ModelSerializer):
     client_name = serializers.SerializerMethodField()
-    category_name = serializers.CharField(source='category.name', read_only=True)
+    category_name = serializers.SerializerMethodField()
     aesthetic_style_name = serializers.CharField(source='aesthetic_style.name', read_only=True)
-    metal_alloy_name = serializers.CharField(source='metal_alloy.name', read_only=True)
-    metal_swatch_color = serializers.CharField(source='metal_alloy.swatch_color', read_only=True)
+    metal_alloy_name = serializers.SerializerMethodField()
+    metal_swatch_color = serializers.SerializerMethodField()
     delivery_speed_name = serializers.CharField(source='delivery_speed.label', read_only=True)
     reference_image = serializers.SerializerMethodField()
     catalog_references = serializers.SerializerMethodField()
@@ -307,6 +354,15 @@ class CustomRequestSerializer(serializers.ModelSerializer):
         if obj.client:
             return obj.client.username
         return obj.contact_name or 'Guest'
+
+    def get_category_name(self, obj):
+        return resolve_custom_request_category(obj)
+
+    def get_metal_alloy_name(self, obj):
+        return resolve_custom_request_metal(obj)
+
+    def get_metal_swatch_color(self, obj):
+        return resolve_custom_request_swatch(obj)
 
     def to_internal_value(self, data):
         if hasattr(data, 'copy'):
@@ -397,18 +453,44 @@ class CustomRequestSerializer(serializers.ModelSerializer):
                     if item.name.lower() in ma_str.lower() or ma_str.lower() in item.name.lower():
                         ma = item
                         break
+            if not ma:
+                swatch = '#CBD5E1'
+                lower_ma = ma_str.lower()
+                if 'rose' in lower_ma:
+                    swatch = '#E0A899'
+                elif 'gold' in lower_ma or 'yellow' in lower_ma:
+                    swatch = '#F3C544'
+                elif 'platinum' in lower_ma or 'white' in lower_ma or 'silver' in lower_ma:
+                    swatch = '#E5E7EB'
+                ma, _ = MetalAlloy.objects.get_or_create(name=ma_str, defaults={'swatch_color': swatch})
             if ma:
                 data['metal_alloy'] = ma.id
 
         # Auto-match category if category is missing or string
-        cat_val = data.get('category')
+        cat_val = data.get('category') or data.get('category_name')
         if cat_val and not str(cat_val).isdigit():
             from apps.catalog.models import Category
-            cat_match = Category.objects.filter(slug__iexact=str(cat_val)).first() or Category.objects.filter(name__iexact=str(cat_val)).first()
+            cat_str = str(cat_val).strip()
+            cat_match = (
+                Category.objects.filter(slug__iexact=cat_str).first() or
+                Category.objects.filter(name__iexact=cat_str).first() or
+                Category.objects.filter(slug__iexact=cat_str.replace(' ', '-').replace('&', 'and')).first()
+            )
+            if not cat_match:
+                lower_cat = cat_str.lower()
+                for c in Category.objects.all():
+                    if c.name.lower() in lower_cat or lower_cat in c.name.lower():
+                        cat_match = c
+                        break
+            if not cat_match:
+                from django.utils.text import slugify
+                from django.utils import timezone as dj_tz
+                cat_match, _ = Category.objects.get_or_create(
+                    name=cat_str,
+                    defaults={'slug': slugify(cat_str) or f"cat-{int(dj_tz.now().timestamp())}"}
+                )
             if cat_match:
                 data['category'] = cat_match.id
-            else:
-                data.pop('category', None)
 
         if not data.get('category'):
             cat_group = str(data.get('category_group') or '').lower()
@@ -576,10 +658,10 @@ class CustomRequestSerializer(serializers.ModelSerializer):
 # NON-CIRCULAR SUMMARY SERIALIZER FOR EMBEDDING INSIDE ORDERS
 class OrderCustomRequestSummarySerializer(serializers.ModelSerializer):
     client_name = serializers.SerializerMethodField()
-    category_name = serializers.CharField(source='category.name', read_only=True)
+    category_name = serializers.SerializerMethodField()
     aesthetic_style_name = serializers.CharField(source='aesthetic_style.name', read_only=True)
-    metal_alloy_name = serializers.CharField(source='metal_alloy.name', read_only=True)
-    metal_swatch_color = serializers.CharField(source='metal_alloy.swatch_color', read_only=True)
+    metal_alloy_name = serializers.SerializerMethodField()
+    metal_swatch_color = serializers.SerializerMethodField()
     delivery_speed_name = serializers.CharField(source='delivery_speed.label', read_only=True)
     reference_image = serializers.SerializerMethodField()
     catalog_references = serializers.SerializerMethodField()
@@ -639,13 +721,22 @@ class OrderCustomRequestSummarySerializer(serializers.ModelSerializer):
             return obj.client.username
         return obj.contact_name or 'Guest'
 
+    def get_category_name(self, obj):
+        return resolve_custom_request_category(obj)
+
+    def get_metal_alloy_name(self, obj):
+        return resolve_custom_request_metal(obj)
+
+    def get_metal_swatch_color(self, obj):
+        return resolve_custom_request_swatch(obj)
+
 
 # STAFF-SAFE CUSTOM REQUEST SERIALIZER (Shows full technical CAD specifications without pricing)
 class StaffCustomRequestSerializer(serializers.ModelSerializer):
-    category_name = serializers.CharField(source='category.name', read_only=True, default='')
+    category_name = serializers.SerializerMethodField()
     aesthetic_style_name = serializers.CharField(source='aesthetic_style.name', read_only=True, default='')
-    metal_alloy_name = serializers.CharField(source='metal_alloy.name', read_only=True, default='')
-    metal_swatch_color = serializers.CharField(source='metal_alloy.swatch_color', read_only=True, default='')
+    metal_alloy_name = serializers.SerializerMethodField()
+    metal_swatch_color = serializers.SerializerMethodField()
     reference_image = serializers.SerializerMethodField()
     catalog_references = serializers.SerializerMethodField()
     gemstones = CustomRequestGemstoneSerializer(many=True, read_only=True)
@@ -675,6 +766,15 @@ class StaffCustomRequestSerializer(serializers.ModelSerializer):
 
     def get_client_display_name(self, obj):
         return obj.contact_name or "Valued Client"
+
+    def get_category_name(self, obj):
+        return resolve_custom_request_category(obj)
+
+    def get_metal_alloy_name(self, obj):
+        return resolve_custom_request_metal(obj)
+
+    def get_metal_swatch_color(self, obj):
+        return resolve_custom_request_swatch(obj)
 
 
 class OrderMilestoneSerializer(serializers.ModelSerializer):
@@ -1016,7 +1116,7 @@ class ClientOrderSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'order_type', 'current_version', 'custom_request', 'file_edit_request',
             'is_file_edit', 'assigned_staff',
-            'total_price', 'status', 'deadline_hours', 'due_at',
+            'total_price', 'status', 'deadline_hours', 'due_at', 'assigned_at',
             'is_overdue', 'payment_stages', 'deliverables', 'preview_image',
             'quality_approved', 'is_fully_paid', 'download_enabled_by_admin',
             'can_download', 'download_count', 'milestones',

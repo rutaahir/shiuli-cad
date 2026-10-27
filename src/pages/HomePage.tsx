@@ -972,6 +972,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 title: 'Custom Design',
                 desc: 'Share your idea & get unique CAD design',
                 image: '/assets/redesign/box_custom_design.png',
+                imageWebp: '/assets/redesign/box_custom_design.webp',
                 imageAlt: 'Custom Design Jewellery CAD',
                 onClick: () => onNavigate('custom-design'),
               },
@@ -980,6 +981,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 title: 'Ready CAD Files',
                 desc: 'Browse high-quality jewellery CAD models',
                 image: '/assets/redesign/box_ready_cad_files.png',
+                imageWebp: '/assets/redesign/box_ready_cad_files.webp',
                 imageAlt: 'Ready CAD Files Catalog',
                 onClick: () => onNavigate('collections'),
               },
@@ -988,6 +990,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 title: 'Our Portfolio',
                 desc: 'Explore our latest designs & creations',
                 image: '/assets/redesign/box_our_portfolio.png',
+                imageWebp: '/assets/redesign/box_our_portfolio.webp',
                 imageAlt: 'Our Jewellery CAD Portfolio',
                 onClick: () => onNavigate('portfolio'),
               },
@@ -996,6 +999,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 title: 'File Editing',
                 desc: 'Modify your existing CAD files',
                 image: '/assets/redesign/box_file_editing.png',
+                imageWebp: '/assets/redesign/box_file_editing.webp',
                 imageAlt: 'Jewellery CAD File Editing',
                 onClick: () => onNavigate('file-editing'),
               },
@@ -1007,12 +1011,18 @@ export const HomePage: React.FC<HomePageProps> = ({
                 aria-label={`${card.title}: ${card.desc}`}
                 className="group relative rounded-[20px] sm:rounded-[22px] cursor-pointer overflow-hidden transition-all duration-300 hover:-translate-y-1.5 focus-visible:outline-2 focus-visible:outline-[#D6AD62] shadow-[0_6px_20px_rgba(23,54,93,0.06)] hover:shadow-[0_16px_36px_rgba(214,173,98,0.24)] text-left"
               >
-                <img
-                  src={card.image}
-                  alt={card.imageAlt}
-                  className="w-full h-auto object-contain transition-transform duration-500 group-hover:scale-[1.025]"
-                  loading="eager"
-                />
+                <picture className="w-full h-auto block">
+                  <source type="image/webp" srcSet={card.imageWebp} />
+                  <img
+                    src={card.image}
+                    alt={card.imageAlt}
+                    width={1888}
+                    height={1688}
+                    className="w-full h-auto object-contain transition-transform duration-500 group-hover:scale-[1.025] [image-rendering:-webkit-optimize-contrast] select-none"
+                    loading="eager"
+                    decoding="async"
+                  />
+                </picture>
               </button>
             ))}
           </motion.div>
@@ -1764,33 +1774,42 @@ export const HomePage: React.FC<HomePageProps> = ({
 
           {/* Grid with Stagger */}
           <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {(galleryItems.length > 0 ? galleryItems.slice(0, 3) : []).map((item) => (
-              <StaggerItem key={item.id}>
-                <motion.div
-                  whileHover={{ y: -8, scale: 1.02 }}
-                  transition={{ duration: 0.3 }}
-                  onClick={() => onNavigate('gallery')}
-                  className="group relative rounded-2xl overflow-hidden aspect-[4/3] bg-[#FFF9F0] border border-[#E8D7B7] cursor-pointer shadow-md hover:border-[#D9B66F] hover:shadow-xl transition-all"
-                >
-                  <img
-                    src={item.image || item.primary_image || item.primary_image_url}
-                    alt={item.title}
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#17345C]/90 via-[#17345C]/30 to-transparent" />
-                  <div className="absolute bottom-0 inset-x-0 p-5 space-y-1">
-                    <span className="text-[10px] text-[#D9B66F] uppercase tracking-wider font-semibold">
-                      {item.category_name || item.category || 'Portfolio'} {item.specs?.weight ? `• ${item.specs.weight}` : ''}
-                    </span>
-                    <h3 className="font-serif text-xl text-white group-hover:text-[#F5E7A3] transition-colors">
-                      {item.title}
-                    </h3>
-                    <p className="text-xs text-[#E8D7B7] line-clamp-1 font-light">{item.description}</p>
-                  </div>
-                </motion.div>
-              </StaggerItem>
-            ))}
+            {(galleryItems.length > 0 ? galleryItems.slice(0, 3) : []).map((item) => {
+              const itemImg = getOptimizedImageUrl(
+                item.image || item.primary_image || item.primary_image_url,
+                item.category_name || item.category
+              );
+
+              return (
+                <StaggerItem key={item.id}>
+                  <motion.div
+                    whileHover={{ y: -8, scale: 1.02 }}
+                    transition={{ duration: 0.3 }}
+                    onClick={() => onNavigate('gallery')}
+                    className="group relative rounded-2xl overflow-hidden aspect-[4/3] bg-[#FFF9F0] border border-[#E8D7B7] cursor-pointer shadow-md hover:border-[#D9B66F] hover:shadow-xl transition-all"
+                  >
+                    <img
+                      src={itemImg}
+                      alt={item.title || 'Shiuli Lookbook Item'}
+                      referrerPolicy="no-referrer"
+                      loading="lazy"
+                      onError={(e) => handleImgError(e, item.category_name || item.category)}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#17345C]/90 via-[#17345C]/30 to-transparent" />
+                    <div className="absolute bottom-0 inset-x-0 p-5 space-y-1">
+                      <span className="text-[10px] text-[#D9B66F] uppercase tracking-wider font-semibold">
+                        {item.category_name || item.category || 'Portfolio'} {item.specs?.weight ? `• ${item.specs.weight}` : ''}
+                      </span>
+                      <h3 className="font-serif text-xl text-white group-hover:text-[#F5E7A3] transition-colors">
+                        {item.title}
+                      </h3>
+                      <p className="text-xs text-[#E8D7B7] line-clamp-1 font-light">{item.description}</p>
+                    </div>
+                  </motion.div>
+                </StaggerItem>
+              );
+            })}
           </StaggerGrid>
         </div>
       </section>

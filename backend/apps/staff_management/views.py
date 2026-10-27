@@ -17,7 +17,7 @@ from .serializers import (
 
 class StaffViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
+        if self.action in ['list', 'retrieve', 'me_dashboard', 'performance']:
             return [IsStaffOrAdmin()]
         return [IsAdmin()]
 
@@ -51,13 +51,30 @@ class StaffViewSet(viewsets.ModelViewSet):
             "specialty_tags": profile.specialty_tags if profile else ""
         })
 
-    @action(detail=False, methods=['get'], permission_classes=[IsStaff], url_path='me/dashboard')
+    @action(detail=False, methods=['get'], permission_classes=[IsStaffOrAdmin], url_path='me/dashboard')
     def me_dashboard(self, request):
         user = request.user
         profile = getattr(user, 'staff_profile', None)
 
-        active_orders = Order.objects.filter(assigned_staff=user, status=Order.Status.WITH_DESIGNER, is_deleted=False)
-        completed_count = Order.objects.filter(assigned_staff=user, status=Order.Status.COMPLETED, is_deleted=False).count()
+        all_staff_orders = Order.objects.filter(assigned_staff=user, is_deleted=False).prefetch_related('revision_requests', 'milestones')
+        
+        def is_order_finished(ord_obj):
+            if ord_obj.status == Order.Status.COMPLETED:
+                return True
+            if ord_obj.status == Order.Status.CANCELLED:
+                return False
+            has_open_revisions = ord_obj.revision_requests.filter(
+                status__in=['open', 'in_progress']
+            ).exists() or ord_obj.status == Order.Status.REVISION_REQUESTED
+            if ord_obj.quality_approved and not has_open_revisions:
+                has_client_approved = ord_obj.milestones.filter(stage__icontains="Approved by Client").exists()
+                if has_client_approved or ord_obj.status == Order.Status.PREVIEW_READY or ord_obj.balance_paid:
+                    return True
+            return False
+
+        active_order_objs = [o for o in all_staff_orders if not is_order_finished(o) and o.status != Order.Status.CANCELLED]
+        completed_order_objs = [o for o in all_staff_orders if is_order_finished(o)]
+        completed_count = len(completed_order_objs)
 
         available_pool = Order.objects.filter(
             status=Order.Status.IN_DESIGN,
@@ -66,13 +83,24 @@ class StaffViewSet(viewsets.ModelViewSet):
             is_deleted=False
         ).count()
 
+        # Compute dynamic average turnaround time in hours from completed orders
+        turnaround_hours_list = []
+        for cord in completed_order_objs:
+            start = cord.assigned_at or cord.created_at
+            end = cord.handed_over_at or (cord.deliverables.order_by('-uploaded_at').first().uploaded_at if cord.deliverables.exists() else None)
+            if start and end and end > start:
+                turnaround_hours_list.append((end - start).total_seconds() / 3600.0)
+        
+        avg_turnaround = round(sum(turnaround_hours_list) / len(turnaround_hours_list), 1) if turnaround_hours_list else 24.0
+
         return Response({
             "user": StaffListSerializer(user, context={'request': request}).data,
-            "active_jobs_count": active_orders.count(),
-            "max_concurrent_jobs": profile.max_concurrent_jobs if profile else 2,
+            "active_jobs_count": len(active_order_objs),
+            "max_concurrent_jobs": profile.max_concurrent_jobs if profile else 3,
             "available_pool_count": available_pool,
             "total_completed": completed_count,
-            "active_orders": OrderSerializer(active_orders, many=True, context={'request': request}).data
+            "avg_turnaround_hours": avg_turnaround,
+            "active_orders": OrderSerializer(active_order_objs, many=True, context={'request': request}).data
         })
 
 

@@ -269,6 +269,7 @@ export const AdminCreateOrderModal: React.FC<AdminCreateOrderModalProps> = ({
     setIsSubmitting(true);
     try {
       const payload: any = {
+        custom_request_id: initialValues?.custom_request_id || initialValues?.id || undefined,
         client_id: customerMode === 'existing' ? selectedClientId : undefined,
         client_name: clientName.trim(),
         client_email: clientEmail.trim(),
@@ -502,6 +503,9 @@ export const AdminCreateOrderModal: React.FC<AdminCreateOrderModalProps> = ({
                   onChange={(e) => setCategory(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 >
+                  {category && !COMMON_CATEGORIES.includes(category) && (
+                    <option value={category}>{category}</option>
+                  )}
                   {COMMON_CATEGORIES.map((cat) => (
                     <option key={cat} value={cat}>
                       {cat}
@@ -517,6 +521,9 @@ export const AdminCreateOrderModal: React.FC<AdminCreateOrderModalProps> = ({
                   onChange={(e) => setMetalAlloy(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none focus:border-[#C9A227]"
                 >
+                  {metalAlloy && !COMMON_METALS.includes(metalAlloy) && (
+                    <option value={metalAlloy}>{metalAlloy}</option>
+                  )}
                   {COMMON_METALS.map((met) => (
                     <option key={met} value={met}>
                       {met}
@@ -909,6 +916,7 @@ export const AdminEditOrderModal: React.FC<AdminEditOrderModalProps> = ({
   const [advanceAmount, setAdvanceAmount] = useState<string>('');
   const [advancePaid, setAdvancePaid] = useState<boolean>(false);
   const [deadlineHours, setDeadlineHours] = useState<number>(72);
+  const [dueAt, setDueAt] = useState<string>('');
   const [status, setStatus] = useState<string>('in_design');
   const [assignedStaffId, setAssignedStaffId] = useState<string>('');
 
@@ -917,6 +925,39 @@ export const AdminEditOrderModal: React.FC<AdminEditOrderModalProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const applyPresetHours = (hrs: number) => {
+    setDeadlineHours(hrs);
+    const target = new Date(Date.now() + hrs * 3600 * 1000);
+    const localIso = new Date(target.getTime() - target.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    setDueAt(localIso);
+  };
+
+  const handleNeededByDateChange = (dateVal: string) => {
+    setNeededByDate(dateVal);
+    if (dateVal) {
+      try {
+        const target = new Date(`${dateVal}T23:59:59`);
+        const now = new Date();
+        const diffHrs = Math.max(1, Math.round((target.getTime() - now.getTime()) / (3600 * 1000)));
+        setDeadlineHours(diffHrs);
+        const localIso = new Date(target.getTime() - target.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        setDueAt(localIso);
+      } catch {}
+    }
+  };
+
+  const handleDueAtChange = (val: string) => {
+    setDueAt(val);
+    if (val) {
+      try {
+        const target = new Date(val);
+        const now = new Date();
+        const diffHrs = Math.max(1, Math.round((target.getTime() - now.getTime()) / (3600 * 1000)));
+        setDeadlineHours(diffHrs);
+      } catch {}
+    }
+  };
 
   useEffect(() => {
     if (order) {
@@ -944,6 +985,21 @@ export const AdminEditOrderModal: React.FC<AdminEditOrderModalProps> = ({
       setAdvanceAmount(order.advance_amount ? String(order.advance_amount) : '0');
       setAdvancePaid(Boolean(order.advance_paid));
       setDeadlineHours(order.deadline_hours || 72);
+
+      if (order.due_at) {
+        try {
+          const d = new Date(order.due_at);
+          const localIso = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+          setDueAt(localIso);
+        } catch {
+          setDueAt('');
+        }
+      } else {
+        const target = new Date(Date.now() + (order.deadline_hours || 72) * 3600 * 1000);
+        const localIso = new Date(target.getTime() - target.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        setDueAt(localIso);
+      }
+
       setStatus(order.status || 'in_design');
       setAssignedStaffId(order.assigned_staff?.id ? String(order.assigned_staff.id) : '');
 
@@ -993,6 +1049,7 @@ export const AdminEditOrderModal: React.FC<AdminEditOrderModalProps> = ({
         advance_amount: parseFloat(advanceAmount) || 0,
         advance_paid: advancePaid,
         deadline_hours: deadlineHours,
+        due_at: dueAt ? new Date(dueAt).toISOString() : null,
         status: status,
         assigned_staff_id: assignedStaffId || null,
         admin_call_notes: adminCallNotes.trim(),
@@ -1216,11 +1273,11 @@ export const AdminEditOrderModal: React.FC<AdminEditOrderModalProps> = ({
               </div>
 
               <div>
-                <label className="font-semibold text-[#17243B] block mb-1">Needed By Date</label>
+                <label className="font-semibold text-[#17243B] block mb-1">Needed By Date (Customer Target)</label>
                 <input
                   type="date"
                   value={neededByDate}
-                  onChange={(e) => setNeededByDate(e.target.value)}
+                  onChange={(e) => handleNeededByDateChange(e.target.value)}
                   className="w-full px-3.5 py-2 rounded-xl bg-[#FAF9F5] border border-[#E8D7B7] text-xs focus:outline-none"
                 />
               </div>
@@ -1284,7 +1341,7 @@ export const AdminEditOrderModal: React.FC<AdminEditOrderModalProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 border-t border-white/10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-white/10">
               <div>
                 <label className="font-semibold text-slate-300 block mb-1">Advance Deposit ($)</label>
                 <div className="relative">
@@ -1310,15 +1367,83 @@ export const AdminEditOrderModal: React.FC<AdminEditOrderModalProps> = ({
                   <span>Advance Deposit Paid</span>
                 </label>
               </div>
+            </div>
 
-              <div>
-                <label className="font-semibold text-slate-300 block mb-1">Deadline Duration (Hours)</label>
-                <input
-                  type="number"
-                  value={deadlineHours}
-                  onChange={(e) => setDeadlineHours(parseInt(e.target.value) || 72)}
-                  className="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/20 font-mono text-xs text-white focus:outline-none"
-                />
+            {/* Dedicated Modeller SLA Deadline & Realtime Timer Block */}
+            <div className="p-3.5 rounded-xl bg-slate-900/80 border border-amber-500/30 space-y-3 mt-2">
+              <div className="flex items-center justify-between">
+                <label className="font-semibold text-amber-300 text-xs flex items-center gap-1.5 font-mono">
+                  <Clock className="w-3.5 h-3.5 text-amber-400" /> Modeller SLA Deadline &amp; Realtime Timer
+                </label>
+                <span className="text-[10px] font-mono text-slate-300">
+                  Timer ticks in real time on staff workbench
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] text-slate-300 block mb-1">Deadline Duration (Hours)</label>
+                  <input
+                    type="number"
+                    value={deadlineHours}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 24;
+                      setDeadlineHours(val);
+                      const target = new Date(Date.now() + val * 3600 * 1000);
+                      const localIso = new Date(target.getTime() - target.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                      setDueAt(localIso);
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/20 font-mono text-xs text-white focus:outline-none focus:border-amber-400"
+                  />
+
+                  {/* 1-Click Quick Presets */}
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => applyPresetHours(24)}
+                      className={`px-2 py-1 rounded text-[10px] font-mono font-semibold transition-all cursor-pointer ${deadlineHours === 24 ? 'bg-amber-500 text-slate-950 font-bold shadow-sm' : 'bg-white/10 text-slate-300 hover:bg-white/20'}`}
+                    >
+                      24h (1 Day)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyPresetHours(48)}
+                      className={`px-2 py-1 rounded text-[10px] font-mono font-semibold transition-all cursor-pointer ${deadlineHours === 48 ? 'bg-amber-500 text-slate-950 font-bold shadow-sm' : 'bg-white/10 text-slate-300 hover:bg-white/20'}`}
+                    >
+                      48h (2 Days)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyPresetHours(72)}
+                      className={`px-2 py-1 rounded text-[10px] font-mono font-semibold transition-all cursor-pointer ${deadlineHours === 72 ? 'bg-amber-500 text-slate-950 font-bold shadow-sm' : 'bg-white/10 text-slate-300 hover:bg-white/20'}`}
+                    >
+                      72h (3 Days)
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] text-slate-300 block mb-1">Target Due Date &amp; Time (due_at)</label>
+                  <input
+                    type="datetime-local"
+                    value={dueAt}
+                    onChange={(e) => handleDueAtChange(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/20 font-mono text-xs text-white focus:outline-none focus:border-amber-400"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    Exact date &amp; time deadline expires
+                  </span>
+                </div>
+              </div>
+
+              {/* Realtime Live Preview */}
+              <div className="p-2.5 rounded-lg bg-black/50 border border-amber-500/20 flex items-center justify-between text-xs font-mono">
+                <span className="text-slate-300 flex items-center gap-1.5 text-[11px]">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Staff Workbench Timer Preview:
+                </span>
+                <span className="text-amber-400 font-bold">
+                  {Math.floor(deadlineHours / 24)}d {deadlineHours % 24}h 00m remaining
+                </span>
               </div>
             </div>
           </div>

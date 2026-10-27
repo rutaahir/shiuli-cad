@@ -5,6 +5,7 @@ import { Sparkles, Eye, X, ArrowRight, Layers, Gem, Scale, Loader2, Info } from 
 import { StaggerGrid, StaggerItem } from '../components/motion/StaggerGrid';
 import { LazyImage } from '../components/motion/LazyImage';
 import { api } from '../services/api';
+import { getOptimizedImageUrl, handleImgError } from '../utils/imageHelper';
 
 interface GalleryPageProps {
   onNavigate: (page: PageId, extraId?: string) => void;
@@ -115,7 +116,10 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ onNavigate }) => {
         ) : (
           <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredItems.map((item) => {
-              const itemImg = item.primary_image || (item as any).image || '/unsplash-img/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=800&q=80';
+              const itemImg = getOptimizedImageUrl(
+                item.primary_image || (item as any).image,
+                item.category_name || item.category_slug
+              );
               const catLabel = item.category_name || item.category_slug || 'CAD Model';
 
               return (
@@ -193,9 +197,13 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ onNavigate }) => {
               {/* Large Image (7 cols) */}
               <div className="md:col-span-7 bg-[#FFF9F0] p-6 flex flex-col items-center justify-center">
                 <img
-                  src={activeLightboxItem.primary_image || activeLightboxItem.image}
+                  src={getOptimizedImageUrl(
+                    activeLightboxItem.primary_image || activeLightboxItem.image,
+                    activeLightboxItem.category_name || activeLightboxItem.category_slug
+                  )}
                   alt={activeLightboxItem.title}
                   referrerPolicy="no-referrer"
+                  onError={(e) => handleImgError(e, activeLightboxItem.category_name || activeLightboxItem.category_slug)}
                   className="max-h-[420px] w-auto object-contain drop-shadow-md rounded-xl"
                 />
 
@@ -205,8 +213,9 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ onNavigate }) => {
                     {activeLightboxItem.gallery_images.map((g: any, gIdx: number) => (
                       <img
                         key={g.id || gIdx}
-                        src={g.image}
+                        src={getOptimizedImageUrl(g.image, activeLightboxItem.category_name || activeLightboxItem.category_slug)}
                         alt="Gallery preview"
+                        onError={(e) => handleImgError(e, activeLightboxItem.category_name || activeLightboxItem.category_slug)}
                         className="w-14 h-14 object-cover rounded-lg border border-[#E8D7B7] cursor-pointer hover:border-[#D9B66F]"
                       />
                     ))}

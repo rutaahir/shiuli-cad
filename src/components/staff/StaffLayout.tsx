@@ -17,11 +17,9 @@ import {
   ShieldCheck,
   Briefcase,
   Search,
-  CheckCircle2,
   ExternalLink,
   Command,
   X,
-  AlertTriangle,
   Menu,
 } from 'lucide-react';
 
@@ -83,14 +81,14 @@ export const StaffLayout: React.FC<StaffLayoutProps> = ({
       label: 'My Workbench',
       icon: <LayoutDashboard className="w-4 h-4" />,
       badge: activeJobsCount > 0 ? activeJobsCount : undefined,
-      badgeColor: 'bg-[#D4AF37] text-[#0B1330]',
+      badgeColor: 'bg-[#17345C] text-[#FFF9F0]',
     },
     {
       id: 'job-pool',
       label: 'Job Pool (First-Wins)',
       icon: <Inbox className="w-4 h-4" />,
       badge: availableJobsCount > 0 ? availableJobsCount : undefined,
-      badgeColor: 'bg-emerald-500 text-white animate-pulse',
+      badgeColor: 'bg-emerald-600 text-white animate-pulse',
     },
     {
       id: 'my-designs',
@@ -115,24 +113,7 @@ export const StaffLayout: React.FC<StaffLayoutProps> = ({
   ];
 
   return (
-    <div className="h-screen w-screen bg-[#FAF8F5] text-[#17243B] flex flex-col font-sans overflow-hidden select-none">
-      {/* Prototype Banner Header */}
-      <div className="bg-[#09112B] border-b border-[#D4AF37]/30 px-3 py-1.5 text-center text-xs text-[#F5F1E8] flex items-center justify-between sm:justify-center gap-2 flex-shrink-0 z-40">
-        <div className="flex items-center gap-2 text-[11px] sm:text-xs">
-          <ShieldCheck className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
-          <span>
-            <strong className="text-[#F5E7A3]">STAFF & CAD ARTISAN PORTAL</strong>
-          </span>
-        </div>
-        <button
-          onClick={onBackToMain}
-          className="text-[11px] font-bold text-[#D4AF37] hover:text-white underline flex items-center gap-1 shrink-0"
-        >
-          <span>Exit to Site</span>
-          <ExternalLink className="w-3 h-3" />
-        </button>
-      </div>
-
+    <div className="h-screen w-screen bg-[#FFFDF9] text-[#17243B] flex flex-col font-sans overflow-hidden staff-portal select-none">
       <div className="flex-1 flex min-h-0 overflow-hidden relative">
         {/* Mobile Slide-over Drawer Backdrop */}
         {isMobileSidebarOpen && (
@@ -144,21 +125,21 @@ export const StaffLayout: React.FC<StaffLayoutProps> = ({
 
         {/* Mobile Slide-over Drawer */}
         <aside
-          className={`fixed inset-y-0 left-0 w-[280px] bg-gradient-to-b from-[#09112B] via-[#0B1536] to-[#060B1E] text-[#F5F1E8] z-50 flex flex-col justify-between transition-transform duration-300 lg:hidden shadow-2xl ${
+          className={`fixed inset-y-0 left-0 w-[280px] bg-[#FFFDF9] text-[#17243B] z-50 flex flex-col justify-between transition-transform duration-300 lg:hidden shadow-2xl border-r border-[#E8D7B7] ${
             isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
           <div className="flex-1 flex flex-col min-h-0">
-            <div className="p-4 flex items-center justify-between border-b border-[#D4AF37]/20 bg-[#09112B]">
-              <BrandLogo variant="horizontal" size="sm" />
+            <div className="p-4 flex items-center justify-between border-b border-[#E8D7B7] bg-white">
+              <BrandLogo variant="horizontal" size="sm" theme="light" />
               <button
                 onClick={() => setIsMobileSidebarOpen(false)}
-                className="p-1.5 rounded-lg bg-white/10 text-white hover:bg-white/20"
+                className="p-1.5 rounded-lg bg-[#FFF9F0] border border-[#E8D7B7] text-[#17345C] hover:bg-white"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <nav className="p-3 space-y-1.5 overflow-y-auto flex-1">
+            <nav className="p-3 space-y-1 overflow-y-auto flex-1">
               {navItems.map((item) => {
                 const isActive = activeTab === item.id;
                 return (
@@ -170,16 +151,16 @@ export const StaffLayout: React.FC<StaffLayoutProps> = ({
                     }}
                     className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-medium transition-all ${
                       isActive
-                        ? 'bg-gradient-to-r from-[#D4AF37]/30 to-transparent text-[#F5E7A3] font-bold border-l-4 border-[#D4AF37]'
-                        : 'text-[#C9C2A6]/80 hover:bg-[#122254]/60 hover:text-white'
+                        ? 'bg-[#FFF9F0] text-[#17345C] font-bold border-l-4 border-[#B88732] shadow-2xs'
+                        : 'text-[#687386] hover:bg-[#FFF9F0] hover:text-[#17345C]'
                     }`}
                   >
-                    <span className={isActive ? 'text-[#D4AF37]' : 'text-[#8A9BC7]'}>
+                    <span className={isActive ? 'text-[#B88732]' : 'text-[#687386]'}>
                       {item.icon}
                     </span>
                     <span className="truncate flex-1 text-left">{item.label}</span>
                     {item.badge && item.badge > 0 ? (
-                      <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold ${item.badgeColor || 'bg-[#D4AF37] text-[#0B1330]'}`}>
+                      <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold ${item.badgeColor || 'bg-[#17345C] text-[#FFF9F0]'}`}>
                         {item.badge}
                       </span>
                     ) : null}
@@ -188,49 +169,52 @@ export const StaffLayout: React.FC<StaffLayoutProps> = ({
               })}
             </nav>
           </div>
-          <div className="p-4 border-t border-[#D4AF37]/20 bg-[#060B1E]">
-            <div className="flex items-center gap-3 p-2 rounded-xl bg-[#0B1536] border border-[#D4AF37]/25">
+          <div className="p-4 border-t border-[#E8D7B7] bg-[#FFF9F0]">
+            <div className="flex items-center gap-3 p-2 rounded-xl bg-white border border-[#E8D7B7]">
               <img
                 src={staff.avatar}
                 alt={staff.name}
-                className="w-8 h-8 rounded-full object-cover border-2 border-[#D4AF37]"
+                className="w-8 h-8 rounded-full object-cover border-2 border-[#D9B66F]"
               />
               <div className="flex-1 overflow-hidden">
-                <div className="text-xs font-serif font-bold text-[#FAF8F3] truncate">{staff.name}</div>
-                <div className="text-[10px] text-[#D4AF37] font-mono capitalize truncate">{staff.roleTitle}</div>
+                <div className="text-xs font-serif font-bold text-[#17345C] truncate">{staff.name}</div>
+                <div className="text-[10px] text-[#B88732] font-semibold truncate">{staff.role}</div>
               </div>
-              <button onClick={handleLogout} className="text-[#C9C2A6] hover:text-[#D14343] p-1">
+              <button onClick={handleLogout} className="text-[#687386] hover:text-rose-600 p-1">
                 <LogOut className="w-4 h-4" />
               </button>
             </div>
           </div>
         </aside>
 
-        {/* Royal Sapphire & Gold Metallic Desktop Sidebar */}
+        {/* Luxury Atelier Ivory Porcelain & Gold Desktop Sidebar */}
         <aside
-          className={`h-full flex-shrink-0 bg-gradient-to-b from-[#09112B] via-[#0B1536] to-[#060B1E] text-[#F5F1E8] border-r border-[#D4AF37]/25 hidden lg:flex flex-col justify-between transition-all duration-300 z-30 shadow-[10px_0_30px_rgba(0,0,0,0.5)] ${
+          className={`h-full flex-shrink-0 bg-[#FFFDF9] text-[#17243B] border-r border-[#E8D7B7] hidden lg:flex flex-col justify-between transition-all duration-300 z-30 shadow-[4px_0_24px_rgba(23,52,92,0.05)] ${
             isSidebarCollapsed ? 'w-[76px]' : 'w-[260px]'
           }`}
         >
           {/* Top Brand Header */}
           <div className="flex-1 flex flex-col min-h-0">
-            <div className="p-3.5 flex items-center justify-between border-b border-[#D4AF37]/20 bg-[#09112B]/80 backdrop-blur-md whitespace-nowrap overflow-hidden flex-shrink-0">
+            <div className="p-3.5 flex items-center justify-between border-b border-[#E8D7B7] bg-white/90 backdrop-blur-md whitespace-nowrap overflow-hidden flex-shrink-0">
               {!isSidebarCollapsed ? (
                 <div className="flex items-center gap-2">
-                  <BrandLogo variant="horizontal" size="sm" />
+                  <BrandLogo variant="horizontal" size="sm" theme="light" />
                 </div>
               ) : (
                 <div className="mx-auto">
-                  <BrandLogo variant="mark-only" size="sm" />
+                  <BrandLogo variant="mark-only" size="sm" theme="light" />
                 </div>
               )}
             </div>
 
             {/* Sub-label banner */}
             {!isSidebarCollapsed && (
-              <div className="px-4 py-2 bg-[#122254]/40 border-b border-[#D4AF37]/15 flex items-center justify-between text-[10px] text-[#D4AF37] font-mono tracking-widest uppercase">
-                <span>Craftsman Atelier</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <div className="px-4 py-2 bg-[#FFF9F0] border-b border-[#E8D7B7] flex items-center justify-between text-[10px] text-[#B88732] font-mono tracking-widest uppercase">
+                <span className="flex items-center gap-1.5 font-bold">
+                  <Sparkles className="w-3 h-3 text-[#B88732]" />
+                  Craftsman Atelier
+                </span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               </div>
             )}
 
@@ -243,13 +227,13 @@ export const StaffLayout: React.FC<StaffLayoutProps> = ({
                     key={item.id}
                     onClick={() => onTabChange(item.id)}
                     title={isSidebarCollapsed ? item.label : undefined}
-                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all relative ${
+                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all relative cursor-pointer ${
                       isActive
-                        ? 'bg-gradient-to-r from-[#D4AF37]/25 via-[#D4AF37]/10 to-transparent text-[#F5E7A3] font-bold border-l-[3px] border-[#D4AF37] pl-3 shadow-[0_0_15px_rgba(212,175,55,0.15)]'
-                        : 'text-[#C9C2A6]/80 hover:bg-[#122254]/60 hover:text-white'
+                        ? 'bg-[#FFF9F0] text-[#17345C] font-bold border-l-[3px] border-[#B88732] pl-3 shadow-2xs'
+                        : 'text-[#687386] hover:bg-[#FFF9F0] hover:text-[#17345C]'
                     }`}
                   >
-                    <span className={isActive ? 'text-[#D4AF37]' : 'text-[#8A9BC7]'}>
+                    <span className={isActive ? 'text-[#B88732]' : 'text-[#687386]'}>
                       {item.icon}
                     </span>
                     {!isSidebarCollapsed && (
@@ -257,8 +241,8 @@ export const StaffLayout: React.FC<StaffLayoutProps> = ({
                     )}
                     {!isSidebarCollapsed && item.badge && item.badge > 0 ? (
                       <span
-                        className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold shadow-[0_0_8px_rgba(212,175,55,0.4)] ${
-                          item.badgeColor || 'bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#0B1330]'
+                        className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold shadow-2xs ${
+                          item.badgeColor || 'bg-[#17345C] text-[#FFF9F0]'
                         }`}
                       >
                         {item.badge}
@@ -271,22 +255,22 @@ export const StaffLayout: React.FC<StaffLayoutProps> = ({
 
             {/* Craftsman Workbench Load Mini-Card */}
             {!isSidebarCollapsed && (
-              <div className="p-3.5 m-3 rounded-xl bg-gradient-to-br from-[#122254] to-[#0A122E] border border-[#D4AF37]/25 text-xs space-y-2 flex-shrink-0">
+              <div className="p-3.5 m-3 rounded-2xl bg-[#FFF9F0] border border-[#E8D7B7] text-xs space-y-2 flex-shrink-0 shadow-2xs">
                 <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-[#C9C2A6] font-medium flex items-center gap-1.5">
-                    <Briefcase className="w-3.5 h-3.5 text-[#D4AF37]" /> Capacity
+                  <span className="text-[#17345C] font-semibold flex items-center gap-1.5">
+                    <Briefcase className="w-3.5 h-3.5 text-[#B88732]" /> Capacity
                   </span>
-                  <span className="text-[#F5E7A3] font-bold font-mono">
+                  <span className="text-[#B88732] font-bold font-mono">
                     {activeJobsCount} / {staff.maxJobLimit} Slots
                   </span>
                 </div>
-                <div className="w-full bg-[#070D1E] rounded-full h-1.5 overflow-hidden border border-[#D4AF37]/20">
+                <div className="w-full bg-slate-200/80 rounded-full h-1.5 overflow-hidden border border-[#E8D7B7]/50">
                   <div
-                    className="bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] h-full transition-all duration-500"
-                    style={{ width: `${(activeJobsCount / staff.maxJobLimit) * 100}%` }}
+                    className="bg-gradient-to-r from-[#B88732] to-[#E8D7B7] h-full transition-all duration-500"
+                    style={{ width: `${Math.min(100, (activeJobsCount / Math.max(1, staff.maxJobLimit)) * 100)}%` }}
                   />
                 </div>
-                <p className="text-[10px] text-[#C9C2A6]/70 leading-snug">
+                <p className="text-[10px] text-[#687386] leading-snug">
                   Lead Modeler • {staff.rating}★ Rating
                 </p>
               </div>
@@ -294,79 +278,98 @@ export const StaffLayout: React.FC<StaffLayoutProps> = ({
           </div>
 
           {/* Sidebar Footer with LogOut & Collapse Toggle */}
-          <div className="p-3 border-t border-[#D4AF37]/20 bg-[#070D1E] space-y-2 flex-shrink-0">
-            <button
-              onClick={handleLogout}
-              className={`p-2 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/30 hover:border-rose-500/60 text-rose-300 transition-all w-full flex items-center justify-center gap-2 text-xs font-semibold shadow-sm ${
-                isSidebarCollapsed ? 'px-0' : ''
-              }`}
-              title="Log Out of Staff Portal"
-            >
-              <LogOut className="w-4 h-4 text-rose-400 shrink-0" />
-              {!isSidebarCollapsed && <span>Log Out</span>}
-            </button>
+          <div className="p-3 border-t border-[#E8D7B7] bg-[#FFF9F0]/80 backdrop-blur-md space-y-2.5 flex-shrink-0">
+            {/* Collapse Toggle */}
             <button
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="p-2 rounded-lg bg-[#122254]/60 hover:bg-[#D4AF37]/20 text-[#D4AF37] transition-colors w-full flex items-center justify-center gap-2 text-xs font-semibold"
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-white border border-[#E8D7B7] hover:border-[#B88732] text-xs text-[#17345C] hover:bg-[#FFFDF9] transition-all shadow-2xs cursor-pointer"
               title={isSidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
             >
               {isSidebarCollapsed ? (
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-4 h-4 text-[#B88732]" />
               ) : (
                 <>
-                  <ChevronLeft className="w-4 h-4" />
-                  <span>Collapse Rail</span>
+                  <ChevronLeft className="w-4 h-4 text-[#B88732]" />
+                  <span className="text-[11px] font-semibold tracking-wide text-[#17345C]">Collapse Sidebar</span>
                 </>
               )}
             </button>
+
+            {/* Profile Mini Card */}
+            <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white border border-[#E8D7B7] shadow-2xs">
+              <img
+                src={staff.avatar}
+                alt={staff.name}
+                className="w-8 h-8 rounded-full object-cover border-2 border-[#D9B66F] shrink-0"
+              />
+              {!isSidebarCollapsed && (
+                <div className="flex-1 overflow-hidden">
+                  <div className="text-xs font-serif font-bold text-[#17345C] truncate">
+                    {staff.name}
+                  </div>
+                  <div className="text-[10px] text-[#B88732] font-semibold tracking-wide truncate">
+                    {staff.role}
+                  </div>
+                </div>
+              )}
+              <button
+                onClick={handleLogout}
+                title="Log Out of Staff Portal"
+                className="text-[#687386] hover:text-rose-600 transition-colors p-1 cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </aside>
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
           {/* Top Bar Navigation */}
-          <header className="h-16 bg-white border-b border-[#E2E8F0] px-4 sm:px-6 flex items-center justify-between flex-shrink-0 z-20 shadow-sm">
+          <header className="h-16 bg-white/95 backdrop-blur-md border-b border-[#E8D7B7] px-4 sm:px-6 flex items-center justify-between flex-shrink-0 z-20 shadow-xs">
             {/* Quick Command K Search bar */}
             <div className="flex items-center gap-2.5">
               <button
                 onClick={() => setIsMobileSidebarOpen(true)}
-                className="p-2 rounded-xl bg-[#09112B] text-[#F5E7A3] lg:hidden hover:bg-[#122254] transition-colors shadow-sm"
+                className="p-2 rounded-xl bg-[#17345C] text-[#FFF9F0] lg:hidden hover:bg-[#112745] transition-colors shadow-sm cursor-pointer"
                 title="Open Staff Menu"
               >
-                <Menu className="w-5 h-5 text-[#D4AF37]" />
+                <Menu className="w-5 h-5 text-[#D9B66F]" />
               </button>
 
               <button
                 onClick={() => setShowCommandPalette(true)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#F1F5F9] hover:bg-[#E2E8F0] text-slate-500 text-xs transition-colors border border-slate-200 w-44 sm:w-64"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#FFF9F0] hover:bg-white text-[#687386] text-xs transition-all border border-[#E8D7B7] hover:border-[#D9B66F] w-44 sm:w-64 shadow-2xs cursor-pointer justify-between"
               >
-                <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <span className="flex-1 text-left truncate">Search CAD jobs...</span>
-                <kbd className="hidden sm:inline px-1.5 py-0.5 rounded bg-white text-[10px] font-mono text-slate-400 border border-slate-200">
+                <div className="flex items-center gap-2 truncate">
+                  <Search className="w-3.5 h-3.5 text-[#B88732] shrink-0" />
+                  <span className="truncate">Search CAD jobs...</span>
+                </div>
+                <kbd className="hidden sm:inline px-1.5 py-0.5 rounded bg-white text-[10px] font-mono text-[#17345C] border border-[#E8D7B7]">
                   ⌘K
                 </kbd>
               </button>
             </div>
 
             {/* Header Right Actions */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               {/* Capacity Slot Dots Pill */}
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#09112B] text-white text-xs border border-[#D4AF37]/40 shadow-sm">
-                <Briefcase className="w-3.5 h-3.5 text-[#D4AF37]" />
-                <span className="text-slate-300 text-[11px] font-medium hidden sm:inline">Workbench:</span>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FFF9F0] text-[#17345C] text-xs border border-[#E8D7B7] shadow-2xs">
+                <Briefcase className="w-3.5 h-3.5 text-[#B88732]" />
+                <span className="text-[#687386] text-[11px] font-medium hidden sm:inline">Workbench:</span>
                 <div className="flex items-center gap-1">
                   {Array.from({ length: staff.maxJobLimit }).map((_, idx) => (
                     <span
                       key={idx}
                       className={`inline-block w-2.5 h-2.5 rounded-full ${
                         idx < activeJobsCount
-                          ? 'bg-[#D4AF37] shadow-[0_0_8px_rgba(212,175,55,0.8)]'
-                          : 'bg-slate-700'
+                          ? 'bg-[#B88732] shadow-[0_0_8px_rgba(184,135,50,0.6)]'
+                          : 'bg-slate-300'
                       }`}
                     />
                   ))}
                 </div>
-                <span className="text-[#F5E7A3] font-mono font-bold text-xs ml-1">
+                <span className="text-[#B88732] font-mono font-bold text-xs ml-1">
                   {activeJobsCount}/{staff.maxJobLimit}
                 </span>
               </div>
@@ -374,12 +377,12 @@ export const StaffLayout: React.FC<StaffLayoutProps> = ({
               {/* Monthly Earnings Chip */}
               <div
                 onClick={() => onTabChange('earnings')}
-                className="hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#09112B] to-[#122254] border border-[#D4AF37]/40 text-white cursor-pointer hover:border-[#D4AF37] transition-all shadow-md"
+                className="hidden md:flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-[#FFF9F0] hover:bg-white border border-[#E8D7B7] hover:border-[#B88732] text-[#17345C] cursor-pointer transition-all shadow-2xs"
               >
-                <Coins className="w-4 h-4 text-[#D4AF37]" />
+                <Coins className="w-4 h-4 text-[#B88732]" />
                 <div>
-                  <div className="text-[9px] uppercase tracking-wider text-[#C9C2A6]/80 font-mono">Monthly Earnings</div>
-                  <div className="text-xs font-bold text-[#F5E7A3] font-mono">₹{staff.totalEarnings.toLocaleString('en-IN')}</div>
+                  <div className="text-[9px] uppercase tracking-wider text-[#687386] font-mono font-semibold">Monthly Earnings</div>
+                  <div className="text-xs font-bold text-[#17345C] font-mono">₹{staff.totalEarnings.toLocaleString('en-IN')}</div>
                 </div>
               </div>
 
@@ -387,11 +390,11 @@ export const StaffLayout: React.FC<StaffLayoutProps> = ({
               <div className="relative">
                 <button
                   onClick={() => setShowNotifications(!showNotifications)}
-                  className="relative p-2 rounded-xl bg-[#F8FAFC] hover:bg-[#F1F5F9] text-slate-600 border border-slate-200 transition-colors"
+                  className="relative p-2 rounded-xl bg-[#FFF9F0] hover:bg-white text-[#17345C] border border-[#E8D7B7] hover:border-[#B88732] transition-colors shadow-2xs cursor-pointer"
                 >
-                  <Bell className="w-4 h-4" />
+                  <Bell className="w-4 h-4 text-[#17345C]" />
                   {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-gradient-to-r from-[#D4AF37] to-[#F5E7A3] text-[#0B1330] font-bold text-[9px] flex items-center justify-center shadow-md">
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#17345C] text-[#FFF9F0] font-bold text-[9px] flex items-center justify-center shadow-md">
                       {unreadCount}
                     </span>
                   )}
@@ -399,67 +402,74 @@ export const StaffLayout: React.FC<StaffLayoutProps> = ({
 
                 {/* Notifications Dropdown */}
                 {showNotifications && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl p-4 z-50 animate-fadeIn space-y-3">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                      <h4 className="font-serif font-bold text-sm text-[#0B1330]">Artisan Notifications</h4>
+                  <div className="absolute right-0 mt-2 w-80 bg-white border border-[#E8D7B7] rounded-2xl shadow-2xl p-4 z-50 animate-in fade-in space-y-3">
+                    <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-2">
+                      <h4 className="font-serif font-bold text-sm text-[#17345C]">Artisan Notifications</h4>
                       <button
-                        onClick={() => onTabChange('notifications')}
-                        className="text-[11px] text-[#D4AF37] font-bold hover:underline"
+                        onClick={() => {
+                          onTabChange('notifications');
+                          setShowNotifications(false);
+                        }}
+                        className="text-[11px] text-[#B88732] font-bold hover:underline"
                       >
                         View All
                       </button>
                     </div>
                     <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
-                      {notifications.map((n) => (
-                        <div key={n.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs space-y-1">
-                          <div className="font-bold text-[#0B1330] flex items-center justify-between">
-                            <span>{n.title}</span>
-                            <span className="text-[9px] text-slate-400 font-mono">{n.timestamp}</span>
+                      {notifications.length === 0 ? (
+                        <p className="text-xs text-[#687386] text-center py-4">No new notifications</p>
+                      ) : (
+                        notifications.map((n) => (
+                          <div key={n.id} className="p-2.5 rounded-xl bg-[#FFF9F0] border border-[#E8D7B7] text-xs space-y-1">
+                            <div className="font-bold text-[#17345C] flex items-center justify-between">
+                              <span>{n.title}</span>
+                              <span className="text-[9px] text-[#687386] font-mono">{n.timestamp}</span>
+                            </div>
+                            <p className="text-[#687386] text-[11px]">{n.message}</p>
                           </div>
-                          <p className="text-slate-600 text-[11px]">{n.message}</p>
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Craftsman Profile Menu & Logout */}
-              <div className="flex items-center gap-3">
-                <div
-                  onClick={() => onTabChange('profile')}
-                  className="flex items-center gap-2.5 pl-2 cursor-pointer group"
-                >
-                  <img
-                    src={staff.avatar}
-                    alt={staff.name}
-                    className="w-8 h-8 rounded-full border-2 border-[#D4AF37] object-cover shadow-sm group-hover:scale-105 transition-transform"
-                  />
-                  <div className="hidden lg:block text-left">
-                    <div className="text-xs font-bold text-[#0B1330] group-hover:text-[#D4AF37] transition-colors">
-                      {staff.name}
-                    </div>
-                    <div className="text-[10px] text-slate-500 font-mono flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      {staff.role}
-                    </div>
+              {/* Exit to Main site button */}
+              <button
+                onClick={onBackToMain}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#E8D7B7] hover:border-[#B88732] text-[#17345C] hover:text-[#B88732] text-xs font-semibold shadow-2xs transition-all cursor-pointer"
+                title="Exit to Client Storefront"
+              >
+                <span>Exit to Site</span>
+                <ExternalLink className="w-3.5 h-3.5 text-[#B88732]" />
+              </button>
+
+              {/* Craftsman Profile Menu */}
+              <div
+                onClick={() => onTabChange('profile')}
+                className="flex items-center gap-2 pl-2 cursor-pointer group"
+                title="Open Profile Settings"
+              >
+                <img
+                  src={staff.avatar}
+                  alt={staff.name}
+                  className="w-8 h-8 rounded-full border-2 border-[#D9B66F] object-cover shadow-2xs group-hover:scale-105 transition-transform"
+                />
+                <div className="hidden xl:block text-left">
+                  <div className="text-xs font-serif font-bold text-[#17345C] group-hover:text-[#B88732] transition-colors">
+                    {staff.name}
+                  </div>
+                  <div className="text-[10px] text-[#687386] font-mono flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    {staff.role}
                   </div>
                 </div>
-
-                <button
-                  onClick={handleLogout}
-                  title="Log Out of Staff Dashboard"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 hover:text-rose-800 text-xs font-semibold border border-rose-200 transition-all shadow-sm"
-                >
-                  <LogOut className="w-3.5 h-3.5 text-rose-600" />
-                  <span className="hidden sm:inline">Log Out</span>
-                </button>
               </div>
             </div>
           </header>
 
           {/* Main Viewport Content */}
-          <main className="flex-1 bg-[#FAF8F5] overflow-y-auto p-6 custom-scrollbar">
+          <main className="flex-1 bg-[#FFFDF9] overflow-y-auto p-4 sm:p-6 custom-scrollbar">
             {children}
           </main>
         </div>
@@ -468,28 +478,28 @@ export const StaffLayout: React.FC<StaffLayoutProps> = ({
       {/* Command Palette Modal (Ctrl+K) */}
       {showCommandPalette && (
         <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start justify-center pt-20 p-4 animate-fadeIn"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start justify-center pt-20 p-4 animate-in fade-in"
           onClick={() => setShowCommandPalette(false)}
         >
           <div
-            className="bg-white border border-slate-200 rounded-2xl max-w-xl w-full p-4 shadow-2xl space-y-3"
+            className="bg-white border border-[#E8D7B7] rounded-2xl max-w-xl w-full p-4 shadow-2xl space-y-3"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 border border-slate-200">
-              <Search className="w-4 h-4 text-slate-400" />
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#FFF9F0] border border-[#E8D7B7]">
+              <Search className="w-4 h-4 text-[#B88732]" />
               <input
                 type="text"
                 autoFocus
-                placeholder="Type a command or search CAD jobs..."
+                placeholder="Search staff sections or type a command..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-transparent text-xs text-slate-800 focus:outline-none"
+                className="w-full bg-transparent text-xs text-[#17345C] focus:outline-none placeholder:text-[#687386]"
               />
-              <button onClick={() => setShowCommandPalette(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setShowCommandPalette(false)} className="text-[#687386] hover:text-[#17345C]">
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="text-[11px] text-slate-400 px-2 font-mono uppercase font-semibold">
+            <div className="text-[11px] text-[#687386] px-2 font-mono uppercase font-semibold">
               Quick Shortcuts
             </div>
             <div className="space-y-1 text-xs">
@@ -498,20 +508,30 @@ export const StaffLayout: React.FC<StaffLayoutProps> = ({
                   onTabChange('job-pool');
                   setShowCommandPalette(false);
                 }}
-                className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#09112B] hover:text-white transition-colors flex items-center justify-between"
+                className="w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-[#FFF9F0] text-[#17345C] transition-colors flex items-center justify-between border border-transparent hover:border-[#E8D7B7]"
               >
-                <span>Go to Job Pool (First-Wins)</span>
-                <span className="text-[10px] font-mono text-slate-400">Jump</span>
+                <span className="font-medium">Go to Job Pool (First-Wins)</span>
+                <span className="text-[10px] font-mono text-[#B88732]">Jump →</span>
               </button>
               <button
                 onClick={() => {
                   onTabChange('workbench');
                   setShowCommandPalette(false);
                 }}
-                className="w-full text-left px-3 py-2 rounded-lg hover:bg-[#09112B] hover:text-white transition-colors flex items-center justify-between"
+                className="w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-[#FFF9F0] text-[#17345C] transition-colors flex items-center justify-between border border-transparent hover:border-[#E8D7B7]"
               >
-                <span>View Velvet Workbench Tray</span>
-                <span className="text-[10px] font-mono text-slate-400">Jump</span>
+                <span className="font-medium">View Velvet Workbench Tray</span>
+                <span className="text-[10px] font-mono text-[#B88732]">Jump →</span>
+              </button>
+              <button
+                onClick={() => {
+                  onTabChange('earnings');
+                  setShowCommandPalette(false);
+                }}
+                className="w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-[#FFF9F0] text-[#17345C] transition-colors flex items-center justify-between border border-transparent hover:border-[#E8D7B7]"
+              >
+                <span className="font-medium">View Earnings &amp; Settlements</span>
+                <span className="text-[10px] font-mono text-[#B88732]">Jump →</span>
               </button>
             </div>
           </div>

@@ -151,7 +151,24 @@ def accept_order(order_id, staff_user):
         order.assigned_staff = staff_user
         order.status = Order.Status.WITH_DESIGNER
         order.assigned_at = now
-        order.due_at = now + timedelta(hours=order.deadline_hours or 72)
+        
+        # If order already has a valid future due_at set (by admin or client needed_by_date), preserve it!
+        if not order.due_at or order.due_at <= now:
+            if order.custom_request and order.custom_request.needed_by_date:
+                try:
+                    from datetime import datetime, time
+                    from django.utils.dateparse import parse_date
+                    nb = order.custom_request.needed_by_date
+                    if isinstance(nb, str):
+                        nb = parse_date(nb)
+                    if nb:
+                        target_dt = timezone.make_aware(datetime.combine(nb, time(23, 59, 59)))
+                        if target_dt > now:
+                            order.due_at = target_dt
+                except Exception:
+                    pass
+            if not order.due_at or order.due_at <= now:
+                order.due_at = now + timedelta(hours=order.deadline_hours or 72)
         order.unassigned_since = None
         order.save()
 

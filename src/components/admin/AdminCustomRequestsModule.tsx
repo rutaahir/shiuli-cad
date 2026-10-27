@@ -145,6 +145,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
   const [requests, setRequests] = useState<CustomRequestItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedReqId, setSelectedReqId] = useState<number | null>(null);
+  const selectedReqIdRef = useRef<number | null>(null);
   const [quoteInput, setQuoteInput] = useState<number | ''>('');
   const [textMessageInput, setTextMessageInput] = useState<string>('');
   const [isSending, setIsSending] = useState(false);
@@ -244,6 +245,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                 title: `Shiuli Studio: New Client Counter-Offer on REQ #${r.id}`,
                 body: `${r.contact_name || r.client_name}: "${latestClientMsg.message || 'Updated price offer'}"${offerTxt}`,
                 onClick: () => {
+                  selectedReqIdRef.current = r.id;
                   setSelectedReqId(r.id);
                   setMobileViewDetail(true);
                 }
@@ -263,9 +265,19 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
       });
 
       setRequests(combined);
-      if (combined.length > 0 && (!selectedReqId || !combined.some((r) => r.id === selectedReqId))) {
-        setSelectedReqId(combined[0].id);
-      }
+      setSelectedReqId((prev) => {
+        // If current selection is valid in the combined list, keep it! Do not jump to the first order.
+        if (prev !== null && combined.some((r) => r.id === prev)) {
+          selectedReqIdRef.current = prev;
+          return prev;
+        }
+        if (selectedReqIdRef.current !== null && combined.some((r) => r.id === selectedReqIdRef.current)) {
+          return selectedReqIdRef.current;
+        }
+        const fallbackId = combined.length > 0 ? combined[0].id : null;
+        selectedReqIdRef.current = fallbackId;
+        return fallbackId;
+      });
     } catch (err) {
       console.warn('Error fetching custom requests:', err);
     } finally {
@@ -323,17 +335,25 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
   };
 
   const handlePlaceOrderForRequest = (req: CustomRequestItem) => {
+    const extractedCat = req.category_name || (req.description?.match(/(?:Requirement|Category):\s*([^\n•]+)/i)?.[1]?.trim());
+    const extractedMetal = req.metal_alloy_name || (req.description?.match(/Material:\s*([^\n•]+)/i)?.[1]?.trim());
+
     setCreateOrderInitialValues({
-      clientId: '',
+      id: req.id,
+      custom_request_id: req.id,
+      clientId: (req as any).client || '',
       contact_name: req.contact_name || req.client_name,
       contact_email: req.contact_email,
       contact_phone: req.contact_phone,
       contact_telegram: req.contact_telegram,
       company_name: req.company_name,
       client_address: req.client_address,
-      special_instructions: req.special_instructions || (req.category_name ? `Bespoke ${req.category_name}` : `Custom RFQ #${req.id}`),
-      category_name: req.category_name,
-      metal_alloy_name: req.metal_alloy_name,
+      title: req.special_instructions || (extractedCat ? `Bespoke ${extractedCat}` : `Custom Jewellery Order #${req.id}`),
+      special_instructions: req.special_instructions || (extractedCat ? `Bespoke ${extractedCat}` : `Custom RFQ #${req.id}`),
+      category_name: extractedCat,
+      category: extractedCat,
+      metal_alloy_name: extractedMetal,
+      metal_alloy: extractedMetal,
       ring_size: req.ring_size,
       ring_size_standard: req.ring_size_standard || 'US',
       target_weight_grams: req.target_weight_grams,
@@ -384,7 +404,8 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
       await api.deleteCustomRequest(req.id);
       alert(`Custom Request #REQ-${req.id} permanently deleted.`);
       setRequests((prev) => prev.filter((r) => r.id !== req.id));
-      if (selectedReqId === req.id) {
+      if (selectedReqId === req.id || selectedReqIdRef.current === req.id) {
+        selectedReqIdRef.current = null;
         setSelectedReqId(null);
       }
     } catch (err: any) {
@@ -555,6 +576,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => {
+                selectedReqIdRef.current = adminNegotiationAlert.reqId;
                 setSelectedReqId(adminNegotiationAlert.reqId);
                 setMobileViewDetail(true);
                 setAdminNegotiationAlert(null);
@@ -726,6 +748,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                   <div
                     key={req.id}
                     onClick={() => {
+                      selectedReqIdRef.current = req.id;
                       setSelectedReqId(req.id);
                       setMobileViewDetail(true);
                     }}

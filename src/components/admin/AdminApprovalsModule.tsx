@@ -131,23 +131,39 @@ export const AdminApprovalsModule: React.FC = () => {
             const req = ord.custom_request || {};
             const fe = ord.file_edit_request || {};
             const staff = ord.assigned_staff || {};
-            const localStaff = appStore.getStaffList().find((s) => s.id === staff.id?.toString() || s.name === (staff.first_name ? `${staff.first_name} ${staff.last_name || ''}`.trim() : staff.username));
+            const orderCat = ord.is_file_edit
+              ? 'CAD File Modification'
+              : (req.category_name || (req.description?.match(/(?:Requirement|Category|Design Requirement):\s*([^\n•]+)/i)?.[1]?.trim()) || 'Bespoke Order');
+
+            const orderMetal = ord.is_file_edit
+              ? (fe.target_weight_grams ? `${fe.target_weight_grams}g` : 'Original')
+              : (req.metal_alloy_name ||
+                 req.description?.match(/(?:Full Metal Specification|Full Metal Alloy|Alloy):\s*([^\n•]+)/i)?.[1]?.trim() ||
+                 req.description?.match(/Material:\s*([^\n•]+)/i)?.[1]?.trim() ||
+                 'Custom Alloy');
+
+            const orderStones = ord.is_file_edit
+              ? (fe.target_stone_size || 'Original')
+              : (req.gemstones?.length ? `${req.gemstones.length} Pcs` : (req.is_metal_only ? 'Metal Only' : 'As per brief'));
+
+            const rawPrice = parseFloat(ord.total_price || '0');
+
             items.push({
               id: `ORD-${ord.id}`,
               title: ord.is_file_edit
                 ? `CAD Edit: ${fe.original_file_name || `Model .${fe.original_file_format || '3dm'}`} (Order #${ord.id})`
-                : (req.category_name ? `Bespoke ${req.category_name} (Order #${ord.id})` : `Custom Order #${ord.id}`),
+                : `Bespoke ${orderCat} (Order #${ord.id})`,
               designerName: staff.first_name ? `${staff.first_name} ${staff.last_name || ''}`.trim() : (staff.username || 'CAD Modeller'),
               designerAvatar: staff.profile_photo || localStaff?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
-              category: ord.is_file_edit ? 'CAD File Modification' : (req.category_name || 'Bespoke Order'),
+              category: orderCat,
               uploadedDate: ord.assigned_at ? new Date(ord.assigned_at).toISOString().split('T')[0] : 'Recently',
               thumbnail: ord.preview_image || req.sketches?.[0]?.image_url || req.sketches?.[0]?.image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&q=80&w=600',
               status: isRevision ? 'revision' : isPendingReview ? 'pending' : isApproved ? 'approved' : 'rejected',
               fileFormats: ['3DM', 'STL', 'Render'],
-              suggestedPrice: Math.round(parseFloat(ord.total_price || '200') * 0.4),
+              suggestedPrice: Math.round(rawPrice > 0 ? rawPrice : 250),
               specs: {
-                metalWeight18k: ord.is_file_edit ? (fe.target_weight_grams ? `${fe.target_weight_grams}g` : 'Original') : (req.metal_alloy_name || '18K Gold'),
-                diamondCount: ord.is_file_edit ? (fe.target_stone_size || 'Original') : (req.gemstones?.length ? `${req.gemstones.length} Pcs` : 'As per brief'),
+                metalWeight18k: orderMetal,
+                diamondCount: orderStones,
                 dimensions: ord.is_file_edit ? (fe.original_file_format ? `.${fe.original_file_format.toUpperCase()} Mesh` : 'Watertight Mesh') : 'Watertight SOW',
               },
               // Metadata for API execution
@@ -1050,10 +1066,10 @@ export const AdminApprovalsModule: React.FC = () => {
           <div className="border-t border-white/10 pt-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-white">
             <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
               <span className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-slate-300">
-                Metal: <strong className="text-white">{inspectingItem.specs?.metalWeight18k || '18K Gold'}</strong>
+                Metal: <strong className="text-white">{inspectingItem.specs?.metalWeight18k || 'Custom Alloy'}</strong>
               </span>
               <span className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-slate-300">
-                Stone: <strong className="text-amber-300">{inspectingItem.specs?.diamondCount || 'As per brief'}</strong>
+                Stone: <strong className="text-amber-300">{inspectingItem.specs?.diamondCount || 'As Specified'}</strong>
               </span>
               <span className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-slate-300">
                 Value: <strong className="text-white">₹{inspectingItem.suggestedPrice?.toLocaleString('en-IN')}</strong>

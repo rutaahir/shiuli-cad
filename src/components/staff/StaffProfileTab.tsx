@@ -261,30 +261,30 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-[#E8D7B7] shadow-sm">
         <div>
-          <span className="px-2.5 py-0.5 rounded-full bg-[#09112B] text-[#F5E7A3] text-[10px] uppercase font-bold tracking-widest font-mono">
+          <span className="px-2.5 py-0.5 rounded-full bg-[#FFF9F0] text-[#B88732] border border-[#E8D7B7] text-[10px] uppercase font-bold tracking-widest font-mono shadow-2xs">
             Certified CAD Craftsman
           </span>
           <h1 className="font-serif text-2xl font-bold text-[#17243B] tracking-tight mt-1">
-            Artisan Profile & Credentials
+            Artisan Profile &amp; Credentials
           </h1>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowEditModal(true)}
-            className="btn-gold-luxury px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider shadow-md flex items-center gap-2"
+            className="btn-gold-luxury px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider shadow-sm flex items-center gap-2 cursor-pointer"
           >
             <Settings className="w-4 h-4" /> Edit Preferences
           </button>
           <button
             onClick={handleLogout}
-            className="px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider shadow-md flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white transition-colors"
+            className="px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider shadow-sm flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white transition-colors cursor-pointer"
           >
             <LogOut className="w-4 h-4" /> Log Out
           </button>
         </div>
       </div>
 
-      <div className="bg-white border-l-4 border-l-[#C9A227] border border-[#E8D7B7] p-8 rounded-2xl shadow-sm space-y-6">
+      <div className="bg-white border-l-4 border-l-[#B88732] border border-[#E8D7B7] p-8 rounded-2xl shadow-sm space-y-6">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 border-b border-[#E8D7B7] pb-6">
           <div className="relative group">
             <img
@@ -293,11 +293,11 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
               onError={(e) => {
                 (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80';
               }}
-              className="w-24 h-24 rounded-2xl object-cover border-2 border-[#C9A227] shadow-md"
+              className="w-24 h-24 rounded-2xl object-cover border-2 border-[#D9B66F] shadow-md"
             />
             <button
               onClick={() => setShowEditModal(true)}
-              className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-bold gap-1"
+              className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-bold gap-1 cursor-pointer"
             >
               <Camera className="w-4 h-4" /> Edit
             </button>
@@ -305,37 +305,37 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
           <div className="space-y-1 text-center sm:text-left">
             <div className="flex items-center justify-center sm:justify-start gap-2">
               <h3 className="text-2xl font-serif font-bold text-[#17243B]">{staff.name}</h3>
-              <ShieldCheck className="w-5 h-5 text-[#C9A227]" />
+              <ShieldCheck className="w-5 h-5 text-[#B88732]" />
             </div>
-            <p className="text-xs font-mono text-[#09112B] font-bold uppercase tracking-wider">
+            <p className="text-xs font-mono text-[#17345C] font-bold uppercase tracking-wider">
               {staff.role} • Staff ID: {staff.id}
             </p>
-            <div className="flex items-center justify-center sm:justify-start gap-4 text-xs text-[#6B7280] pt-1">
+            <div className="flex items-center justify-center sm:justify-start gap-4 text-xs text-[#687386] pt-1">
               <span className="flex items-center gap-1">
-                <Mail className="w-3.5 h-3.5 text-[#C9A227]" /> {staff.email}
+                <Mail className="w-3.5 h-3.5 text-[#B88732]" /> {staff.email}
               </span>
               <span className="flex items-center gap-1">
-                <Phone className="w-3.5 h-3.5 text-[#C9A227]" /> {staff.phone}
+                <Phone className="w-3.5 h-3.5 text-[#B88732]" /> {staff.phone}
               </span>
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E8D7B7] space-y-1">
-            <div className="text-[10px] font-mono text-[#6B7280] uppercase font-semibold">Workbench Capacity</div>
+          <div className="p-4 rounded-xl bg-[#FFF9F0] border border-[#E8D7B7] space-y-1 shadow-2xs">
+            <div className="text-[10px] font-mono text-[#687386] uppercase font-semibold">Workbench Capacity</div>
             <div className="font-serif text-xl font-bold text-[#17243B]">{staff.maxJobLimit} Jobs Max</div>
             <p className="text-[10px] text-slate-400">Strict quality control limit</p>
           </div>
 
-          <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E8D7B7] space-y-1">
-            <div className="text-[10px] font-mono text-[#6B7280] uppercase font-semibold">Lifetime Rating</div>
+          <div className="p-4 rounded-xl bg-[#FFF9F0] border border-[#E8D7B7] space-y-1 shadow-2xs">
+            <div className="text-[10px] font-mono text-[#687386] uppercase font-semibold">Lifetime Rating</div>
             <div className="font-serif text-xl font-bold text-amber-700">★ {staff.rating} / 5.0</div>
             <p className="text-[10px] text-slate-400">SOW tolerance compliance score</p>
           </div>
 
-          <div className="p-4 rounded-xl bg-[#F8FAFC] border border-[#E8D7B7] space-y-1">
-            <div className="text-[10px] font-mono text-[#6B7280] uppercase font-semibold">Commissions Delivered</div>
+          <div className="p-4 rounded-xl bg-[#FFF9F0] border border-[#E8D7B7] space-y-1 shadow-2xs">
+            <div className="text-[10px] font-mono text-[#687386] uppercase font-semibold">Commissions Delivered</div>
             <div className="font-serif text-xl font-bold text-emerald-700">{staff.jobsCompleted} Pieces</div>
             <p className="text-[10px] text-slate-400">Zero return rate</p>
           </div>
@@ -344,16 +344,16 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
         <div className="space-y-3">
           <h4 className="font-serif font-bold text-[#17243B] text-sm">Primary CAD Mastery</h4>
           <div className="flex flex-wrap gap-2 text-xs font-mono">
-            <span className="px-3 py-1.5 rounded-lg bg-[#09112B] text-[#F5E7A3] border border-[#D4AF37]/30 font-bold">
+            <span className="px-3 py-1.5 rounded-xl bg-[#FFF9F0] text-[#17345C] border border-[#E8D7B7] font-semibold shadow-2xs">
               Rhino 7 3D Architecture
             </span>
-            <span className="px-3 py-1.5 rounded-lg bg-[#09112B] text-[#F5E7A3] border border-[#D4AF37]/30 font-bold">
-              Kundan & Polki Foil Tolerances
+            <span className="px-3 py-1.5 rounded-xl bg-[#FFF9F0] text-[#17345C] border border-[#E8D7B7] font-semibold shadow-2xs">
+              Kundan &amp; Polki Foil Tolerances
             </span>
-            <span className="px-3 py-1.5 rounded-lg bg-[#09112B] text-[#F5E7A3] border border-[#D4AF37]/30 font-bold">
+            <span className="px-3 py-1.5 rounded-xl bg-[#FFF9F0] text-[#17345C] border border-[#E8D7B7] font-semibold shadow-2xs">
               Magics STL Mesh Repair
             </span>
-            <span className="px-3 py-1.5 rounded-lg bg-[#09112B] text-[#F5E7A3] border border-[#D4AF37]/30 font-bold">
+            <span className="px-3 py-1.5 rounded-xl bg-[#FFF9F0] text-[#17345C] border border-[#E8D7B7] font-semibold shadow-2xs">
               KeyShot 11 4K Photorealistic Rendering
             </span>
           </div>
@@ -511,14 +511,14 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
                 {showPasswordChange && (
                   <div className="mt-3 p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E8D7B7] space-y-3 animate-fadeIn">
                     {/* Mode Toggle: OTP vs Direct */}
-                    <div className="flex items-center gap-2 p-1 bg-white rounded-lg border border-[#E8D7B7] text-xs font-semibold">
+                    <div className="flex items-center gap-2 p-1 bg-white rounded-xl border border-[#E8D7B7] text-xs font-semibold">
                       <button
                         type="button"
                         onClick={() => setPasswordMode('otp')}
-                        className={`flex-1 py-1.5 rounded-md transition-all cursor-pointer ${
+                        className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer ${
                           passwordMode === 'otp'
-                            ? 'bg-[#09112B] text-[#F5E7A3] shadow-sm'
-                            : 'text-slate-600 hover:text-slate-900'
+                            ? 'bg-[#17345C] text-[#FFF9F0] shadow-sm font-bold'
+                            : 'text-[#687386] hover:text-[#17345C]'
                         }`}
                       >
                         Verify with Email OTP
@@ -526,10 +526,10 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
                       <button
                         type="button"
                         onClick={() => setPasswordMode('direct')}
-                        className={`flex-1 py-1.5 rounded-md transition-all cursor-pointer ${
+                        className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer ${
                           passwordMode === 'direct'
-                            ? 'bg-[#09112B] text-[#F5E7A3] shadow-sm'
-                            : 'text-slate-600 hover:text-slate-900'
+                            ? 'bg-[#17345C] text-[#FFF9F0] shadow-sm font-bold'
+                            : 'text-[#687386] hover:text-[#17345C]'
                         }`}
                       >
                         With Current Password
@@ -564,7 +564,7 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
                             type="button"
                             disabled={sendingOtp || otpCountdown > 0}
                             onClick={handleRequestOtp}
-                            className="px-2.5 py-1 rounded-md bg-[#09112B] text-[#F5E7A3] font-bold text-[11px] disabled:opacity-50 cursor-pointer shrink-0"
+                            className="px-2.5 py-1 rounded-md bg-[#17345C] text-[#FFF9F0] font-bold text-[11px] disabled:opacity-50 cursor-pointer shrink-0 shadow-2xs"
                           >
                             {sendingOtp ? (
                               'Sending...'
@@ -621,12 +621,12 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
                               type="button"
                               disabled={changingPassword || otpCode.length !== 6 || !newPassword}
                               onClick={handleVerifyOtpAndChangePassword}
-                              className="w-full py-2 rounded-lg bg-[#09112B] hover:bg-[#162758] text-[#F5E7A3] font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+                              className="btn-gold-luxury w-full py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
                             >
                               {changingPassword ? (
-                                <Loader2 className="w-3.5 h-3.5 text-[#C9A227] animate-spin" />
+                                <Loader2 className="w-3.5 h-3.5 text-[#17345C] animate-spin" />
                               ) : (
-                                <CheckCircle2 className="w-3.5 h-3.5 text-[#C9A227]" />
+                                <CheckCircle2 className="w-3.5 h-3.5 text-[#17345C]" />
                               )}
                               <span>Verify OTP &amp; Update Password</span>
                             </button>
@@ -674,12 +674,12 @@ export const StaffProfileTab: React.FC<StaffProfileTabProps> = ({ staff, onUpdat
                           type="button"
                           disabled={changingPassword || !oldPassword || !newPassword}
                           onClick={handleChangePassword}
-                          className="w-full py-2 rounded-lg bg-[#09112B] hover:bg-[#162758] text-[#F5E7A3] font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+                          className="btn-gold-luxury w-full py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
                         >
                           {changingPassword ? (
-                            <Loader2 className="w-3.5 h-3.5 text-[#C9A227] animate-spin" />
+                            <Loader2 className="w-3.5 h-3.5 text-[#17345C] animate-spin" />
                           ) : (
-                            <Lock className="w-3.5 h-3.5 text-[#C9A227]" />
+                            <Lock className="w-3.5 h-3.5 text-[#17345C]" />
                           )}
                           <span>Update Password Directly</span>
                         </button>

@@ -514,12 +514,12 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                       <div className="font-semibold text-[#17243B]">
                         {ord.is_file_edit
                           ? (ord.file_edit_request?.original_file_name || `CAD Modification (.${ord.file_edit_request?.original_file_format || '3dm'})`)
-                          : (req?.category_name ? `Bespoke ${req.category_name}` : 'Custom Jewellery CAD')}
+                          : (req?.category_name ? `Bespoke ${req.category_name}` : (req?.description?.match(/(?:Requirement|Category|Design Requirement):\s*([^\n•]+)/i)?.[1]?.trim() ? `Bespoke ${req.description.match(/(?:Requirement|Category|Design Requirement):\s*([^\n•]+)/i)[1].trim()}` : 'Custom Jewellery CAD'))}
                       </div>
                       <div className="text-[11px] text-[#6B7280]">
                         {ord.is_file_edit
                           ? (ord.file_edit_request?.modification_types?.join(', ') || 'Mesh & Geometry Modification')
-                          : `${req?.metal_alloy_name || '18K Gold'} • ${req?.aesthetic_style_name || 'Bespoke'}`}
+                          : `${req?.metal_alloy_name || req?.description?.match(/(?:Full Metal Specification|Full Metal Alloy|Alloy):\s*([^\n•]+)/i)?.[1]?.trim() || req?.description?.match(/Material:\s*([^\n•]+)/i)?.[1]?.trim() || 'Custom Metal Alloy'} • ${req?.aesthetic_style_name || 'Bespoke'}`}
                       </div>
                     </td>
 

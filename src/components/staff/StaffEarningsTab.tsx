@@ -82,7 +82,7 @@ export const StaffEarningsTab: React.FC<StaffEarningsTabProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-[#E8D7B7] shadow-sm">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-[#09112B] text-[#F5E7A3] text-[10px] font-mono font-bold uppercase tracking-widest">
+            <span className="px-2.5 py-0.5 rounded-full bg-[#FFF9F0] text-[#B88732] border border-[#E8D7B7] text-[10px] font-mono font-bold uppercase tracking-widest shadow-2xs">
               Financial Atelier
             </span>
             <span className="text-xs text-[#6B7280] font-mono">• Real-time Payout Ledger</span>
@@ -172,12 +172,12 @@ export const StaffEarningsTab: React.FC<StaffEarningsTabProps> = ({
 
       {/* Live Settlement History Breakdown Table */}
       <div className="bg-white border border-[#E8D7B7] rounded-2xl overflow-hidden shadow-sm">
-        <div className="p-4 bg-[#09112B] text-[#F5E7A3] font-serif font-bold text-sm border-b border-[#D4AF37]/20 flex items-center justify-between">
+        <div className="p-4 bg-[#FFF9F0] text-[#17345C] font-serif font-bold text-sm border-b border-[#E8D7B7] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Receipt className="w-4 h-4 text-[#D4AF37]" />
+            <Receipt className="w-4 h-4 text-[#B88732]" />
             <span>Settlement History Breakdown</span>
           </div>
-          <span className="text-xs font-mono font-normal text-slate-300">
+          <span className="text-xs font-mono font-normal text-[#687386]">
             {earnings.length} Record{earnings.length === 1 ? '' : 's'}
           </span>
         </div>

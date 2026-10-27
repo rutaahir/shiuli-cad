@@ -22,33 +22,34 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   useCustomImage = true,
   theme = 'light',
 }) => {
-  const activeImageSrc = imageSrc || (useCustomImage ? DEFAULT_CUSTOM_LOGO_PATH : null);
+  const defaultPath = theme === 'dark' ? '/assets/logo-dark_hd.png' : DEFAULT_CUSTOM_LOGO_PATH;
+  const activeImageSrc = (imageSrc && imageSrc.trim() !== '') ? imageSrc : (useCustomImage ? defaultPath : null);
 
   // Balanced, legible, luxury proportions for full image logos (without empty padding)
   const pixelDimensions: Record<string, { height: number; maxWidth: number; containerClass: string; imgClass: string }> = {
     sm: {
       height: 38,
-      maxWidth: 150,
-      containerClass: 'h-[32px] sm:h-[38px] max-w-[125px] sm:max-w-[150px]',
-      imgClass: 'h-[32px] sm:h-[38px] max-w-[125px] sm:max-w-[150px]',
+      maxWidth: 160,
+      containerClass: 'h-[36px] sm:h-[40px] max-w-[145px] sm:max-w-[165px]',
+      imgClass: 'h-[36px] sm:h-[40px] w-auto max-w-[145px] sm:max-w-[165px]',
     },
     md: {
       height: 52,
-      maxWidth: 220,
-      containerClass: 'h-[36px] xs:h-[40px] sm:h-[52px] max-w-[140px] xs:max-w-[160px] sm:max-w-[220px]',
-      imgClass: 'h-[36px] xs:h-[40px] sm:h-[52px] max-w-[140px] xs:max-w-[160px] sm:max-w-[220px]',
+      maxWidth: 240,
+      containerClass: 'h-[42px] sm:h-[48px] lg:h-[54px] max-w-[175px] sm:max-w-[215px] lg:max-w-[255px]',
+      imgClass: 'h-[42px] sm:h-[48px] lg:h-[54px] w-auto max-w-[175px] sm:max-w-[215px] lg:max-w-[255px]',
     },
     lg: {
       height: 72,
-      maxWidth: 280,
-      containerClass: 'h-[48px] sm:h-[72px] max-w-[190px] sm:max-w-[280px]',
-      imgClass: 'h-[48px] sm:h-[72px] max-w-[190px] sm:max-w-[280px]',
+      maxWidth: 300,
+      containerClass: 'h-[52px] sm:h-[64px] lg:h-[72px] max-w-[210px] sm:max-w-[260px] lg:max-w-[300px]',
+      imgClass: 'h-[52px] sm:h-[64px] lg:h-[72px] w-auto max-w-[210px] sm:max-w-[260px] lg:max-w-[300px]',
     },
     xl: {
       height: 90,
-      maxWidth: 340,
-      containerClass: 'h-[60px] sm:h-[90px] max-w-[230px] sm:max-w-[340px]',
-      imgClass: 'h-[60px] sm:h-[90px] max-w-[230px] sm:max-w-[340px]',
+      maxWidth: 360,
+      containerClass: 'h-[64px] sm:h-[80px] lg:h-[92px] max-w-[260px] sm:max-w-[320px] lg:max-w-[360px]',
+      imgClass: 'h-[64px] sm:h-[80px] lg:h-[92px] w-auto max-w-[260px] sm:max-w-[320px] lg:max-w-[360px]',
     },
   };
 
@@ -62,19 +63,32 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
     xl: { icon: 76, shiuliTitle: 'text-3xl sm:text-5xl', cadTitle: 'text-xl sm:text-3xl', subtitle: 'text-sm sm:text-base' },
   };
 
-  // If a custom image logo (like logo.png) is active, display it with guaranteed exact dimensions
+  // If a custom image logo (like logo.png) is active, display it with guaranteed exact dimensions and crystal clear Retina resolution
   if (activeImageSrc) {
+    const webpSrc = activeImageSrc.replace(/(\.png|\.webp)$/i, '_hd.webp');
+    const hdPngSrc = activeImageSrc.replace(/(\.png|\.webp)$/i, '_hd.png');
+
     return (
       <div
         onClick={onClick}
         className={`inline-flex items-center flex-shrink-0 select-none ${dim.containerClass} ${onClick ? 'cursor-pointer' : ''} ${className}`}
       >
-        <img
-          src={activeImageSrc}
-          alt="Shiuli CAD Studio Logo"
-          className={`${dim.imgClass} w-auto object-contain transition-transform duration-300 hover:scale-105 drop-shadow-[0_2px_8px_rgba(212,175,55,0.25)]`}
-          style={{ imageRendering: '-webkit-optimize-contrast' }}
-        />
+        <picture className="flex items-center h-full w-auto">
+          <source type="image/webp" srcSet={`${webpSrc} 2x, ${activeImageSrc} 1x`} />
+          <img
+            src={activeImageSrc}
+            srcSet={`${hdPngSrc} 2x, ${activeImageSrc} 1x`}
+            alt="Shiuli CAD Studio Logo"
+            loading="eager"
+            decoding="async"
+            className={`${dim.imgClass} w-auto object-contain transition-transform duration-300 hover:scale-[1.02] drop-shadow-xs sm:drop-shadow-[0_2px_8px_rgba(212,175,55,0.2)]`}
+            style={{
+              imageRendering: 'auto',
+              WebkitBackfaceVisibility: 'hidden',
+              transform: 'translateZ(0)',
+            }}
+          />
+        </picture>
       </div>
     );
   }
