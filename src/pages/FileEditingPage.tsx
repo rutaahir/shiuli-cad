@@ -26,7 +26,6 @@ import {
   Phone,
   FileCheck2,
   ArrowRight,
-  Save,
   FileAudio,
   Square,
   ShieldCheck,

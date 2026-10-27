@@ -35,7 +35,10 @@ import {
   DollarSign,
   Layers,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  UserCheck,
+  PieChart,
+  Users
 } from 'lucide-react';
 
 export interface OrderStageItem {
@@ -124,6 +127,17 @@ interface GatewayLogRecord {
   can_send_download?: boolean;
   has_pending_transactions?: boolean;
   pending_transactions_count?: number;
+  assigned_staff_name?: string;
+  assigned_staff_role?: string;
+  assigned_staff_id?: number | null;
+  staff_payout_val?: number;
+  staff_payout_amount?: string;
+  staff_payout_paid?: number;
+  staff_payout_status?: string;
+  admin_margin_val?: number;
+  admin_margin_amount?: string;
+  staff_percent?: number;
+  admin_percent?: number;
   stages?: OrderStageItem[];
   transactions?: OrderTransactionItem[];
 }
@@ -387,38 +401,139 @@ export const AdminPaymentsModule: React.FC = () => {
     fetchAnalytics();
   }, []);
 
-  const totalVerifiedRevenue = React.useMemo(() => {
-    if (analyticsSummary?.total_revenue_inr && analyticsSummary.total_revenue_inr > 0) {
-      return analyticsSummary.total_revenue_inr;
+  // 1. Gross Studio Revenue (Total Contract / Booking Value of all Client Inflows)
+  const grossStudioRevenue = React.useMemo(() => {
+    if (clientPayments.length === 0 && analyticsSummary?.gross_revenue_inr) {
+      return analyticsSummary.gross_revenue_inr;
     }
-    const computed = clientPayments
-      .filter((p) => p.raw_status === 'paid' || p.status.toLowerCase().includes('paid') || p.status.toLowerCase().includes('agreed'))
-      .reduce((acc, p) => acc + (p.amount_raw || 0), 0);
-    return computed > 0 ? Math.round(computed) : (analyticsSummary?.total_revenue ? Math.round(analyticsSummary.total_revenue) : 0);
+    const computed = clientPayments.reduce((acc, p) => {
+      // For Custom Orders: full total contract value
+      const amt = (typeof p.order_total_val === 'number' && p.order_total_val > 0)
+        ? p.order_total_val
+        : (p.amount_raw || 0);
+      return acc + amt;
+    }, 0);
+    return computed > 0 ? Math.round(computed) : (analyticsSummary?.gross_revenue_inr || 0);
   }, [clientPayments, analyticsSummary]);
 
-  const totalRevenueUSD = React.useMemo(() => {
-    if (analyticsSummary?.total_revenue_usd) return analyticsSummary.total_revenue_usd;
-    return totalVerifiedRevenue > 0 ? Math.round((totalVerifiedRevenue / 86.85) * 100) / 100 : 0;
-  }, [totalVerifiedRevenue, analyticsSummary]);
+  // 2. Verified Client Collections (Audited / Cleared Cash Inflow into Studio Account)
+  const verifiedClientCollections = React.useMemo(() => {
+    if (clientPayments.length === 0 && analyticsSummary?.total_revenue_inr) {
+      return analyticsSummary.total_revenue_inr;
+    }
+    const computed = clientPayments.reduce((acc, p) => {
+      // Custom Orders: strictly verified paid amounts
+      if (p.entry_type === 'order' || p.order_id) {
+        if (typeof p.order_paid_val === 'number' && p.order_paid_val > 0) {
+          return acc + p.order_paid_val;
+        }
+        if (p.is_order_fully_paid) {
+          return acc + (p.order_total_val || p.amount_raw || 0);
+        }
+        if (p.transactions && p.transactions.length > 0) {
+          const verifiedTxn = p.transactions
+            .filter((t) => t.raw_status === 'success' || t.raw_status === 'paid' || t.status.toLowerCase().includes('success') || t.status.toLowerCase().includes('paid'))
+            .reduce((sum, t) => sum + (t.amount_raw || 0), 0);
+          return acc + verifiedTxn;
+        }
+        return acc;
+      }
+      // Product Purchases: strictly only verified/paid
+      if (p.purchase_id || p.entry_type === 'purchase') {
+        const isPaid = p.raw_status === 'paid' || p.status.toLowerCase().includes('paid');
+        return isPaid ? acc + (p.amount_raw || 0) : acc;
+      }
+      // File modifications / other: strictly only verified
+      const isPaid = p.raw_status === 'paid' || p.status.toLowerCase().includes('paid') || p.status.toLowerCase().includes('agreed');
+      return isPaid ? acc + (p.amount_raw || 0) : acc;
+    }, 0);
+    return computed > 0 ? Math.round(computed) : (analyticsSummary?.total_revenue_inr || 0);
+  }, [clientPayments, analyticsSummary]);
 
+  // Pending Collections Amount (Client payments submitted & awaiting admin verification)
+  const pendingCollectionsAmount = React.useMemo(() => {
+    const computed = clientPayments.reduce((acc, p) => {
+      let pendingForThis = 0;
+      if (p.transactions && p.transactions.length > 0) {
+        pendingForThis = p.transactions
+          .filter((t) => t.raw_status === 'pending' || t.can_approve)
+          .reduce((sum, t) => sum + (t.amount_raw || 0), 0);
+      } else if (p.purchase_id || p.entry_type === 'purchase') {
+        if (p.raw_status === 'pending' || p.can_approve) {
+          pendingForThis = p.amount_raw || 0;
+        }
+      } else if (p.can_approve || p.raw_status === 'pending') {
+        pendingForThis = p.amount_raw || 0;
+      }
+      return acc + pendingForThis;
+    }, 0);
+    return Math.round(computed);
+  }, [clientPayments]);
+
+  const pendingVerificationList = React.useMemo(() => {
+    return clientPayments.filter((p) => p.can_approve || p.raw_status === 'pending' || p.has_pending_transactions);
+  }, [clientPayments]);
+
+  const pendingVerificationCount = React.useMemo(() => {
+    return clientPayments.reduce((acc, p) => {
+      if (p.transactions && p.transactions.length > 0) {
+        return acc + p.transactions.filter((t) => t.raw_status === 'pending' || t.can_approve).length;
+      }
+      return (p.can_approve || p.raw_status === 'pending') ? acc + 1 : acc;
+    }, 0);
+  }, [clientPayments]);
+
+  const totalRevenueUSD = React.useMemo(() => {
+    const base = grossStudioRevenue > 0 ? grossStudioRevenue : verifiedClientCollections;
+    return base > 0 ? Math.round((base / 86.85) * 100) / 100 : 0;
+  }, [grossStudioRevenue, verifiedClientCollections]);
+
+  // 3. Artisan Labor Committed (Modeller Labor)
   const unpaidItems = settlements.filter((s) => s.status !== 'settled');
   const totalUnpaidAmount = unpaidItems.reduce((acc, it) => acc + (it.balanceDue ?? it.payoutAmount), 0);
   const totalSettledAmount = settlements.reduce((acc, it) => acc + (it.amountPaid || 0), 0);
   const totalCommitted = settlements.reduce((acc, it) => acc + it.payoutAmount, 0);
 
-  const netStudioProfit = React.useMemo(() => {
-    return Math.max(0, totalVerifiedRevenue - totalCommitted);
-  }, [totalVerifiedRevenue, totalCommitted]);
+  // Overall Financial Division between Admin and Staff across all orders
+  const financialDivision = React.useMemo(() => {
+    const totalGross = grossStudioRevenue;
+    
+    // Sum staff share from all orders & bookings in ledger
+    let staffShare = clientPayments.reduce((acc, p) => acc + (p.staff_payout_val || 0), 0);
+    if (staffShare === 0 && totalCommitted > 0) {
+      staffShare = totalCommitted;
+    }
 
-  const profitMarginPercent = React.useMemo(() => {
-    if (totalVerifiedRevenue <= 0) return 100;
-    return Math.round((netStudioProfit / totalVerifiedRevenue) * 100);
-  }, [totalVerifiedRevenue, netStudioProfit]);
+    const adminShare = Math.max(0, totalGross - staffShare);
+    const staffPct = totalGross > 0 ? Math.round((staffShare / totalGross) * 100) : 0;
+    const adminPct = totalGross > 0 ? Math.round((adminShare / totalGross) * 100) : 100;
 
-  const pendingVerificationList = React.useMemo(() => {
-    return clientPayments.filter((p) => p.can_approve || p.raw_status === 'pending' || p.has_pending_transactions);
-  }, [clientPayments]);
+    // Custom CAD Orders split
+    const customOrders = clientPayments.filter((p) => p.entry_type === 'order' || p.order_id);
+    const customGross = customOrders.reduce((acc, p) => acc + (p.order_total_val || p.amount_raw || 0), 0);
+    const customStaff = customOrders.reduce((acc, p) => acc + (p.staff_payout_val || 0), 0);
+    const customAdmin = Math.max(0, customGross - customStaff);
+
+    // Ready CAD Catalog Purchases split (100% Studio)
+    const storePurchases = clientPayments.filter((p) => p.entry_type === 'purchase' || p.purchase_id);
+    const storeGross = storePurchases.reduce((acc, p) => acc + (p.amount_raw || 0), 0);
+
+    return {
+      totalGross: Math.round(totalGross),
+      totalStaffShare: Math.round(staffShare),
+      totalAdminShare: Math.round(adminShare),
+      staffPercent: staffPct,
+      adminPercent: adminPct,
+      customGross: Math.round(customGross),
+      customStaff: Math.round(customStaff),
+      customAdmin: Math.round(customAdmin),
+      storeGross: Math.round(storeGross),
+    };
+  }, [grossStudioRevenue, clientPayments, totalCommitted]);
+
+  // 4. Net Studio Retained Profit & Margin
+  const netStudioProfit = financialDivision.totalAdminShare;
+  const profitMarginPercent = financialDivision.adminPercent;
 
   const filteredClientPayments = React.useMemo(() => {
     return clientPayments.filter((p) => {
@@ -656,88 +771,109 @@ export const AdminPaymentsModule: React.FC = () => {
           </div>
         </div>
 
-        {/* 4 Dynamic Metric Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-2 border-t border-[#E8D7B7]">
-          {/* Card 1: Gross Studio Revenue */}
+        {/* 3 Dedicated Core Financial Division Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-2 border-t border-[#E8D7B7]">
+          {/* Card 1: Total Amount (Grand Inflow) */}
           <div className="p-4 rounded-xl bg-gradient-to-br from-[#17345C] to-[#0B1330] text-white shadow-md space-y-2 relative overflow-hidden">
             <div className="flex items-center justify-between text-xs text-[#F5E7A3]">
-              <span className="font-semibold uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+              <span className="font-semibold uppercase tracking-wider text-[10px] flex items-center gap-1.5 font-sans">
                 <TrendingUp className="w-3.5 h-3.5 text-[#F5E7A3]" />
-                Gross Studio Revenue
+                Total Amount
               </span>
               <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-[#F5E7A3]/20 text-[#F5E7A3] border border-[#F5E7A3]/30">
-                Live Inflow
+                100% Volume
               </span>
             </div>
             <div className="text-2xl font-bold font-mono text-white tracking-tight">
-              ₹{totalVerifiedRevenue.toLocaleString('en-IN')}
+              ₹{financialDivision.totalGross.toLocaleString('en-IN')}
             </div>
-            <div className="flex items-center justify-between text-[11px] text-slate-300 font-mono">
-              <span>≈ ${totalRevenueUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span>
-              <span className="text-[#F5E7A3] font-sans font-semibold">{clientPayments.length} transaction(s)</span>
+            <div className="text-[11px] text-slate-300 font-mono">
+              ≈ ${totalRevenueUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD • {clientPayments.length} Total Bookings
             </div>
-          </div>
-
-          {/* Card 2: Verified Client Collections */}
-          <div className="p-4 rounded-xl bg-emerald-50/80 border border-emerald-200 shadow-sm space-y-2">
-            <div className="flex items-center justify-between text-xs text-emerald-800">
-              <span className="font-semibold uppercase tracking-wider text-[10px] flex items-center gap-1.5">
-                <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
-                Verified Client Collections
-              </span>
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                Audited
-              </span>
-            </div>
-            <div className="text-2xl font-bold font-mono text-emerald-900">
-              ₹{totalVerifiedRevenue.toLocaleString('en-IN')}
-            </div>
-            <div className="text-[11px] text-emerald-700">
-              {pendingVerificationList.length > 0 ? (
-                <span className="text-amber-800 font-bold">{pendingVerificationList.length} payment(s) awaiting verification</span>
-              ) : (
-                <span>All client collections fully verified</span>
-              )}
+            <div className="pt-1 border-t border-white/10 text-[10px] text-slate-300 flex items-center justify-between font-sans">
+              <span>Custom: <strong>₹{financialDivision.customGross.toLocaleString('en-IN')}</strong></span>
+              <span>Store: <strong>₹{financialDivision.storeGross.toLocaleString('en-IN')}</strong></span>
             </div>
           </div>
 
-          {/* Card 3: Artisan Labor Payouts */}
-          <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] shadow-sm space-y-2">
-            <div className="flex items-center justify-between text-xs text-[#6B7280]">
-              <span className="font-semibold uppercase tracking-wider text-[10px] flex items-center gap-1.5">
-                <Wallet className="w-3.5 h-3.5 text-[#17345C]" />
-                Artisan Labor Committed
+          {/* Card 2: What Admin / Studio Gets */}
+          <div className="p-4 rounded-xl bg-blue-50/80 border border-blue-200 shadow-sm space-y-2">
+            <div className="flex items-center justify-between text-xs text-blue-900">
+              <span className="font-semibold uppercase tracking-wider text-[10px] flex items-center gap-1.5 font-sans">
+                <Building2 className="w-3.5 h-3.5 text-blue-700" />
+                Admin / Studio Gets
               </span>
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-slate-200/80 text-slate-700">
-                Modeller Labor
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-blue-100 text-blue-900 border border-blue-300">
+                {financialDivision.adminPercent}% Studio Share
               </span>
             </div>
-            <div className="text-2xl font-bold font-mono text-[#17243B]">
-              ₹{totalCommitted.toLocaleString('en-IN')}
+            <div className="text-2xl font-bold font-mono text-blue-950 tracking-tight">
+              ₹{financialDivision.totalAdminShare.toLocaleString('en-IN')}
             </div>
-            <div className="text-[11px] text-[#6B7280] flex items-center justify-between">
-              <span>Settled: ₹{totalSettledAmount.toLocaleString('en-IN')}</span>
-              <span className="font-medium text-amber-700">Due: ₹{totalUnpaidAmount.toLocaleString('en-IN')}</span>
+            <div className="text-[11px] text-blue-800 font-sans">
+              Net retained studio profit margin
+            </div>
+            <div className="pt-1 border-t border-blue-200/80 text-[10px] text-blue-700 font-sans">
+              30% Custom CAD margin + 100% Ready CAD sales
             </div>
           </div>
 
-          {/* Card 4: Net Studio Retained Profit */}
-          <div className="p-4 rounded-xl bg-amber-50/60 border border-amber-200 shadow-sm space-y-2">
+          {/* Card 3: What Staff / Modeller Gets */}
+          <div className="p-4 rounded-xl bg-amber-50/80 border border-amber-200 shadow-sm space-y-2">
             <div className="flex items-center justify-between text-xs text-amber-900">
-              <span className="font-semibold uppercase tracking-wider text-[10px] flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-amber-700" />
-                Net Studio Retained Profit
+              <span className="font-semibold uppercase tracking-wider text-[10px] flex items-center gap-1.5 font-sans">
+                <Users className="w-3.5 h-3.5 text-amber-700" />
+                Staff / Modeller Gets
               </span>
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                {profitMarginPercent}% Margin
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                {financialDivision.staffPercent}% Modeller Share
               </span>
             </div>
-            <div className="text-2xl font-bold font-mono text-amber-950">
-              ₹{netStudioProfit.toLocaleString('en-IN')}
+            <div className="text-2xl font-bold font-mono text-amber-950 tracking-tight">
+              ₹{financialDivision.totalStaffShare.toLocaleString('en-IN')}
             </div>
-            <div className="text-[11px] text-amber-800">
-              Retained margin after artisan compensations
+            <div className="text-[11px] text-amber-800 font-sans">
+              Artisan modellers labor compensation
             </div>
+            <div className="pt-1 border-t border-amber-200/80 text-[10px] text-amber-900 flex items-center justify-between font-mono">
+              <span>Settled: <strong>₹{totalSettledAmount.toLocaleString('en-IN')}</strong></span>
+              <span className="text-amber-700">Due: <strong>₹{(financialDivision.totalStaffShare - totalSettledAmount).toLocaleString('en-IN')}</strong></span>
+            </div>
+          </div>
+        </div>
+
+        {/* Visual Revenue Division Proportion Bar */}
+        <div className="bg-[#FAF8F5] p-3.5 rounded-xl border border-[#E8D7B7] space-y-2 mt-3 shadow-2xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs">
+            <span className="font-semibold text-[#17243B] flex items-center gap-1.5">
+              <PieChart className="w-3.5 h-3.5 text-[#C9A227]" />
+              <span>Revenue Division Ratio: Admin vs Artisan Modellers</span>
+            </span>
+            <span className="text-[11px] text-slate-500 font-sans">
+              Custom CAD Orders: <strong>70% Modeller / 30% Studio</strong> • Ready CAD Downloads: <strong>100% Studio</strong>
+            </span>
+          </div>
+
+          <div className="h-3 w-full rounded-full bg-slate-200 overflow-hidden flex shadow-inner">
+            <div
+              style={{ width: `${financialDivision.adminPercent}%` }}
+              className="bg-gradient-to-r from-[#17345C] to-[#1E4E8C] h-full transition-all flex items-center justify-center text-[9px] font-bold text-white font-mono"
+              title={`Admin / Studio Share: ${financialDivision.adminPercent}%`}
+            >
+              {financialDivision.adminPercent}% Admin
+            </div>
+            <div
+              style={{ width: `${financialDivision.staffPercent}%` }}
+              className="bg-gradient-to-r from-[#D4AF37] to-[#C9A227] h-full transition-all flex items-center justify-center text-[9px] font-bold text-[#17243B] font-mono"
+              title={`Staff Modellers Share: ${financialDivision.staffPercent}%`}
+            >
+              {financialDivision.staffPercent}% Staff
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between text-[11px] font-mono text-[#6B7280]">
+            <span className="text-[#17345C] font-semibold">🏛️ Admin / Studio: ₹{financialDivision.totalAdminShare.toLocaleString('en-IN')} ({financialDivision.adminPercent}%)</span>
+            <span className="text-amber-800 font-semibold">👤 Staff Modellers: ₹{financialDivision.totalStaffShare.toLocaleString('en-IN')} ({financialDivision.staffPercent}%)</span>
           </div>
         </div>
       </div>
@@ -1201,6 +1337,65 @@ export const AdminPaymentsModule: React.FC = () => {
                         </div>
                       </div>
 
+                      {/* MONEY DIVISION BETWEEN ADMIN & STAFF FOR THIS SPECIFIC ORDER */}
+                      <div className="bg-[#FAF8F5] p-3 rounded-xl border border-[#E8D7B7] grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs font-mono">
+                        {/* 1. Order Total Value */}
+                        <div className="bg-white p-2.5 rounded-lg border border-[#E8D7B7] flex items-center justify-between shadow-2xs">
+                          <div>
+                            <span className="text-[10px] text-slate-500 font-bold uppercase block font-sans">
+                              Total Order Value
+                            </span>
+                            <strong className="text-sm font-extrabold text-[#17243B] font-mono">
+                              {p.order_total_amount || p.amount}
+                            </strong>
+                          </div>
+                          <span className="text-[9px] px-2 py-0.5 rounded-full font-bold uppercase bg-slate-100 text-slate-700 border border-slate-200 font-mono">
+                            100% Volume
+                          </span>
+                        </div>
+
+                        {/* 2. Admin / Studio Gets */}
+                        <div className="bg-blue-50/90 p-2.5 rounded-lg border border-blue-200 flex items-center justify-between shadow-2xs">
+                          <div>
+                            <span className="text-[10px] text-blue-900 font-bold uppercase block font-sans flex items-center gap-1">
+                              <Building2 className="w-3 h-3 text-blue-700" />
+                              Admin / Studio Gets
+                            </span>
+                            <strong className="text-sm font-extrabold text-blue-950 font-mono">
+                              {p.admin_margin_amount || `₹${((p.order_total_val || p.amount_raw) * 0.3).toFixed(2)}`}
+                            </strong>
+                          </div>
+                          <span className="text-[9px] px-2 py-0.5 rounded-full font-bold uppercase bg-blue-100 text-blue-800 border border-blue-300 font-mono">
+                            {p.admin_percent ?? 30}% Margin
+                          </span>
+                        </div>
+
+                        {/* 3. Staff / Modeller Gets */}
+                        <div className="bg-amber-50/90 p-2.5 rounded-lg border border-amber-200 flex items-center justify-between shadow-2xs">
+                          <div>
+                            <span className="text-[10px] text-amber-900 font-bold uppercase block font-sans flex items-center gap-1">
+                              <UserCheck className="w-3 h-3 text-amber-700" />
+                              Staff ({p.assigned_staff_name || 'Modeller'})
+                            </span>
+                            <strong className="text-sm font-extrabold text-amber-950 font-mono">
+                              {p.staff_payout_amount || `₹${((p.order_total_val || p.amount_raw) * 0.7).toFixed(2)}`}
+                            </strong>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <span className="text-[9px] px-2 py-0.5 rounded-full font-bold uppercase bg-amber-100 text-amber-900 border border-amber-300 font-mono">
+                              {p.staff_percent ?? 70}% Share
+                            </span>
+                            <span className={`text-[8.5px] px-1.5 py-0.2 rounded font-extrabold uppercase font-mono ${
+                              p.staff_payout_status === 'processed' || p.staff_payout_status === 'settled'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-amber-200 text-amber-900'
+                            }`}>
+                              {p.staff_payout_status === 'processed' || p.staff_payout_status === 'settled' ? 'Settled' : 'Payout Due'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
                       {/* COLLAPSED SUMMARY HINT */}
                       {!isExpanded && (
                         <div
@@ -1220,6 +1415,44 @@ export const AdminPaymentsModule: React.FC = () => {
                       {/* EXPANDED FULL DETAILS SECTION */}
                       {isExpanded && (
                         <div className="space-y-4 pt-3.5 border-t border-slate-200 animate-in fade-in-50 duration-200">
+                          {/* Dedicated Staff vs Admin Money Split Card inside Expanded View */}
+                          <div className="p-3 rounded-xl bg-white border border-[#E8D7B7] shadow-2xs space-y-2">
+                            <div className="flex items-center justify-between text-[11px] font-mono">
+                              <span className="font-bold text-[#17243B] flex items-center gap-1.5 uppercase tracking-wider">
+                                <PieChart className="w-3.5 h-3.5 text-[#C9A227]" />
+                                <span>Order Revenue Division (Staff vs Studio Admin)</span>
+                              </span>
+                              <span className="text-slate-500 font-sans">
+                                Assigned: <strong className="text-[#17345C]">{p.assigned_staff_name || 'Modeller'}</strong>
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+                              <div className="bg-amber-50/80 p-2.5 rounded-lg border border-amber-200 flex items-center justify-between">
+                                <div>
+                                  <span className="text-[10px] text-amber-900 font-bold uppercase block font-sans">👤 Modeller Payout ({p.staff_percent ?? 70}%)</span>
+                                  <strong className="text-sm font-extrabold text-amber-950">{p.staff_payout_amount || `₹${((p.order_total_val || p.amount_raw) * 0.7).toFixed(2)}`}</strong>
+                                </div>
+                                <span className={`text-[9px] px-2 py-0.5 rounded font-extrabold uppercase ${
+                                  p.staff_payout_status === 'processed' || p.staff_payout_status === 'settled'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : 'bg-amber-200 text-amber-900'
+                                }`}>
+                                  {p.staff_payout_status === 'processed' || p.staff_payout_status === 'settled' ? 'Settled' : 'Payout Due'}
+                                </span>
+                              </div>
+
+                              <div className="bg-blue-50/80 p-2.5 rounded-lg border border-blue-200 flex items-center justify-between">
+                                <div>
+                                  <span className="text-[10px] text-blue-900 font-bold uppercase block font-sans">🏛️ Studio Retained ({p.admin_percent ?? 30}%)</span>
+                                  <strong className="text-sm font-extrabold text-blue-950">{p.admin_margin_amount || `₹${((p.order_total_val || p.amount_raw) * 0.3).toFixed(2)}`}</strong>
+                                </div>
+                                <span className="text-[9px] px-2 py-0.5 rounded font-extrabold uppercase bg-blue-100 text-blue-800">
+                                  Studio Margin
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
                           {/* MILESTONE FINANCIAL PROGRESS BAR & 3 SUMMARY METRICS */}
                           <div className="bg-slate-50/80 rounded-xl p-3.5 border border-slate-200 space-y-2.5">
                             <div className="flex justify-between items-center text-xs font-mono">
@@ -1564,6 +1797,56 @@ export const AdminPaymentsModule: React.FC = () => {
                             <CheckCircle2 className="w-3 h-3 text-emerald-600" /> 100% Paid &amp; Download Enabled
                           </span>
                         )}
+                      </div>
+
+                      {/* Money Division Indicator for Purchases / Edits */}
+                      <div className="bg-[#FAF8F5] p-2.5 rounded-xl border border-[#E8D7B7] grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono">
+                        {/* 1. Total Price */}
+                        <div className="bg-white p-2 rounded-lg border border-[#E8D7B7] flex items-center justify-between shadow-2xs">
+                          <div>
+                            <span className="text-[9px] text-slate-500 font-bold uppercase block font-sans">
+                              Total Price
+                            </span>
+                            <strong className="text-xs font-extrabold text-[#17243B] font-mono">
+                              {p.amount}
+                            </strong>
+                          </div>
+                          <span className="text-[8.5px] px-1.5 py-0.5 rounded-full font-bold uppercase bg-slate-100 text-slate-700 border border-slate-200 font-mono">
+                            100% Inflow
+                          </span>
+                        </div>
+
+                        {/* 2. Admin / Studio Retained */}
+                        <div className="bg-blue-50/90 p-2 rounded-lg border border-blue-200 flex items-center justify-between shadow-2xs">
+                          <div>
+                            <span className="text-[9px] text-blue-900 font-bold uppercase block font-sans flex items-center gap-1">
+                              <Building2 className="w-2.5 h-2.5 text-blue-700" />
+                              Admin / Studio Gets
+                            </span>
+                            <strong className="text-xs font-extrabold text-blue-950 font-mono">
+                              {p.admin_margin_amount || p.amount}
+                            </strong>
+                          </div>
+                          <span className="text-[8.5px] px-1.5 py-0.5 rounded-full font-bold uppercase bg-blue-100 text-blue-800 border border-blue-300 font-mono">
+                            {p.admin_percent ?? 100}% Margin
+                          </span>
+                        </div>
+
+                        {/* 3. Staff Share */}
+                        <div className="bg-amber-50/90 p-2 rounded-lg border border-amber-200 flex items-center justify-between shadow-2xs">
+                          <div>
+                            <span className="text-[9px] text-amber-900 font-bold uppercase block font-sans flex items-center gap-1">
+                              <UserCheck className="w-2.5 h-2.5 text-amber-700" />
+                              {(p.staff_payout_val || 0) > 0 ? `Staff (${p.assigned_staff_name || 'Modeller'})` : 'Artisan Modeller'}
+                            </span>
+                            <strong className="text-xs font-extrabold text-amber-950 font-mono">
+                              {(p.staff_payout_val || 0) > 0 ? p.staff_payout_amount : '₹0.00'}
+                            </strong>
+                          </div>
+                          <span className="text-[8.5px] px-1.5 py-0.5 rounded-full font-bold uppercase bg-amber-100 text-amber-900 border border-amber-300 font-mono">
+                            {(p.staff_payout_val || 0) > 0 ? `${p.staff_percent}% Share` : 'Catalog Asset'}
+                          </span>
+                        </div>
                       </div>
 
                       {/* Decline Reason Note if declined */}

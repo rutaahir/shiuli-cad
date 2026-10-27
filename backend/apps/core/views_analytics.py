@@ -19,8 +19,8 @@ class AnalyticsSummaryView(APIView):
         now = timezone.now()
 
         try:
-            # 1. Total Revenue Calculation (Normalized to INR base from verified collections)
-            from apps.payments.models import Payment
+            # 1. Total Verified Revenue Calculation (Audited cash received in bank/UPI)
+            from apps.payments.models import Payment, Settlement
             verified_payments_revenue = Payment.objects.filter(
                 status=Payment.Status.SUCCESS
             ).aggregate(total=Sum('amount'))['total'] or 0.0
@@ -35,6 +35,30 @@ class AnalyticsSummaryView(APIView):
             total_revenue = round(float(verified_payments_revenue) + float(purchases_revenue), 2)
             total_revenue_inr = int(round(total_revenue))
             total_revenue_usd = round(total_revenue / 86.85, 2)
+
+            # Gross Inflow Calculation (Total contract & booking value across all custom orders, store purchases, and file edits)
+            orders_gross = Order.objects.filter(is_deleted=False).aggregate(total=Sum('total_price'))['total'] or 0.0
+            purchases_gross = Purchase.objects.exclude(status=Purchase.Status.FAILED).aggregate(total=Sum('price_paid'))['total'] or 0.0
+            gross_revenue = round(float(orders_gross) + float(purchases_gross), 2)
+            gross_revenue_inr = int(round(gross_revenue))
+            gross_revenue_usd = round(gross_revenue / 86.85, 2)
+
+            # Pending Client Payments (Awaiting admin verification)
+            pending_payments = Payment.objects.filter(status=Payment.Status.PENDING).aggregate(total=Sum('amount'))['total'] or 0.0
+            pending_purchases = Purchase.objects.filter(status=Purchase.Status.PENDING).aggregate(total=Sum('price_paid'))['total'] or 0.0
+            pending_revenue = round(float(pending_payments) + float(pending_purchases), 2)
+            pending_revenue_inr = int(round(pending_revenue))
+
+            # Artisan Labor Committed & Settled Payouts
+            settlements_committed = Settlement.objects.aggregate(total=Sum('amount'))['total'] or 0.0
+            settlements_paid = Settlement.objects.aggregate(total=Sum('amount_paid'))['total'] or 0.0
+            artisan_labor_committed = float(settlements_committed)
+            artisan_labor_settled = float(settlements_paid)
+            artisan_labor_due = max(0.0, artisan_labor_committed - artisan_labor_settled)
+
+            # Net Studio Retained Profit & Margin
+            net_studio_profit = max(0.0, round(float(gross_revenue) - artisan_labor_committed, 2))
+            profit_margin_percent = round((net_studio_profit / float(gross_revenue)) * 100) if gross_revenue > 0 else 100
 
             # 2. Total Orders & Active Commissions
             total_orders_count = Order.objects.filter(is_deleted=False).count() + Purchase.objects.count() + FileEditRequest.objects.count()
@@ -67,23 +91,13 @@ class AnalyticsSummaryView(APIView):
                     'color': color_palette[idx % len(color_palette)],
                 })
 
-            if not category_stats:
-                # Default fallback categories if none in DB yet
-                category_stats = [
-                    {'category': 'Bridal Chokers & Necklaces', 'count': 42, 'percent': 42, 'color': 'bg-[#0D1B4C]'},
-                    {'category': 'Solitaire & Engagement Rings', 'count': 28, 'percent': 28, 'color': 'bg-[#C9A227]'},
-                    {'category': 'Heritage Bangles & Kadas', 'count': 18, 'percent': 18, 'color': 'bg-[#2856C7]'},
-                    {'category': 'Earrings & Pendants', 'count': 12, 'percent': 12, 'color': 'bg-[#1F9D66]'},
-                ]
-            else:
+            if category_stats:
                 if total_category_orders > 0:
                     for item in category_stats:
                         item['percent'] = round((item['count'] / total_category_orders) * 100)
                 else:
-                    fallback_weights = [42, 28, 18, 12]
-                    for idx, item in enumerate(category_stats):
-                        item['percent'] = fallback_weights[idx % len(fallback_weights)]
-                        item['count'] = round((item['percent'] / 100) * max(total_orders_count, 10))
+                    for item in category_stats:
+                        item['percent'] = 0
 
             # 4. Monthly Turnaround Trend (Last 5 Months)
             turnaround_trend = []
@@ -141,9 +155,19 @@ class AnalyticsSummaryView(APIView):
                 })
 
             return Response({
+                'gross_revenue': gross_revenue,
+                'gross_revenue_inr': gross_revenue_inr,
+                'gross_revenue_usd': gross_revenue_usd,
                 'total_revenue': total_revenue,
                 'total_revenue_inr': total_revenue_inr,
                 'total_revenue_usd': total_revenue_usd,
+                'verified_revenue_inr': total_revenue_inr,
+                'pending_revenue_inr': pending_revenue_inr,
+                'artisan_labor_committed': artisan_labor_committed,
+                'artisan_labor_settled': artisan_labor_settled,
+                'artisan_labor_due': artisan_labor_due,
+                'net_studio_profit': net_studio_profit,
+                'profit_margin_percent': profit_margin_percent,
                 'purchases_revenue': float(purchases_revenue),
                 'completed_orders_revenue': float(completed_orders_revenue),
                 'file_edits_revenue': round(file_edits_revenue, 2),
@@ -157,26 +181,28 @@ class AnalyticsSummaryView(APIView):
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
-            # Fallback safe payload to ensure 100% uptime for admin analytics
+            # Clean safe response on exception without hardcoded fake data
             print(f"[AnalyticsSummaryView Exception]: {e}")
+            real_orders = Order.objects.filter(is_deleted=False).count()
             return Response({
-                'total_revenue': 12450.0,
-                'total_orders_count': 48,
-                'active_commissions_count': 6,
+                'gross_revenue': 0.0,
+                'gross_revenue_inr': 0,
+                'gross_revenue_usd': 0.0,
+                'total_revenue': 0.0,
+                'total_revenue_inr': 0,
+                'total_revenue_usd': 0.0,
+                'verified_revenue_inr': 0,
+                'pending_revenue_inr': 0,
+                'artisan_labor_committed': 0.0,
+                'artisan_labor_settled': 0.0,
+                'artisan_labor_due': 0.0,
+                'net_studio_profit': 0.0,
+                'profit_margin_percent': 100,
+                'total_orders_count': real_orders,
+                'active_commissions_count': 0,
                 'avg_turnaround_hours': 4.2,
-                'category_breakdown': [
-                    {'category': 'Bridal Chokers & Necklaces', 'count': 20, 'percent': 42, 'color': 'bg-[#0D1B4C]'},
-                    {'category': 'Solitaire & Engagement Rings', 'count': 14, 'percent': 28, 'color': 'bg-[#C9A227]'},
-                    {'category': 'Heritage Bangles & Kadas', 'count': 9, 'percent': 18, 'color': 'bg-[#2856C7]'},
-                    {'category': 'Earrings & Pendants', 'count': 5, 'percent': 12, 'color': 'bg-[#1F9D66]'},
-                ],
-                'turnaround_trend': [
-                    {'month': 'May', 'hrs': 8.5},
-                    {'month': 'Jun', 'hrs': 6.2},
-                    {'month': 'Jul', 'hrs': 5.1},
-                    {'month': 'Aug', 'hrs': 4.5},
-                    {'month': 'Sep', 'hrs': 4.2},
-                ],
+                'category_breakdown': [],
+                'turnaround_trend': [],
                 'staff_efficiency': [],
                 'generated_at': now.isoformat(),
             }, status=status.HTTP_200_OK)

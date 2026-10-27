@@ -7,6 +7,7 @@ import {
   PieChart, 
   Clock, 
   DollarSign, 
+  IndianRupee,
   ShoppingBag, 
   Users, 
   RefreshCw,
@@ -244,11 +245,14 @@ export const AdminAnalyticsModule: React.FC = () => {
               <div>
                 <span className="text-[#6B7280] text-[10px] font-bold uppercase tracking-wider">Gross Studio Revenue</span>
                 <div className="text-2xl font-extrabold text-[#17345C] mt-1 font-mono">
-                  ${(data.total_revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ₹{(data.gross_revenue_inr || data.total_revenue_inr || Math.round(data.total_revenue || 0)).toLocaleString('en-IN')}
+                </div>
+                <div className="text-[11px] text-[#6B7280] font-mono mt-0.5">
+                  ≈ ${(data.gross_revenue_usd || data.total_revenue_usd || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
                 </div>
               </div>
               <div className="w-12 h-12 rounded-2xl bg-[#17345C]/5 flex items-center justify-center text-[#17345C]">
-                <DollarSign className="w-6 h-6 text-[#D4AF37]" />
+                <IndianRupee className="w-6 h-6 text-[#D4AF37]" />
               </div>
             </div>
 

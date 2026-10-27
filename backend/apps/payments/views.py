@@ -304,12 +304,23 @@ def incoming_gateway_logs(request):
     from .models import Purchase
     logs = []
 
-    # 1. Custom Order Payments (Grouped into unified Order Cards with nested Step Transactions)
+    # 1. Custom Orders & Nested Transactions
+    from apps.custom_orders.models import Order
+    from apps.payments.models import Settlement
     orders_map = OrderedDict()
-    payments = Payment.objects.all().select_related('order', 'order__client', 'payment_stage').prefetch_related('order__payment_stages').order_by('-created_at')
-    
-    for p in payments:
-        oid = p.order_id
+
+    # Query all active/non-deleted custom Orders
+    all_orders = Order.objects.filter(is_deleted=False).select_related('client', 'assigned_staff').prefetch_related('payment_stages', 'payments').order_by('-created_at')
+    for ord_obj in all_orders:
+        orders_map[ord_obj.id] = {
+            'order': ord_obj,
+            'payments': list(ord_obj.payments.all().order_by('-created_at'))
+        }
+
+    # Also capture any historical payments for orders that might have been processed
+    extra_payments = Payment.objects.exclude(order_id__in=orders_map.keys()).select_related('order', 'order__client', 'payment_stage').order_by('-created_at')
+    for p in extra_payments:
+        oid = p.order_id or f"pay_{p.id}"
         if oid not in orders_map:
             orders_map[oid] = {
                 'order': p.order,
@@ -352,6 +363,34 @@ def incoming_gateway_logs(request):
             is_order_fully_paid = bool(order and order.status == 'completed') or (order_paid_val >= order_total_val and order_total_val > 0)
 
         order_remaining_val = max(0.0, round(order_total_val - order_paid_val, 2))
+
+        # Staff vs Admin Money Division Calculation for this Order
+        settlement_obj = Settlement.objects.filter(order=order).first() if order else None
+        if settlement_obj:
+            staff_payout_val = float(settlement_obj.amount)
+            staff_payout_paid = float(settlement_obj.amount_paid or 0)
+            staff_payout_status = settlement_obj.status
+        elif order and (order.staff_payout_price or order.payout_price):
+            staff_payout_val = float(order.staff_payout_price or order.payout_price)
+            staff_payout_paid = 0.0
+            staff_payout_status = 'pending'
+        elif order and order.assigned_staff:
+            # Default standard 70% commission payout to assigned staff modeller
+            staff_payout_val = round(order_total_val * 0.70, 2)
+            staff_payout_paid = 0.0
+            staff_payout_status = 'pending'
+        else:
+            staff_payout_val = 0.0
+            staff_payout_paid = 0.0
+            staff_payout_status = 'unassigned'
+
+        admin_margin_val = max(0.0, round(order_total_val - staff_payout_val, 2))
+        staff_percent = round((staff_payout_val / order_total_val) * 100) if order_total_val > 0 else 0
+        admin_percent = round((admin_margin_val / order_total_val) * 100) if order_total_val > 0 else 100
+
+        assigned_staff_name = f"{order.assigned_staff.first_name} {order.assigned_staff.last_name}".strip() or order.assigned_staff.username if (order and order.assigned_staff) else "Unassigned Modeller"
+        assigned_staff_role = getattr(order.assigned_staff, 'role', 'CAD Designer') if (order and order.assigned_staff) else ""
+        assigned_staff_id = order.assigned_staff.id if (order and order.assigned_staff) else None
 
         # Build stages representation
         stages_data = []
@@ -462,7 +501,18 @@ def incoming_gateway_logs(request):
             'stages': stages_data,
             'transactions': transactions_data,
             'date': latest_txn['date'] if latest_txn else (order.created_at.strftime('%b %d, %Y, %I:%M %p') if order else ""),
-            'created_at_iso': latest_txn['created_at_iso'] if latest_txn else (order.created_at.isoformat() if order else "")
+            'created_at_iso': latest_txn['created_at_iso'] if latest_txn else (order.created_at.isoformat() if order else ""),
+            'assigned_staff_name': assigned_staff_name,
+            'assigned_staff_role': assigned_staff_role,
+            'assigned_staff_id': assigned_staff_id,
+            'staff_payout_val': staff_payout_val,
+            'staff_payout_amount': f"₹{staff_payout_val:,.2f}",
+            'staff_payout_paid': staff_payout_paid,
+            'staff_payout_status': staff_payout_status,
+            'admin_margin_val': admin_margin_val,
+            'admin_margin_amount': f"₹{admin_margin_val:,.2f}",
+            'staff_percent': staff_percent,
+            'admin_percent': admin_percent,
         })
 
     # 2. Ready CAD Product Purchases
@@ -475,6 +525,7 @@ def incoming_gateway_logs(request):
         logs.append({
             'id': f"PUR-{pur.id}",
             'purchase_id': pur.id,
+            'entry_type': 'purchase',
             'client': client_name,
             'client_email': client_email,
             'item_title': item_title,
@@ -496,7 +547,18 @@ def incoming_gateway_logs(request):
             'is_order_fully_paid': pur.status == 'paid',
             'can_send_download': pur.status == 'pending',
             'date': pur.purchased_at.strftime('%b %d, %Y, %I:%M %p'),
-            'created_at_iso': pur.purchased_at.isoformat()
+            'created_at_iso': pur.purchased_at.isoformat(),
+            'assigned_staff_name': 'Ready CAD Catalog Asset',
+            'assigned_staff_role': 'Atelier Asset',
+            'assigned_staff_id': None,
+            'staff_payout_val': 0.0,
+            'staff_payout_amount': '₹0.00',
+            'staff_payout_paid': 0.0,
+            'staff_payout_status': 'settled',
+            'admin_margin_val': float(pur.price_paid),
+            'admin_margin_amount': f"₹{pur.price_paid:,.2f}",
+            'staff_percent': 0,
+            'admin_percent': 100,
         })
 
     # 3. CAD File Edit Modifications
@@ -504,8 +566,6 @@ def incoming_gateway_logs(request):
         from apps.file_edits.models import FileEditRequest
         file_edits = FileEditRequest.objects.filter(agreed_price__isnull=False).select_related('client', 'cad_order').order_by('-created_at')
         for fe in file_edits:
-            # If this file edit already has a converted Order that has payment records, skip it from Section 3
-            # because its actual payments are already accurately displayed under Section 1!
             order_obj = getattr(fe, 'cad_order', None) or getattr(fe, 'converted_order', None)
             if order_obj and order_obj.payments.exists():
                 continue
@@ -517,8 +577,11 @@ def incoming_gateway_logs(request):
             amt_disp = f"₹{int(round(amt_raw)):,} (≈ ${float(fe.agreed_price):.2f} USD)" if is_usd else f"₹{int(round(amt_raw)):,}"
             
             fe_status_display = "Converted to Order" if order_obj else ("Agreement Active" if fe.status == 'agreed' else fe.status.title())
+            fe_staff_payout = round(amt_raw * 0.70, 2)
+            fe_admin_margin = round(amt_raw * 0.30, 2)
             logs.append({
                 'id': f"FED-{fe.id}",
+                'entry_type': 'file_edit',
                 'client': client_name,
                 'client_email': client_email,
                 'item_title': f"CAD File Edit #{fe.id} ({fe.original_file_format.upper()})",
@@ -538,7 +601,17 @@ def incoming_gateway_logs(request):
                 'can_send_download': False,
                 'download_enabled_by_admin': False,
                 'date': fe.created_at.strftime('%b %d, %Y, %I:%M %p'),
-                'created_at_iso': fe.created_at.isoformat()
+                'created_at_iso': fe.created_at.isoformat(),
+                'assigned_staff_name': getattr(fe, 'assigned_designer_name', 'CAD Specialist'),
+                'assigned_staff_role': 'CAD Modeller',
+                'staff_payout_val': fe_staff_payout,
+                'staff_payout_amount': f"₹{fe_staff_payout:,.2f}",
+                'staff_payout_paid': 0.0,
+                'staff_payout_status': 'pending',
+                'admin_margin_val': fe_admin_margin,
+                'admin_margin_amount': f"₹{fe_admin_margin:,.2f}",
+                'staff_percent': 70,
+                'admin_percent': 30,
             })
     except Exception as e:
         pass

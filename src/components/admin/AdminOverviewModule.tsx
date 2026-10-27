@@ -239,20 +239,24 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
     return `${days}d ${remHours > 0 ? `${remHours}h ` : ''}wait`;
   };
 
-  // Orders Requiring Attention (Real urgent pipeline)
+  // Orders Requiring Attention (Real urgent pipeline: unassigned, pending QC, or active revisions)
   const urgentOrders = useMemo(() => {
-    // 1. Unassigned orders in pool
-    const unassigned = orders.filter((o) => (!o.assigned_staff || o.status === 'in_design') && !['completed', 'cancelled'].includes(o.status));
-    // 2. Pending admin quality review
+    // 1. Truly unassigned orders waiting for a CAD modeller assignment (no staff assigned)
+    const unassigned = orders.filter(
+      (o) => !o.assigned_staff && !['completed', 'cancelled', 'preview_ready'].includes(o.status)
+    );
+    // 2. Pending admin quality review (Modeller finished and submitted CAD for QC)
     const pendingRev = orders.filter((o) => o.status === 'pending_review');
-    // 3. Overdue orders
-    const overdue = orders.filter((o) => (o.is_overdue || (o.due_at && new Date(o.due_at) < new Date())) && !['completed', 'cancelled'].includes(o.status));
-    // 4. Revision requested
+    // 3. Client requested revisions that need studio review
     const revisions = orders.filter((o) => o.status === 'revision_requested');
+    // 4. Actively with designer but marked overdue in backend
+    const overdueWithDesigner = orders.filter(
+      (o) => o.assigned_staff && o.status === 'with_designer' && Boolean(o.is_overdue)
+    );
 
     // Combine uniquely by order ID
     const map = new Map<number, any>();
-    [...unassigned, ...overdue, ...pendingRev, ...revisions].forEach((o) => {
+    [...unassigned, ...pendingRev, ...revisions, ...overdueWithDesigner].forEach((o) => {
       if (!map.has(o.id) && !o.is_deleted) map.set(o.id, o);
     });
 
@@ -658,9 +662,12 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
                 </div>
               ) : (
                 urgentOrders.slice(0, 3).map((order) => {
+                  const isAssigned = Boolean(order.assigned_staff);
+                  const isPendingQC = order.status === 'pending_review';
+                  const isRevision = order.status === 'revision_requested';
                   const createdTime = new Date(order.unassigned_since || order.created_at || Date.now()).getTime();
                   const unassignedMinutes = Math.max(1, Math.round((Date.now() - createdTime) / 60000));
-                  const isEscalated = order.is_overdue || unassignedMinutes > escalationTimerMinutes;
+                  const isEscalated = !isAssigned ? (unassignedMinutes > escalationTimerMinutes) : Boolean(order.is_overdue);
 
                   const orderTitle =
                     order.custom_request?.category_name ? `Bespoke ${order.custom_request.category_name}` :
@@ -677,16 +684,15 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
                       : (order.custom_request?.contact_name || order.client?.username || 'Client');
 
                   const orderCode = `SCS-2026-${String(order.id).padStart(4, '0')}`;
-                  const isAssigned = Boolean(order.assigned_staff);
-                  const isPendingQC = order.status === 'pending_review';
-                  const isRevision = order.status === 'revision_requested';
 
                   return (
                     <div
                       key={order.id}
                       className={`p-3.5 rounded-xl border transition-all ${
-                        isEscalated
+                        isEscalated || isRevision
                           ? 'bg-[#D14343]/5 border-l-4 border-l-[#D14343] border-y-[#E8D7B7] border-r-[#E8D7B7]'
+                          : isPendingQC
+                          ? 'bg-emerald-50/50 border-l-4 border-l-emerald-600 border-y-[#E8D7B7] border-r-[#E8D7B7]'
                           : 'bg-[#E8A93B]/5 border-l-4 border-l-[#E8A93B] border-y-[#E8D7B7] border-r-[#E8D7B7]'
                       }`}
                     >
@@ -702,18 +708,22 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
                         <div className="text-right shrink-0">
                           <span
                             className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                              isEscalated
+                              isEscalated || isRevision
                                 ? 'bg-[#D14343] text-white'
+                                : isPendingQC
+                                ? 'bg-emerald-600 text-white'
                                 : 'bg-[#E8A93B]/20 text-[#17243B]'
                             }`}
                           >
                             <Clock className="w-3 h-3" />
-                            <span>{formatWaitTime(unassignedMinutes)}</span>
+                            <span>{!isAssigned ? formatWaitTime(unassignedMinutes) : isPendingQC ? 'QC Ready' : isRevision ? 'Revision' : 'In Progress'}</span>
                           </span>
-                          {isEscalated && (
-                            <div className="text-[9px] text-[#D14343] font-bold mt-1 uppercase flex items-center justify-end gap-1">
+                          {(isEscalated || isPendingQC || isRevision) && (
+                            <div className={`text-[9px] font-bold mt-1 uppercase flex items-center justify-end gap-1 ${
+                              isPendingQC ? 'text-emerald-700' : 'text-[#D14343]'
+                            }`}>
                               <ShieldAlert className="w-3 h-3" />
-                              {isPendingQC ? 'QC REVIEW NEEDED' : isRevision ? 'REVISION OVERDUE' : 'OVERDUE ESCALATED!'}
+                              {isPendingQC ? 'QC REVIEW NEEDED' : isRevision ? 'REVISION REQUESTED' : 'UNASSIGNED ESCALATED!'}
                             </div>
                           )}
                         </div>
@@ -729,6 +739,13 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
                             className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors text-[11px] font-medium cursor-pointer shadow-xs flex items-center gap-1"
                           >
                             <span>Review Handover</span>
+                          </button>
+                        ) : isRevision ? (
+                          <button
+                            onClick={() => onSelectModule('orders')}
+                            className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white transition-colors text-[11px] font-medium cursor-pointer shadow-xs flex items-center gap-1"
+                          >
+                            <span>Review Revision</span>
                           </button>
                         ) : (
                           <button

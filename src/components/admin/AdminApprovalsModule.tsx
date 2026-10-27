@@ -154,7 +154,7 @@ export const AdminApprovalsModule: React.FC = () => {
                 ? `CAD Edit: ${fe.original_file_name || `Model .${fe.original_file_format || '3dm'}`} (Order #${ord.id})`
                 : `Bespoke ${orderCat} (Order #${ord.id})`,
               designerName: staff.first_name ? `${staff.first_name} ${staff.last_name || ''}`.trim() : (staff.username || 'CAD Modeller'),
-              designerAvatar: staff.profile_photo || localStaff?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
+              designerAvatar: staff.profile_photo || (staff as any).avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
               category: orderCat,
               uploadedDate: ord.assigned_at ? new Date(ord.assigned_at).toISOString().split('T')[0] : 'Recently',
               thumbnail: ord.preview_image || req.sketches?.[0]?.image_url || req.sketches?.[0]?.image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&q=80&w=600',
