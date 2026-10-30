@@ -97,7 +97,7 @@ export const StaffHistoryTab: React.FC<StaffHistoryTabProps> = ({ earnings, staf
                     <td className="p-4 font-semibold text-[#17243B]">{item.title}</td>
                     <td className="p-4 font-mono text-[#687386]">{item.completedDate}</td>
                     <td className="p-4 font-mono font-bold text-emerald-700">
-                      ₹{item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ${item.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td className="p-4">
                       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
@@ -166,7 +166,7 @@ export const StaffHistoryTab: React.FC<StaffHistoryTabProps> = ({ earnings, staf
               <div className="flex justify-between border-b border-[#E8D7B7] pb-2">
                 <span className="text-[#687386]">Craftsman Payout:</span>
                 <span className="font-bold text-emerald-700 text-sm">
-                  ₹{selectedReceipt.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${selectedReceipt.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
               <div className="flex justify-between">

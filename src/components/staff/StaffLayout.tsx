@@ -382,7 +382,7 @@ export const StaffLayout: React.FC<StaffLayoutProps> = ({
                 <Coins className="w-4 h-4 text-[#B88732]" />
                 <div>
                   <div className="text-[9px] uppercase tracking-wider text-[#687386] font-mono font-semibold">Monthly Earnings</div>
-                  <div className="text-xs font-bold text-[#17345C] font-mono">₹{staff.totalEarnings.toLocaleString('en-IN')}</div>
+                  <div className="text-xs font-bold text-[#17345C] font-mono">${staff.totalEarnings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 </div>
               </div>
 
@@ -438,7 +438,7 @@ export const StaffLayout: React.FC<StaffLayoutProps> = ({
               <button
                 onClick={onBackToMain}
                 className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#E8D7B7] hover:border-[#B88732] text-[#17345C] hover:text-[#B88732] text-xs font-semibold shadow-2xs transition-all cursor-pointer"
-                title="Exit to Client Storefront"
+                title="Exit to Storefront"
               >
                 <span>Exit to Site</span>
                 <ExternalLink className="w-3.5 h-3.5 text-[#B88732]" />

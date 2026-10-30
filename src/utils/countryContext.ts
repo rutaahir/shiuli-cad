@@ -67,24 +67,6 @@ export const FALLBACK_RATES: Record<string, number> = {
   JPY: 152.00,
 };
 
-let globalCountryState: CountryContextState = {
-  country: 'IN',
-  countryName: 'India',
-  currency: 'INR',
-  symbol: '₹',
-  flag: '🇮🇳',
-  exchangeRate: 86.85,
-  rates: { ...FALLBACK_RATES },
-  supportedCountries: [...FALLBACK_COUNTRIES],
-  isLoading: false,
-};
-
-const listeners = new Set<(state: CountryContextState) => void>();
-
-function notifyListeners() {
-  listeners.forEach((listener) => listener({ ...globalCountryState }));
-}
-
 /** Helper to guess country code from browser timezone and locale */
 function guessCountryFromBrowser(): string {
   try {
@@ -121,9 +103,63 @@ function guessCountryFromBrowser(): string {
   return 'IN';
 }
 
+function getInitialCountryState(): CountryContextState {
+  let initialCode = 'IN';
+  try {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('shiuli_customer_country');
+      if (saved && saved.trim().length === 2) {
+        initialCode = saved.trim().toUpperCase();
+      } else {
+        initialCode = guessCountryFromBrowser();
+      }
+    }
+  } catch {
+    initialCode = 'IN';
+  }
+
+  const match = FALLBACK_COUNTRIES.find((c) => c.code === initialCode) || FALLBACK_COUNTRIES[0];
+  const cur = match.currency;
+  const sym = match.symbol;
+  const rate = FALLBACK_RATES[cur] || (cur === 'INR' ? 86.85 : 1.0);
+
+  return {
+    country: match.code,
+    countryName: match.name,
+    currency: cur,
+    symbol: sym,
+    flag: match.flag,
+    exchangeRate: rate,
+    rates: { ...FALLBACK_RATES },
+    supportedCountries: [...FALLBACK_COUNTRIES],
+    isLoading: false,
+  };
+}
+
+let globalCountryState: CountryContextState = getInitialCountryState();
+
+const listeners = new Set<(state: CountryContextState) => void>();
+
+function notifyListeners() {
+  listeners.forEach((listener) => listener({ ...globalCountryState }));
+}
+
 /** Automatic Geo-IP detection */
 async function autoDetectCustomerCountry(): Promise<string> {
-  // 1. Try real-time fast Geo-IP lookup
+  // 1. Check cached/selected country in localStorage first
+  const saved = typeof window !== 'undefined' ? localStorage.getItem('shiuli_customer_country') : null;
+  if (saved && saved.trim().length === 2) {
+    return saved.trim().toUpperCase();
+  }
+
+  // 2. Browser Timezone & Locale
+  const guessed = guessCountryFromBrowser();
+  if (guessed && guessed !== 'US') {
+    localStorage.setItem('shiuli_customer_country', guessed);
+    return guessed;
+  }
+
+  // 3. Fast Geo-IP lookup
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 2000);
@@ -141,16 +177,9 @@ async function autoDetectCustomerCountry(): Promise<string> {
     // GeoIP fetch timed out or offline, proceed to fallback
   }
 
-  // 2. Check cached country in localStorage
-  const saved = localStorage.getItem('shiuli_customer_country');
-  if (saved && saved.length === 2) {
-    return saved.toUpperCase();
-  }
-
-  // 3. Fallback to Browser Timezone & Locale
-  const guessed = guessCountryFromBrowser();
-  localStorage.setItem('shiuli_customer_country', guessed);
-  return guessed;
+  const fallback = guessed || 'IN';
+  localStorage.setItem('shiuli_customer_country', fallback);
+  return fallback;
 }
 
 /** Initialize state automatically via Geo-IP and backend context */
@@ -165,13 +194,16 @@ export async function initCountryContext(): Promise<void> {
     if (res.ok) {
       const data = await res.json();
       const finalCountry = data.country || detectedCountry;
+      const finalCurrency = data.currency || (finalCountry === 'IN' ? 'INR' : 'USD');
+      const finalSymbol = data.symbol || (finalCountry === 'IN' ? '₹' : '$');
+      const finalRate = Number(data.exchange_rate) || (finalCurrency === 'INR' ? 86.85 : 1.0);
       globalCountryState = {
         country: finalCountry,
-        countryName: data.country_name || 'India',
-        currency: data.currency || 'INR',
-        symbol: data.symbol || '₹',
-        flag: data.flag || '🇮🇳',
-        exchangeRate: data.exchange_rate || 86.85,
+        countryName: data.country_name || (finalCountry === 'IN' ? 'India' : 'United States'),
+        currency: finalCurrency,
+        symbol: finalSymbol,
+        flag: data.flag || (finalCountry === 'IN' ? '🇮🇳' : '🌐'),
+        exchangeRate: finalRate,
         rates: data.exchange_rates || FALLBACK_RATES,
         supportedCountries: data.supported_countries || FALLBACK_COUNTRIES,
         isLoading: false,
@@ -267,20 +299,23 @@ export function formatCurrencyAmount(
   currencyCode?: string,
   symbol?: string
 ): string {
-  if (amount === undefined || amount === null || amount === '') return '0';
+  if (amount === undefined || amount === null || amount === '') {
+    const s = symbol !== undefined ? symbol : (globalCountryState.symbol || '₹');
+    return `${s}0`;
+  }
   const num = typeof amount === 'string' ? parseFloat(amount) : Number(amount);
-  if (isNaN(num)) return '0';
+  if (isNaN(num)) return '$0.00';
 
   const cur = (currencyCode || globalCountryState.currency || 'INR').toUpperCase();
   const sym = symbol !== undefined ? symbol : (globalCountryState.symbol || (cur === 'INR' ? '₹' : '$'));
 
-  if (['INR', 'JPY', 'KRW', 'VND', 'IDR'].includes(cur)) {
+  if (['INR', 'JPY', 'KRW', 'VND', 'IDR', 'BDT', 'NPR', 'LKR'].includes(cur)) {
     const rounded = Math.round(num);
-    return `${sym}${rounded.toLocaleString('en-IN')}`;
+    const formattedNum = cur === 'INR' ? rounded.toLocaleString('en-IN') : rounded.toLocaleString();
+    return `${sym}${formattedNum}`;
   }
 
-  const rounded = Math.round(num * 100) / 100;
-  return `${sym}${rounded.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `${sym}${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /**
@@ -298,10 +333,12 @@ export function resolveDisplayPrice(
   forcedRates?: Record<string, number>
 ): PriceDisplayResult {
   const currentCountry = (forcedCountryCode || globalCountryState.country || 'IN').toUpperCase();
-  const currentCurrency = globalCountryState.currency || 'INR';
-  const currentSymbol = globalCountryState.symbol || '₹';
-  const ratesTable = forcedRates || globalCountryState.rates;
-  const currentRate = ratesTable[currentCurrency] || globalCountryState.exchangeRate || 1.0;
+  const matched = globalCountryState.supportedCountries.find((c) => c.code === currentCountry) ||
+    FALLBACK_COUNTRIES.find((c) => c.code === currentCountry);
+  const currentCurrency = matched?.currency || (currentCountry === 'IN' ? 'INR' : 'USD');
+  const currentSymbol = matched?.symbol || (currentCountry === 'IN' ? '₹' : '$');
+  const rates = forcedRates || globalCountryState.rates || FALLBACK_RATES;
+  const currentRate = rates[currentCurrency] || FALLBACK_RATES[currentCurrency] || (currentCurrency === 'INR' ? 86.85 : 1.0);
 
   const isCommercial = licenseType === 'commercial';
   const commercialMarkup = 1.8; // +80%

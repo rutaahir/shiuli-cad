@@ -1058,8 +1058,8 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
         onClose={() => setIsPaymentModalOpen(false)}
         title={product.title}
         subtitle="Master CAD Package • Layered 3DM + STL Meshes"
-        amount={priceDisplay?.amount || currentPrice}
-        currency={(priceDisplay?.currency as 'INR' | 'USD') || 'USD'}
+        amount={priceDisplay?.priceUsd || product.price || 0}
+        currency="USD"
         itemType="ready_cad"
         orderDetails={{
           id: product.id,

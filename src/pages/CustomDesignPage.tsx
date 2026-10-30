@@ -1754,7 +1754,7 @@ Please confirm feasibility and provide the production CAD quotation.`;
                         {item.category_name || 'Jewellery CAD'}
                       </div>
                       <div className="text-xs font-semibold text-[#B88735]">
-                        ₹{item.price}
+                        ${Number(item.price).toFixed(2)}
                       </div>
                     </div>
                   </div>

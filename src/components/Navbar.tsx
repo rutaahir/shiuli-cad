@@ -446,7 +446,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                                   </p>
                                   <div className="flex items-center justify-between gap-1 mt-1.5">
                                     <span className="text-xs font-bold text-[#B88732] font-mono tracking-tight">
-                                      ₹{formatINR(p.price)}
+                                      ${Number(p.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </span>
                                     <span className="text-[9px] font-medium text-[#17345C] font-mono bg-[#E8D7B7]/40 px-1.5 py-0.5 rounded border border-[#E8D7B7] shrink-0">
                                       3DM+STL
@@ -918,7 +918,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                               </span>
                             </div>
                             <div className="text-xs font-bold text-[#B88732] font-mono">
-                              ₹{formatINR(p.price)}
+                              ${Number(p.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
                           </div>
                         </div>

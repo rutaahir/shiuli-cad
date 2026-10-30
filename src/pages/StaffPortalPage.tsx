@@ -12,6 +12,7 @@ import {
 } from '../types';
 import { appStore } from '../services/store';
 import { api } from '../services/api';
+import { sanitizeOrderBriefForStaff } from '../utils/staffSanitizer';
 
 import { StaffLayout } from '../components/staff/StaffLayout';
 import { AuthModal } from '../components/AuthModal';
@@ -26,6 +27,8 @@ import { StaffHistoryTab } from '../components/staff/StaffHistoryTab';
 import { StaffEarningsTab } from '../components/staff/StaffEarningsTab';
 import { StaffProfileTab } from '../components/staff/StaffProfileTab';
 import { StaffNotificationsTab } from '../components/staff/StaffNotificationsTab';
+
+const round2 = (num: number): number => Math.round(num * 100) / 100;
 
 const DEFAULT_STAFF_FALLBACK: StaffMember = {
   id: 'STF-102',
@@ -162,7 +165,7 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
               title: fe.original_file_name ? `CAD Modification: ${fe.original_file_name}` : `CAD File Modification #${ord.id} (${formatStr})`,
               category: `CAD File Modification (${formatStr})`,
               agreedPayout: rawPayout,
-              clientBudget: rawPayout > 0 ? `₹${rawPayout.toLocaleString('en-IN')}` : '',
+              clientBudget: rawPayout > 0 ? `$${(rawPayout / 86.85).toFixed(2)}` : '',
               deadlineHours: ord.deadline_hours || 48,
               dueAt: ord.due_at,
               neededByDate: fe?.needed_by_date,
@@ -170,7 +173,7 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
                 ? new Date(ord.unassigned_since).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 : 'Recently',
               referenceImage: fe.reference_image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&q=80&w=600',
-              description: fe.description || 'Customer-uploaded CAD file modification request.',
+              description: sanitizeOrderBriefForStaff(fe.description) || 'CAD file modification request.',
               metalPreference: fe.modification_type_labels?.join(', ') || 'CAD Modification',
               specsSummary: {
                 diamondCount: 0,
@@ -214,7 +217,7 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
             title: category && category !== 'Custom Jewellery' ? `Bespoke ${category}` : `Bespoke CAD Design #${ord.id}`,
             category: category,
             agreedPayout: rawPayout,
-            clientBudget: rawPayout > 0 ? `₹${rawPayout.toLocaleString('en-IN')}` : '',
+            clientBudget: rawPayout > 0 ? `$${(rawPayout / 86.85).toFixed(2)}` : '',
             deadlineHours: ord.deadline_hours || 48,
             dueAt: ord.due_at,
             neededByDate: req?.needed_by_date,
@@ -222,7 +225,7 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
               ? new Date(ord.unassigned_since).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               : 'Recently',
             referenceImage: req?.catalog_references?.[0]?.image || req?.reference_image || req?.sketches?.[0]?.image_url || req?.sketches?.[0]?.image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&q=80&w=600',
-            description: req?.description || 'Watertight 3D CAD design request.',
+            description: sanitizeOrderBriefForStaff(req?.description) || 'Watertight 3D CAD design request.',
             metalPreference: metalPreference,
             specsSummary: {
               diamondCount: stoneCount,
@@ -380,9 +383,8 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
               deadlineHours: ord.deadline_hours || 48,
               deadline: deadlineText,
               hoursRemaining: dynamicRemainingHours,
-              payoutAmount: Number(ord.staff_payout_price ?? ord.payout_price ?? (total ? Math.round(total * 0.8) : 0)),
-              clientName: fe.contact_name || fe.client_display_name || ord.client?.first_name || 'Jewellery Atelier',
-              clientNotes: fe.description || 'CAD File Modification',
+              payoutAmount: Number(ord.staff_payout_price_usd ?? (ord.staff_payout_price ? round2(Number(ord.staff_payout_price)/86.85) : (total ? round2(total * 0.8 / 86.85) : 0))),
+              clientNotes: sanitizeOrderBriefForStaff(fe.description) || 'CAD File Modification',
               currentMilestone: currentMilestone,
               progressPercentage: progressPercentage,
               status: displayStatus,
@@ -411,9 +413,8 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
             deadlineHours: ord.deadline_hours || 48,
             deadline: deadlineText,
             hoursRemaining: dynamicRemainingHours,
-            payoutAmount: Number(ord.staff_payout_price ?? ord.payout_price ?? (total ? Math.round(total * 0.8) : 0)),
-            clientName: req?.contact_name || ord.client?.first_name || 'Jewellery Atelier',
-            clientNotes: req?.description || 'Watertight 3D CAD design request.',
+            payoutAmount: Number(ord.staff_payout_price_usd ?? (ord.staff_payout_price ? round2(Number(ord.staff_payout_price)/86.85) : (total ? round2(total * 0.8 / 86.85) : 0))),
+            clientNotes: sanitizeOrderBriefForStaff(req?.description) || 'Watertight 3D CAD design request.',
             currentMilestone: currentMilestone,
             progressPercentage: progressPercentage,
             status: displayStatus,
@@ -519,8 +520,8 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
       };
       const list = ensureArray(res);
       const mapped: StaffEarningsRecord[] = list.map((st: any) => {
-        const totalAmt = parseFloat(st.amount || '0');
-        const paidAmt = parseFloat(st.amount_paid || '0');
+        const totalAmt = typeof st.amount_usd === 'number' ? st.amount_usd : round2(parseFloat(st.amount || '0') / 86.85);
+        const paidAmt = typeof st.amount_paid_usd === 'number' ? st.amount_paid_usd : round2(parseFloat(st.amount_paid || '0') / 86.85);
         const isSettled = st.status === 'processed' || (paidAmt >= totalAmt && totalAmt > 0);
         const isPartial = st.status === 'partial' || (paidAmt > 0 && paidAmt < totalAmt);
 

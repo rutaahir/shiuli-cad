@@ -731,7 +731,28 @@ class OrderCustomRequestSummarySerializer(serializers.ModelSerializer):
         return resolve_custom_request_swatch(obj)
 
 
-# STAFF-SAFE CUSTOM REQUEST SERIALIZER (Shows full technical CAD specifications without pricing)
+def sanitize_staff_text(text):
+    if not text:
+        return ''
+    import re
+    # Remove Customer / Client Details blocks
+    cleaned = re.sub(r'(?i)(?:👤\s*)?(?:Customer|Client)\s*Details:[\s\S]*?(?=(?:💍|📁|✨|📎|🎙️|🛠️|📝|📅|Please confirm|\n\n[^\n•]+:|$))', '', text)
+    # Remove PII lines (Name, Phone, WhatsApp, Email, Address, etc.)
+    cleaned = re.sub(r'(?im)^(?:\s*[•\-*]\s*)?(?:Name|Full Name|Customer Name|Client Name|Contact Name|Contact|WhatsApp|WhatsApp\s*/\s*Phone|Phone|Phone Number|Mobile|Cell|Tel|Email|Email Address|Address|City|Country|Pincode):\s*[^\n\r]*$', '', cleaned)
+    # Remove inline PII pairs
+    cleaned = re.sub(r'(?im)(?:^|\s)(?:Name|Client Name|Customer Name|Contact Name|Contact|WhatsApp|Phone|Mobile|Cell|Email|Email Address):\s*[^\n\r,;]+', '', cleaned)
+    # Strip any loose email addresses
+    cleaned = re.sub(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b', '', cleaned)
+    # Strip formal order headers
+    cleaned = re.sub(r'(?i)(?:💎\s*(?:NEW\s+CUSTOM\s+CAD\s+DESIGN\s+ORDER|CAD\s+FILE\s+MODIFICATION\s+ORDER)[^\n]*💎)', '', cleaned)
+    # Strip greetings mentioning customer name
+    cleaned = re.sub(r'(?i)Dear\s+[^\n,]+,', 'Hello,', cleaned)
+    # Collapse excess blank lines
+    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned).strip()
+    return cleaned
+
+
+# STAFF-SAFE CUSTOM REQUEST SERIALIZER (Shows full technical CAD specifications without client PII or pricing)
 class StaffCustomRequestSerializer(serializers.ModelSerializer):
     category_name = serializers.SerializerMethodField()
     aesthetic_style_name = serializers.CharField(source='aesthetic_style.name', read_only=True, default='')
@@ -743,7 +764,8 @@ class StaffCustomRequestSerializer(serializers.ModelSerializer):
     stones = CustomRequestStoneSerializer(many=True, read_only=True)
     selections = CustomRequestSelectionSerializer(many=True, read_only=True)
     sketches = CustomRequestImageSerializer(many=True, read_only=True)
-    client_display_name = serializers.SerializerMethodField()
+    description = serializers.SerializerMethodField()
+    special_instructions = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomRequest
@@ -752,7 +774,7 @@ class StaffCustomRequestSerializer(serializers.ModelSerializer):
             'metal_swatch_color', 'gemstone_preference_open', 'timeline',
             'ring_size', 'ring_size_standard', 'target_weight_grams', 'is_metal_only',
             'engraving_text', 'engraving_font', 'engraving_placement', 'has_logo', 'logo_file',
-            'special_instructions', 'description', 'client_display_name', 'needed_by_date',
+            'special_instructions', 'description', 'needed_by_date',
             'budget_range', 'client_consent_to_feature',
             'reference_image', 'catalog_references',
             'gemstones', 'stones', 'selections', 'sketches', 'created_at'
@@ -764,8 +786,11 @@ class StaffCustomRequestSerializer(serializers.ModelSerializer):
     def get_catalog_references(self, obj):
         return resolve_catalog_references(obj, self.context.get('request'))
 
-    def get_client_display_name(self, obj):
-        return obj.contact_name or "Valued Client"
+    def get_description(self, obj):
+        return sanitize_staff_text(obj.description)
+
+    def get_special_instructions(self, obj):
+        return sanitize_staff_text(obj.special_instructions)
 
     def get_category_name(self, obj):
         return resolve_custom_request_category(obj)
@@ -892,7 +917,51 @@ class RevisionRequestSerializer(serializers.ModelSerializer):
         return None
 
 
-# STAFF-SAFE FILE EDIT REQUEST SERIALIZER (Shows technical file specs & download url without financial breakdown)
+# STAFF-SAFE REVISION REQUEST SERIALIZER (Shows technical comment and references without client contact info)
+class StaffRevisionRequestSerializer(serializers.ModelSerializer):
+    voice_note_url = serializers.SerializerMethodField()
+    reference_image_url = serializers.SerializerMethodField()
+    addressed_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RevisionRequest
+        fields = [
+            'id', 'order', 'deliverable_version', 'revision_number',
+            'comment', 'voice_note', 'voice_note_url',
+            'reference_image', 'reference_image_url',
+            'status', 'created_at', 'addressed_at', 'addressed_by_name'
+        ]
+        read_only_fields = [
+            'id', 'order', 'deliverable_version', 'revision_number',
+            'voice_note_url', 'reference_image_url', 'addressed_by_name',
+            'created_at', 'addressed_at'
+        ]
+
+    def get_voice_note_url(self, obj):
+        request = self.context.get('request')
+        if obj.voice_note:
+            try:
+                return request.build_absolute_uri(obj.voice_note.url) if request else obj.voice_note.url
+            except Exception:
+                return None
+        return None
+
+    def get_reference_image_url(self, obj):
+        request = self.context.get('request')
+        if obj.reference_image:
+            try:
+                return request.build_absolute_uri(obj.reference_image.url) if request else obj.reference_image.url
+            except Exception:
+                return None
+        return None
+
+    def get_addressed_by_name(self, obj):
+        if obj.addressed_by:
+            return obj.addressed_by.get_full_name() or obj.addressed_by.username
+        return None
+
+
+# STAFF-SAFE FILE EDIT REQUEST SERIALIZER (Shows technical file specs & download url without client PII or financial breakdown)
 class StaffFileEditRequestSerializer(serializers.ModelSerializer):
     modification_types = serializers.SerializerMethodField()
     modification_type_labels = serializers.SerializerMethodField()
@@ -900,12 +969,12 @@ class StaffFileEditRequestSerializer(serializers.ModelSerializer):
     original_file_url = serializers.SerializerMethodField()
     reference_image = serializers.SerializerMethodField()
     voice_note = serializers.SerializerMethodField()
-    client_display_name = serializers.SerializerMethodField()
+    description = serializers.SerializerMethodField()
 
     class Meta:
         model = FileEditRequest
         fields = [
-            'id', 'client_display_name',
+            'id',
             'original_file', 'original_file_url', 'download_url',
             'original_file_name', 'original_file_format', 'file_size_bytes',
             'storage_provider', 'drive_file_id', 'drive_web_view_link',
@@ -914,8 +983,8 @@ class StaffFileEditRequestSerializer(serializers.ModelSerializer):
             'reference_image', 'voice_note', 'admin_notes', 'created_at'
         ]
 
-    def get_client_display_name(self, obj):
-        return obj.contact_name or (obj.client.username if obj.client else "Valued Client")
+    def get_description(self, obj):
+        return sanitize_staff_text(obj.description)
 
     def get_modification_types(self, obj):
         return [{'id': m.id, 'key': m.key, 'label': m.label, 'description': m.description} for m in obj.modification_types.all()]
@@ -964,7 +1033,7 @@ class StaffOrderSerializer(serializers.ModelSerializer):
     is_file_edit = serializers.SerializerMethodField()
     deliverables = OrderDeliverableSerializer(many=True, read_only=True)
     milestones = OrderMilestoneSerializer(many=True, read_only=True)
-    revision_requests = RevisionRequestSerializer(many=True, read_only=True)
+    revision_requests = StaffRevisionRequestSerializer(many=True, read_only=True)
     preview_image = serializers.SerializerMethodField()
     staff_payout_price = serializers.SerializerMethodField()
     payout_price = serializers.SerializerMethodField()
@@ -990,12 +1059,16 @@ class StaffOrderSerializer(serializers.ModelSerializer):
         return None
 
     def get_staff_payout_price(self, obj):
+        curr = getattr(obj, 'currency', 'INR') or 'INR'
+        raw = 0.0
         if obj.staff_payout_price is not None:
-            return float(obj.staff_payout_price)
-        if obj.total_price is not None:
+            raw = float(obj.staff_payout_price)
+        elif obj.total_price is not None:
             pct = float(obj.admin_commission_percentage if obj.admin_commission_percentage is not None else 20.00)
-            return round(float(obj.total_price) * max(0.0, (100.0 - pct) / 100.0), 2)
-        return 0.0
+            raw = float(obj.total_price) * max(0.0, (100.0 - pct) / 100.0)
+        if curr == 'INR':
+            return round(raw / 86.85, 2)
+        return round(raw, 2)
 
     def get_payout_price(self, obj):
         return self.get_staff_payout_price(obj)
@@ -1021,23 +1094,66 @@ class AdminOrderSerializer(serializers.ModelSerializer):
     paid_stages_count = serializers.SerializerMethodField()
     total_stages_count = serializers.SerializerMethodField()
     admin_commission_amount = serializers.SerializerMethodField()
+    currency = serializers.CharField(read_only=True)
+    total_price_usd = serializers.SerializerMethodField()
+    staff_payout_price_usd = serializers.SerializerMethodField()
+    paid_amount_usd = serializers.SerializerMethodField()
+    remaining_amount_usd = serializers.SerializerMethodField()
+    admin_commission_amount_usd = serializers.SerializerMethodField()
+    advance_amount_usd = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
         fields = [
             'id', 'client', 'order_type', 'current_version', 'product', 'custom_request',
             'file_edit_request', 'is_file_edit',
-            'assigned_staff', 'total_price', 'admin_commission_percentage', 'staff_payout_price',
-            'admin_commission_amount', 'advance_amount', 'advance_paid',
+            'assigned_staff', 'total_price', 'currency', 'total_price_usd',
+            'admin_commission_percentage', 'staff_payout_price', 'staff_payout_price_usd',
+            'admin_commission_amount', 'admin_commission_amount_usd',
+            'advance_amount', 'advance_amount_usd', 'advance_paid',
             'balance_paid', 'status', 'deadline_hours', 'due_at', 'is_overdue',
             'warning_50_sent', 'warning_80_sent', 'preview_image',
             'admin_review_notes', 'admin_call_notes', 'quality_approved', 'settlement_status',
             'download_enabled_by_admin', 'download_count', 'is_fully_paid',
-            'paid_amount', 'remaining_amount', 'paid_percentage', 'paid_stages_count', 'total_stages_count',
+            'paid_amount', 'paid_amount_usd', 'remaining_amount', 'remaining_amount_usd',
+            'paid_percentage', 'paid_stages_count', 'total_stages_count',
             'unassigned_since', 'assigned_at', 'handed_over_at',
             'milestones', 'payment_stages', 'deliverables', 'revision_requests', 'created_at',
             'is_deleted', 'deleted_at'
         ]
+
+    def _convert_to_usd(self, val, obj):
+        if val is None:
+            return 0.0
+        f_val = float(val)
+        curr = getattr(obj, 'currency', 'INR') or 'INR'
+        if curr == 'USD':
+            return round(f_val, 2)
+        return round(f_val / 86.85, 2)
+
+    def get_total_price_usd(self, obj):
+        return self._convert_to_usd(obj.total_price, obj)
+
+    def get_staff_payout_price_usd(self, obj):
+        if obj.staff_payout_price is not None:
+            return self._convert_to_usd(obj.staff_payout_price, obj)
+        if obj.total_price is not None:
+            pct = float(obj.admin_commission_percentage if obj.admin_commission_percentage is not None else 20.00)
+            raw = float(obj.total_price) * max(0.0, (100.0 - pct) / 100.0)
+            return self._convert_to_usd(raw, obj)
+        return 0.0
+
+    def get_admin_commission_amount_usd(self, obj):
+        return self._convert_to_usd(self.get_admin_commission_amount(obj), obj)
+
+    def get_advance_amount_usd(self, obj):
+        return self._convert_to_usd(obj.advance_amount, obj)
+
+    def get_paid_amount_usd(self, obj):
+        return self._convert_to_usd(self.get_paid_amount(obj), obj)
+
+    def get_remaining_amount_usd(self, obj):
+        return self._convert_to_usd(self.get_remaining_amount(obj), obj)
 
     def get_is_file_edit(self, obj):
         return obj.order_type == Order.OrderType.FILE_EDIT or bool(obj.file_edit_request_id or getattr(obj, 'file_edit_source', None))
@@ -1110,18 +1226,25 @@ class ClientOrderSerializer(serializers.ModelSerializer):
     revision_policy = serializers.SerializerMethodField()
     is_fully_paid = serializers.SerializerMethodField()
     can_download = serializers.SerializerMethodField()
+    currency = serializers.CharField(read_only=True)
+    total_price_usd = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
         fields = [
             'id', 'order_type', 'current_version', 'custom_request', 'file_edit_request',
             'is_file_edit', 'assigned_staff',
-            'total_price', 'status', 'deadline_hours', 'due_at', 'assigned_at',
+            'total_price', 'currency', 'total_price_usd', 'status', 'deadline_hours', 'due_at', 'assigned_at',
             'is_overdue', 'payment_stages', 'deliverables', 'preview_image',
             'quality_approved', 'is_fully_paid', 'download_enabled_by_admin',
             'can_download', 'download_count', 'milestones',
             'revision_requests', 'revision_policy', 'created_at'
         ]
+
+    def get_total_price_usd(self, obj):
+        curr = getattr(obj, 'currency', 'INR') or 'INR'
+        amt = float(obj.total_price or 0)
+        return round(amt if curr == 'USD' else amt / 86.85, 2)
 
     def get_is_file_edit(self, obj):
         return obj.order_type == Order.OrderType.FILE_EDIT or bool(obj.file_edit_request_id or getattr(obj, 'file_edit_source', None))

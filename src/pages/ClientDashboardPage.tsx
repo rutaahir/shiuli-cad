@@ -59,7 +59,8 @@ import {
   XCircle,
   Wrench,
   Cloud,
-  Menu
+  Menu,
+  Wallet
 } from 'lucide-react';
 import { RevealOnScroll } from '../components/motion/RevealOnScroll';
 import { BrandLogo } from '../components/BrandLogo';
@@ -69,6 +70,7 @@ import { appStore } from '../services/store';
 import { OTPVerificationModal } from '../components/delivery/OTPVerificationModal';
 import { OrderOTPVerificationModal } from '../components/delivery/OrderOTPVerificationModal';
 import { UserProfileModule } from '../components/profile/UserProfileModule';
+import { ClientWalletCreditTab } from '../components/client/ClientWalletCreditTab';
 import { RevisionRequestModal } from '../components/common/RevisionRequestModal';
 import { 
   playNegotiationRing, 
@@ -76,10 +78,12 @@ import {
   triggerNegotiationAlert 
 } from '../utils/negotiationNotificationHelper';
 
+const USD_TO_INR_RATE = 86.85;
+
 const formatINR = (val: number | string | undefined | null) => {
   if (val === undefined || val === null || val === '') return '₹0';
   const num = typeof val === 'number' ? val : parseFloat(val);
-  if (isNaN(num)) return '₹0';
+  if (isNaN(num) || num <= 0) return '₹0';
   return `₹${Math.round(num).toLocaleString('en-IN')}`;
 };
 
@@ -89,7 +93,7 @@ interface ClientDashboardPageProps {
   wishlistIds: string[];
   onRemoveWishlist: (product: Product) => void;
   onAddToCart: (product: Product, license: 'standard' | 'commercial') => void;
-  initialTab?: 'custom' | 'downloads' | 'orders' | 'wishlist' | 'profile';
+  initialTab?: 'custom' | 'downloads' | 'orders' | 'wishlist' | 'profile' | 'wallet_credits';
 }
 
 export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
@@ -101,21 +105,21 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
   initialTab,
 }) => {
   const { isLoggedIn, user } = useAuth();
-  type ClientTabKey = 'custom' | 'downloads' | 'orders' | 'wishlist' | 'profile';
+  type ClientTabKey = 'custom' | 'downloads' | 'orders' | 'wishlist' | 'profile' | 'wallet_credits';
 
   // Read initial tab and order from URL search params or localStorage/sessionStorage
   const getInitialTab = (): ClientTabKey => {
-    if (initialTab && ['custom', 'downloads', 'orders', 'wishlist', 'profile'].includes(initialTab)) {
+    if (initialTab && ['custom', 'downloads', 'orders', 'wishlist', 'profile', 'wallet_credits'].includes(initialTab)) {
       return initialTab;
     }
     if (typeof window === 'undefined') return 'custom';
     const params = new URLSearchParams(window.location.search);
     const tabParam = params.get('tab');
-    if (tabParam && ['custom', 'downloads', 'orders', 'wishlist', 'profile'].includes(tabParam)) {
+    if (tabParam && ['custom', 'downloads', 'orders', 'wishlist', 'profile', 'wallet_credits'].includes(tabParam)) {
       return tabParam as ClientTabKey;
     }
     const saved = localStorage.getItem('shiuli_client_active_tab') as ClientTabKey;
-    if (saved && ['custom', 'downloads', 'orders', 'wishlist', 'profile'].includes(saved)) {
+    if (saved && ['custom', 'downloads', 'orders', 'wishlist', 'profile', 'wallet_credits'].includes(saved)) {
       return saved;
     }
     return 'custom';
@@ -613,7 +617,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
             const prevMsgId = lastAdminMsgIdRef.current[itemKey] || 0;
             if (latestAdminMsg.id > prevMsgId) {
               lastAdminMsgIdRef.current[itemKey] = latestAdminMsg.id;
-              const offerTxt = latestAdminMsg.offered_price ? ` (Quote Offer: ₹${Number(latestAdminMsg.offered_price).toLocaleString('en-IN')})` : '';
+              const offerTxt = latestAdminMsg.offered_price ? ` (Quote Offer: ${formatINR(latestAdminMsg.offered_price)})` : '';
 
               playNegotiationRing();
               triggerNegotiationAlert({
@@ -1278,6 +1282,11 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                   badge: wishlistIds.length,
                 },
                 {
+                  id: 'wallet_credits' as const,
+                  label: 'Wallet & Credit Line',
+                  icon: <Wallet className="w-4 h-4" />,
+                },
+                {
                   id: 'profile' as const,
                   label: 'My Profile & Security',
                   icon: <User className="w-4 h-4" />,
@@ -1349,6 +1358,11 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
               label: 'Saved Wishlist',
               icon: <Heart className="w-4 h-4" />,
               badge: wishlistIds.length,
+            },
+            {
+              id: 'wallet_credits' as const,
+              label: 'Wallet & Credits',
+              icon: <Wallet className="w-4 h-4" />,
             },
             {
               id: 'profile' as const,
@@ -3169,15 +3183,15 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                                         <div className="sm:col-span-1">
                                           <label className="block text-[10px] font-mono text-[#5A6679] uppercase font-bold mb-1">
-                                            Your Target Price (₹ INR)
+                                            Your Target Price (USD $)
                                           </label>
                                           <div className="relative">
-                                            <span className="absolute left-3 top-2.5 text-xs font-mono font-bold text-[#9A6A1A]">₹</span>
+                                            <span className="absolute left-3 top-2.5 text-xs font-mono font-bold text-[#9A6A1A]">$</span>
                                             <input
                                               type="number"
                                               value={counterPriceInput[req.id] || ''}
                                               onChange={(e) => setCounterPriceInput({ ...counterPriceInput, [req.id]: e.target.value })}
-                                              placeholder={req.is_file_edit ? "e.g. 800" : "e.g. 18000"}
+                                              placeholder={req.is_file_edit ? "e.g. 15" : "e.g. 200"}
                                               className="w-full pl-7 pr-3 py-2.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7] text-xs font-mono font-bold text-[#0B1330] focus:outline-none focus:border-[#D4AF37] focus:bg-white"
                                             />
                                           </div>
@@ -4781,7 +4795,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                   </div>
                   <h4 className="font-serif font-bold text-[#0B1330] text-sm leading-snug">{prod.title}</h4>
                   <div className="font-serif text-lg text-[#B88732] font-bold">
-                    ₹{Math.round(prod.price * 84).toLocaleString('en-IN')}
+                    ${Number(prod.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
                 <button onClick={() => onAddToCart(prod, 'standard')} className="btn-gold-luxury w-full py-2.5 rounded-xl text-xs font-bold uppercase flex items-center justify-center gap-1.5 shadow-md cursor-pointer">
@@ -4795,6 +4809,11 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
 
         {/* TAB 5: MY PROFILE & SECURITY */}
         {activeTab === 'profile' && <UserProfileModule />}
+
+        {/* TAB 6: PREPAID WALLET & CORPORATE CREDIT LINE */}
+        {activeTab === 'wallet_credits' && (
+          <ClientWalletCreditTab onNavigateCustom={() => handleTabChange('custom')} />
+        )}
 
       </div>
 

@@ -47,11 +47,25 @@ interface AdminOrdersModuleProps {
   staffList: StaffMember[];
 }
 
-const formatUSD = (val: number | string | undefined | null) => {
-  if (val === undefined || val === null || val === '') return '$0';
-  const num = typeof val === 'number' ? val : parseFloat(val);
-  if (isNaN(num)) return '$0';
-  return `$${num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+const USD_TO_INR_RATE = 86.85;
+
+const round2 = (num: number): number => Math.round(num * 100) / 100;
+
+export const resolveOrderUSD = (val: number | string | undefined | null, currency?: string): number => {
+  if (val === undefined || val === null || val === '') return 0;
+  const num = typeof val === 'number' ? val : parseFloat(String(val));
+  if (isNaN(num) || num <= 0) return 0;
+  if (currency === 'USD') return round2(num);
+  // Default entered amounts (e.g. 5000, 2500, 58555) were entered in INR -> convert to USD
+  return round2(num / USD_TO_INR_RATE);
+};
+
+export const formatUSD = (val: number | string | undefined | null, isAlreadyUSD: boolean = false, currency?: string): string => {
+  if (val === undefined || val === null || val === '') return '$0.00';
+  const usd = isAlreadyUSD || currency === 'USD'
+    ? (typeof val === 'number' ? val : parseFloat(String(val)) || 0)
+    : resolveOrderUSD(val, currency);
+  return `$${usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
 export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList }) => {
@@ -603,14 +617,18 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                     {/* Price & Admin Commission & Staff Payout */}
                     <td className="p-4 font-mono">
                       <div className="font-bold text-[#17243B] text-sm">
-                        {formatUSD(ord.total_price || req?.agreed_price)}
+                        {ord.total_price_usd != null
+                          ? formatUSD(ord.total_price_usd, true)
+                          : formatUSD(ord.total_price || req?.agreed_price, false, ord.currency)}
                       </div>
                       <div className="flex items-center gap-1.5 text-[10px] mt-0.5">
                         <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 font-bold">
                           Admin: {ord.admin_commission_percentage ?? 20}%
                         </span>
                         <span className="text-emerald-700 font-bold">
-                          Staff: {formatUSD(ord.staff_payout_price || (Number(ord.total_price || req?.agreed_price || 0) * 0.8))}
+                          Staff: {ord.staff_payout_price_usd != null
+                            ? formatUSD(ord.staff_payout_price_usd, true)
+                            : formatUSD(ord.staff_payout_price || (Number(ord.total_price || req?.agreed_price || 0) * 0.8), false, ord.currency)}
                         </span>
                       </div>
                       <div className="mt-1">
@@ -621,7 +639,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                         ) : ord.payment_stages && ord.payment_stages.length > 0 ? (
                           <div className="space-y-0.5">
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-1">
-                              ⏳ Part Paid: ₹{Math.round(ord.paid_amount || 0).toLocaleString('en-IN')} / ₹{Math.round(Number(ord.total_price || 0)).toLocaleString('en-IN')} ({ord.paid_percentage || 0}%)
+                              ⏳ Part Paid: {ord.paid_amount_usd != null ? formatUSD(ord.paid_amount_usd, true) : formatUSD(ord.paid_amount || 0, false, ord.currency)} / {ord.total_price_usd != null ? formatUSD(ord.total_price_usd, true) : formatUSD(ord.total_price || 0, false, ord.currency)} ({ord.paid_percentage || 0}%)
                             </span>
                             <span className="text-[9px] text-[#6B7280] block font-mono">
                               {ord.paid_stages_count || 0} of {ord.total_stages_count || ord.payment_stages.length} stage(s) cleared
@@ -841,7 +859,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                 <div className="p-3 rounded-xl bg-white/5 border border-white/10">
                   <span className="text-[10px] font-mono text-slate-400 uppercase block">Client Order Price</span>
                   <span className="text-sm font-mono font-bold text-white">
-                    {formatUSD(selectedOrderDrawer.total_price)}
+                    {formatUSD(selectedOrderDrawer.total_price_usd ?? selectedOrderDrawer.total_price, !!selectedOrderDrawer.total_price_usd, selectedOrderDrawer.currency)}
                   </span>
                 </div>
 
@@ -868,7 +886,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                     </button>
                   </div>
                   <span className="text-[9px] font-mono text-slate-400 mt-1 block">
-                    Fee: -{formatUSD((Number(selectedOrderDrawer.total_price || 0) * (drawerCommissionPct || 0)) / 100)}
+                    Fee: -{formatUSD(((selectedOrderDrawer.total_price_usd ?? resolveOrderUSD(selectedOrderDrawer.total_price, selectedOrderDrawer.currency)) * (drawerCommissionPct || 0)) / 100, true)}
                   </span>
                 </div>
 
@@ -876,7 +894,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                 <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/30">
                   <span className="text-[10px] font-mono text-emerald-400 uppercase block font-semibold">Staff Pool Payout</span>
                   <span className="text-sm font-mono font-bold text-emerald-300">
-                    {formatUSD((Number(selectedOrderDrawer.total_price || 0) * (100 - (drawerCommissionPct || 0))) / 100)}
+                    {formatUSD(((selectedOrderDrawer.total_price_usd ?? resolveOrderUSD(selectedOrderDrawer.total_price, selectedOrderDrawer.currency)) * (100 - (drawerCommissionPct || 0))) / 100, true)}
                   </span>
                   <span className="text-[9px] font-mono text-emerald-500/80 mt-1 block">
                     Shown to staff in pool
@@ -915,17 +933,17 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                 <div className="text-[11px] font-mono">
                   Payment Status: {selectedOrderDrawer.is_fully_paid ? (
                     <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                      ✓ 100% FULLY PAID (₹{Math.round(selectedOrderDrawer.paid_amount || Number(selectedOrderDrawer.total_price || 0)).toLocaleString('en-IN')})
+                      ✓ 100% FULLY PAID ({formatUSD(selectedOrderDrawer.paid_amount_usd ?? selectedOrderDrawer.total_price_usd ?? selectedOrderDrawer.total_price, !selectedOrderDrawer.total_price_usd ? false : true, selectedOrderDrawer.currency)})
                     </span>
                   ) : (
                     <span className="text-amber-800 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-300">
-                      🔒 PARTIAL PAYMENT: Paid ₹{Math.round(selectedOrderDrawer.paid_amount || 0).toLocaleString('en-IN')} of ₹{Math.round(Number(selectedOrderDrawer.total_price || 0)).toLocaleString('en-IN')} ({selectedOrderDrawer.paid_percentage || 0}%)
+                      🔒 PARTIAL PAYMENT: Paid {formatUSD(selectedOrderDrawer.paid_amount_usd ?? selectedOrderDrawer.paid_amount, !!selectedOrderDrawer.paid_amount_usd, selectedOrderDrawer.currency)} of {formatUSD(selectedOrderDrawer.total_price_usd ?? selectedOrderDrawer.total_price, !!selectedOrderDrawer.total_price_usd, selectedOrderDrawer.currency)} ({selectedOrderDrawer.paid_percentage || 0}%)
                     </span>
                   )}
                 </div>
                 {!selectedOrderDrawer.is_fully_paid && (
                   <p className="text-[10px] text-amber-800 font-medium">
-                    Download access is strictly locked until customer settles the remaining balance of ₹{Math.round(selectedOrderDrawer.remaining_amount || 0).toLocaleString('en-IN')}.
+                    Download access is strictly locked until customer settles the remaining balance of {formatUSD(selectedOrderDrawer.remaining_amount_usd ?? selectedOrderDrawer.remaining_amount, !!selectedOrderDrawer.remaining_amount_usd, selectedOrderDrawer.currency)}.
                   </p>
                 )}
               </div>
@@ -1362,19 +1380,19 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                     <div className="p-2 rounded-xl bg-white border border-slate-200">
                       <span className="text-[10px] font-mono text-slate-400 uppercase block">Total Agreed</span>
                       <strong className="text-slate-800 font-mono text-sm">
-                        ₹{Math.round(Number(selectedOrderDrawer.total_price || 0)).toLocaleString('en-IN')}
+                        {formatUSD(selectedOrderDrawer.total_price_usd ?? selectedOrderDrawer.total_price, !!selectedOrderDrawer.total_price_usd, selectedOrderDrawer.currency)}
                       </strong>
                     </div>
                     <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200">
                       <span className="text-[10px] font-mono text-emerald-600 uppercase block">Total Paid</span>
                       <strong className="text-emerald-800 font-mono text-sm">
-                        ₹{Math.round(selectedOrderDrawer.paid_amount || 0).toLocaleString('en-IN')}
+                        {formatUSD(selectedOrderDrawer.paid_amount_usd ?? selectedOrderDrawer.paid_amount, !!selectedOrderDrawer.paid_amount_usd, selectedOrderDrawer.currency)}
                       </strong>
                     </div>
                     <div className="p-2 rounded-xl bg-amber-50 border border-amber-200">
                       <span className="text-[10px] font-mono text-amber-700 uppercase block">Remaining</span>
                       <strong className="text-amber-900 font-mono text-sm">
-                        ₹{Math.round(selectedOrderDrawer.remaining_amount || 0).toLocaleString('en-IN')}
+                        {formatUSD(selectedOrderDrawer.remaining_amount_usd ?? selectedOrderDrawer.remaining_amount, !!selectedOrderDrawer.remaining_amount_usd, selectedOrderDrawer.currency)}
                       </strong>
                     </div>
                   </div>
@@ -1399,7 +1417,6 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                     const isPaid = st.status === 'paid';
                     const isLocked = st.status === 'locked';
                     const isPending = st.status === 'pending';
-                    const inrAmt = Math.round(Number(st.amount || 0));
 
                     return (
                       <div
@@ -1430,10 +1447,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                         <div className="flex items-center gap-3">
                           <div className="text-right">
                             <span className="font-mono font-bold text-sm text-[#17243B] block">
-                              ₹{inrAmt.toLocaleString('en-IN')}
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-mono">
-                              {formatUSD(st.amount ? Number(st.amount) / 86.85 : 0)}
+                              {formatUSD(st.amount_usd ?? st.amount, !!st.amount_usd, selectedOrderDrawer.currency)}
                             </span>
                           </div>
                           <span className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-bold flex items-center gap-1 ${

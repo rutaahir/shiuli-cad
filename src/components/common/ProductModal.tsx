@@ -1093,6 +1093,22 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                     <span className="text-[10px] text-slate-500 mt-1 block">
                       Public customer storefront purchase price in USD.
                     </span>
+                    {numericPrice > 0 && (
+                      <div className="p-2 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-900 mt-2 space-y-1">
+                        <span className="font-bold flex items-center gap-1 text-[10.5px]">
+                          <Globe className="w-3 h-3 text-[#B88732]" /> Live Customer Storefront Preview:
+                        </span>
+                        <div className="font-mono text-[10px] text-slate-700 flex flex-wrap gap-x-2">
+                          <span>🇮🇳 India: <strong>₹{Math.round(numericPrice * 86.85).toLocaleString('en-IN')}</strong></span>
+                          <span>•</span>
+                          <span>🇬🇧 UK: <strong>£{(numericPrice * 0.79).toFixed(2)}</strong></span>
+                          <span>•</span>
+                          <span>🇪🇺 Europe: <strong>€{(numericPrice * 0.93).toFixed(2)}</strong></span>
+                          <span>•</span>
+                          <span>🇦🇺 Australia: <strong>A${(numericPrice * 1.55).toFixed(2)}</strong></span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div>

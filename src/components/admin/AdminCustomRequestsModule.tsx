@@ -239,7 +239,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
             const prevId = lastClientMsgIdRef.current[r.id] || 0;
             if (latestClientMsg.id > prevId) {
               lastClientMsgIdRef.current[r.id] = latestClientMsg.id;
-              const offerTxt = latestClientMsg.offered_price ? ` (Client Offer: ₹${Number(latestClientMsg.offered_price).toLocaleString('en-IN')})` : '';
+              const offerTxt = latestClientMsg.offered_price ? ` (Client Offer: $${(Number(latestClientMsg.offered_price) / 86.85).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})` : '';
 
               triggerNegotiationAlert({
                 title: `Shiuli Studio: New Client Counter-Offer on REQ #${r.id}`,
@@ -566,7 +566,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                 {adminNegotiationAlert.message}
                 {adminNegotiationAlert.offeredPrice && (
                   <span className="font-bold ml-1 font-mono text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">
-                    Client Target: ₹{Number(adminNegotiationAlert.offeredPrice).toLocaleString('en-IN')}
+                    Client Target: ${(Number(adminNegotiationAlert.offeredPrice) / 86.85).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 )}
               </p>
@@ -615,7 +615,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
               Active: {negotiatingCount}
             </span>
             <span className="px-2.5 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 font-bold border border-emerald-200">
-              Agreed: {agreedCount} (₹{totalAgreedValue.toLocaleString('en-IN')})
+              Agreed: {agreedCount} (${(totalAgreedValue / 86.85).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
             </span>
           </div>
         </div>
@@ -797,7 +797,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                         {req.submission_intent === 'place_order' ? (
                           <span className="text-[#C9A227]">Direct Order</span>
                         ) : (
-                          `Est: ₹${req.estimated_price_shown ? Number(req.estimated_price_shown).toLocaleString('en-IN') : '--'}`
+                          `Est: $${req.estimated_price_shown ? (Number(req.estimated_price_shown) / 86.85).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '--'}`
                         )}
                       </span>
                     </div>
@@ -1278,7 +1278,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                         </h4>
                         {activeReq.reference_product_price && (
                           <span className="text-xs font-mono font-bold text-slate-700 block mt-0.5">
-                            Listed Store Price: ₹{Number(activeReq.reference_product_price).toLocaleString('en-IN')}
+                            Listed Store Price: ${Number(activeReq.reference_product_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                         )}
                       </div>
@@ -1598,7 +1598,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                                 isAdmin ? 'bg-[#C9A227] text-white' : 'bg-emerald-100 text-emerald-900'
                               }`}
                             >
-                              Offer: ₹{Number(m.offered_price).toLocaleString('en-IN')}
+                              Offer: ${(Number(m.offered_price) / 86.85).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                           )}
                         </div>
@@ -1618,7 +1618,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                         <span className="font-bold">Agreed &amp; Contract Locked</span>
                       </div>
                       <div className="font-mono font-bold text-xs bg-white px-3 py-1 rounded-lg border border-emerald-300">
-                        Final Price: ₹{Number(activeReq.agreed_price || activeReq.estimated_price_shown).toLocaleString('en-IN')}
+                        Final Price: ${(Number(activeReq.agreed_price || activeReq.estimated_price_shown) / 86.85).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </div>
                   );
@@ -1637,7 +1637,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                       <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-300 flex items-center justify-between gap-2 text-xs">
                         <div className="flex items-center gap-1.5 text-amber-950">
                           <MessageSquare className="w-4 h-4 text-amber-700 shrink-0" />
-                          <span>Client Counter: <strong>₹{Number(latestMsg.offered_price).toLocaleString('en-IN')}</strong></span>
+                          <span>Client Counter: <strong>${(Number(latestMsg.offered_price) / 86.85).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
                         </div>
                         <button
                           type="button"
@@ -1654,7 +1654,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                     {/* Form */}
                     <form onSubmit={handleSendQuote} className="flex flex-col sm:flex-row items-center gap-2">
                       <div className="relative w-full sm:w-36 shrink-0">
-                        <span className="absolute left-2.5 top-2 text-slate-400 text-xs">₹</span>
+                        <span className="absolute left-2.5 top-2 text-slate-400 text-xs">$</span>
                         <input
                           type="number"
                           value={quoteInput}

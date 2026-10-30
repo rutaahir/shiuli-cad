@@ -642,7 +642,7 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
                 </span>
                 <p className="font-bold text-xs sm:text-sm text-[#17243B] truncate">{selectedProduct.title}</p>
                 <span className="text-xs text-[#B88732] font-mono">
-                  Price: ₹{Number(selectedProduct.price).toLocaleString('en-IN')}
+                  Price: ${Number(selectedProduct.price).toFixed(2)}
                 </span>
               </div>
             </div>
@@ -692,7 +692,7 @@ export const QuickCustomRequestForm: React.FC<QuickCustomRequestFormProps> = ({
                     {prod.title}
                   </h4>
                   <p className="text-[11px] text-[#B88732] font-mono mt-0.5">
-                    ₹{Number(prod.price).toLocaleString('en-IN')}
+                    ${Number(prod.price).toFixed(2)}
                   </p>
                 </div>
 

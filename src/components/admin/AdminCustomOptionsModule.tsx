@@ -302,10 +302,10 @@ export const AdminCustomOptionsModule: React.FC = () => {
                         <td className="p-3 font-semibold">
                           {Number(val.price_modifier) !== 0 ? (
                             <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 font-mono">
-                              {val.modifier_type === 'PERCENT' ? `+${val.price_modifier}%` : `+₹${val.price_modifier}`}
+                              {val.modifier_type === 'PERCENT' ? `+${val.price_modifier}%` : `+$${val.price_modifier}`}
                             </span>
                           ) : (
-                            <span className="text-slate-400">Standard (₹0)</span>
+                            <span className="text-slate-400">Standard ($0)</span>
                           )}
                         </td>
                         <td className="p-3">
@@ -415,7 +415,7 @@ export const AdminCustomOptionsModule: React.FC = () => {
                     onChange={e => setEditingValue(prev => ({ ...prev, modifier_type: e.target.value as any }))}
                     className="w-full text-xs rounded-xl border-slate-300 py-2 px-3"
                   >
-                    <option value="FLAT">Flat Amount (₹)</option>
+                    <option value="FLAT">Flat Amount ($)</option>
                     <option value="PERCENT">Percentage (+%)</option>
                   </select>
                 </div>

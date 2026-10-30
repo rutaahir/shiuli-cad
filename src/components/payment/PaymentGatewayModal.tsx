@@ -16,10 +16,15 @@ import {
   Banknote,
   Smartphone,
   Trash2,
-  Clock
+  Clock,
+  Wallet,
+  CreditCard
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { ClientWallet, ClientCreditAccount } from '../../types';
+import { useCustomerCountry } from '../../utils/countryContext';
+import { convertUsdToCustomer, formatUSD } from '../../utils/currencyHelper';
 
 export interface PaymentSuccessResult {
   transactionId: string;
@@ -51,11 +56,12 @@ export interface PaymentGatewayModalProps {
     country?: string;
     pricing_mode?: string;
     pricing_tier?: string;
+    product_ids?: (string | number)[];
   };
   onPaymentSuccess: (result: PaymentSuccessResult) => Promise<void> | void;
 }
 
-type TabType = 'upi' | 'cash_check';
+type TabType = 'wallet' | 'credit' | 'upi' | 'cash_check';
 
 export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
   isOpen,
@@ -77,6 +83,11 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
   const [errorMessage, setErrorMessage] = useState('');
   const [copiedUpi, setCopiedUpi] = useState(false);
 
+  // Client Wallet & Credit Line State
+  const [clientWallet, setClientWallet] = useState<ClientWallet | null>(null);
+  const [clientCredit, setClientCredit] = useState<ClientCreditAccount | null>(null);
+  const [isLoadingAccount, setIsLoadingAccount] = useState<boolean>(false);
+
   // Dynamic Studio Payment Settings
   const [studioUpiId, setStudioUpiId] = useState<string>('shiulicad@okhdfcbank');
   const [studioQrCodeUrl, setStudioQrCodeUrl] = useState<string>('');
@@ -94,18 +105,34 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
   const [cashCheckScreenshot, setCashCheckScreenshot] = useState<File | null>(null);
   const [cashCheckScreenshotPreview, setCashCheckScreenshotPreview] = useState<string>('');
 
-  // Currency amounts
-  const isUSD = currency === 'USD';
-  const usdToInrRate = 86.85;
-  const amountINR = isUSD ? Math.round(amount * usdToInrRate) : Math.round(amount);
-  const amountUSD = isUSD ? amount : Math.round((amount / usdToInrRate) * 100) / 100;
+  // Customer Country Context & Exchange Rate
+  const { currentCountry, exchangeRates } = useCustomerCountry();
+  const customerCurrency = currentCountry?.currency || 'INR';
+  const customerSymbol = currentCountry?.symbol || '₹';
+  const customerRate = exchangeRates[customerCurrency] || (customerCurrency === 'INR' ? 86.85 : 1.0);
 
-  const formatCurrency = (val: number, cur: 'INR' | 'USD') => {
-    if (cur === 'USD') {
-      return `$${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    }
-    return `₹${Math.round(val).toLocaleString('en-IN')}`;
+  // Currency amounts (Always Dollar-Based Atelier Pricing authoritatively)
+  const isUSD = currency === 'USD';
+  const rawAmount = typeof amount === 'number' ? amount : parseFloat(String(amount || 0));
+  const inrRate = exchangeRates['INR'] || 86.85;
+  const amountUSD = currency === 'INR'
+    ? Math.round((rawAmount / inrRate) * 100) / 100
+    : (isNaN(rawAmount) ? 0 : rawAmount);
+  const amountINR = Math.round(amountUSD * inrRate);
+
+  // Resolved Customer-Facing Price
+  const convertedPayable = convertUsdToCustomer(amountUSD, customerCurrency, customerRate);
+
+  const formatCurrency = (val: number | string | undefined | null, _cur?: 'INR' | 'USD') => {
+    return convertUsdToCustomer(val, customerCurrency, customerRate).display;
   };
+
+  // Safe numeric values for client wallet and credit line (avoids string .toFixed errors)
+  const walletBalance = Number(clientWallet?.balance || 0);
+  const creditLimit = Number(clientCredit?.credit_limit || 0);
+  const usedCredit = Number(clientCredit?.used_credit || 0);
+  const availableCredit = Number(clientCredit?.available_credit || 0);
+  const hasActiveCredit = clientCredit?.status === 'active' && creditLimit > 0;
 
   // Load Dynamic Studio Payment Settings
   useEffect(() => {
@@ -140,8 +167,22 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
           }
         })
         .catch(() => {});
+
+      // Fetch client wallet & corporate credit status
+      if (isLoggedIn) {
+        setIsLoadingAccount(true);
+        api.getClientCreditAccount()
+          .then((acc) => {
+            if (acc) {
+              setClientWallet(acc.wallet);
+              setClientCredit(acc.credit_account);
+            }
+          })
+          .catch(() => {})
+          .finally(() => setIsLoadingAccount(false));
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, isLoggedIn]);
 
   if (!isOpen) return null;
 
@@ -283,6 +324,143 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
     }
   };
 
+  // 1-Click Pay with Shiuli Prepaid Wallet
+  const handlePayWithWallet = async () => {
+    setErrorMessage('');
+    if (!isLoggedIn) {
+      setErrorMessage('You must be signed in to purchase with your wallet.');
+      openAuthModal('Please sign in to complete your payment.');
+      return;
+    }
+
+    const requiredUsd = amountUSD;
+    if (!clientWallet || clientWallet.balance < requiredUsd) {
+      setErrorMessage(`Insufficient wallet funds. Required: ${convertedPayable.display} (${formatUSD(requiredUsd)} USD), Wallet Balance: ${convertUsdToCustomer(walletBalance, customerCurrency, customerRate).display}.`);
+      return;
+    }
+
+    setIsProcessing(true);
+    setProcessingStage('Processing 1-Click instant purchase from your Atelier Wallet...');
+
+    try {
+      let res: any;
+      if (itemType === 'ready_cad' && orderDetails?.id) {
+        res = await api.checkoutWithWallet({
+          type: 'product',
+          product_id: orderDetails.id,
+          license_type: orderDetails.license || 'atelier',
+        });
+      } else if (itemType === 'cart') {
+        res = await api.checkoutWithWallet({
+          type: 'cart',
+          product_ids: orderDetails?.product_ids || (orderDetails?.id ? [orderDetails.id] : []),
+        });
+      } else {
+        res = await api.checkoutWithWallet({
+          type: 'order_stage',
+          order_id: orderDetails?.id,
+          stage_id: orderDetails?.id,
+        });
+      }
+
+      const txId = res?.download_token ? `WLT-${res.download_token.substring(0, 10).toUpperCase()}` : `WLT-${Math.floor(10000000 + Math.random() * 90000000)}`;
+      const payload: PaymentSuccessResult = {
+        transactionId: txId,
+        method: 'Shiuli Prepaid Wallet',
+        amount: requiredUsd,
+        currency: 'USD',
+        timestamp: new Date().toISOString(),
+        receiptNumber: `RCP-WLT-${Math.floor(100000 + Math.random() * 900000)}`,
+        isPendingVerification: false,
+        paymentDetails: `Instant 1-Click Purchase via Atelier Wallet (New balance: $${(res?.new_balance ?? (clientWallet.balance - requiredUsd)).toFixed(2)} USD)`,
+      };
+
+      if (res?.new_balance !== undefined) {
+        setClientWallet(prev => prev ? { ...prev, balance: res.new_balance } : prev);
+      }
+
+      setSubmissionResult(payload);
+      setIsSubmitted(true);
+      setIsProcessing(false);
+
+      await onPaymentSuccess(payload);
+    } catch (err: any) {
+      setIsProcessing(false);
+      setErrorMessage(err?.response?.data?.error || err?.message || 'Wallet payment failed. Please try again.');
+    }
+  };
+
+  // Charge to Corporate Postpaid Credit Line
+  const handlePayWithCredit = async () => {
+    setErrorMessage('');
+    if (!isLoggedIn) {
+      setErrorMessage('You must be signed in to purchase on corporate credit.');
+      openAuthModal('Please sign in to complete your payment.');
+      return;
+    }
+
+    const requiredUsd = amountUSD;
+    if (!clientCredit || clientCredit.status !== 'active') {
+      setErrorMessage('Corporate Credit Line is not active on your account.');
+      return;
+    }
+
+    if (clientCredit.available_credit < requiredUsd) {
+      setErrorMessage(`Credit limit exceeded. Required: ${convertedPayable.display} (${formatUSD(requiredUsd)} USD), Available Credit: ${convertUsdToCustomer(availableCredit, customerCurrency, customerRate).display}.`);
+      return;
+    }
+
+    setIsProcessing(true);
+    setProcessingStage('Charging purchase to your Corporate Credit Line & issuing instant CAD license...');
+
+    try {
+      let res: any;
+      if (itemType === 'ready_cad' && orderDetails?.id) {
+        res = await api.checkoutWithCredit({
+          type: 'product',
+          product_id: orderDetails.id,
+          license_type: orderDetails.license || 'atelier',
+        });
+      } else if (itemType === 'cart') {
+        res = await api.checkoutWithCredit({
+          type: 'cart',
+          product_ids: orderDetails?.product_ids || (orderDetails?.id ? [orderDetails.id] : []),
+        });
+      } else {
+        res = await api.checkoutWithCredit({
+          type: 'order_stage',
+          order_id: orderDetails?.id,
+          stage_id: orderDetails?.id,
+        });
+      }
+
+      const txId = res?.download_token ? `CRD-${res.download_token.substring(0, 10).toUpperCase()}` : `CRD-${Math.floor(10000000 + Math.random() * 90000000)}`;
+      const payload: PaymentSuccessResult = {
+        transactionId: txId,
+        method: 'Corporate Credit Line',
+        amount: requiredUsd,
+        currency: 'USD',
+        timestamp: new Date().toISOString(),
+        receiptNumber: `RCP-CRD-${Math.floor(100000 + Math.random() * 900000)}`,
+        isPendingVerification: false,
+        paymentDetails: `Billed to Corporate Credit (Terms: ${clientCredit.payment_terms_days || 30} Days • Remaining Credit: $${(res?.available_credit ?? (clientCredit.available_credit - requiredUsd)).toFixed(2)} USD)`,
+      };
+
+      if (res?.available_credit !== undefined && res?.used_credit !== undefined) {
+        setClientCredit(prev => prev ? { ...prev, available_credit: res.available_credit, used_credit: res.used_credit } : prev);
+      }
+
+      setSubmissionResult(payload);
+      setIsSubmitted(true);
+      setIsProcessing(false);
+
+      await onPaymentSuccess(payload);
+    } catch (err: any) {
+      setIsProcessing(false);
+      setErrorMessage(err?.response?.data?.error || err?.message || 'Credit line charge failed. Please try again.');
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
       <div
@@ -352,22 +530,43 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
           <div className="p-8 sm:p-10 text-center space-y-6 animate-in zoom-in-95 duration-300 bg-[#FFFDF9]">
             <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-[#D4AF37] via-[#F3DE9C] to-[#B88732] p-[2px] shadow-[0_0_35px_rgba(212,175,55,0.3)] flex items-center justify-center">
               <div className="w-full h-full rounded-full bg-[#FFF9F0] flex items-center justify-center">
-                <Clock className="w-10 h-10 text-[#B88732] animate-pulse" />
+                {submissionResult.isPendingVerification === false ? (
+                  <CheckCircle2 className="w-10 h-10 text-emerald-600" />
+                ) : (
+                  <Clock className="w-10 h-10 text-[#B88732] animate-pulse" />
+                )}
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <span className="px-3 py-1 rounded-full bg-amber-50 border border-amber-300 text-xs font-mono text-amber-800 tracking-wider uppercase font-bold inline-block">
-                Pending Admin Confirmation
-              </span>
-              <h3 className="text-2xl sm:text-3xl font-serif font-bold text-[#0B1330]">
-                Payment Proof Transferred to Atelier
-              </h3>
-              <p className="text-xs text-[#475569] max-w-lg mx-auto leading-relaxed">
-                Your payment request has been securely recorded and sent to the Atelier Accounts desk.
-                As soon as the admin confirms that the payment is collected, your download option will be enabled.
-                You can then verify your email via 6-digit OTP and receive your one-time secure download link.
-              </p>
+              {submissionResult.isPendingVerification === false ? (
+                <>
+                  <span className="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-xs font-mono text-emerald-800 tracking-wider uppercase font-bold inline-block">
+                    Payment Authorized Instantly
+                  </span>
+                  <h3 className="text-2xl sm:text-3xl font-serif font-bold text-[#0B1330]">
+                    CAD Purchase Confirmed!
+                  </h3>
+                  <p className="text-xs text-[#475569] max-w-lg mx-auto leading-relaxed">
+                    Your order was completed instantly via <strong>{submissionResult.method}</strong>.
+                    File download permission is enabled immediately without waiting for manual verification!
+                  </p>
+                </>
+              ) : (
+                <>
+                  <span className="px-3 py-1 rounded-full bg-amber-50 border border-amber-300 text-xs font-mono text-amber-800 tracking-wider uppercase font-bold inline-block">
+                    Pending Admin Confirmation
+                  </span>
+                  <h3 className="text-2xl sm:text-3xl font-serif font-bold text-[#0B1330]">
+                    Payment Proof Transferred to Atelier
+                  </h3>
+                  <p className="text-xs text-[#475569] max-w-lg mx-auto leading-relaxed">
+                    Your payment request has been securely recorded and sent to the Atelier Accounts desk.
+                    As soon as the admin confirms that the payment is collected, your download option will be enabled.
+                    You can then verify your email via 6-digit OTP and receive your one-time secure download link.
+                  </p>
+                </>
+              )}
             </div>
 
             {/* Receipt Summary Card */}
@@ -390,9 +589,15 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                   <span className="text-[#0B1330] font-medium truncate max-w-[220px] text-right">{submissionResult.paymentDetails}</span>
                 </div>
               )}
-              <div className="flex justify-between items-center pt-2 border-t border-[#E8D7B7] text-amber-800 font-bold">
-                <span>CAD Delivery Status:</span>
-                <span className="bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded font-mono text-[10px]">Awaiting Admin Verification</span>
+              <div className="flex justify-between items-center pt-2 border-t border-[#E8D7B7] font-bold">
+                <span className={submissionResult.isPendingVerification === false ? 'text-emerald-800' : 'text-amber-800'}>CAD Delivery Status:</span>
+                <span className={`px-2 py-0.5 rounded font-mono text-[10px] ${
+                  submissionResult.isPendingVerification === false
+                    ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                    : 'bg-amber-100 text-amber-900 border border-amber-300'
+                }`}>
+                  {submissionResult.isPendingVerification === false ? 'Authorized & Unlocked' : 'Awaiting Admin Verification'}
+                </span>
               </div>
             </div>
 
@@ -403,10 +608,21 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                 <span>Next Steps to Download Your File:</span>
               </div>
               <ol className="text-xs text-[#475569] space-y-1.5 list-decimal list-inside font-medium">
-                <li>Admin inspects and verifies receipt of payment at studio desk.</li>
-                <li>Download authorization is enabled for your account.</li>
-                <li>Verify your registered email with a 6-digit OTP code.</li>
-                <li>Receive your single-use, watertight CAD download link.</li>
+                {submissionResult.isPendingVerification === false ? (
+                  <>
+                    <li>Instant authorization completed from your credit line or wallet.</li>
+                    <li>Go to your Downloads or Client Dashboard page.</li>
+                    <li>Verify your registered email with 6-digit OTP security code.</li>
+                    <li>Download your watertight Rhino 3DM &amp; STL mesh assets.</li>
+                  </>
+                ) : (
+                  <>
+                    <li>Admin inspects and verifies receipt of payment at studio desk.</li>
+                    <li>Download authorization is enabled for your account.</li>
+                    <li>Verify your registered email with a 6-digit OTP code.</li>
+                    <li>Receive your single-use, watertight CAD download link.</li>
+                  </>
+                )}
               </ol>
             </div>
 
@@ -468,12 +684,10 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
               <div className="text-right shrink-0 bg-white px-4 py-2.5 rounded-2xl border border-[#E8D7B7] shadow-xs">
                 <span className="text-[10px] text-[#64748B] block font-mono font-semibold uppercase tracking-wider">Amount Payable</span>
                 <div className="font-serif text-xl sm:text-2xl font-black text-[#0B1330]">
-                  {isUSD ? formatCurrency(amountUSD, 'USD') : formatCurrency(amountINR, 'INR')}
+                  {convertedPayable.display}
                 </div>
                 <span className="text-[10px] text-[#8C6218] block font-mono font-semibold">
-                  {isUSD
-                    ? `approx ${formatCurrency(amountINR, 'INR')}`
-                    : `approx ${formatCurrency(amountUSD, 'USD')}`}
+                  {customerCurrency === 'USD' ? 'USD Atelier Pricing' : `(${formatUSD(amountUSD)} USD)`}
                 </span>
               </div>
             </div>
@@ -485,46 +699,334 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
               </div>
             )}
 
-            {/* ONLY TWO PAYMENT OPTIONS: UPI / QR and CASH / Check */}
+            {/* PAYMENT METHOD SELECTOR: WALLET, CREDIT LINE, UPI, CASH */}
             <div className="px-6 pt-4 pb-3 border-b border-[#E8D7B7] bg-white">
-              <div className="grid grid-cols-2 gap-3 text-xs font-serif">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-serif">
+                {/* 1. Wallet Tab */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('wallet');
+                    setErrorMessage('');
+                  }}
+                  className={`py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 font-bold transition-all cursor-pointer ${
+                    activeTab === 'wallet'
+                      ? 'bg-[#0B1330] text-[#F5E7A3] border border-[#D4AF37]/50 shadow-md ring-1 ring-[#D4AF37]/40'
+                      : 'bg-[#FAF8F5] border border-[#E8D7B7] text-[#475569] hover:text-[#0B1330] hover:bg-[#FFF9F0]'
+                  }`}
+                >
+                  <Wallet className="w-4 h-4 text-[#D4AF37]" />
+                  <span>Wallet {clientWallet ? `(${convertUsdToCustomer(walletBalance, customerCurrency, customerRate).display})` : ''}</span>
+                </button>
+
+                {/* 2. Credit Line Tab */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('credit');
+                    setErrorMessage('');
+                  }}
+                  className={`py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 font-bold transition-all cursor-pointer ${
+                    activeTab === 'credit'
+                      ? 'bg-[#0B1330] text-[#F5E7A3] border border-[#D4AF37]/50 shadow-md ring-1 ring-[#D4AF37]/40'
+                      : 'bg-[#FAF8F5] border border-[#E8D7B7] text-[#475569] hover:text-[#0B1330] hover:bg-[#FFF9F0]'
+                  }`}
+                >
+                  <CreditCard className="w-4 h-4 text-[#D4AF37]" />
+                  <span>Credit Line</span>
+                </button>
+
+                {/* 3. UPI / QR Tab */}
                 <button
                   type="button"
                   onClick={() => {
                     setActiveTab('upi');
                     setErrorMessage('');
                   }}
-                  className={`py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-bold transition-all cursor-pointer ${
+                  className={`py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 font-bold transition-all cursor-pointer ${
                     activeTab === 'upi'
                       ? 'bg-[#0B1330] text-[#F5E7A3] border border-[#D4AF37]/50 shadow-md ring-1 ring-[#D4AF37]/40'
                       : 'bg-[#FAF8F5] border border-[#E8D7B7] text-[#475569] hover:text-[#0B1330] hover:bg-[#FFF9F0]'
                   }`}
                 >
                   <Smartphone className="w-4 h-4 text-[#D4AF37]" />
-                  <span>UPI / QR Code</span>
+                  <span>UPI / QR</span>
                 </button>
 
+                {/* 4. Cash / Check Tab */}
                 <button
                   type="button"
                   onClick={() => {
                     setActiveTab('cash_check');
                     setErrorMessage('');
                   }}
-                  className={`py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-bold transition-all cursor-pointer ${
+                  className={`py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 font-bold transition-all cursor-pointer ${
                     activeTab === 'cash_check'
                       ? 'bg-[#0B1330] text-[#F5E7A3] border border-[#D4AF37]/50 shadow-md ring-1 ring-[#D4AF37]/40'
                       : 'bg-[#FAF8F5] border border-[#E8D7B7] text-[#475569] hover:text-[#0B1330] hover:bg-[#FFF9F0]'
                   }`}
                 >
                   <Banknote className="w-4 h-4 text-[#D4AF37]" />
-                  <span>CASH / Check</span>
+                  <span>Cash / Cheque</span>
                 </button>
               </div>
             </div>
 
             {/* Tab Contents */}
             <div className="p-6 space-y-5 bg-[#FFFDF9]">
-              {/* 1. UPI / QR CODE TAB */}
+              {/* TAB 1: PREPAID WALLET */}
+              {activeTab === 'wallet' && (
+                <div className="space-y-4 animate-in fade-in-50">
+                  <div className="p-4 rounded-2xl bg-white border border-[#E8D7B7] shadow-xs space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#E8D7B7]/60">
+                      <div className="space-y-0.5">
+                        <span className="text-[10px] font-mono text-[#8C6218] font-bold uppercase tracking-widest">
+                          Prepaid Atelier Float
+                        </span>
+                        <h4 className="font-serif font-bold text-[#0B1330] text-sm">
+                          Shiuli CAD Prepaid Wallet
+                        </h4>
+                      </div>
+                      <div className="text-left sm:text-right">
+                        <span className="text-[10px] font-mono text-[#64748B] block uppercase">Current Float Balance</span>
+                        <span className="font-serif text-lg font-bold text-emerald-800">
+                          {convertUsdToCustomer(walletBalance, customerCurrency, customerRate).display}
+                          {customerCurrency !== 'USD' && (
+                            <span className="text-xs font-normal text-slate-500 font-sans ml-1.5">
+                              ({formatUSD(walletBalance)} USD)
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Balance Check */}
+                    {walletBalance >= amountUSD ? (
+                      <div className="space-y-3">
+                        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-300 text-xs text-emerald-900 flex items-start gap-2.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                          <div className="space-y-0.5">
+                            <span className="font-bold block">Sufficient Balance Available for 1-Click Purchase</span>
+                            <span className="text-[11px] text-emerald-800 block">
+                              Deducting <strong>{convertedPayable.display} {customerCurrency !== 'USD' ? `(${formatUSD(amountUSD)} USD)` : ''}</strong> from your float. Remaining balance will be <strong>{convertUsdToCustomer(Math.max(0, walletBalance - amountUSD), customerCurrency, customerRate).display}</strong>.
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] font-mono text-[#475569]">
+                          <div className="p-2.5 rounded-xl bg-[#FFF9F0] border border-[#E8D7B7]/70 flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-[#B88732] shrink-0" />
+                            <span>Instant 1-Click Order</span>
+                          </div>
+                          <div className="p-2.5 rounded-xl bg-[#FFF9F0] border border-[#E8D7B7]/70 flex items-center gap-1.5">
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                            <span>Immediate CAD Access</span>
+                          </div>
+                          <div className="p-2.5 rounded-xl bg-[#FFF9F0] border border-[#E8D7B7]/70 flex items-center gap-1.5">
+                            <Lock className="w-3.5 h-3.5 text-[#B88732] shrink-0" />
+                            <span>Zero Slip Delay</span>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handlePayWithWallet}
+                          className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#F3DE9C] to-[#B88732] text-[#070D22] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md hover:brightness-105 active:scale-[0.99] transition-all cursor-pointer w-full"
+                        >
+                          <Sparkles className="w-4 h-4 text-[#070D22]" />
+                          <span>Pay {convertedPayable.display} with Atelier Wallet {customerCurrency !== 'USD' ? `(${formatUSD(amountUSD)} USD)` : ''} (Instant Unlock)</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-xs text-amber-900 flex items-start gap-2.5">
+                          <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                          <div className="space-y-1">
+                            <span className="font-bold block">Insufficient Wallet Float</span>
+                            <span className="text-[11px] text-amber-800 block">
+                              Required: <strong>${amountUSD.toFixed(2)} USD</strong> • Available: <strong>${walletBalance.toFixed(2)} USD</strong>.
+                              Shortfall: <strong>${Math.max(0, amountUSD - walletBalance).toFixed(2)} USD</strong>.
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] text-xs text-[#475569] space-y-1">
+                          <span className="font-bold text-[#0B1330] block">How to Top Up Your Wallet:</span>
+                          <p className="text-[11px] leading-relaxed">
+                            Visit your <strong>Client Dashboard &gt; Credits &amp; Wallets</strong> to submit a prepaid deposit slip. Alternatively, you can complete this purchase right now using UPI or Cash / Cheque below.
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveTab('upi');
+                            setErrorMessage('');
+                          }}
+                          className="px-5 py-2.5 rounded-xl bg-[#0B1330] text-[#F5E7A3] text-xs font-bold font-serif flex items-center justify-center gap-2 hover:bg-[#17345C] transition-all cursor-pointer w-full"
+                        >
+                          <Smartphone className="w-3.5 h-3.5 text-[#D4AF37]" />
+                          <span>Pay with UPI / QR Code Instead</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: CORPORATE POSTPAID CREDIT LINE */}
+              {activeTab === 'credit' && (
+                <div className="space-y-4 animate-in fade-in-50">
+                  {hasActiveCredit ? (
+                    <div className="p-4 rounded-2xl bg-white border border-[#E8D7B7] shadow-xs space-y-3.5">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#E8D7B7]/60">
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] font-mono text-[#8C6218] font-bold uppercase tracking-widest">
+                            VIP Corporate Facility
+                          </span>
+                          <h4 className="font-serif font-bold text-[#0B1330] text-sm">
+                            Atelier Line of Credit
+                          </h4>
+                        </div>
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-[10px] font-mono font-bold text-emerald-800">
+                          <ShieldCheck className="w-3 h-3 text-emerald-700" /> ACTIVE CREDIT LINE
+                        </div>
+                      </div>
+
+                      {/* Credit Line Status Grid */}
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="p-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7]/60">
+                          <span className="text-[9px] font-mono uppercase text-[#64748B] block">Credit Limit</span>
+                          <span className="font-serif font-bold text-xs text-[#0B1330]">
+                            {convertUsdToCustomer(creditLimit, customerCurrency, customerRate).display}
+                          </span>
+                          {customerCurrency !== 'USD' && (
+                            <span className="text-[8.5px] font-mono text-slate-400 block">(${creditLimit.toFixed(0)} USD)</span>
+                          )}
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7]/60">
+                          <span className="text-[9px] font-mono uppercase text-[#64748B] block">Current Used</span>
+                          <span className="font-serif font-bold text-xs text-rose-700">
+                            {convertUsdToCustomer(usedCredit, customerCurrency, customerRate).display}
+                          </span>
+                          {customerCurrency !== 'USD' && (
+                            <span className="text-[8.5px] font-mono text-slate-400 block">(${usedCredit.toFixed(0)} USD)</span>
+                          )}
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-emerald-50/60 border border-emerald-200">
+                          <span className="text-[9px] font-mono uppercase text-emerald-800 block">Available Credit</span>
+                          <span className="font-serif font-bold text-xs text-emerald-900">
+                            {convertUsdToCustomer(availableCredit, customerCurrency, customerRate).display}
+                          </span>
+                          {customerCurrency !== 'USD' && (
+                            <span className="text-[8.5px] font-mono text-emerald-600 block">(${availableCredit.toFixed(0)} USD)</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Eligibility Check */}
+                      {availableCredit >= amountUSD ? (
+                        <div className="space-y-3">
+                          <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-300 text-xs text-emerald-900 flex items-start gap-2.5">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                            <div className="space-y-0.5">
+                              <span className="font-bold block">Credit Approved: Net-{clientCredit?.payment_terms_days || 30} Days Settlement</span>
+                              <span className="text-[11px] text-emerald-800 block">
+                                Charge <strong>{convertedPayable.display} {customerCurrency !== 'USD' ? `(${formatUSD(amountUSD)} USD)` : ''}</strong> to your corporate credit account. Your CAD download permission is activated immediately.
+                              </span>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={handlePayWithCredit}
+                            className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#0B1330] via-[#17345C] to-[#0B1330] text-[#F5E7A3] font-serif font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md hover:brightness-110 active:scale-[0.99] transition-all cursor-pointer w-full border border-[#D4AF37]/40"
+                          >
+                            <CreditCard className="w-4 h-4 text-[#D4AF37]" />
+                            <span>Confirm &amp; Charge {convertedPayable.display} to Corporate Credit {customerCurrency !== 'USD' ? `(${formatUSD(amountUSD)} USD)` : ''}</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-300 text-xs text-rose-900 flex items-start gap-2.5">
+                            <AlertCircle className="w-4 h-4 text-rose-700 shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                              <span className="font-bold block">Credit Limit Exceeded</span>
+                              <span className="text-[11px] text-rose-800 block">
+                                Available credit of <strong>${availableCredit.toFixed(2)} USD</strong> is insufficient for this <strong>${amountUSD.toFixed(2)} USD</strong> order.
+                              </span>
+                            </div>
+                          </div>
+
+                          <p className="text-xs text-[#475569] leading-relaxed">
+                            Please settle your outstanding credit bill under the <strong>Credits &amp; Wallets</strong> tab in your dashboard, or choose UPI / Cash &amp; Cheque below.
+                          </p>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveTab('upi');
+                              setErrorMessage('');
+                            }}
+                            className="px-5 py-2.5 rounded-xl bg-[#0B1330] text-[#F5E7A3] text-xs font-bold font-serif flex items-center justify-center gap-2 hover:bg-[#17345C] transition-all cursor-pointer w-full"
+                          >
+                            <Smartphone className="w-3.5 h-3.5 text-[#D4AF37]" />
+                            <span>Pay with UPI / QR Code Instead</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Inactive Credit Notice */
+                    <div className="p-5 rounded-2xl bg-[#FFF9F0] border border-[#E8D7B7] space-y-3.5 text-xs text-[#475569]">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-white border border-[#E8D7B7] flex items-center justify-center shrink-0">
+                          <CreditCard className="w-4 h-4 text-[#B88732]" />
+                        </div>
+                        <div>
+                          <h4 className="font-serif font-bold text-[#0B1330] text-sm">
+                            Corporate Postpaid Credit Line
+                          </h4>
+                          <span className="text-[10px] text-[#8C6218] font-mono font-semibold">
+                            VIP Revolving Account for High-Volume Jewellers
+                          </span>
+                        </div>
+                      </div>
+
+                      <p className="leading-relaxed text-[#475569]">
+                        Corporate Credit is an exclusive revolving facility granted by Atelier SuperAdmin to select verified manufacturers, retail brands, and jewelry houses.
+                      </p>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 font-mono text-[11px]">
+                        <div className="p-2.5 rounded-xl bg-white border border-[#E8D7B7]/60 flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#B88732]" />
+                          <span>Net-30 / 60 Settlement Terms</span>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-white border border-[#E8D7B7]/60 flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                          <span>Instant File Unlock (No Verification Slip)</span>
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-white border border-[#E8D7B7] text-[11px] text-[#64748B] flex items-center justify-between">
+                        <span>To apply for corporate credit, contact studio administration.</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveTab('upi');
+                            setErrorMessage('');
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-[#0B1330] text-[#F5E7A3] font-bold text-[10px] uppercase font-mono hover:bg-[#17345C] transition-colors cursor-pointer"
+                        >
+                          Use UPI / Cash
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 3. UPI / QR CODE TAB */}
               {activeTab === 'upi' && (
                 <div className="space-y-5 animate-in fade-in-50">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">

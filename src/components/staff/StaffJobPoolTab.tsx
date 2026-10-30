@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AvailableJob, StaffMember } from '../../types';
+import { sanitizeOrderBriefForStaff } from '../../utils/staffSanitizer';
 import {
   Zap,
   Clock,
@@ -238,7 +239,7 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
                     </div>
                     <div className="text-right">
                       <span className="text-base font-mono font-bold text-[#F5E7A3] tracking-tight">
-                        {job.agreedPayout > 0 ? `₹${job.agreedPayout.toLocaleString('en-IN')}` : '₹—'}
+                        {job.agreedPayout > 0 ? `$${(job.agreedPayout > 500 ? job.agreedPayout / 86.85 : job.agreedPayout).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$—'}
                       </span>
                     </div>
                   </div>
@@ -281,7 +282,7 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
                     ) : (
                       <>
                         <Zap className="w-4 h-4 fill-[#0B1330]" />
-                        <span>Accept This Job {job.agreedPayout > 0 ? `• ₹${job.agreedPayout.toLocaleString('en-IN')}` : ''}</span>
+                        <span>Accept This Job {job.agreedPayout > 0 ? `• $${(job.agreedPayout > 500 ? job.agreedPayout / 86.85 : job.agreedPayout).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}</span>
                       </>
                     )}
                   </button>
@@ -353,7 +354,7 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
                 </div>
                 <div className="text-right z-10 shrink-0 ml-4">
                   <span className="text-3xl font-mono font-extrabold text-[#F5E7A3] tracking-tight block">
-                    {selectedJobDrawer.agreedPayout > 0 ? `₹${selectedJobDrawer.agreedPayout.toLocaleString('en-IN')}` : '₹—'}
+                    {selectedJobDrawer.agreedPayout > 0 ? `$${(selectedJobDrawer.agreedPayout > 500 ? selectedJobDrawer.agreedPayout / 86.85 : selectedJobDrawer.agreedPayout).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$—'}
                   </span>
                   <span className="text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-wider">
                     ● 100% Guaranteed Payout
@@ -432,10 +433,10 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
                       </span>
                       <div>
                         <span className="text-xs font-mono font-bold text-cyan-300 uppercase tracking-wider block">
-                          Customer's Original CAD Model
+                          Original CAD Model
                         </span>
                         <span className="text-[11px] text-slate-300 font-mono">
-                          Format: .{selectedJobDrawer.originalFileFormat?.toUpperCase() || '3DM'} • {selectedJobDrawer.originalFileName || 'Customer_Model'}
+                          Format: .{selectedJobDrawer.originalFileFormat?.toUpperCase() || '3DM'} • {selectedJobDrawer.originalFileName || 'Source_CAD_Model'}
                         </span>
                       </div>
                     </div>
@@ -470,7 +471,7 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
                   {selectedJobDrawer.voiceNoteUrl && (
                     <div className="p-3 rounded-xl bg-[#03091A] border border-cyan-500/30 space-y-1.5">
                       <span className="text-[10px] font-mono text-cyan-300 flex items-center gap-1.5 font-bold">
-                        <Volume2 className="w-4 h-4" /> Customer Audio Instructions:
+                        <Volume2 className="w-4 h-4" /> Audio Modification Instructions:
                       </span>
                       <audio controls src={selectedJobDrawer.voiceNoteUrl} className="w-full h-8" />
                     </div>
@@ -482,7 +483,7 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-mono uppercase tracking-wider text-[#D4AF37] font-bold">
-                    Client Design Reference &amp; Visuals
+                    Design Reference &amp; Visuals
                   </span>
                   <button
                     type="button"
@@ -671,7 +672,7 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
                   </div>
                 ) : (
                   <div className="p-3.5 rounded-xl bg-[#0B1536] border border-white/10 text-xs text-[#C9C2A6]">
-                    {selectedJobDrawer.rawDetails?.gemstone_preference_open ? 'Client selected: Let Designer Decide optimal stone layout' : 'Plain metal piece — No gemstones specified by client.'}
+                    {selectedJobDrawer.rawDetails?.gemstone_preference_open ? 'Let Designer Decide optimal stone layout' : 'Plain metal piece — No gemstones specified.'}
                   </div>
                 )}
               </div>
@@ -712,7 +713,7 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
                       rel="noopener noreferrer"
                       className="text-[#D4AF37] hover:underline text-[11px] font-mono flex items-center gap-1 mt-1 font-bold"
                     >
-                      <Download className="w-3.5 h-3.5" /> Download Client Hallmark Vector File
+                      <Download className="w-3.5 h-3.5" /> Download Hallmark Vector File
                     </a>
                   ) : (
                     <p className="text-[10px] text-[#C9C2A6]">Hallmark vector file provided with order.</p>
@@ -742,10 +743,10 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
                   Artisan Brief &amp; Special Instructions
                 </span>
                 <div className="p-4 rounded-xl bg-[#0B1536] border border-white/10 text-xs text-[#FAF8F3] leading-relaxed space-y-2">
-                  <p>{selectedJobDrawer.description}</p>
+                  <p className="whitespace-pre-line">{sanitizeOrderBriefForStaff(selectedJobDrawer.description)}</p>
                   {selectedJobDrawer.rawDetails?.special_instructions && (
-                    <div className="pt-2 border-t border-white/10 text-amber-300/90">
-                      <strong className="text-amber-200">Special Note:</strong> {selectedJobDrawer.rawDetails.special_instructions}
+                    <div className="pt-2 border-t border-white/10 text-amber-300/90 whitespace-pre-line">
+                      <strong className="text-amber-200">Special Note:</strong> {sanitizeOrderBriefForStaff(selectedJobDrawer.rawDetails.special_instructions)}
                     </div>
                   )}
                 </div>
@@ -759,7 +760,7 @@ export const StaffJobPoolTab: React.FC<StaffJobPoolTabProps> = ({
                   <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" /> Net Modeller Payout
                 </span>
                 <span className="text-2xl font-mono font-extrabold text-[#F5E7A3] tracking-tight">
-                  {selectedJobDrawer.agreedPayout > 0 ? `₹${selectedJobDrawer.agreedPayout.toLocaleString('en-IN')}` : '₹—'}
+                  {selectedJobDrawer.agreedPayout > 0 ? `$${(selectedJobDrawer.agreedPayout > 500 ? selectedJobDrawer.agreedPayout / 86.85 : selectedJobDrawer.agreedPayout).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$—'}
                 </span>
                 <span className="text-[10px] text-slate-400 font-mono block">
                   {selectedJobDrawer.deadlineHours || 48}h SLA Turnaround

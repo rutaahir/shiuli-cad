@@ -120,6 +120,7 @@ export type AdminModuleId =
   | 'orders'
   | 'staff'
   | 'payments'
+  | 'credits'
   | 'clients'
   | 'analytics'
   | 'notifications'
@@ -510,7 +511,7 @@ export interface StaffActiveJob {
   deadlineHours?: number;
   hoursRemaining: number;
   payoutAmount: number;
-  clientName: string;
+  clientName?: string;
   clientNotes: string;
   currentMilestone: 'Just Accepted' | 'Started' | 'Modeling' | 'Refining' | 'Ready for Delivery' | 'Pending Review';
   progressPercentage: number;
@@ -573,4 +574,68 @@ export interface WaxSealState {
   subtitle?: string;
   onComplete?: () => void;
 }
+
+export interface ClientWallet {
+  id: number;
+  balance: number;
+  currency: string;
+  is_active: boolean;
+  updated_at?: string;
+}
+
+export interface ClientCreditAccount {
+  id: number;
+  credit_limit: number;
+  used_credit: number;
+  available_credit: number;
+  utilization_percentage: number;
+  status: 'active' | 'suspended' | 'disabled';
+  payment_terms_days: number;
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface WalletCreditTransaction {
+  id: number;
+  account_type: 'wallet' | 'credit';
+  transaction_type: 'topup' | 'wallet_spend' | 'credit_spend' | 'repayment' | 'admin_adjustment' | 'refund';
+  amount: number;
+  running_balance: number;
+  reference_order?: number;
+  reference_purchase?: number;
+  reference_title?: string;
+  payment_method: string;
+  transaction_ref: string;
+  screenshot_url?: string;
+  status: 'pending' | 'completed' | 'declined';
+  notes?: string;
+  user_name?: string;
+  user_email?: string;
+  created_at: string;
+  verified_at?: string;
+}
+
+export interface AdminClientCreditItem {
+  id: number;
+  username: string;
+  name: string;
+  email: string;
+  phone: string;
+  wallet: ClientWallet;
+  credit_account: ClientCreditAccount;
+  orders_count: number;
+  purchases_count: number;
+  date_joined: string;
+}
+
+export interface AdminCreditMetrics {
+  total_wallet_float: number;
+  total_credit_granted: number;
+  total_credit_used: number;
+  total_credit_available: number;
+  pending_verifications_count: number;
+  active_credit_clients_count: number;
+}
+
 

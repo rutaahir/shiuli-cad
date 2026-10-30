@@ -1844,6 +1844,123 @@ class ApiClient {
       body: JSON.stringify({ code, new_password: newPassword, ...(email ? { email } : {}) }),
     });
   }
+
+  // ─── Prepaid Wallet & Postpaid Corporate Credit Line ────────────────────────
+  async getClientCreditAccount(): Promise<{
+    wallet: any;
+    credit_account: any;
+    transactions: any[];
+  }> {
+    return this.request<any>('/payments/client-credit-account/');
+  }
+
+  async submitWalletTopup(formData: FormData): Promise<any> {
+    const token = localStorage.getItem('access_token');
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const res = await fetch('/api/payments/wallet/topup/', {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || err.message || 'Failed to submit wallet topup.');
+    }
+    return res.json();
+  }
+
+  async submitCreditRepayment(formData: FormData): Promise<any> {
+    const token = localStorage.getItem('access_token');
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const res = await fetch('/api/payments/credit/repay/', {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || err.message || 'Failed to submit credit repayment.');
+    }
+    return res.json();
+  }
+
+  async checkoutWithWallet(payload: {
+    type: 'product' | 'order_stage' | 'cart' | 'order' | 'custom_order';
+    product_id?: number | string;
+    product_ids?: (number | string)[];
+    license_type?: string;
+    stage_id?: number | string;
+    order_id?: number | string;
+  }): Promise<any> {
+    return this.request<any>('/payments/checkout-wallet/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async checkoutWithCredit(payload: {
+    type: 'product' | 'order_stage' | 'cart' | 'order' | 'custom_order';
+    product_id?: number | string;
+    product_ids?: (number | string)[];
+    license_type?: string;
+    stage_id?: number | string;
+    order_id?: number | string;
+  }): Promise<any> {
+    return this.request<any>('/payments/checkout-credit/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async getAdminClientCredits(): Promise<{
+    metrics: any;
+    clients: any[];
+    pending_verifications: any[];
+    recent_audit_transactions: any[];
+  }> {
+    return this.request<any>('/payments/admin/client-credits/');
+  }
+
+  async adminSetCreditLimit(payload: {
+    client_id: number;
+    credit_limit?: number;
+    status?: string;
+    notes?: string;
+  }): Promise<any> {
+    return this.request<any>('/payments/admin/client-credits/set-limit/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async adminAdjustWallet(payload: {
+    client_id: number;
+    amount: number;
+    action: 'credit' | 'debit';
+    notes?: string;
+  }): Promise<any> {
+    return this.request<any>('/payments/admin/client-credits/adjust-wallet/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async adminVerifyCreditTransaction(payload: {
+    transaction_id: number;
+    decision: 'approve' | 'decline';
+    reason?: string;
+  }): Promise<any> {
+    return this.request<any>('/payments/admin/client-credits/verify-transaction/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
 }
 
 export const api = new ApiClient();

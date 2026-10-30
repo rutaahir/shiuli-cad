@@ -91,7 +91,7 @@ export const StaffEarningsTab: React.FC<StaffEarningsTabProps> = ({
             Craftsman Earnings &amp; Payouts
           </h1>
           <p className="text-xs text-[#6B7280] max-w-2xl font-light">
-            Live commission fees, client-approved milestones, and studio accounting disbursement records for {staff.name}.
+            Live commission fees, completed milestone deliverables, and studio accounting disbursement records for {staff.name}.
           </p>
         </div>
 
@@ -126,7 +126,7 @@ export const StaffEarningsTab: React.FC<StaffEarningsTabProps> = ({
             <Coins className="w-4 h-4 text-[#C9A227]" />
           </div>
           <div className="font-serif text-2xl font-bold text-[#17243B] font-mono">
-            ₹{totalLifetime.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ${totalLifetime.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <p className="text-[10px] text-[#6B7280]">
             Based on {earnings.length} completed CAD commission{earnings.length === 1 ? '' : 's'}
@@ -140,7 +140,7 @@ export const StaffEarningsTab: React.FC<StaffEarningsTabProps> = ({
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="font-serif text-2xl font-bold text-emerald-700 font-mono">
-            ₹{totalSettled.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ${totalSettled.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <p className="text-[10px] text-emerald-600 truncate" title={latestSettled?.settlementRef ? `Ref: ${latestSettled.settlementRef}` : undefined}>
             {latestSettled
@@ -162,7 +162,7 @@ export const StaffEarningsTab: React.FC<StaffEarningsTabProps> = ({
             <Clock className="w-4 h-4 text-amber-600" />
           </div>
           <div className="font-serif text-2xl font-bold text-amber-700 font-mono">
-            ₹{totalPending.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ${totalPending.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <p className="text-[10px] text-amber-600">
             {totalPending > 0 ? 'Disbursement queued for atelier accounting' : 'All completed commissions fully settled'}
@@ -255,16 +255,16 @@ export const StaffEarningsTab: React.FC<StaffEarningsTabProps> = ({
                       {/* Payout Amounts */}
                       <td className="p-4 font-mono whitespace-nowrap">
                         <div className="font-bold text-emerald-700 text-sm">
-                          ₹{e.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          ${e.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                         {e.amountPaid !== undefined && e.amountPaid > 0 && !isSettled && (
                           <div className="text-[10px] text-blue-600 font-semibold">
-                            ₹{e.amountPaid.toLocaleString('en-IN')} paid
+                            ${e.amountPaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} paid
                           </div>
                         )}
                         {e.balanceDue !== undefined && e.balanceDue > 0 && (
                           <div className="text-[10px] text-amber-600 font-medium">
-                            ₹{e.balanceDue.toLocaleString('en-IN')} remaining
+                            ${e.balanceDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} remaining
                           </div>
                         )}
                       </td>
@@ -376,19 +376,19 @@ export const StaffEarningsTab: React.FC<StaffEarningsTabProps> = ({
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-slate-600">Total Agreed CAD Payout:</span>
                   <span className="font-bold text-slate-800">
-                    ₹{selectedVoucher.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ${selectedVoucher.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-slate-600">Disbursed / Settled Amount:</span>
                   <span className="font-bold text-emerald-700">
-                    ₹{(selectedVoucher.amountPaid ?? (selectedVoucher.status === 'Settled' ? selectedVoucher.amount : 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ${(selectedVoucher.amountPaid ?? (selectedVoucher.status === 'Settled' ? selectedVoucher.amount : 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-xs border-t border-slate-200 pt-2 font-bold">
                   <span className="text-slate-700">Remaining Balance Due:</span>
                   <span className="text-amber-700">
-                    ₹{(selectedVoucher.balanceDue ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ${(selectedVoucher.balanceDue ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
               </div>

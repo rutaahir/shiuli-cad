@@ -586,7 +586,7 @@ export const AdminApprovalsModule: React.FC = () => {
                           <FileCode className="w-3 h-3 text-[#C9A227]" /> Attached CAD Deliverables:
                         </span>
                         <span className="font-bold text-xs text-[#17243B]">
-                          Value: ₹{item.suggestedPrice.toLocaleString('en-IN')}
+                          Value: ${(item.suggestedPrice / 86.85).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
@@ -624,7 +624,7 @@ export const AdminApprovalsModule: React.FC = () => {
                         </span>
                       ))}
                       <span className="ml-auto font-bold text-xs text-[#17243B]">
-                        Value: ₹{item.suggestedPrice.toLocaleString('en-IN')}
+                        Value: ${(item.suggestedPrice / 86.85).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
                   )}
@@ -1072,7 +1072,7 @@ export const AdminApprovalsModule: React.FC = () => {
                 Stone: <strong className="text-amber-300">{inspectingItem.specs?.diamondCount || 'As Specified'}</strong>
               </span>
               <span className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-slate-300">
-                Value: <strong className="text-white">₹{inspectingItem.suggestedPrice?.toLocaleString('en-IN')}</strong>
+                Value: <strong className="text-white">${((inspectingItem.suggestedPrice || 0) / 86.85).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
               </span>
               <div className="flex items-center gap-1">
                 {inspectingItem.fileFormats?.map((f) => (

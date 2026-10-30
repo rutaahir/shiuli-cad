@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StaffActiveJob } from '../../types';
 import { api } from '../../services/api';
+import { sanitizeOrderBriefForStaff } from '../../utils/staffSanitizer';
 import {
   Clock,
   CheckCircle2,
@@ -418,7 +419,7 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-bold text-amber-950 uppercase tracking-wider">
               <MessageSquare className="w-5 h-5 text-amber-600" />
-              <span>Customer Revision Instructions ({orderData.revision_requests.length} Iteration{orderData.revision_requests.length > 1 ? 's' : ''} Logged)</span>
+              <span>Revision Instructions ({orderData.revision_requests.length} Iteration{orderData.revision_requests.length > 1 ? 's' : ''} Logged)</span>
             </div>
             <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-md bg-amber-200 text-amber-900 font-bold border border-amber-300">
               Active Target: Deliverable v{orderData.current_version || 1}
@@ -472,7 +473,7 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
           </div>
 
           <p className="text-[11px] text-amber-900 font-mono">
-            ● Please address the client's instructions above in Rhino CAD, export updated files, and upload below as <strong>v{orderData.current_version || 1}</strong>.
+            ● Please address the revision instructions above in Rhino CAD, export updated files, and upload below as <strong>v{orderData.current_version || 1}</strong>.
           </p>
         </div>
       )}
@@ -504,7 +505,7 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <span className="text-xs font-mono uppercase tracking-widest text-cyan-700 font-bold flex items-center gap-1.5">
                     <Wrench className="w-4 h-4 text-cyan-600" />
-                    CAD FILE MODIFICATION STUDIO • CLIENT: {fe?.client_display_name || fe?.contact_name || 'VALUED CLIENT'}
+                    CAD FILE MODIFICATION STUDIO • ORDER #FE-ORD-{orderData.id}
                   </span>
                   <div className="flex flex-col sm:items-end gap-1">
                     <span className={`flex items-center gap-1.5 text-xs font-mono px-3.5 py-1.5 rounded-full border font-bold ${timerColorClass}`}>
@@ -631,10 +632,10 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                   </div>
                 )}
 
-                {/* Client Notes / Instructions */}
+                {/* Modification Instructions */}
                 <div className="text-xs text-[#4B5563] leading-relaxed bg-[#F8FAFC] p-4 rounded-xl border border-[#E8D7B7]">
-                  <strong className="text-[#17243B] font-bold block mb-1">Customer Special Modification Instructions:</strong>
-                  <p className="italic text-slate-700">{fe?.description || req?.description || 'No detailed written instructions provided.'}</p>
+                  <strong className="text-[#17243B] font-bold block mb-1">Technical Modification Instructions:</strong>
+                  <p className="italic text-slate-700">{sanitizeOrderBriefForStaff(fe?.description || req?.description) || 'No detailed written instructions provided.'}</p>
                 </div>
               </div>
             ) : (
@@ -658,7 +659,7 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                     <>
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <span className="text-xs font-mono uppercase tracking-widest text-[#C9A227] font-bold">
-                          {categoryDisplay} • CLIENT: {req.contact_name || req.client_name || req.client_display_name || 'VALUED CLIENT'}
+                          {categoryDisplay} • ORDER #ORD-{orderData.id}
                         </span>
                         <div className="flex flex-col sm:items-end gap-1">
                           <span className={`flex items-center gap-1.5 text-xs font-mono px-3.5 py-1.5 rounded-full border font-bold ${timerColorClass}`}>
@@ -751,17 +752,17 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                         ))}
                       </div>
 
-                      {/* Client Notes / Instructions */}
+                      {/* Order Notes / Instructions */}
                       <div className="text-xs text-[#4B5563] leading-relaxed bg-[#F8FAFC] p-5 rounded-2xl border border-[#E8D7B7] space-y-2 shadow-2xs">
                         <div className="flex items-center justify-between border-b border-[#E8D7B7]/60 pb-2">
                           <strong className="text-[#17243B] font-serif font-bold text-sm flex items-center gap-2">
                             <Sparkles className="w-4 h-4 text-[#C9A227]" />
-                            Client Brief &amp; Written Instructions
+                            Order Brief &amp; Technical Instructions
                           </strong>
-                          <span className="text-[10px] font-mono text-[#6B7280]">Original Customer Specifications</span>
+                          <span className="text-[10px] font-mono text-[#6B7280]">Original Technical Specifications</span>
                         </div>
                         <div className="whitespace-pre-line text-slate-800 font-sans leading-relaxed text-xs pt-1">
-                          {req.description || 'No detailed written instructions provided by client.'}
+                          {sanitizeOrderBriefForStaff(req.description) || 'No detailed written instructions provided.'}
                         </div>
                       </div>
                     </>
@@ -1193,7 +1194,7 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-serif font-bold text-[#17243B] flex items-center gap-2">
                 <Eye className="w-4 h-4 text-[#C9A227]" />
-                Client Reference Artwork
+                Design Reference Artwork
               </h3>
               {referenceImages.length > 0 && (
                 <span className="text-[10px] text-[#6B7280] font-mono">Click to Zoom</span>

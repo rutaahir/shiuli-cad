@@ -25,6 +25,17 @@ from .views_purchases import (
     resubmit_purchase_proof,
     toggle_purchase_download_permission
 )
+from .views_wallet_credits import (
+    client_credit_account_detail,
+    wallet_topup_request,
+    credit_repayment_request,
+    checkout_with_wallet,
+    checkout_with_credit,
+    admin_client_credits_list,
+    admin_set_credit_limit,
+    admin_adjust_wallet,
+    admin_verify_transaction,
+)
 
 router = DefaultRouter()
 router.register(r'templates', PaymentPlanTemplateViewSet, basename='payment-plan-template')
@@ -49,8 +60,19 @@ urlpatterns = [
     path('purchases/<int:purchase_id>/toggle-download/', toggle_purchase_download_permission, name='purchase-toggle-download'),
     path('purchases/<int:purchase_id>/resend-otp/', resend_otp, name='purchase-resend-otp'),
     path('purchases/<int:purchase_id>/verify-otp/', verify_otp, name='purchase-verify-otp'),
-    path('purchases/<int:purchase_id>/resend-download-link/', resend_download_link, name='purchase-resend-download-link'),
     path('download/<str:token>/', download_cad_file, name='download-cad-file'),
+    
+    # Prepaid Wallet & Postpaid Corporate Credit Line Routes
+    path('client-credit-account/', client_credit_account_detail, name='client-credit-account-detail'),
+    path('wallet/topup/', wallet_topup_request, name='wallet-topup-request'),
+    path('credit/repay/', credit_repayment_request, name='credit-repayment-request'),
+    path('checkout-wallet/', checkout_with_wallet, name='checkout-with-wallet'),
+    path('checkout-credit/', checkout_with_credit, name='checkout-with-credit'),
+    path('admin/client-credits/', admin_client_credits_list, name='admin-client-credits-list'),
+    path('admin/client-credits/set-limit/', admin_set_credit_limit, name='admin-set-credit-limit'),
+    path('admin/client-credits/adjust-wallet/', admin_adjust_wallet, name='admin-adjust-wallet'),
+    path('admin/client-credits/verify-transaction/', admin_verify_transaction, name='admin-verify-transaction'),
+
     path('', include(router.urls)),
 ]
 

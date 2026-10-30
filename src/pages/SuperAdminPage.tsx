@@ -12,6 +12,7 @@ import { AdminCustomOptionsModule } from '../components/admin/AdminCustomOptions
 import { AdminStaffModule } from '../components/admin/AdminStaffModule';
 import { AdminOrdersModule } from '../components/admin/AdminOrdersModule';
 import { AdminPaymentsModule } from '../components/admin/AdminPaymentsModule';
+import { AdminCreditsModule } from '../components/admin/AdminCreditsModule';
 import { AdminClientsModule } from '../components/admin/AdminClientsModule';
 import { AdminAnalyticsModule } from '../components/admin/AdminAnalyticsModule';
 import { AdminNotificationsModule } from '../components/admin/AdminNotificationsModule';
@@ -218,6 +219,8 @@ export const SuperAdminPage: React.FC<SuperAdminPageProps> = ({ onNavigate, init
       )}
 
       {activeModule === 'payments' && <AdminPaymentsModule />}
+
+      {activeModule === 'credits' && <AdminCreditsModule />}
 
       {activeModule === 'clients' && <AdminClientsModule />}
 

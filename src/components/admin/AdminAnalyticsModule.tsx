@@ -245,7 +245,7 @@ export const AdminAnalyticsModule: React.FC = () => {
               <div>
                 <span className="text-[#6B7280] text-[10px] font-bold uppercase tracking-wider">Gross Studio Revenue</span>
                 <div className="text-2xl font-extrabold text-[#17345C] mt-1 font-mono">
-                  ₹{(data.gross_revenue_inr || data.total_revenue_inr || Math.round(data.total_revenue || 0)).toLocaleString('en-IN')}
+                  ${(Math.round(((data.gross_revenue_inr || data.total_revenue_inr || Math.round(data.total_revenue || 0)) / 86.85) * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
                 <div className="text-[11px] text-[#6B7280] font-mono mt-0.5">
                   ≈ ${(data.gross_revenue_usd || data.total_revenue_usd || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD

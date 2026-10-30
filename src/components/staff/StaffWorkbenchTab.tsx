@@ -281,8 +281,8 @@ export const StaffWorkbenchTab: React.FC<StaffWorkbenchTabProps> = ({
                       <h4 className="font-serif font-bold text-[#17243B] text-base mt-1 line-clamp-1">
                         {job.title}
                       </h4>
-                      <p className="text-[11px] text-[#687386]">
-                        Client: {job.clientName}
+                      <p className="text-[11px] text-[#8C6D2B] font-mono font-medium">
+                        Target SLA: {job.deadlineHours || 48} Hours Turnaround
                       </p>
                     </div>
                   </div>
@@ -401,7 +401,7 @@ export const StaffWorkbenchTab: React.FC<StaffWorkbenchTabProps> = ({
                     <Sparkles className="w-3.5 h-3.5 text-[#B88732]" /> Commission Payout:
                   </span>
                   <span className="text-sm font-bold text-emerald-800">
-                    {job.payoutAmount > 0 ? `₹${job.payoutAmount.toLocaleString('en-IN')}` : '₹—'}
+                    {job.payoutAmount > 0 ? `$${job.payoutAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$—'}
                   </span>
                 </div>
               </div>

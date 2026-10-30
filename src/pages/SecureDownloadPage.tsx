@@ -8,6 +8,7 @@ export const SecureDownloadPage: React.FC = () => {
   const { isLoggedIn, user } = useAuth();
   const [status, setStatus] = useState<'verifying' | 'downloading' | 'complete' | 'error'>('verifying');
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [isSecondDownload, setIsSecondDownload] = useState<boolean>(false);
   const [downloadFileName, setDownloadFileName] = useState<string>('CAD_Design_File.zip');
   const [portfolioConsent, setPortfolioConsent] = useState<boolean>(false);
 
@@ -18,6 +19,7 @@ export const SecureDownloadPage: React.FC = () => {
   useEffect(() => {
     if (!token) {
       setStatus('error');
+      setIsSecondDownload(false);
       setErrorMessage('No download token specified.');
       return;
     }
@@ -28,6 +30,7 @@ export const SecureDownloadPage: React.FC = () => {
   const triggerSecureDownload = async () => {
     setStatus('downloading');
     setErrorMessage('');
+    setIsSecondDownload(false);
 
     const jwtToken = localStorage.getItem('shiuli_access_token');
     const headers: Record<string, string> = {};
@@ -43,12 +46,28 @@ export const SecureDownloadPage: React.FC = () => {
 
       if (!response.ok) {
         let errText = 'This download link is invalid, expired, or has already been used.';
+        let isSecond = false;
         try {
           const errData = await response.json();
           if (errData && errData.error) {
             errText = errData.error;
           }
+          if (errData && (errData.is_second_download || errData.code === 'SECOND_DOWNLOAD_UNAVAILABLE')) {
+            isSecond = true;
+          }
         } catch {}
+
+        const lower = errText.toLowerCase();
+        if (
+          lower.includes('already been used') ||
+          lower.includes('second-time') ||
+          lower.includes('second time') ||
+          lower.includes('expired')
+        ) {
+          isSecond = true;
+        }
+
+        setIsSecondDownload(isSecond);
         setStatus('error');
         setErrorMessage(errText);
         return;
@@ -86,16 +105,17 @@ export const SecureDownloadPage: React.FC = () => {
       }
     } catch (err: any) {
       setStatus('error');
+      setIsSecondDownload(false);
       setErrorMessage('Failed to connect to secure file delivery service.');
     }
   };
 
   const handleGoToDashboard = () => {
-    window.history.pushState({ page: 'account' }, '', '/account');
-    window.location.href = '/account';
+    window.history.pushState({ page: 'account' }, '', '/account?tab=downloads');
+    window.location.href = '/account?tab=downloads';
   };
 
-  if (status === 'initiating') {
+  if (status === 'verifying') {
     return (
       <div className="min-h-screen bg-[#FFFDF9] flex flex-col items-center justify-center p-4 text-[#17243B]">
         <RefreshCw className="w-10 h-10 text-[#B88732] animate-spin mb-4" />
@@ -127,7 +147,7 @@ export const SecureDownloadPage: React.FC = () => {
 
         {status === 'complete' && (
           <div className="space-y-4 py-4">
-            <div className="inline-flex p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-full text-emerald-400">
+            <div className="inline-flex p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-full text-emerald-600">
               <CheckCircle2 className="w-12 h-12" />
             </div>
             <h2 className="text-2xl font-serif font-bold text-[#17345C]">Download Complete!</h2>
@@ -166,33 +186,83 @@ export const SecureDownloadPage: React.FC = () => {
           </div>
         )}
 
-        {status === 'error' && (
-          <div className="space-y-4 py-4">
-            <div className="inline-flex p-4 bg-rose-500/10 border border-rose-500/30 rounded-full text-rose-400">
-              <AlertTriangle className="w-12 h-12" />
+        {status === 'error' && isSecondDownload && (
+          <div className="space-y-5 py-2">
+            <div className="inline-flex p-4 bg-amber-500/10 border border-amber-500/30 rounded-full text-amber-600 shadow-[0_0_25px_rgba(217,119,6,0.15)]">
+              <Lock className="w-12 h-12" />
             </div>
-            <h2 className="text-2xl font-serif font-bold text-rose-200">Unable to Download File</h2>
-            <p className="text-sm text-[#17243B] bg-rose-500/10 border border-rose-500/20 p-4 rounded-xl">
-              {errorMessage}
-            </p>
 
-            <div className="pt-4 space-y-3">
+            <div className="space-y-1.5">
+              <span className="inline-block px-3 py-1 text-[11px] font-bold tracking-widest uppercase rounded-full bg-amber-50 border border-amber-300 text-amber-700">
+                One-Time Link Used
+              </span>
+              <h2 className="text-2xl font-serif font-bold text-[#17345C]">
+                Second-Time Download Not Available
+              </h2>
+              <p className="text-sm text-[#687386] max-w-md mx-auto leading-relaxed">
+                This download link has already been used and has expired. For file security and asset protection, single-use links cannot be reopened.
+              </p>
+            </div>
+
+            <div className="p-4 bg-[#FFFDF9] border border-[#E8D7B7] rounded-xl text-left text-xs space-y-2.5 text-[#17243B]">
+              <div className="flex items-center space-x-2 text-[#B88732] font-semibold">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <span>File was already delivered during your first session</span>
+              </div>
+              <p className="text-[#687386] pl-6 leading-relaxed">
+                Single-use tokens expire immediately upon download completion to prevent unauthorized access or link sharing.
+              </p>
+              <div className="pt-2 border-t border-[#E8D7B7] text-[#687386] pl-6 leading-relaxed">
+                <strong>Need your CAD files again?</strong> Your purchase is safe and intact. You can generate a fresh, secure download link anytime from your <span className="font-semibold text-[#17345C]">Order History</span>.
+              </div>
+            </div>
+
+            <div className="pt-2 space-y-3">
               <button
                 onClick={handleGoToDashboard}
-                className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-bold rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2"
+                className="w-full py-3.5 btn-gold-luxury text-[#17345C] font-bold rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2"
               >
                 <span>Request New Link from My Orders</span>
               </button>
 
               <button
                 onClick={() => { window.location.href = '/'; }}
-                className="w-full py-2.5 text-xs text-[#687386] hover:text-zinc-200 transition-colors"
+                className="w-full py-2.5 text-xs text-[#687386] hover:text-[#17345C] transition-colors"
               >
                 Back to Home Page
               </button>
             </div>
           </div>
         )}
+
+        {status === 'error' && !isSecondDownload && (
+          <div className="space-y-4 py-4">
+            <div className="inline-flex p-4 bg-rose-500/10 border border-rose-500/30 rounded-full text-rose-600">
+              <AlertTriangle className="w-12 h-12" />
+            </div>
+            <h2 className="text-2xl font-serif font-bold text-rose-800">Unable to Download File</h2>
+            <p className="text-sm text-rose-900 bg-rose-50 border border-rose-200 p-4 rounded-xl leading-relaxed">
+              {errorMessage}
+            </p>
+
+            <div className="pt-4 space-y-3">
+              <button
+                onClick={handleGoToDashboard}
+                className="w-full py-3.5 btn-gold-luxury text-[#17345C] font-bold rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2"
+              >
+                <span>Request New Link from My Orders</span>
+              </button>
+
+              <button
+                onClick={() => { window.location.href = '/'; }}
+                className="w-full py-2.5 text-xs text-[#687386] hover:text-[#17345C] transition-colors"
+              >
+                Back to Home Page
+              </button>
+            </div>
+          </div>
+        )}
+
       </motion.div>
     </div>
   );

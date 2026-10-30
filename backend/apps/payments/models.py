@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.db import models
 from django.conf import settings
 from apps.custom_orders.models import Order
@@ -201,6 +202,123 @@ class DownloadToken(models.Model):
     def __str__(self):
         item_str = f"Purchase #{self.purchase_id}" if self.purchase_id else f"Order #{self.order_id}"
         return f"Token for {item_str} ({self.status} - Used: {self.is_used})"
+
+
+class ClientWallet(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="wallet"
+    )
+    balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    currency = models.CharField(max_length=10, default="USD")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Wallet ({self.user.email or self.user.username}): ${self.balance} {self.currency}"
+
+
+class ClientCreditAccount(models.Model):
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Active Credit Line"
+        SUSPENDED = "suspended", "Suspended"
+        DISABLED = "disabled", "Disabled"
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="credit_account"
+    )
+    credit_limit = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    used_credit = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DISABLED)
+    payment_terms_days = models.PositiveIntegerField(default=30)
+    notes = models.TextField(blank=True, default="")
+    granted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="granted_credit_lines"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def available_credit(self):
+        return max(Decimal('0.00'), self.credit_limit - self.used_credit)
+
+    def __str__(self):
+        return f"CreditLine ({self.user.email or self.user.username}): Limit ${self.credit_limit}, Used ${self.used_credit} [{self.status}]"
+
+
+class WalletCreditTransaction(models.Model):
+    class AccountType(models.TextChoices):
+        WALLET = "wallet", "Prepaid Wallet"
+        CREDIT = "credit", "Corporate Credit Line"
+
+    class TransactionType(models.TextChoices):
+        TOPUP = "topup", "Wallet Top-up Deposit"
+        WALLET_SPEND = "wallet_spend", "Purchase with Wallet"
+        CREDIT_SPEND = "credit_spend", "Purchase on Credit"
+        REPAYMENT = "repayment", "Credit Bill Repayment"
+        ADMIN_ADJUSTMENT = "admin_adjustment", "Admin Balance Adjustment"
+        REFUND = "refund", "Refund"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending Verification"
+        COMPLETED = "completed", "Completed"
+        DECLINED = "declined", "Declined"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="wallet_credit_transactions"
+    )
+    account_type = models.CharField(max_length=20, choices=AccountType.choices)
+    transaction_type = models.CharField(max_length=30, choices=TransactionType.choices)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    running_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    
+    reference_order = models.ForeignKey(
+        'custom_orders.Order',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="wallet_credit_transactions"
+    )
+    reference_purchase = models.ForeignKey(
+        Purchase,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="wallet_credit_transactions"
+    )
+    
+    payment_method = models.CharField(max_length=50, blank=True, default="wallet")
+    transaction_ref = models.CharField(max_length=120, blank=True, default="")
+    payment_screenshot = models.FileField(upload_to="wallet_proofs/", blank=True, null=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.COMPLETED)
+    notes = models.TextField(blank=True, default="")
+    
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="verified_wallet_transactions"
+    )
+    verified_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.get_account_type_display()} - {self.get_transaction_type_display()} (${self.amount}) for {self.user.email or self.user.username} [{self.status}]"
+
 
 
 

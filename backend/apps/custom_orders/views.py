@@ -1634,13 +1634,8 @@ class OrderViewSet(viewsets.ModelViewSet):
             is_used=False
         )
 
-        origin = request.META.get('HTTP_ORIGIN') or request.META.get('HTTP_REFERER')
-        if origin:
-            from urllib.parse import urlparse
-            parsed = urlparse(origin)
-            base_url = f"{parsed.scheme}://{parsed.netloc}"
-        else:
-            base_url = "http://localhost:3000"
+        from apps.payments.views_purchases import get_frontend_base_url
+        base_url = get_frontend_base_url(request)
         download_url = f"{base_url}/download/{raw_token}"
 
         print("\n" + "=" * 70, flush=True)

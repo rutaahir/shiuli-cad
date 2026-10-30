@@ -22,7 +22,7 @@ export const StaffNotificationsTab: React.FC<StaffNotificationsTabProps> = ({
             Artisan Alerts &amp; Broadcasts
           </h1>
           <p className="text-xs text-[#687386] font-light mt-0.5">
-            Real-time status updates on customer approvals, payments, and system messages.
+            Real-time status updates on milestone approvals, commission payouts, and system messages.
           </p>
         </div>
         <button

@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { sendCadDownloadEmail } from '../services/emailService';
 import { useCustomerCountry, resolveDisplayPrice, formatCurrencyAmount } from '../utils/countryContext';
+import { formatUSD } from '../utils/currencyHelper';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -85,13 +86,21 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
   if (!isOpen) return null;
 
-  const subtotal = items.reduce((acc, item) => {
+  // Localized Customer Currency (INR for India, etc.)
+  const subtotalLocal = items.reduce((acc, item) => {
     const resolved = resolveDisplayPrice(item.product, item.license, currentCountry.code, exchangeRates);
-    return acc + resolved.amount * item.quantity;
+    return acc + (resolved.amount || 0) * item.quantity;
   }, 0);
+  const discountAmountLocal = (subtotalLocal * discountPercent) / 100;
+  const totalLocal = Math.max(0, subtotalLocal - discountAmountLocal);
 
-  const discountAmount = (subtotal * discountPercent) / 100;
-  const total = Math.max(0, subtotal - discountAmount);
+  // Authoritative Base USD (Admin Currency)
+  const subtotalUsd = items.reduce((acc, item) => {
+    const resolved = resolveDisplayPrice(item.product, item.license, currentCountry.code, exchangeRates);
+    return acc + (resolved.priceUsd || 0) * item.quantity;
+  }, 0);
+  const discountAmountUsd = (subtotalUsd * discountPercent) / 100;
+  const totalUsd = Math.max(0, subtotalUsd - discountAmountUsd);
 
   const handleApplyPromo = (e: React.FormEvent) => {
     e.preventDefault();
@@ -421,23 +430,44 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               <div className="space-y-1.5 text-xs">
                 <div className="flex justify-between text-[#697A91]">
                   <span>Subtotal:</span>
-                  <span className="font-medium text-[#0F264A]">
-                    {formatCurrencyAmount(subtotal, currentCountry.currency, currentCountry.symbol)}
-                  </span>
-                </div>
-                {discountAmount > 0 && (
-                  <div className="flex justify-between text-emerald-700 font-semibold">
-                    <span>Discount (10%):</span>
-                    <span>
-                      -{formatCurrencyAmount(discountAmount, currentCountry.currency, currentCountry.symbol)}
+                  <div className="text-right">
+                    <span className="font-medium text-[#0F264A]">
+                      {formatCurrencyAmount(subtotalLocal, currentCountry.currency, currentCountry.symbol)}
                     </span>
+                    {currentCountry.currency !== 'USD' && (
+                      <span className="text-[10px] text-[#64748B] ml-1.5 font-mono">
+                        (${subtotalUsd.toFixed(2)} USD)
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {discountAmountLocal > 0 && (
+                  <div className="flex justify-between text-emerald-700 font-semibold">
+                    <span>Discount ({discountPercent}%):</span>
+                    <div className="text-right">
+                      <span>
+                        -{formatCurrencyAmount(discountAmountLocal, currentCountry.currency, currentCountry.symbol)}
+                      </span>
+                      {currentCountry.currency !== 'USD' && (
+                        <span className="text-[10px] ml-1.5 font-mono">
+                          (-${discountAmountUsd.toFixed(2)} USD)
+                        </span>
+                      )}
+                    </div>
                   </div>
                 )}
                 <div className="flex justify-between text-sm font-bold text-[#0F264A] pt-2 border-t border-[#EADAC0]">
                   <span className="font-serif">Total Payable:</span>
-                  <span className="font-serif text-base text-[#0F264A]">
-                    {formatCurrencyAmount(total, currentCountry.currency, currentCountry.symbol)}
-                  </span>
+                  <div className="text-right">
+                    <span className="font-serif text-base text-[#0F264A]">
+                      {formatCurrencyAmount(totalLocal, currentCountry.currency, currentCountry.symbol)}
+                    </span>
+                    {currentCountry.currency !== 'USD' && (
+                      <span className="text-[11px] font-normal text-[#64748B] block font-mono">
+                        (${totalUsd.toFixed(2)} USD)
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -481,13 +511,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         onClose={() => setIsPaymentModalOpen(false)}
         title={`CAD File Bag Checkout (${items.length} design${items.length > 1 ? 's' : ''})`}
         subtitle="Watertight 3DM & STL Mesh Bundle with Atelier Guarantee"
-        amount={total}
-        currency={currentCountry.currency === 'INR' ? 'INR' : 'USD'}
+        amount={totalUsd}
+        currency="USD"
         itemType="cart"
         orderDetails={{
           itemsCount: items.length,
           notes: items.map(i => i.product.title).join(', '),
           country: currentCountry.code,
+          product_ids: items.map(i => i.product.dbId || i.product.id),
         }}
         onPaymentSuccess={handlePaymentSuccess}
       />

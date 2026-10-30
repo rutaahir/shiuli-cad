@@ -12,7 +12,7 @@ from django.db import transaction
 from django.contrib.auth.hashers import make_password, check_password
 from django.core.files.base import ContentFile
 from apps.core.email_service import send_dynamic_mail as send_mail, send_otp_email, build_luxury_email_html
-from django.http import FileResponse, StreamingHttpResponse
+from django.http import FileResponse, StreamingHttpResponse, HttpResponse
 from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -24,6 +24,27 @@ from .models import Purchase, DownloadOTP, DownloadToken
 logger = logging.getLogger(__name__)
 
 CHUNK_SIZE = 1024 * 1024  # 1 MB chunk streaming size
+
+
+def get_frontend_base_url(request=None):
+    """
+    Returns the frontend client URL (e.g., http://localhost:3000 in dev, or FRONTEND_URL in prod).
+    Ensures backend port 8000 is never used for customer-facing frontend links.
+    """
+    frontend_url = getattr(settings, 'FRONTEND_URL', None)
+    if frontend_url:
+        return frontend_url.rstrip('/')
+    if request:
+        origin = request.META.get('HTTP_ORIGIN') or request.META.get('HTTP_REFERER')
+        if origin:
+            from urllib.parse import urlparse
+            parsed = urlparse(origin)
+            if parsed.scheme and parsed.netloc:
+                if parsed.port == 8000 or ':8000' in parsed.netloc:
+                    hostname = parsed.hostname or 'localhost'
+                    return f"{parsed.scheme}://{hostname}:3000"
+                return f"{parsed.scheme}://{parsed.netloc}".rstrip('/')
+    return "http://localhost:3000"
 
 
 def stream_file_iterator(file_handle, chunk_size=CHUNK_SIZE, on_complete=None):
@@ -576,13 +597,7 @@ def admin_approve_purchase(request, purchase_id):
         attempt_count=0
     )
 
-    origin = request.META.get('HTTP_ORIGIN') or request.META.get('HTTP_REFERER')
-    if origin:
-        from urllib.parse import urlparse
-        parsed = urlparse(origin)
-        base_url = f"{parsed.scheme}://{parsed.netloc}"
-    else:
-        base_url = "http://localhost:3000"
+    base_url = get_frontend_base_url(request)
     download_url = f"{base_url}/download/{raw_token}"
 
     # Also generate 6-digit OTP code & store hashed for optional dashboard entry
@@ -950,13 +965,7 @@ def verify_otp(request, purchase_id):
         attempt_count=0
     )
 
-    origin = request.META.get('HTTP_ORIGIN') or request.META.get('HTTP_REFERER')
-    if origin:
-        from urllib.parse import urlparse
-        parsed = urlparse(origin)
-        base_url = f"{parsed.scheme}://{parsed.netloc}"
-    else:
-        base_url = "http://localhost:3000"
+    base_url = get_frontend_base_url(request)
     download_url = f"{base_url}/download/{raw_token}"
     
     # Print Download Link in terminal for instant dev verification
@@ -1016,6 +1025,314 @@ def verify_otp(request, purchase_id):
     })
 
 
+def is_browser_request(request):
+    """
+    Determines if the request is a direct browser navigation (HTML display expected)
+    versus an API client or frontend fetch/XHR call.
+    """
+    accept = request.META.get('HTTP_ACCEPT', '')
+    sec_fetch_dest = request.META.get('HTTP_SEC_FETCH_DEST', '')
+
+    # Standard browser page navigation (clicking link, typing URL in address bar)
+    if sec_fetch_dest in ('document', 'frame', 'iframe'):
+        return True
+
+    # If HTML is accepted and JSON is not explicitly prioritized
+    if 'text/html' in accept:
+        if 'application/json' in accept and accept.find('application/json') < accept.find('text/html'):
+            return False
+        return True
+
+    return False
+
+
+def render_luxury_download_notice(
+    title="Second-Time Download Not Available",
+    badge="ONE-TIME LINK USED",
+    message="This download link has already been used and has expired. Second-time downloads are not available with this expired link.",
+    frontend_url="http://localhost:3000",
+    status_code=400,
+    is_second_download=True
+):
+    """
+    Renders an ultra-luxurious, responsive HTML notice with Shiuli CAD Studio aesthetics
+    when a user visits a spent, invalid, or expired download link directly in their browser.
+    Prevents the raw Django REST Framework browsable API from ever being exposed to clients.
+    """
+    orders_url = f"{frontend_url.rstrip('/')}/account?tab=downloads"
+    home_url = f"{frontend_url.rstrip('/')}/"
+
+    security_notice = (
+        "<strong>One-Time Security Protocol:</strong> For intellectual property protection and high-precision CAD file security, each download link is single-use and automatically expires once streamed to your device."
+        if is_second_download else
+        "<strong>Security Protocol:</strong> Download tokens are single-use and subject to security limits to protect intellectual property."
+    )
+
+    action_note = (
+        "<strong>Need to download again?</strong> Your purchase is safe and active in your account. You can request a fresh, secure download link anytime from your <strong>Order History</strong>."
+        if is_second_download else
+        "<strong>Need assistance?</strong> You can review your active purchases and generate links from your <strong>Order History</strong>, or contact studio support."
+    )
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{title} — Shiuli CAD Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{
+      background: radial-gradient(ellipse at 50% 15%, #15243C 0%, #0B1323 60%, #060A13 100%);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #E2E8F0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
+      line-height: 1.6;
+    }}
+    .bg-grid {{
+      position: fixed;
+      inset: 0;
+      background-image: 
+        linear-gradient(to right, rgba(212, 175, 55, 0.04) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(212, 175, 55, 0.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }}
+    .card {{
+      position: relative;
+      z-index: 1;
+      max-width: 520px;
+      width: 100%;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(212, 175, 55, 0.35);
+      border-radius: 24px;
+      padding: 44px 36px 36px;
+      box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.8), 0 0 50px rgba(212, 175, 55, 0.12);
+      text-align: center;
+      overflow: hidden;
+    }}
+    .gold-bar {{
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #996515 0%, #D4AF37 30%, #FFF3D6 50%, #D4AF37 70%, #996515 100%);
+    }}
+    .brand-header {{
+      font-family: 'Cinzel', serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #D4AF37;
+      margin-bottom: 24px;
+      opacity: 0.9;
+    }}
+    .icon-wrapper {{
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 76px;
+      height: 76px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(212, 175, 55, 0.2) 0%, rgba(212, 175, 55, 0.04) 100%);
+      border: 1px solid rgba(212, 175, 55, 0.45);
+      margin-bottom: 18px;
+      box-shadow: 0 0 30px rgba(212, 175, 55, 0.22);
+    }}
+    .icon-wrapper svg {{
+      width: 38px;
+      height: 38px;
+      stroke: #D4AF37;
+    }}
+    .badge {{
+      display: inline-block;
+      padding: 5px 16px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      border-radius: 9999px;
+      background: rgba(212, 175, 55, 0.15);
+      color: #F6C85F;
+      border: 1px solid rgba(212, 175, 55, 0.4);
+      margin-bottom: 14px;
+    }}
+    h1 {{
+      font-family: 'Cinzel', serif;
+      font-size: 23px;
+      font-weight: 700;
+      color: #FFFFFF;
+      letter-spacing: 0.02em;
+      margin-bottom: 12px;
+      line-height: 1.3;
+    }}
+    .message {{
+      color: #94A3B8;
+      font-size: 14px;
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }}
+    .notice-box {{
+      background: rgba(8, 14, 26, 0.75);
+      border: 1px solid rgba(212, 175, 55, 0.22);
+      border-radius: 14px;
+      padding: 18px 20px;
+      text-align: left;
+      font-size: 12.5px;
+      color: #CBD5E1;
+      margin-bottom: 28px;
+    }}
+    .notice-box p {{
+      margin-bottom: 10px;
+      position: relative;
+      padding-left: 22px;
+      line-height: 1.55;
+    }}
+    .notice-box p:last-child {{
+      margin-bottom: 0;
+    }}
+    .notice-box p::before {{
+      content: '✦';
+      position: absolute;
+      left: 0;
+      top: 0;
+      color: #D4AF37;
+      font-size: 12px;
+    }}
+    .notice-box strong {{
+      color: #F8FAFC;
+    }}
+    .actions {{
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }}
+    .btn-gold {{
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 14px 24px;
+      background: linear-gradient(135deg, #D4AF37 0%, #B8860B 100%);
+      color: #0A111E;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      border-radius: 12px;
+      text-decoration: none;
+      box-shadow: 0 4px 18px rgba(212, 175, 55, 0.35);
+      transition: all 0.25s ease;
+    }}
+    .btn-gold:hover {{
+      background: linear-gradient(135deg, #F6C85F 0%, #D4AF37 100%);
+      box-shadow: 0 8px 25px rgba(212, 175, 55, 0.5);
+      transform: translateY(-2px);
+    }}
+    .btn-ghost {{
+      display: inline-block;
+      width: 100%;
+      padding: 11px 16px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #94A3B8;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 12px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }}
+    .btn-ghost:hover {{
+      background: rgba(255, 255, 255, 0.08);
+      color: #FFFFFF;
+      border-color: rgba(212, 175, 55, 0.3);
+    }}
+    .footer-text {{
+      margin-top: 26px;
+      font-size: 11px;
+      color: #64748B;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }}
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="card">
+    <div class="gold-bar"></div>
+    <div class="brand-header">Shiuli CAD Studio · Haute Joaillerie</div>
+    
+    <div class="icon-wrapper">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+    </div>
+
+    <div><span class="badge">{badge}</span></div>
+    <h1>{title}</h1>
+    <p class="message">{message}</p>
+
+    <div class="notice-box">
+      <p>{security_notice}</p>
+      <p>{action_note}</p>
+    </div>
+
+    <div class="actions">
+      <a href="{orders_url}" class="btn-gold">
+        <span>Request New Link from My Orders</span>
+        <span aria-hidden="true">→</span>
+      </a>
+      <a href="{home_url}" class="btn-ghost">Return to Storefront</a>
+    </div>
+
+    <div class="footer-text">Single-Use Token Security Protocol</div>
+  </div>
+</body>
+</html>"""
+    return HttpResponse(html, content_type='text/html', status=status_code)
+
+
+def handle_download_error(request, title, badge, message, status_code=400, is_second_download=False):
+    """
+    Standardized error handler for CAD file downloads:
+    - If direct browser request: returns luxury HTML notice (never raw DRF browsable API).
+    - If API / XHR request: returns JSON with structured error details.
+    """
+    frontend_base = get_frontend_base_url(request)
+    if is_browser_request(request):
+        return render_luxury_download_notice(
+            title=title,
+            badge=badge,
+            message=message,
+            frontend_url=frontend_base,
+            status_code=status_code,
+            is_second_download=is_second_download
+        )
+    return Response({
+        "error": message,
+        "title": title,
+        "badge": badge,
+        "is_second_download": is_second_download,
+        "code": "SECOND_DOWNLOAD_UNAVAILABLE" if is_second_download else "DOWNLOAD_ERROR",
+        "action_url": f"{frontend_base}/account?tab=downloads"
+    }, status=status_code)
+
+
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
 def download_cad_file(request, token):
@@ -1042,70 +1359,120 @@ def download_cad_file(request, token):
                 .get(token=token)
             )
         except DownloadToken.DoesNotExist:
-            return Response({
-                "error": "This download link is invalid, expired, or has already been used. If this is your purchase, request a new secure link from your Order History."
-            }, status=status.HTTP_404_NOT_FOUND)
+            return handle_download_error(
+                request=request,
+                title="Download Link Expired or Not Found",
+                badge="LINK INVALID",
+                message="This download link is invalid, expired, or has already been used. If this is your purchase, request a new secure link from your Order History.",
+                status_code=status.HTTP_404_NOT_FOUND,
+                is_second_download=False
+            )
 
         # 1. Admin download lock check
         if token_obj.purchase and not token_obj.purchase.download_enabled_by_admin:
-            return Response({
-                "error": "Download permission has been locked by administration for this purchase. Please contact support."
-            }, status=status.HTTP_403_FORBIDDEN)
+            return handle_download_error(
+                request=request,
+                title="Download Locked by Admin",
+                badge="ADMIN LOCKED",
+                message="Download permission has been locked by administration for this purchase. Please contact support.",
+                status_code=status.HTTP_403_FORBIDDEN,
+                is_second_download=False
+            )
 
         if token_obj.order and (token_obj.order.status == 'cancelled' or getattr(token_obj.order, 'is_deleted', False)):
-            return Response({
-                "error": "This order has been cancelled or removed. Please contact support."
-            }, status=status.HTTP_403_FORBIDDEN)
+            return handle_download_error(
+                request=request,
+                title="Order Cancelled",
+                badge="CANCELLED",
+                message="This order has been cancelled or removed. Please contact support.",
+                status_code=status.HTTP_403_FORBIDDEN,
+                is_second_download=False
+            )
 
         # 2. Check revoked status
         if token_obj.status == DownloadToken.Status.REVOKED:
-            return Response({
-                "error": "This download link has been revoked by administration. Please contact support."
-            }, status=status.HTTP_403_FORBIDDEN)
+            return handle_download_error(
+                request=request,
+                title="Download Link Revoked",
+                badge="REVOKED",
+                message="This download link has been revoked by administration. Please contact support.",
+                status_code=status.HTTP_403_FORBIDDEN,
+                is_second_download=False
+            )
 
-        # 3. Check already completed / used
+        # 3. Check already completed / used (SECOND-TIME DOWNLOAD PRECLUSION)
         if token_obj.is_used or token_obj.status == DownloadToken.Status.COMPLETED:
-            return Response({
-                "error": "This download link has already been used and has expired. You can request a new download link from your Order History."
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return handle_download_error(
+                request=request,
+                title="Second-Time Download Not Available",
+                badge="ONE-TIME LINK USED",
+                message="This download link has already been used and has expired. Second-time downloads are not available with this expired link. You can request a fresh download link anytime from your Order History.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                is_second_download=True
+            )
 
         # 4. Check 48-hour expiration
         if token_obj.expires_at < now or token_obj.status == DownloadToken.Status.EXPIRED:
             if token_obj.status != DownloadToken.Status.EXPIRED:
                 token_obj.status = DownloadToken.Status.EXPIRED
                 token_obj.save(update_fields=['status'])
-            return Response({
-                "error": "This download link has expired (48-hour limit). Please request a new secure link from your Order History."
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return handle_download_error(
+                request=request,
+                title="Download Link Expired",
+                badge="EXPIRED (48H LIMIT)",
+                message="This download link has expired (48-hour security limit). Please request a new secure link from your Order History.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                is_second_download=False
+            )
 
         # 5. Check PAID status for catalog purchase
         if token_obj.purchase and token_obj.purchase.status != Purchase.Status.PAID:
-            return Response({
-                "error": "Payment for this purchase has not been completed or verified yet."
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return handle_download_error(
+                request=request,
+                title="Payment Verification Required",
+                badge="PAYMENT PENDING",
+                message="Payment for this purchase has not been completed or verified yet.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                is_second_download=False
+            )
 
         # 6. Email lock validation (if user is authenticated in the session)
         if request.user.is_authenticated and request.user.email:
             if request.user.email.lower() != token_obj.locked_email.lower():
                 buyer_user = token_obj.purchase.buyer if token_obj.purchase else (token_obj.order.client if token_obj.order else None)
                 if not (buyer_user and request.user == buyer_user):
-                    return Response({
-                        "error": "This download link belongs to a different account and cannot be used here."
-                    }, status=status.HTTP_403_FORBIDDEN)
+                    return handle_download_error(
+                        request=request,
+                        title="Access Restricted",
+                        badge="ACCOUNT MISMATCH",
+                        message="This download link belongs to a different account and cannot be used here.",
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        is_second_download=False
+                    )
 
         # 7. Check In-Progress Lease & Attempt Count
         if token_obj.status == DownloadToken.Status.IN_PROGRESS:
             if token_obj.in_progress_started_at and (now - token_obj.in_progress_started_at) < LEASE_DURATION:
-                return Response({
-                    "error": "A download is currently in progress for this link. If your download was interrupted, please try again in 15 minutes."
-                }, status=status.HTTP_409_CONFLICT)
+                return handle_download_error(
+                    request=request,
+                    title="Download In Progress",
+                    badge="LEASE ACTIVE",
+                    message="A download is currently in progress for this link. If your download was interrupted, please try again in 15 minutes.",
+                    status_code=status.HTTP_409_CONFLICT,
+                    is_second_download=False
+                )
             else:
                 if token_obj.attempt_count >= MAX_ATTEMPTS:
                     token_obj.status = DownloadToken.Status.EXPIRED
                     token_obj.save(update_fields=['status'])
-                    return Response({
-                        "error": f"Maximum download attempts ({MAX_ATTEMPTS}) reached for this link. Please request a new link from your Order History."
-                    }, status=status.HTTP_400_BAD_REQUEST)
+                    return handle_download_error(
+                        request=request,
+                        title="Maximum Attempts Exceeded",
+                        badge="ATTEMPTS EXCEEDED",
+                        message=f"Maximum download attempts ({MAX_ATTEMPTS}) reached for this link. Please request a new link from your Order History.",
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        is_second_download=False
+                    )
 
         # 8. Claim token: set to IN_PROGRESS, record attempt & client IP
         x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
@@ -1157,9 +1524,14 @@ def download_cad_file(request, token):
         ]
 
         if not valid_deliverables:
-            return Response({
-                "error": "The assigned CAD designer has not uploaded the production deliverables (.3DM / .STL) for this order yet. Please contact studio support or check back once files have been uploaded."
-            }, status=status.HTTP_404_NOT_FOUND)
+            return handle_download_error(
+                request=request,
+                title="Deliverables Being Prepared",
+                badge="PRODUCTION IN PROGRESS",
+                message="The assigned CAD designer has not uploaded the production deliverables (.3DM / .STL) for this order yet. Please contact studio support or check back once files have been uploaded.",
+                status_code=status.HTTP_404_NOT_FOUND,
+                is_second_download=False
+            )
 
         def get_clean_name(deliv):
             if deliv.original_filename:
@@ -1361,7 +1733,14 @@ def download_cad_file(request, token):
             return response
 
     if not valid_cad_files:
-        return Response({"error": "CAD design file not found for this product. Please contact support."}, status=status.HTTP_404_NOT_FOUND)
+        return handle_download_error(
+            request=request,
+            title="CAD Files Not Found",
+            badge="FILE MISSING",
+            message="CAD design file not found for this product. Please contact support.",
+            status_code=status.HTTP_404_NOT_FOUND,
+            is_second_download=False
+        )
 
     try:
         from apps.core.gdrive_service import GoogleDriveQuotaError, GoogleDriveError

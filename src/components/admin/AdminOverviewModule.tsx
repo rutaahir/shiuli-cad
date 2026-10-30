@@ -37,11 +37,13 @@ interface AdminOverviewModuleProps {
   activityLogs: ActivityLogItem[];
 }
 
+const USD_TO_INR_RATE = 86.85;
 const formatINR = (val: number | string | undefined | null) => {
-  if (val === undefined || val === null || val === '') return '₹0';
+  if (val === undefined || val === null || val === '') return '$0.00';
   const num = typeof val === 'number' ? val : parseFloat(val);
-  if (isNaN(num)) return '₹0';
-  return `₹${Math.round(num).toLocaleString('en-IN')}`;
+  if (isNaN(num) || num <= 0) return '$0.00';
+  const usd = num / USD_TO_INR_RATE;
+  return `$${usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
 export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({

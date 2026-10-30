@@ -13,6 +13,17 @@ from apps.custom_orders.models import Order
 from .models import Payment, Settlement, PaymentPlanTemplate, OrderPaymentStage
 from .serializers import PaymentSerializer, SettlementSerializer, PaymentPlanTemplateSerializer, OrderPaymentStageSerializer
 from .services import get_payment_gateway, process_stage_payment_success
+USD_TO_INR_RATE = 86.85
+
+def _to_usd_str(val):
+    if not val:
+        return "$0.00"
+    try:
+        usd = round(float(val) / USD_TO_INR_RATE, 2)
+        return f"${usd:,.2f}"
+    except Exception:
+        return "$0.00"
+
 
 class PaymentPlanTemplateViewSet(viewsets.ModelViewSet):
     queryset = PaymentPlanTemplate.objects.all()
@@ -402,7 +413,7 @@ def incoming_gateway_logs(request):
                 'label': s.label,
                 'percentage': float(s.percentage),
                 'amount': float(s.amount),
-                'amount_disp': f"₹{float(s.amount):,.2f}",
+                'amount_disp': _to_usd_str(s.amount),
                 'status': s.status,
                 'paid_at': s.paid_at.strftime('%b %d, %Y, %I:%M %p') if s.paid_at else None,
             })
@@ -424,7 +435,7 @@ def incoming_gateway_logs(request):
                 'item_title': item_title,
                 'client': client_name,
                 'client_email': client_email,
-                'amount': f"₹{p.amount:,.2f}",
+                'amount': _to_usd_str(p.amount),
                 'amount_raw': float(p.amount),
                 'payment_type': p.payment_type,
                 'type': stage_label,
@@ -457,7 +468,7 @@ def incoming_gateway_logs(request):
             order_status_display = "100% Fully Settled"
             raw_status = "paid"
         elif order_paid_val > 0:
-            order_status_display = f"Part Payment (₹{order_paid_val:,.2f} Paid)"
+            order_status_display = f"Part Payment ({_to_usd_str(order_paid_val)} Paid)"
             raw_status = "partial"
         else:
             order_status_display = "Awaiting Payment"
@@ -473,7 +484,7 @@ def incoming_gateway_logs(request):
             'item_title': item_title,
             'client': client_name,
             'client_email': client_email,
-            'amount': f"₹{order_total_val:,.2f}",
+            'amount': _to_usd_str(order_total_val),
             'amount_raw': order_total_val,
             'type': f"Custom Order ({total_stages_count} Stages)" if total_stages_count > 0 else "Custom Order",
             'ref': latest_txn['ref'] if latest_txn else f"ord_{order.id}",
@@ -490,11 +501,11 @@ def incoming_gateway_logs(request):
             'paid_stages_count': paid_stages_count,
             'total_stages_count': total_stages_count,
             'order_total_val': order_total_val,
-            'order_total_amount': f"₹{order_total_val:,.2f}",
+            'order_total_amount': _to_usd_str(order_total_val),
             'order_paid_val': order_paid_val,
-            'order_paid_amount': f"₹{order_paid_val:,.2f}",
+            'order_paid_amount': _to_usd_str(order_paid_val),
             'order_remaining_val': order_remaining_val,
-            'order_remaining_amount': f"₹{order_remaining_val:,.2f}",
+            'order_remaining_amount': _to_usd_str(order_remaining_val),
             'is_order_fully_paid': is_order_fully_paid,
             'can_send_download': is_order_fully_paid,
             'download_enabled_by_admin': order.download_enabled_by_admin if order else False,
@@ -506,11 +517,11 @@ def incoming_gateway_logs(request):
             'assigned_staff_role': assigned_staff_role,
             'assigned_staff_id': assigned_staff_id,
             'staff_payout_val': staff_payout_val,
-            'staff_payout_amount': f"₹{staff_payout_val:,.2f}",
+            'staff_payout_amount': _to_usd_str(staff_payout_val),
             'staff_payout_paid': staff_payout_paid,
             'staff_payout_status': staff_payout_status,
             'admin_margin_val': admin_margin_val,
-            'admin_margin_amount': f"₹{admin_margin_val:,.2f}",
+            'admin_margin_amount': _to_usd_str(admin_margin_val),
             'staff_percent': staff_percent,
             'admin_percent': admin_percent,
         })
@@ -522,6 +533,22 @@ def incoming_gateway_logs(request):
         client_email = pur.buyer.email if pur.buyer else ""
         item_title = pur.product.title if pur.product else "Ready CAD Design"
         screenshot_url = request.build_absolute_uri(pur.payment_screenshot.url) if pur.payment_screenshot else None
+        # Normalize to USD for Admin Dashboard
+        price_paid = float(pur.price_paid or 0)
+        currency = (pur.currency or 'USD').upper()
+        rate = float(pur.exchange_rate or USD_TO_INR_RATE) if pur.exchange_rate else USD_TO_INR_RATE
+
+        if pur.original_price_usd and float(pur.original_price_usd) > 0:
+            usd_val = float(pur.original_price_usd)
+        elif currency == 'INR' or price_paid > 500:
+            usd_val = round(price_paid / rate, 2)
+        elif pur.product and pur.product.price:
+            usd_val = float(pur.product.price)
+        else:
+            usd_val = price_paid
+
+        client_amt_disp = f"₹{int(round(price_paid)):,}" if currency == 'INR' and price_paid > 100 else None
+
         logs.append({
             'id': f"PUR-{pur.id}",
             'purchase_id': pur.id,
@@ -529,8 +556,9 @@ def incoming_gateway_logs(request):
             'client': client_name,
             'client_email': client_email,
             'item_title': item_title,
-            'amount': f"₹{pur.price_paid:,.2f}",
-            'amount_raw': float(pur.price_paid),
+            'amount': f"${usd_val:,.2f}",
+            'amount_raw': usd_val,
+            'client_amount_disp': client_amt_disp,
             'type': f"Store Purchase ({pur.get_license_type_display()})",
             'ref': pur.payment_transaction_id or f"pur_tx_{pur.id}",
             'payment_method': pur.payment_method or "upi",
@@ -552,11 +580,11 @@ def incoming_gateway_logs(request):
             'assigned_staff_role': 'Atelier Asset',
             'assigned_staff_id': None,
             'staff_payout_val': 0.0,
-            'staff_payout_amount': '₹0.00',
+            'staff_payout_amount': '$0.00',
             'staff_payout_paid': 0.0,
             'staff_payout_status': 'settled',
-            'admin_margin_val': float(pur.price_paid),
-            'admin_margin_amount': f"₹{pur.price_paid:,.2f}",
+            'admin_margin_val': usd_val,
+            'admin_margin_amount': f"${usd_val:,.2f}",
             'staff_percent': 0,
             'admin_percent': 100,
         })
@@ -605,11 +633,11 @@ def incoming_gateway_logs(request):
                 'assigned_staff_name': getattr(fe, 'assigned_designer_name', 'CAD Specialist'),
                 'assigned_staff_role': 'CAD Modeller',
                 'staff_payout_val': fe_staff_payout,
-                'staff_payout_amount': f"₹{fe_staff_payout:,.2f}",
+                'staff_payout_amount': _to_usd_str(fe_staff_payout),
                 'staff_payout_paid': 0.0,
                 'staff_payout_status': 'pending',
                 'admin_margin_val': fe_admin_margin,
-                'admin_margin_amount': f"₹{fe_admin_margin:,.2f}",
+                'admin_margin_amount': _to_usd_str(fe_admin_margin),
                 'staff_percent': 70,
                 'admin_percent': 30,
             })
