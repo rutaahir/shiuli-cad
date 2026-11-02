@@ -90,26 +90,20 @@ export function formatCustomerAmount(
 ): string {
   if (amount === undefined || amount === null || amount === '') {
     const sym = symbol || CURRENCY_SYMBOLS[currencyCode.toUpperCase()] || '$';
-    return `${sym}0`;
+    return `${sym}0.00`;
   }
   const num = typeof amount === 'string' ? parseFloat(amount) : Number(amount);
   if (isNaN(num) || num <= 0) {
     const sym = symbol || CURRENCY_SYMBOLS[currencyCode.toUpperCase()] || '$';
-    return `${sym}0`;
+    return `${sym}0.00`;
   }
 
   const cur = currencyCode.toUpperCase();
   const sym = symbol !== undefined ? symbol : (CURRENCY_SYMBOLS[cur] || '$');
 
-  if (['INR', 'JPY', 'KRW', 'VND', 'IDR', 'BDT', 'NPR', 'LKR'].includes(cur)) {
-    const rounded = Math.round(num);
-    const formattedNum = cur === 'INR'
-      ? rounded.toLocaleString('en-IN')
-      : rounded.toLocaleString();
-    return `${sym}${formattedNum}`;
-  }
-
-  return `${sym}${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  // Maintain precise 2 decimal places (.00) across all currencies including INR
+  const locale = cur === 'INR' ? 'en-IN' : 'en-US';
+  return `${sym}${num.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /**
@@ -135,12 +129,7 @@ export function convertUsdToCustomer(
   const rate = customRate || DEFAULT_EXCHANGE_RATES[cur] || 1.0;
 
   const rawConverted = cleanUsd * rate;
-  let finalAmount = 0;
-  if (['INR', 'JPY', 'KRW', 'VND', 'IDR', 'BDT', 'NPR', 'LKR'].includes(cur)) {
-    finalAmount = Math.round(rawConverted);
-  } else {
-    finalAmount = Math.round(rawConverted * 100) / 100;
-  }
+  const finalAmount = Math.round(rawConverted * 100) / 100;
 
   const display = formatCustomerAmount(finalAmount, cur, sym);
   const displayWithUsd = cur === 'USD'
@@ -216,11 +205,11 @@ export function convertUsdToInr(usdVal: number | string | undefined | null, rate
  * Formats a value in INR. Converts USD if val is in USD.
  */
 export function formatINR(val: number | string | undefined | null, isAlreadyInr: boolean = false): string {
-  if (val === undefined || val === null || val === '') return '₹0';
+  if (val === undefined || val === null || val === '') return '₹0.00';
   const num = typeof val === 'string' ? parseFloat(val) : Number(val);
-  if (isNaN(num) || num <= 0) return '₹0';
+  if (isNaN(num) || num <= 0) return '₹0.00';
   const inr = isAlreadyInr ? num : (num * USD_TO_INR_RATE);
-  return `₹${Math.round(inr).toLocaleString('en-IN')}`;
+  return `₹${inr.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export function formatRupee(val: number | string | undefined | null): string {

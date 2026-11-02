@@ -592,6 +592,10 @@ export interface ClientCreditAccount {
   status: 'active' | 'suspended' | 'disabled';
   payment_terms_days: number;
   notes?: string;
+  expires_at?: string | null;
+  validity_duration?: string;
+  is_expired?: boolean;
+  time_remaining_seconds?: number | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -601,6 +605,9 @@ export interface WalletCreditTransaction {
   account_type: 'wallet' | 'credit';
   transaction_type: 'topup' | 'wallet_spend' | 'credit_spend' | 'repayment' | 'admin_adjustment' | 'refund';
   amount: number;
+  original_amount?: number | null;
+  currency?: string;
+  exchange_rate?: number | null;
   running_balance: number;
   reference_order?: number;
   reference_purchase?: number;

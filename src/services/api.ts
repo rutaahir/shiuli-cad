@@ -1855,7 +1855,7 @@ class ApiClient {
   }
 
   async submitWalletTopup(formData: FormData): Promise<any> {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('shiuli_access_token') || localStorage.getItem('access_token');
     const headers: Record<string, string> = {};
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
@@ -1873,7 +1873,7 @@ class ApiClient {
   }
 
   async submitCreditRepayment(formData: FormData): Promise<any> {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('shiuli_access_token') || localStorage.getItem('access_token');
     const headers: Record<string, string> = {};
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
@@ -1888,6 +1888,54 @@ class ApiClient {
       throw new Error(err.error || err.message || 'Failed to submit credit repayment.');
     }
     return res.json();
+  }
+
+  async createRazorpayCreditRepaymentOrder(payload: {
+    amount: number | string;
+    currency?: string;
+    amount_usd?: number | string;
+  }): Promise<any> {
+    return this.request<any>('/payments/credit/razorpay/create-order/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async verifyRazorpayCreditRepayment(payload: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature?: string;
+    amount_usd?: number | string;
+    amount_inr?: number | string;
+  }): Promise<any> {
+    return this.request<any>('/payments/credit/razorpay/verify/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async createRazorpayWalletTopupOrder(payload: {
+    amount: number | string;
+    currency?: string;
+    amount_usd?: number | string;
+  }): Promise<any> {
+    return this.request<any>('/payments/wallet/razorpay/create-order/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async verifyRazorpayWalletTopup(payload: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature?: string;
+    amount_usd?: number | string;
+    amount_inr?: number | string;
+  }): Promise<any> {
+    return this.request<any>('/payments/wallet/razorpay/verify/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   }
 
   async checkoutWithWallet(payload: {
@@ -1918,6 +1966,17 @@ class ApiClient {
     });
   }
 
+  async applySplitPayment(payload: {
+    credit_amount_usd?: number | string;
+    wallet_amount_usd?: number | string;
+    notes?: string;
+  }): Promise<any> {
+    return this.request<any>('/payments/apply-split-payment/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
   async getAdminClientCredits(): Promise<{
     metrics: any;
     clients: any[];
@@ -1932,6 +1991,10 @@ class ApiClient {
     credit_limit?: number;
     status?: string;
     notes?: string;
+    timeline_type?: 'hours' | 'days' | 'custom_datetime' | 'unlimited';
+    timeline_value?: number;
+    expires_at?: string | null;
+    validity_duration?: string;
   }): Promise<any> {
     return this.request<any>('/payments/admin/client-credits/set-limit/', {
       method: 'POST',

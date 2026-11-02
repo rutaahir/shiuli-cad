@@ -36,8 +36,12 @@ import {
   AdminClientCreditItem,
   AdminCreditMetrics
 } from '../../types';
+import { useCustomerCountry } from '../../utils/countryContext';
+import { CURRENCY_SYMBOLS } from '../../utils/currencyHelper';
 
 export const AdminCreditsModule: React.FC = () => {
+  const { exchangeRates } = useCustomerCountry();
+  const inrRate = exchangeRates['INR'] || 86.85;
   const [loading, setLoading] = useState<boolean>(true);
   const [metrics, setMetrics] = useState<AdminCreditMetrics>({
     total_wallet_float: 0,
@@ -60,6 +64,9 @@ export const AdminCreditsModule: React.FC = () => {
   const [limitInput, setLimitInput] = useState<string>('');
   const [statusInput, setStatusInput] = useState<'active' | 'suspended' | 'disabled'>('active');
   const [notesInput, setNotesInput] = useState<string>('');
+  const [timelineType, setTimelineType] = useState<'hours' | 'days' | 'unlimited' | 'custom'>('unlimited');
+  const [timelineValue, setTimelineValue] = useState<number>(1);
+  const [customExpiresAt, setCustomExpiresAt] = useState<string>('');
   const [savingLimit, setSavingLimit] = useState<boolean>(false);
 
   const [selectedClientForWallet, setSelectedClientForWallet] = useState<AdminClientCreditItem | null>(null);
@@ -97,17 +104,46 @@ export const AdminCreditsModule: React.FC = () => {
     setLimitInput(String(client.credit_account.credit_limit || '0'));
     setStatusInput(client.credit_account.status || 'active');
     setNotesInput(client.credit_account.notes || '');
+
+    if (client.credit_account.expires_at) {
+      try {
+        const d = new Date(client.credit_account.expires_at);
+        // Format to YYYY-MM-DDTHH:MM for datetime-local input
+        const localIso = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        setCustomExpiresAt(localIso);
+      } catch {
+        setCustomExpiresAt('');
+      }
+      setTimelineType('custom');
+    } else {
+      setTimelineType('unlimited');
+      setTimelineValue(1);
+      setCustomExpiresAt('');
+    }
   };
 
   const handleSaveLimit = async () => {
     if (!selectedClientForLimit) return;
     setSavingLimit(true);
     try {
+      const durationLabel =
+        timelineType === 'hours'
+          ? `${timelineValue} Hour${timelineValue !== 1 ? 's' : ''}`
+          : timelineType === 'days'
+          ? `${timelineValue} Day${timelineValue !== 1 ? 's' : ''}`
+          : timelineType === 'custom'
+          ? customExpiresAt ? `Until ${new Date(customExpiresAt).toLocaleString()}` : 'Custom Timeline'
+          : 'Permanent Net-30';
+
       await api.adminSetCreditLimit({
         client_id: selectedClientForLimit.id,
         credit_limit: parseFloat(limitInput) || 0,
         status: statusInput,
         notes: notesInput,
+        timeline_type: timelineType === 'custom' ? (customExpiresAt ? 'custom_datetime' : 'unlimited') : timelineType,
+        timeline_value: timelineValue,
+        expires_at: timelineType === 'custom' && customExpiresAt ? new Date(customExpiresAt).toISOString() : undefined,
+        validity_duration: durationLabel,
       });
       setSelectedClientForLimit(null);
       await fetchCreditsData();
@@ -421,7 +457,7 @@ export const AdminCreditsModule: React.FC = () => {
                               ${walletBal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
                             </div>
                             <span className="text-[10px] text-emerald-600 font-mono block">
-                              ≈ ₹{Math.round(walletBal * 86.85).toLocaleString('en-IN')} INR
+                              ≈ ₹{(walletBal * inrRate).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} INR
                             </span>
                           </td>
 
@@ -432,13 +468,24 @@ export const AdminCreditsModule: React.FC = () => {
                               <span className="text-[10px] text-slate-400 font-normal"> / ${limit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span>
                             </div>
                             <div className="text-[10px] font-mono text-slate-500">
-                              Avail: ≈ ₹{Math.round(avail * 86.85).toLocaleString('en-IN')} INR
+                              Avail: ≈ ₹{(avail * inrRate).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} INR
                             </div>
                             {used > 0 && (
                               <div className="text-[10px] font-mono text-amber-700">
-                                Debt: ${used.toFixed(2)} USD (~ ₹{Math.round(used * 86.85).toLocaleString('en-IN')})
+                                Debt: ${used.toFixed(2)} USD (~ ₹{(used * inrRate).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
                               </div>
                             )}
+                            {client.credit_account.is_expired ? (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-rose-100 text-rose-800 border border-rose-300 inline-flex items-center gap-1 mt-1">
+                                <AlertCircle className="w-2.5 h-2.5 text-rose-700" />
+                                <span>Expired Facility</span>
+                              </span>
+                            ) : client.credit_account.expires_at ? (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-amber-50 text-amber-900 border border-amber-300 inline-flex items-center gap-1 mt-1">
+                                <Clock className="w-2.5 h-2.5 text-amber-700" />
+                                <span>{client.credit_account.validity_duration || 'Time-Limited'}</span>
+                              </span>
+                            ) : null}
                           </td>
 
                           {/* Utilization Bar */}
@@ -465,29 +512,26 @@ export const AdminCreditsModule: React.FC = () => {
 
                           {/* Status */}
                           <td className="p-3.5">
-                            <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono ${
-                                client.credit_account.status === 'active' && limit > 0
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                  : client.credit_account.status === 'suspended'
-                                  ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                                  : 'bg-slate-100 text-slate-500 border border-slate-200'
-                              }`}
-                            >
-                              {client.credit_account.status === 'active' && limit > 0 ? (
-                                <>
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                  <span>Active VIP Line</span>
-                                </>
-                              ) : client.credit_account.status === 'suspended' ? (
-                                <>
-                                  <AlertCircle className="w-3 h-3 text-rose-600" />
-                                  <span>Suspended</span>
-                                </>
-                              ) : (
+                            {client.credit_account.is_expired ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono bg-rose-100 text-rose-800 border border-rose-200">
+                                <AlertCircle className="w-3 h-3 text-rose-600" />
+                                <span>Expired Credit</span>
+                              </span>
+                            ) : client.credit_account.status === 'active' && limit > 0 ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                <span>{client.credit_account.expires_at ? 'Active (Limited)' : 'Active VIP Line'}</span>
+                              </span>
+                            ) : client.credit_account.status === 'suspended' ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono bg-rose-50 text-rose-700 border border-rose-200">
+                                <AlertCircle className="w-3 h-3 text-rose-600" />
+                                <span>Suspended</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono bg-slate-100 text-slate-500 border border-slate-200">
                                 <span>Standard Account</span>
-                              )}
-                            </span>
+                              </span>
+                            )}
                           </td>
 
                           {/* Action Buttons */}
@@ -579,13 +623,32 @@ export const AdminCreditsModule: React.FC = () => {
                         <div className="text-[11px] text-[#5A6679] font-mono">{tx.user_email}</div>
                       </div>
                       <div className="text-right">
-                        <div className="text-xl font-mono font-extrabold text-[#0B1330]">
-                          ${Number(tx.amount).toFixed(2)} USD
-                        </div>
-                        <div className="text-[10.5px] text-emerald-700 font-mono font-bold">
-                          ≈ ₹{Math.round(Number(tx.amount) * 86.85).toLocaleString('en-IN')} INR
-                        </div>
-                        <div className="text-[10px] text-slate-400 font-mono uppercase">
+                        {tx.original_amount && tx.currency && tx.currency !== 'USD' ? (
+                          <>
+                            <div className="text-xl font-mono font-extrabold text-[#0B1330]">
+                              {tx.currency === 'INR' ? '₹' : (CURRENCY_SYMBOLS[tx.currency] || '')}
+                              {Number(tx.original_amount).toLocaleString(tx.currency === 'INR' ? 'en-IN' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tx.currency}
+                            </div>
+                            <div className="text-[11px] text-emerald-700 font-mono font-bold">
+                              ≈ ${Number(tx.amount).toFixed(2)} USD float
+                              {tx.exchange_rate && Number(tx.exchange_rate) > 0 && (
+                                <span className="text-[10px] text-slate-500 font-normal ml-1">
+                                  (1 USD = {tx.currency === 'INR' ? '₹' : ''}{Number(tx.exchange_rate).toFixed(2)})
+                                </span>
+                              )}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="text-xl font-mono font-extrabold text-[#0B1330]">
+                              ${Number(tx.amount).toFixed(2)} USD
+                            </div>
+                            <div className="text-[10.5px] text-emerald-700 font-mono font-bold">
+                              ≈ ₹{(Number(tx.amount) * inrRate).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} INR
+                            </div>
+                          </>
+                        )}
+                        <div className="text-[10px] text-slate-400 font-mono uppercase mt-0.5">
                           Via {tx.payment_method || 'Bank Transfer'}
                         </div>
                       </div>
@@ -703,7 +766,12 @@ export const AdminCreditsModule: React.FC = () => {
                           {tx.transaction_type.replace('_', ' ')}
                         </td>
                         <td className="p-3.5 font-mono font-bold text-sm">
-                          ${Number(tx.amount).toFixed(2)}
+                          ${Number(tx.amount).toFixed(2)} USD
+                          {tx.original_amount && tx.currency && tx.currency !== 'USD' && (
+                            <span className="block text-[10px] text-emerald-700 font-mono font-normal">
+                              ({tx.currency === 'INR' ? '₹' : (CURRENCY_SYMBOLS[tx.currency] || '')}{Number(tx.original_amount).toLocaleString(tx.currency === 'INR' ? 'en-IN' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tx.currency})
+                            </span>
+                          )}
                         </td>
                         <td className="p-3.5 font-mono text-slate-500">
                           ${Number(tx.running_balance).toFixed(2)}
@@ -788,6 +856,113 @@ export const AdminCreditsModule: React.FC = () => {
                       ${preset}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Validity & Expiration Timeline (User Requested Feature) */}
+              <div className="p-3 rounded-2xl bg-[#FFF9F0] border border-[#E8D7B7] space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-[#17243B] flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-[#B88732]" />
+                    <span>Credit Validity &amp; Expiration Timeline</span>
+                  </label>
+                  <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
+                    timelineType === 'unlimited'
+                      ? 'bg-slate-100 text-slate-600'
+                      : 'bg-amber-100 text-amber-900 border border-amber-300'
+                  }`}>
+                    {timelineType === 'unlimited' ? 'No Expiration' : 'Time-Limited Facility'}
+                  </span>
+                </div>
+
+                <div className="text-[11px] text-[#5A6679]">
+                  Specify how long the customer has to shop with this credit line before it expires:
+                </div>
+
+                {/* Preset Timeline Buttons */}
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+                  {[
+                    { label: '1 Hour', type: 'hours' as const, val: 1 },
+                    { label: '3 Hours', type: 'hours' as const, val: 3 },
+                    { label: '12 Hours', type: 'hours' as const, val: 12 },
+                    { label: '1 Day', type: 'days' as const, val: 1 },
+                    { label: '2 Days', type: 'days' as const, val: 2 },
+                    { label: '7 Days', type: 'days' as const, val: 7 },
+                    { label: '30 Days', type: 'days' as const, val: 30 },
+                    { label: 'Unlimited', type: 'unlimited' as const, val: 0 },
+                    { label: 'Custom', type: 'custom' as const, val: 0 },
+                  ].map((preset) => {
+                    const isSelected =
+                      preset.type === 'custom'
+                        ? timelineType === 'custom'
+                        : preset.type === 'unlimited'
+                        ? timelineType === 'unlimited'
+                        : timelineType === preset.type && timelineValue === preset.val;
+
+                    return (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => {
+                          setTimelineType(preset.type);
+                          if (preset.type === 'hours' || preset.type === 'days') {
+                            setTimelineValue(preset.val);
+                          }
+                        }}
+                        className={`py-1.5 px-2 rounded-lg text-[10px] font-mono font-bold transition-all border cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#0B1330] text-[#F5E7A3] border-[#D4AF37] shadow-xs'
+                            : 'bg-white text-[#5A6679] border-[#E8D7B7] hover:bg-[#FFF9F0]'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Custom Date/Time input */}
+                {timelineType === 'custom' && (
+                  <div className="p-2.5 rounded-xl bg-white border border-amber-300 space-y-1.5">
+                    <label className="text-[11px] font-bold text-[#8C6218] block">
+                      Choose Expiration Date &amp; Time:
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={customExpiresAt}
+                      onChange={(e) => setCustomExpiresAt(e.target.value)}
+                      className="w-full px-3 py-1.5 rounded-lg border border-[#E8D7B7] text-xs font-mono bg-white focus:outline-none focus:border-[#B88732]"
+                    />
+                  </div>
+                )}
+
+                {/* Live Preview of Expiration */}
+                <div className={`p-2.5 rounded-xl border text-xs flex items-start gap-2 ${
+                  timelineType === 'unlimited'
+                    ? 'bg-slate-50 border-slate-200 text-slate-700'
+                    : 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-300 text-amber-950'
+                }`}>
+                  <Clock className={`w-4 h-4 shrink-0 mt-0.5 ${timelineType === 'unlimited' ? 'text-slate-400' : 'text-amber-700'}`} />
+                  <div className="space-y-0.5">
+                    <span className="font-bold block">
+                      {timelineType === 'unlimited'
+                        ? 'Standard Permanent Facility (Net-30 Billing)'
+                        : `Expiring Credit Facility: Active for ${
+                            timelineType === 'hours'
+                              ? `${timelineValue} Hour${timelineValue !== 1 ? 's' : ''}`
+                              : timelineType === 'days'
+                              ? `${timelineValue} Day${timelineValue !== 1 ? 's' : ''}`
+                              : customExpiresAt
+                              ? `Until ${new Date(customExpiresAt).toLocaleString()}`
+                              : 'Custom Time'
+                          }`}
+                    </span>
+                    <p className="text-[11px] leading-relaxed opacity-90">
+                      {timelineType === 'unlimited'
+                        ? 'Customer enjoys permanent revolving credit with net-30 days billing terms.'
+                        : `Customer must shop with this $${limitInput || '0'} USD credit within the timeline. Any unused credit automatically expires.`}
+                    </p>
+                  </div>
                 </div>
               </div>
 

@@ -107,15 +107,23 @@ class ClientCreditAccountSerializer(serializers.ModelSerializer):
     used_credit = serializers.FloatField(read_only=True)
     available_credit = serializers.FloatField(read_only=True)
     utilization_percentage = serializers.SerializerMethodField()
+    is_expired = serializers.BooleanField(read_only=True)
+    time_remaining_seconds = serializers.IntegerField(read_only=True, allow_null=True)
+    expires_at = serializers.DateTimeField(required=False, allow_null=True)
+    validity_duration = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model = ClientCreditAccount
         fields = [
             'id', 'credit_limit', 'used_credit', 'available_credit',
             'utilization_percentage', 'status', 'payment_terms_days',
-            'notes', 'created_at', 'updated_at'
+            'notes', 'expires_at', 'validity_duration', 'is_expired',
+            'time_remaining_seconds', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'used_credit', 'available_credit', 'utilization_percentage', 'created_at', 'updated_at']
+        read_only_fields = [
+            'id', 'used_credit', 'available_credit', 'utilization_percentage',
+            'is_expired', 'time_remaining_seconds', 'created_at', 'updated_at'
+        ]
 
     def get_utilization_percentage(self, obj):
         if not obj.credit_limit or obj.credit_limit <= 0:
@@ -126,6 +134,8 @@ class ClientCreditAccountSerializer(serializers.ModelSerializer):
 
 class WalletCreditTransactionSerializer(serializers.ModelSerializer):
     amount = serializers.FloatField(read_only=True)
+    original_amount = serializers.FloatField(read_only=True)
+    exchange_rate = serializers.FloatField(read_only=True)
     running_balance = serializers.FloatField(read_only=True)
     user_name = serializers.SerializerMethodField()
     user_email = serializers.SerializerMethodField()
@@ -136,6 +146,7 @@ class WalletCreditTransactionSerializer(serializers.ModelSerializer):
         model = WalletCreditTransaction
         fields = [
             'id', 'account_type', 'transaction_type', 'amount',
+            'original_amount', 'currency', 'exchange_rate',
             'running_balance', 'reference_order', 'reference_purchase',
             'reference_title', 'payment_method', 'transaction_ref',
             'payment_screenshot', 'screenshot_url', 'status', 'notes',

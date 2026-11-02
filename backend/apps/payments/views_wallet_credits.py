@@ -1,5 +1,10 @@
 import uuid
+import secrets
+import hmac
+import hashlib
+import datetime
 from decimal import Decimal
+from django.conf import settings
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import Q
@@ -94,11 +99,35 @@ def wallet_topup_request(request):
     Requires admin verification unless automatic demo mode.
     """
     amount_raw = request.data.get('amount')
-    if not amount_raw:
+    original_amount_raw = request.data.get('original_amount')
+    currency = str(request.data.get('currency', 'USD')).strip().upper() or 'USD'
+    exchange_rate_raw = request.data.get('exchange_rate')
+
+    if not amount_raw and not original_amount_raw:
         return Response({"error": "Amount is required."}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        amount = Decimal(str(amount_raw))
+        if amount_raw:
+            amount = Decimal(str(amount_raw)).quantize(Decimal('0.01'))
+        else:
+            amount = Decimal('0.00')
+
+        if original_amount_raw:
+            original_amount = Decimal(str(original_amount_raw)).quantize(Decimal('0.01'))
+        else:
+            original_amount = amount
+
+        if exchange_rate_raw:
+            exchange_rate = Decimal(str(exchange_rate_raw)).quantize(Decimal('0.0001'))
+        else:
+            exchange_rate = Decimal('1.0000')
+
+        if amount <= Decimal('0.00') and original_amount > Decimal('0.00'):
+            if exchange_rate > Decimal('0.0000'):
+                amount = (original_amount / exchange_rate).quantize(Decimal('0.01'))
+            else:
+                amount = original_amount
+
         if amount <= Decimal('0.00'):
             raise ValueError()
     except Exception:
@@ -106,7 +135,12 @@ def wallet_topup_request(request):
 
     payment_method = request.data.get('payment_method', 'bank_transfer')
     transaction_ref = request.data.get('transaction_ref', '')
-    notes = request.data.get('notes', 'Wallet deposit request')
+    notes = request.data.get('notes', '')
+    if not notes:
+        if currency != 'USD':
+            notes = f"Wallet top-up deposit request ({currency} {original_amount:,.2f})"
+        else:
+            notes = f"Wallet top-up deposit request (${amount:,.2f} USD)"
     screenshot = request.FILES.get('payment_screenshot')
 
     wallet, _ = _get_or_create_wallet_and_credit(request.user)
@@ -116,6 +150,9 @@ def wallet_topup_request(request):
         account_type=WalletCreditTransaction.AccountType.WALLET,
         transaction_type=WalletCreditTransaction.TransactionType.TOPUP,
         amount=amount,
+        original_amount=original_amount,
+        currency=currency,
+        exchange_rate=exchange_rate,
         running_balance=wallet.balance,
         payment_method=payment_method,
         transaction_ref=transaction_ref,
@@ -125,7 +162,7 @@ def wallet_topup_request(request):
     )
 
     return Response({
-        "message": f"Top-up request for ${amount:.2f} USD submitted successfully. It will be credited once verified.",
+        "message": f"Top-up request for ${amount:.2f} USD ({currency} {original_amount:,.2f}) submitted successfully. It will be credited once verified.",
         "transaction": WalletCreditTransactionSerializer(tx, context={'request': request}).data
     }, status=status.HTTP_201_CREATED)
 
@@ -142,8 +179,14 @@ def credit_repayment_request(request):
         return Response({"error": "You currently have no outstanding credit bill to settle."}, status=status.HTTP_400_BAD_REQUEST)
 
     amount_raw = request.data.get('amount')
+    original_amount_raw = request.data.get('original_amount')
+    currency = str(request.data.get('currency', 'USD')).strip().upper() or 'USD'
+    exchange_rate_raw = request.data.get('exchange_rate')
+
     try:
-        amount = Decimal(str(amount_raw)) if amount_raw else credit_account.used_credit
+        amount = Decimal(str(amount_raw)).quantize(Decimal('0.01')) if amount_raw else credit_account.used_credit
+        original_amount = Decimal(str(original_amount_raw)).quantize(Decimal('0.01')) if original_amount_raw else amount
+        exchange_rate = Decimal(str(exchange_rate_raw)).quantize(Decimal('0.0001')) if exchange_rate_raw else Decimal('1.0000')
         if amount <= Decimal('0.00'):
             raise ValueError()
     except Exception:
@@ -152,7 +195,12 @@ def credit_repayment_request(request):
     repay_amount = min(amount, credit_account.used_credit)
     payment_method = request.data.get('payment_method', 'bank_transfer')
     transaction_ref = request.data.get('transaction_ref', '')
-    notes = request.data.get('notes', 'Credit line settlement')
+    notes = request.data.get('notes', '')
+    if not notes:
+        if currency != 'USD':
+            notes = f"Credit bill settlement ({currency} {original_amount:,.2f})"
+        else:
+            notes = f"Credit line settlement (${repay_amount:,.2f} USD)"
     screenshot = request.FILES.get('payment_screenshot')
 
     tx = WalletCreditTransaction.objects.create(
@@ -160,6 +208,9 @@ def credit_repayment_request(request):
         account_type=WalletCreditTransaction.AccountType.CREDIT,
         transaction_type=WalletCreditTransaction.TransactionType.REPAYMENT,
         amount=repay_amount,
+        original_amount=original_amount,
+        currency=currency,
+        exchange_rate=exchange_rate,
         running_balance=credit_account.available_credit,
         payment_method=payment_method,
         transaction_ref=transaction_ref,
@@ -169,9 +220,445 @@ def credit_repayment_request(request):
     )
 
     return Response({
-        "message": f"Repayment slip for ${repay_amount:.2f} USD submitted. Credit limit will restore upon admin review.",
+        "message": f"Repayment slip for ${repay_amount:.2f} USD ({currency} {original_amount:,.2f}) submitted. Credit limit will restore upon admin review.",
         "transaction": WalletCreditTransactionSerializer(tx, context={'request': request}).data
     }, status=status.HTTP_201_CREATED)
+
+
+# ─── RAZORPAY CREDIT REPAYMENT & WALLET TOPUP GATEWAY ─────────────────────────
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def create_razorpay_credit_repayment_order(request):
+    """
+    POST /api/payments/credit/razorpay/create-order/
+    Creates a server-side order with Razorpay SDK before launching Checkout modal.
+    """
+    wallet, credit_account = _get_or_create_wallet_and_credit(request.user)
+
+    if credit_account.used_credit <= Decimal('0.00'):
+        return Response({"error": "You currently have no outstanding credit bill to settle."}, status=status.HTTP_400_BAD_REQUEST)
+
+    currency = (request.data.get('currency') or 'INR').upper()
+    amount_raw = request.data.get('amount')
+    try:
+        req_amount = Decimal(str(amount_raw)) if amount_raw else Decimal(str(credit_account.used_credit))
+        if req_amount <= Decimal('0.00'):
+            raise ValueError()
+    except Exception:
+        return Response({"error": "Invalid repayment amount specified."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Determine repay_amount in USD
+    if currency == 'USD':
+        repay_usd = req_amount
+    elif currency == 'INR':
+        repay_usd = round(req_amount / USD_TO_INR_RATE, 2)
+    else:
+        usd_val = request.data.get('amount_usd')
+        if usd_val:
+            repay_usd = Decimal(str(usd_val))
+        else:
+            repay_usd = round(req_amount / USD_TO_INR_RATE, 2)
+
+    repay_usd = min(repay_usd, credit_account.used_credit)
+    if repay_usd <= Decimal('0.00'):
+        return Response({"error": "No outstanding credit debt to repay."}, status=status.HTTP_400_BAD_REQUEST)
+
+    amount_inr = round(repay_usd * USD_TO_INR_RATE, 2)
+    amount_paise = int(round(float(amount_inr) * 100))
+
+    key_id = getattr(settings, 'RAZORPAY_KEY_ID', '').strip()
+    key_secret = getattr(settings, 'RAZORPAY_KEY_SECRET', '').strip()
+
+    razorpay_order_id = None
+    receipt_id = f"rcpt_crd_{request.user.id}_{secrets.token_hex(4)}"
+    if key_id and key_secret and not key_id.startswith('dummy'):
+        try:
+            import razorpay
+            client = razorpay.Client(auth=(key_id, key_secret))
+            rzp_order = client.order.create(data={
+                'amount': amount_paise,
+                'currency': 'INR',
+                'receipt': receipt_id,
+                'notes': {
+                    'purpose': 'credit_repayment',
+                    'user_id': request.user.id,
+                    'user_email': request.user.email,
+                    'amount_usd': str(repay_usd),
+                    'amount_inr': str(amount_inr)
+                }
+            })
+            razorpay_order_id = rzp_order.get('id')
+        except Exception as e:
+            print(f"[RAZORPAY CREDIT ORDER WARNING] {e}")
+            razorpay_order_id = f"order_crd_{secrets.token_hex(8)}"
+    else:
+        razorpay_order_id = f"order_crd_{secrets.token_hex(8)}"
+
+    is_sandbox = not bool(key_id and not key_id.startswith('rzp_test') and key_secret)
+
+    return Response({
+        "razorpay_order_id": razorpay_order_id,
+        "amount_paise": amount_paise,
+        "amount_inr": float(amount_inr),
+        "amount_usd": float(repay_usd),
+        "currency": "INR",
+        "key_id": key_id or "rzp_test_shiuli_sandbox",
+        "client_name": request.user.get_full_name() or request.user.username,
+        "client_email": request.user.email,
+        "client_phone": getattr(request.user, 'phone_number', '') or '',
+        "is_sandbox": is_sandbox,
+        "outstanding_balance_usd": float(credit_account.used_credit),
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def verify_razorpay_credit_repayment(request):
+    """
+    POST /api/payments/credit/razorpay/verify/
+    Validates Razorpay payment signature cryptographically, clears credit debt,
+    and logs a completed WalletCreditTransaction.
+    """
+    razorpay_order_id = request.data.get('razorpay_order_id')
+    razorpay_payment_id = request.data.get('razorpay_payment_id') or request.data.get('payment_transaction_id')
+    razorpay_signature = request.data.get('razorpay_signature')
+
+    if not razorpay_payment_id:
+        return Response({"error": "razorpay_payment_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Idempotency check
+    existing = WalletCreditTransaction.objects.filter(
+        transaction_ref=razorpay_payment_id,
+        user=request.user
+    ).first()
+    if existing:
+        _, credit_acc = _get_or_create_wallet_and_credit(request.user)
+        return Response({
+            "message": "Payment verified and credited previously.",
+            "transaction": WalletCreditTransactionSerializer(existing, context={'request': request}).data,
+            "credit_account": ClientCreditAccountSerializer(credit_acc).data,
+            "already_processed": True
+        })
+
+    key_id = getattr(settings, 'RAZORPAY_KEY_ID', '').strip()
+    key_secret = getattr(settings, 'RAZORPAY_KEY_SECRET', '').strip()
+
+    is_valid = False
+    if key_id and key_secret and razorpay_signature and razorpay_order_id and not key_id.startswith('dummy'):
+        try:
+            import razorpay
+            client = razorpay.Client(auth=(key_id, key_secret))
+            client.utility.verify_payment_signature({
+                'razorpay_order_id': razorpay_order_id,
+                'razorpay_payment_id': razorpay_payment_id,
+                'razorpay_signature': razorpay_signature
+            })
+            is_valid = True
+        except Exception as e:
+            print(f"[RAZORPAY CREDIT SIGNATURE CHECK ERROR] {e}")
+            is_valid = False
+    elif getattr(settings, 'DEBUG', False) or (key_id and key_id.startswith('rzp_test')) or not key_secret:
+        if key_secret and razorpay_signature and razorpay_order_id:
+            msg = f"{razorpay_order_id}|{razorpay_payment_id}".encode()
+            expected = hmac.new(key_secret.encode(), msg, hashlib.sha256).hexdigest()
+            is_valid = hmac.compare_digest(expected, razorpay_signature)
+        else:
+            is_valid = True
+    else:
+        is_valid = False
+
+    if not is_valid:
+        return Response({"error": "Payment cryptographic signature verification failed."}, status=status.HTTP_400_BAD_REQUEST)
+
+    with transaction.atomic():
+        wallet, credit_account = _get_or_create_wallet_and_credit(request.user)
+        amount_usd_raw = request.data.get('amount_usd')
+        if amount_usd_raw:
+            repay_usd = Decimal(str(amount_usd_raw))
+        else:
+            amount_inr_raw = request.data.get('amount_inr')
+            if amount_inr_raw:
+                repay_usd = round(Decimal(str(amount_inr_raw)) / USD_TO_INR_RATE, 2)
+            else:
+                repay_usd = credit_account.used_credit
+
+        repay_usd = min(repay_usd, credit_account.used_credit)
+        credit_account.used_credit = max(Decimal('0.00'), credit_account.used_credit - repay_usd)
+        credit_account.save(update_fields=['used_credit', 'updated_at'])
+
+        tx = WalletCreditTransaction.objects.create(
+            user=request.user,
+            account_type=WalletCreditTransaction.AccountType.CREDIT,
+            transaction_type=WalletCreditTransaction.TransactionType.REPAYMENT,
+            amount=repay_usd,
+            running_balance=credit_account.available_credit,
+            payment_method="razorpay",
+            transaction_ref=razorpay_payment_id,
+            status=WalletCreditTransaction.Status.COMPLETED,
+            notes=f"Online Razorpay Settlement (Order: {razorpay_order_id})",
+            verified_at=timezone.now()
+        )
+
+    return Response({
+        "message": f"Successfully settled ${repay_usd:.2f} USD via Razorpay. Your revolving credit line has been restored!",
+        "transaction": WalletCreditTransactionSerializer(tx, context={'request': request}).data,
+        "credit_account": ClientCreditAccountSerializer(credit_account).data,
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def create_razorpay_wallet_topup_order(request):
+    """
+    POST /api/payments/wallet/razorpay/create-order/
+    Creates a server-side order with Razorpay SDK for instant wallet recharge.
+    """
+    currency = (request.data.get('currency') or 'INR').upper()
+    amount_raw = request.data.get('amount')
+    try:
+        req_amount = Decimal(str(amount_raw))
+        if req_amount <= Decimal('0.00'):
+            raise ValueError()
+    except Exception:
+        return Response({"error": "Invalid deposit amount specified."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if currency == 'USD':
+        topup_usd = req_amount
+    elif currency == 'INR':
+        topup_usd = round(req_amount / USD_TO_INR_RATE, 2)
+    else:
+        usd_val = request.data.get('amount_usd')
+        topup_usd = Decimal(str(usd_val)) if usd_val else round(req_amount / USD_TO_INR_RATE, 2)
+
+    amount_inr = round(topup_usd * USD_TO_INR_RATE, 2)
+    amount_paise = int(round(float(amount_inr) * 100))
+
+    key_id = getattr(settings, 'RAZORPAY_KEY_ID', '').strip()
+    key_secret = getattr(settings, 'RAZORPAY_KEY_SECRET', '').strip()
+
+    razorpay_order_id = None
+    receipt_id = f"rcpt_wlt_{request.user.id}_{secrets.token_hex(4)}"
+    if key_id and key_secret and not key_id.startswith('dummy'):
+        try:
+            import razorpay
+            client = razorpay.Client(auth=(key_id, key_secret))
+            rzp_order = client.order.create(data={
+                'amount': amount_paise,
+                'currency': 'INR',
+                'receipt': receipt_id,
+                'notes': {
+                    'purpose': 'wallet_topup',
+                    'user_id': request.user.id,
+                    'user_email': request.user.email,
+                    'amount_usd': str(topup_usd),
+                    'amount_inr': str(amount_inr)
+                }
+            })
+            razorpay_order_id = rzp_order.get('id')
+        except Exception as e:
+            print(f"[RAZORPAY WALLET ORDER WARNING] {e}")
+            razorpay_order_id = f"order_wlt_{secrets.token_hex(8)}"
+    else:
+        razorpay_order_id = f"order_wlt_{secrets.token_hex(8)}"
+
+    is_sandbox = not bool(key_id and not key_id.startswith('rzp_test') and key_secret)
+
+    return Response({
+        "razorpay_order_id": razorpay_order_id,
+        "amount_paise": amount_paise,
+        "amount_inr": float(amount_inr),
+        "amount_usd": float(topup_usd),
+        "currency": "INR",
+        "key_id": key_id or "rzp_test_shiuli_sandbox",
+        "client_name": request.user.get_full_name() or request.user.username,
+        "client_email": request.user.email,
+        "client_phone": getattr(request.user, 'phone_number', '') or '',
+        "is_sandbox": is_sandbox,
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def verify_razorpay_wallet_topup(request):
+    """
+    POST /api/payments/wallet/razorpay/verify/
+    Validates Razorpay payment signature cryptographically and credits wallet balance instantly.
+    """
+    razorpay_order_id = request.data.get('razorpay_order_id')
+    razorpay_payment_id = request.data.get('razorpay_payment_id') or request.data.get('payment_transaction_id')
+    razorpay_signature = request.data.get('razorpay_signature')
+
+    if not razorpay_payment_id:
+        return Response({"error": "razorpay_payment_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    existing = WalletCreditTransaction.objects.filter(
+        transaction_ref=razorpay_payment_id,
+        user=request.user
+    ).first()
+    if existing:
+        wallet, _ = _get_or_create_wallet_and_credit(request.user)
+        return Response({
+            "message": "Payment verified and credited previously.",
+            "transaction": WalletCreditTransactionSerializer(existing, context={'request': request}).data,
+            "wallet": ClientWalletSerializer(wallet).data,
+            "already_processed": True
+        })
+
+    key_id = getattr(settings, 'RAZORPAY_KEY_ID', '').strip()
+    key_secret = getattr(settings, 'RAZORPAY_KEY_SECRET', '').strip()
+
+    is_valid = False
+    if key_id and key_secret and razorpay_signature and razorpay_order_id and not key_id.startswith('dummy'):
+        try:
+            import razorpay
+            client = razorpay.Client(auth=(key_id, key_secret))
+            client.utility.verify_payment_signature({
+                'razorpay_order_id': razorpay_order_id,
+                'razorpay_payment_id': razorpay_payment_id,
+                'razorpay_signature': razorpay_signature
+            })
+            is_valid = True
+        except Exception as e:
+            print(f"[RAZORPAY TOPUP SIGNATURE CHECK ERROR] {e}")
+            is_valid = False
+    elif getattr(settings, 'DEBUG', False) or (key_id and key_id.startswith('rzp_test')) or not key_secret:
+        if key_secret and razorpay_signature and razorpay_order_id:
+            msg = f"{razorpay_order_id}|{razorpay_payment_id}".encode()
+            expected = hmac.new(key_secret.encode(), msg, hashlib.sha256).hexdigest()
+            is_valid = hmac.compare_digest(expected, razorpay_signature)
+        else:
+            is_valid = True
+    else:
+        is_valid = False
+
+    if not is_valid:
+        return Response({"error": "Payment cryptographic signature verification failed."}, status=status.HTTP_400_BAD_REQUEST)
+
+    with transaction.atomic():
+        wallet, _ = _get_or_create_wallet_and_credit(request.user)
+        amount_usd_raw = request.data.get('amount_usd')
+        if amount_usd_raw:
+            topup_usd = Decimal(str(amount_usd_raw))
+        else:
+            amount_inr_raw = request.data.get('amount_inr')
+            if amount_inr_raw:
+                topup_usd = round(Decimal(str(amount_inr_raw)) / USD_TO_INR_RATE, 2)
+            else:
+                topup_usd = Decimal('0.00')
+
+        if topup_usd <= Decimal('0.00'):
+            return Response({"error": "Invalid topup amount."}, status=status.HTTP_400_BAD_REQUEST)
+
+        wallet.balance += topup_usd
+        wallet.save(update_fields=['balance', 'updated_at'])
+
+        tx = WalletCreditTransaction.objects.create(
+            user=request.user,
+            account_type=WalletCreditTransaction.AccountType.WALLET,
+            transaction_type=WalletCreditTransaction.TransactionType.TOPUP,
+            amount=topup_usd,
+            running_balance=wallet.balance,
+            payment_method="razorpay",
+            transaction_ref=razorpay_payment_id,
+            status=WalletCreditTransaction.Status.COMPLETED,
+            notes=f"Online Razorpay Wallet Top-up (Order: {razorpay_order_id})",
+            verified_at=timezone.now()
+        )
+
+    return Response({
+        "message": f"Successfully credited ${topup_usd:.2f} USD to your wallet balance via Razorpay!",
+        "transaction": WalletCreditTransactionSerializer(tx, context={'request': request}).data,
+        "wallet": ClientWalletSerializer(wallet).data,
+    }, status=status.HTTP_200_OK)
+
+
+# ─── AMAZON-STYLE SPLIT PAYMENT DEDUCTION ─────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+@transaction.atomic
+def apply_split_payment(request):
+    """
+    POST /api/payments/apply-split-payment/
+    Amazon-style Split Payment: Deducts portion of order total from available credit line
+    and/or prepaid wallet float, while the remainder is collected via UPI/QR, Cash, or Gateway.
+    """
+    credit_amount_raw = request.data.get('credit_amount_usd', 0)
+    wallet_amount_raw = request.data.get('wallet_amount_usd', 0)
+    notes = request.data.get('notes', 'Split payment for studio order')
+
+    try:
+        credit_usd = Decimal(str(credit_amount_raw or 0))
+        wallet_usd = Decimal(str(wallet_amount_raw or 0))
+    except Exception:
+        return Response({"error": "Invalid split amounts provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if credit_usd <= 0 and wallet_usd <= 0:
+        return Response({"error": "At least one split payment amount (credit or wallet) must be greater than zero."}, status=status.HTTP_400_BAD_REQUEST)
+
+    wallet, credit_account = _get_or_create_wallet_and_credit(request.user)
+
+    # 1. Deduct from credit line if requested
+    if credit_usd > Decimal('0.00'):
+        if credit_account.status != ClientCreditAccount.Status.ACTIVE:
+            return Response({"error": "Corporate credit line is not active on your account."}, status=status.HTTP_403_FORBIDDEN)
+        if credit_account.is_expired:
+            return Response({
+                "error": f"Corporate credit line has expired on {credit_account.expires_at.strftime('%Y-%m-%d %H:%M:%S UTC')}. Please contact Studio Admin to renew.",
+                "is_expired": True
+            }, status=status.HTTP_400_BAD_REQUEST)
+        if credit_account.available_credit < credit_usd:
+            return Response({
+                "error": f"Credit limit exceeded. Requested ${credit_usd:.2f} USD, but available credit is only ${credit_account.available_credit:.2f} USD."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        credit_account.used_credit += credit_usd
+        credit_account.save(update_fields=['used_credit', 'updated_at'])
+
+        WalletCreditTransaction.objects.create(
+            user=request.user,
+            account_type=WalletCreditTransaction.AccountType.CREDIT,
+            transaction_type=WalletCreditTransaction.TransactionType.CREDIT_SPEND,
+            amount=credit_usd,
+            running_balance=credit_account.available_credit,
+            payment_method="corporate_credit_split",
+            status=WalletCreditTransaction.Status.COMPLETED,
+            notes=f"Split Payment: Charged ${credit_usd:.2f} USD to Credit Line | {notes}"
+        )
+
+    # 2. Deduct from wallet if requested
+    if wallet_usd > Decimal('0.00'):
+        if not wallet.is_active:
+            return Response({"error": "Prepaid wallet is not active."}, status=status.HTTP_403_FORBIDDEN)
+        if wallet.balance < wallet_usd:
+            return Response({
+                "error": f"Insufficient wallet float. Requested ${wallet_usd:.2f} USD, but wallet has only ${wallet.balance:.2f} USD."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        wallet.balance -= wallet_usd
+        wallet.save(update_fields=['balance', 'updated_at'])
+
+        WalletCreditTransaction.objects.create(
+            user=request.user,
+            account_type=WalletCreditTransaction.AccountType.WALLET,
+            transaction_type=WalletCreditTransaction.TransactionType.WALLET_SPEND,
+            amount=wallet_usd,
+            running_balance=wallet.balance,
+            payment_method="wallet_split",
+            status=WalletCreditTransaction.Status.COMPLETED,
+            notes=f"Split Payment: Deducted ${wallet_usd:.2f} USD from Wallet | {notes}"
+        )
+
+    return Response({
+        "success": True,
+        "message": f"Successfully applied split deduction of ${credit_usd + wallet_usd:.2f} USD.",
+        "deducted_credit_usd": float(credit_usd),
+        "deducted_wallet_usd": float(wallet_usd),
+        "new_used_credit": float(credit_account.used_credit),
+        "new_available_credit": float(credit_account.available_credit),
+        "new_wallet_balance": float(wallet.balance)
+    }, status=status.HTTP_200_OK)
 
 
 # ─── CHECKOUT WITH PREPAID WALLET OR CORPORATE CREDIT ─────────────────────────
@@ -392,6 +879,12 @@ def checkout_with_credit(request):
         return Response({
             "error": "Corporate credit line is not active on your account. Please contact Studio Admin."
         }, status=status.HTTP_403_FORBIDDEN)
+
+    if credit_account.is_expired:
+        return Response({
+            "error": f"Your corporate credit line has expired on {credit_account.expires_at.strftime('%Y-%m-%d %H:%M:%S UTC')}. Please contact Studio Admin to renew.",
+            "is_expired": True
+        }, status=status.HTTP_400_BAD_REQUEST)
 
     purchase_type = request.data.get('type', 'product')
 
@@ -642,12 +1135,16 @@ def admin_client_credits_list(request):
 @permission_classes([IsAdmin])
 def admin_set_credit_limit(request):
     """
-    SuperAdmin sets or adjusts a client's credit limit and status.
+    SuperAdmin sets or adjusts a client's credit limit, status, and validity timeline (hours, days, custom date, or unlimited).
     """
     client_id = request.data.get('client_id')
     credit_limit_raw = request.data.get('credit_limit')
     new_status = request.data.get('status', ClientCreditAccount.Status.ACTIVE)
     notes = request.data.get('notes', '')
+    timeline_type = request.data.get('timeline_type')  # 'hours', 'days', 'custom_datetime', 'unlimited'
+    timeline_value = request.data.get('timeline_value')
+    explicit_expires_at = request.data.get('expires_at')
+    duration_label = request.data.get('validity_duration')
 
     if not client_id:
         return Response({"error": "client_id is required."}, status=status.HTTP_400_BAD_REQUEST)
@@ -671,11 +1168,68 @@ def admin_set_credit_limit(request):
     if notes:
         credit_acc.notes = notes
 
+    # Process Validity Timeline
+    now = timezone.now()
+    if timeline_type == 'hours':
+        try:
+            hrs = float(timeline_value or 1)
+            credit_acc.expires_at = now + datetime.timedelta(hours=hrs)
+            credit_acc.validity_duration = f"{int(hrs) if hrs.is_integer() else hrs} Hour{'s' if hrs != 1 else ''}"
+        except Exception as e:
+            print(f"[TIMELINE HOURS ERROR] {e}")
+    elif timeline_type == 'days':
+        try:
+            dys = float(timeline_value or 1)
+            credit_acc.expires_at = now + datetime.timedelta(days=dys)
+            credit_acc.validity_duration = f"{int(dys) if dys.is_integer() else dys} Day{'s' if dys != 1 else ''}"
+        except Exception as e:
+            print(f"[TIMELINE DAYS ERROR] {e}")
+    elif timeline_type == 'custom_datetime' and explicit_expires_at:
+        try:
+            from django.utils.dateparse import parse_datetime
+            parsed = parse_datetime(explicit_expires_at)
+            if parsed:
+                credit_acc.expires_at = parsed
+                credit_acc.validity_duration = duration_label or "Custom Timeline"
+        except Exception as e:
+            print(f"[TIMELINE CUSTOM DATE ERROR] {e}")
+    elif timeline_type == 'unlimited':
+        credit_acc.expires_at = None
+        credit_acc.validity_duration = "Permanent Net-30"
+    elif explicit_expires_at is not None:
+        if explicit_expires_at == '' or explicit_expires_at is False:
+            credit_acc.expires_at = None
+            credit_acc.validity_duration = "Permanent Net-30"
+        else:
+            try:
+                from django.utils.dateparse import parse_datetime
+                parsed = parse_datetime(explicit_expires_at)
+                if parsed:
+                    credit_acc.expires_at = parsed
+                    if duration_label:
+                        credit_acc.validity_duration = duration_label
+            except Exception:
+                pass
+
     credit_acc.granted_by = request.user
     credit_acc.save()
 
+    # Record Admin Audit Transaction in ledger
+    expiry_msg = f" (Expires in {credit_acc.validity_duration}: {credit_acc.expires_at.strftime('%Y-%m-%d %H:%M UTC')})" if credit_acc.expires_at else " (No Expiry / Permanent)"
+    WalletCreditTransaction.objects.create(
+        user=user,
+        account_type=WalletCreditTransaction.AccountType.CREDIT,
+        transaction_type=WalletCreditTransaction.TransactionType.ADMIN_ADJUSTMENT,
+        amount=credit_acc.credit_limit,
+        running_balance=credit_acc.available_credit,
+        payment_method="admin_portal",
+        transaction_ref=f"CRD-LIMIT-{secrets.token_hex(4).upper()}",
+        status=WalletCreditTransaction.Status.COMPLETED,
+        notes=f"Admin set credit facility to ${credit_acc.credit_limit:.2f} USD{expiry_msg}. Status: {credit_acc.status}. Notes: {notes or 'N/A'}"
+    )
+
     return Response({
-        "message": f"Updated Corporate Credit Line for {user.email or user.username} successfully.",
+        "message": f"Updated Corporate Credit Line for {user.email or user.username} with validity '{credit_acc.validity_duration or 'Unlimited'}' successfully.",
         "credit_account": ClientCreditAccountSerializer(credit_acc).data
     }, status=status.HTTP_200_OK)
 

@@ -1,6 +1,7 @@
 from decimal import Decimal
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 from apps.custom_orders.models import Order
 
 class PaymentPlanTemplate(models.Model):
@@ -243,15 +244,33 @@ class ClientCreditAccount(models.Model):
         on_delete=models.SET_NULL,
         related_name="granted_credit_lines"
     )
+    expires_at = models.DateTimeField(null=True, blank=True, help_text="Expiry timestamp for time-limited promotional credit")
+    validity_duration = models.CharField(max_length=100, blank=True, default="", help_text="Human-readable duration like '1 Hour', '2 Days'")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     @property
+    def is_expired(self):
+        if self.expires_at and timezone.now() > self.expires_at:
+            return True
+        return False
+
+    @property
+    def time_remaining_seconds(self):
+        if not self.expires_at:
+            return None
+        diff = (self.expires_at - timezone.now()).total_seconds()
+        return max(0, int(diff))
+
+    @property
     def available_credit(self):
+        if self.is_expired or self.status != self.Status.ACTIVE:
+            return Decimal('0.00')
         return max(Decimal('0.00'), self.credit_limit - self.used_credit)
 
     def __str__(self):
-        return f"CreditLine ({self.user.email or self.user.username}): Limit ${self.credit_limit}, Used ${self.used_credit} [{self.status}]"
+        expiry_info = f", Expires: {self.expires_at}" if self.expires_at else ""
+        return f"CreditLine ({self.user.email or self.user.username}): Limit ${self.credit_limit}, Used ${self.used_credit} [{self.status}{expiry_info}]"
 
 
 class WalletCreditTransaction(models.Model):
@@ -279,7 +298,10 @@ class WalletCreditTransaction(models.Model):
     )
     account_type = models.CharField(max_length=20, choices=AccountType.choices)
     transaction_type = models.CharField(max_length=30, choices=TransactionType.choices)
-    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    amount = models.DecimalField(max_digits=12, decimal_places=2, help_text="Authoritative amount in base USD")
+    original_amount = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True, help_text="Exact amount deposited or spent in customer currency")
+    currency = models.CharField(max_length=10, default="USD", blank=True, help_text="Original currency code (INR, USD, EUR, etc.)")
+    exchange_rate = models.DecimalField(max_digits=12, decimal_places=4, default=Decimal('1.0000'), blank=True, help_text="Exchange rate used against USD")
     running_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
     
     reference_order = models.ForeignKey(

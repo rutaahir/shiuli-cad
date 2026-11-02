@@ -267,6 +267,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
   // Purchases & Secure Downloads State
   const [purchases, setPurchases] = useState<any[]>([]);
   const [loadingPurchases, setLoadingPurchases] = useState<boolean>(false);
+  const [showAllPurchases, setShowAllPurchases] = useState<boolean>(false);
   const [resendingPurchaseId, setResendingPurchaseId] = useState<number | null>(null);
 
   const [reDeliveryOtpModalState, setReDeliveryOtpModalState] = useState<{
@@ -4447,227 +4448,255 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {purchases.map((p) => {
-                  const isCapReached = p.redelivery_count >= 3;
-                  return (
-                    <div key={p.id} className="p-6 rounded-3xl bg-white border border-[#E8D7B7] hover:border-[#D4AF37] space-y-5 shadow-[0_10px_35px_rgba(184,135,50,0.06)] hover:shadow-[0_12px_35px_rgba(212,175,55,0.15)] relative overflow-hidden transition-all">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-[10px] font-mono text-[#B88732] font-bold">PURCHASE #{p.id}</span>
-                            {p.status === 'pending' ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-300 inline-flex items-center gap-1">
-                                <Clock className="w-2.5 h-2.5 animate-pulse text-amber-600" />
-                                Awaiting Admin Verification
-                              </span>
-                            ) : p.status === 'declined' ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-300 inline-flex items-center gap-1">
-                                <XCircle className="w-2.5 h-2.5 text-rose-600" />
-                                Payment Proof Declined
-                              </span>
-                            ) : p.status === 'paid' ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1">
-                                <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
-                                Payment Verified &amp; Enabled
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-300">
-                                {p.status}
-                              </span>
-                            )}
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {(showAllPurchases ? purchases : purchases.slice(0, 9)).map((p) => {
+                    const isCapReached = p.redelivery_count >= 3;
+                    return (
+                      <div key={p.id} className="p-5 rounded-2xl bg-white border border-[#E8D7B7] hover:border-[#D4AF37] space-y-4 shadow-[0_4px_20px_rgba(184,135,50,0.05)] hover:shadow-[0_8px_25px_rgba(212,175,55,0.12)] relative overflow-hidden transition-all flex flex-col justify-between">
+                        <div className="space-y-3.5">
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                                <span className="text-[10px] font-mono text-[#B88732] font-bold">PURCHASE #{p.id}</span>
+                                {p.status === 'pending' ? (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-300 inline-flex items-center gap-1">
+                                    <Clock className="w-2.5 h-2.5 animate-pulse text-amber-600" />
+                                    Awaiting Admin Verification
+                                  </span>
+                                ) : p.status === 'declined' ? (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-300 inline-flex items-center gap-1">
+                                    <XCircle className="w-2.5 h-2.5 text-rose-600" />
+                                    Payment Declined
+                                  </span>
+                                ) : p.status === 'paid' ? (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1">
+                                    <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                                    Verified &amp; Enabled
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-300">
+                                    {p.status}
+                                  </span>
+                                )}
+                              </div>
+                              <h4 className="font-serif text-base font-bold text-[#0B1330] line-clamp-1" title={p.product_title}>{p.product_title}</h4>
+                              <span className="text-[11px] text-[#B88732] font-semibold">{p.license_type_display}</span>
+                            </div>
+                            <span className="font-serif text-lg font-bold text-[#B88732] shrink-0">
+                              {formatINR(p.price_paid)}
+                            </span>
                           </div>
-                          <h4 className="font-serif text-lg font-bold text-[#0B1330]">{p.product_title}</h4>
-                          <span className="text-xs text-[#B88732] font-semibold">{p.license_type_display}</span>
+
+                          {p.payment_method && (
+                            <div className="p-2 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7] text-[10px] font-mono flex items-center justify-between text-[#5A6679]">
+                              <span>Method: <strong className="text-[#0B1330] uppercase">{p.payment_method === 'cash_check' ? 'Cash / Check' : 'UPI / QR'}</strong></span>
+                              {p.created_at && <span>{new Date(p.created_at).toLocaleDateString()}</span>}
+                            </div>
+                          )}
+
+                          {p.status === 'declined' ? (
+                            <>
+                              {/* Step Indicator Bar for Declined Payment */}
+                              <div className="p-2.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-1.5">
+                                <div className="text-[10px] font-mono text-[#5A6679] flex justify-between">
+                                  <span>Verification Trail</span>
+                                  <span className="text-rose-700 font-bold">
+                                    Proof Declined by Accounts
+                                  </span>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-1 text-center text-[9px] font-mono">
+                                  <div className="p-1 rounded-md bg-emerald-50 border border-emerald-300 text-emerald-800 font-semibold flex items-center justify-center gap-0.5">
+                                    <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                                    <span>1. Sent</span>
+                                  </div>
+                                  <div className="p-1 rounded-md bg-rose-50 border border-rose-300 text-rose-800 font-semibold flex items-center justify-center gap-0.5">
+                                    <XCircle className="w-2.5 h-2.5 text-rose-600" />
+                                    <span>2. Declined</span>
+                                  </div>
+                                  <div className="p-1 rounded-md bg-slate-100 border border-slate-300 text-slate-400 flex items-center justify-center gap-0.5 font-semibold">
+                                    <Lock className="w-2.5 h-2.5" />
+                                    <span>3. Locked</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-900 space-y-1.5">
+                                <div className="flex items-center gap-1.5 font-bold text-rose-800 text-[11px]">
+                                  <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                                  <span>Payment Proof Not Verified</span>
+                                </div>
+                                <p className="text-[10px] text-[#5A6679] leading-relaxed">
+                                  Our Atelier accounts desk could not confirm this transaction in the bank ledger.
+                                </p>
+                                {p.decline_reason && (
+                                  <div className="p-2 rounded-lg bg-white border border-rose-200 text-[10px]">
+                                    <span className="uppercase font-bold text-rose-700 font-mono block">Reason from Accounts:</span>
+                                    <span className="text-slate-800 font-medium">{p.decline_reason}</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="pt-2 border-t border-[#E8D7B7]">
+                                <button
+                                  type="button"
+                                  onClick={() => openResubmitModal(p)}
+                                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-[#D4AF37] hover:from-amber-500 hover:to-[#E5C158] text-[#0B1330] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-md transition-all"
+                                >
+                                  <RefreshCw className="w-3.5 h-3.5" />
+                                  <span>Re-submit Corrected Proof</span>
+                                </button>
+                              </div>
+                            </>
+                          ) : p.status === 'pending' ? (
+                            <>
+                              {/* Step Indicator Bar for Pending Payment */}
+                              <div className="p-2.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-1.5">
+                                <div className="text-[10px] font-mono text-[#5A6679] flex justify-between">
+                                  <span>Verification Trail</span>
+                                  <span className="text-amber-700 font-bold">
+                                    Awaiting Atelier Approval
+                                  </span>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-1 text-center text-[9px] font-mono">
+                                  <div className="p-1 rounded-md bg-emerald-50 border border-emerald-300 text-emerald-800 font-semibold flex items-center justify-center gap-0.5">
+                                    <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                                    <span>1. Sent</span>
+                                  </div>
+                                  <div className="p-1 rounded-md bg-amber-50 border border-amber-300 text-amber-800 font-semibold flex items-center justify-center gap-0.5">
+                                    <Clock className="w-2.5 h-2.5 animate-spin text-amber-600" />
+                                    <span>2. Verifying</span>
+                                  </div>
+                                  <div className="p-1 rounded-md bg-slate-100 border border-slate-300 text-slate-400 flex items-center justify-center gap-0.5 font-semibold">
+                                    <Lock className="w-2.5 h-2.5" />
+                                    <span>3. Download</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1">
+                                <div className="flex items-center gap-1.5 font-bold text-amber-800 text-[11px]">
+                                  <Clock className="w-3 h-3 text-amber-700" />
+                                  <span>Verification in Progress</span>
+                                </div>
+                                <p className="text-[10px] text-[#5A6679] leading-relaxed">
+                                  Payment receipt received by Studio Administration. Once verified, download access unlocks immediately.
+                                </p>
+                              </div>
+
+                              <div className="pt-2 border-t border-[#E8D7B7]">
+                                <button
+                                  disabled
+                                  className="w-full py-2.5 rounded-xl bg-slate-100 border border-slate-300 text-slate-500 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-not-allowed"
+                                >
+                                  <Lock className="w-3.5 h-3.5 text-slate-400" />
+                                  <span>Download Locked — Awaiting Approval</span>
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              {/* Step Indicator Bar: Paid -> Verified -> Downloaded */}
+                              <div className="p-2.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-1.5">
+                                <div className="text-[10px] font-mono text-[#5A6679] flex justify-between">
+                                  <span>Delivery Trail</span>
+                                  <span className="text-emerald-700 font-bold">
+                                    {p.is_downloaded ? 'Downloaded' : p.is_otp_verified ? 'OTP Verified' : 'Download Enabled'}
+                                  </span>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-1 text-center text-[9px] font-mono">
+                                  <div className="p-1 rounded-md bg-emerald-50 border border-emerald-300 text-emerald-800 font-semibold flex items-center justify-center gap-0.5">
+                                    <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                                    <span>1. Approved</span>
+                                  </div>
+                                  <div className={`p-1 rounded-md border flex items-center justify-center gap-0.5 font-semibold ${
+                                    p.is_otp_verified || p.is_downloaded
+                                      ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                                      : 'bg-amber-50 border-amber-300 text-amber-800'
+                                  }`}>
+                                    <ShieldCheck className="w-2.5 h-2.5" />
+                                    <span>2. Verified</span>
+                                  </div>
+                                  <div className={`p-1 rounded-md border flex items-center justify-center gap-0.5 font-semibold ${
+                                    p.is_downloaded
+                                      ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                                      : 'bg-slate-100 border-slate-300 text-slate-400'
+                                  }`}>
+                                    <Download className="w-2.5 h-2.5" />
+                                    <span>3. Downloaded</span>
+                                  </div>
+                                </div>
+
+                                {p.downloaded_at && (
+                                  <div className="text-[10px] text-slate-500 font-mono text-right pt-0.5">
+                                    Downloaded {new Date(p.downloaded_at).toLocaleDateString()}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Re-Delivery / Download Action Section */}
+                              <div className="pt-2 border-t border-[#E8D7B7] space-y-2">
+                                <button
+                                  onClick={() => handleRequestRedelivery(p.id, p.product_title)}
+                                  disabled={isCapReached || resendingPurchaseId === p.id}
+                                  className="btn-gold-luxury w-full py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-md disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all"
+                                >
+                                  <Send className={`w-3.5 h-3.5 text-[#0B1330] ${resendingPurchaseId === p.id ? 'animate-spin' : ''}`} />
+                                  <span>
+                                    {resendingPurchaseId === p.id
+                                      ? 'Sending OTP...'
+                                      : !p.is_otp_verified && !p.is_downloaded
+                                      ? 'Verify & Download CAD'
+                                      : 'Resend Download Link'}
+                                  </span>
+                                </button>
+
+                                <div className="text-[10px] text-[#5A6679] text-center font-mono">
+                                  {isCapReached ? (
+                                    <span className="text-rose-700 font-bold block bg-rose-50 p-1.5 rounded-lg border border-rose-300">
+                                      Limit of 3 download re-deliveries reached. Contact Support.
+                                    </span>
+                                  ) : (
+                                    <span>
+                                      Re-delivery used: <strong className="text-[#B88732]">{p.redelivery_count}</strong> of 3 max.
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </>
+                          )}
                         </div>
-                        <span className="font-serif text-xl font-bold text-[#B88732]">
-                          {formatINR(p.price_paid)}
-                        </span>
                       </div>
+                    );
+                  })}
+                </div>
 
-                      {p.payment_method && (
-                        <div className="p-2.5 rounded-xl bg-[#FCFAF7] border border-[#E8D7B7] text-[11px] font-mono flex items-center justify-between text-[#5A6679]">
-                          <span>Method: <strong className="text-[#0B1330] uppercase">{p.payment_method === 'cash_check' ? 'Cash / Check' : 'UPI / QR'}</strong></span>
-                          {p.created_at && <span>{new Date(p.created_at).toLocaleDateString()}</span>}
-                        </div>
-                      )}
-
-                      {p.status === 'declined' ? (
-                        <>
-                          {/* Step Indicator Bar for Declined Payment */}
-                          <div className="p-3.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-2">
-                            <div className="text-[11px] font-mono text-[#5A6679] flex justify-between">
-                              <span>Verification Trail</span>
-                              <span className="text-rose-700 font-bold">
-                                Proof Declined by Accounts
-                              </span>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-1.5 text-center text-[10px] font-mono">
-                              <div className="p-1.5 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-800 font-semibold flex items-center justify-center gap-1">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                <span>1. Proof Sent</span>
-                              </div>
-                              <div className="p-1.5 rounded-lg bg-rose-50 border border-rose-300 text-rose-800 font-semibold flex items-center justify-center gap-1">
-                                <XCircle className="w-3 h-3 text-rose-600" />
-                                <span>2. Declined</span>
-                              </div>
-                              <div className="p-1.5 rounded-lg bg-slate-100 border border-slate-300 text-slate-400 flex items-center justify-center gap-1 font-semibold">
-                                <Lock className="w-3 h-3" />
-                                <span>3. Download Locked</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-900 space-y-2">
-                            <div className="flex items-center gap-1.5 font-bold text-rose-800">
-                              <XCircle className="w-4 h-4 text-rose-600" />
-                              <span>Payment Proof Not Verified</span>
-                            </div>
-                            <p className="text-[11px] text-[#5A6679] leading-relaxed">
-                              Our Atelier accounts desk could not confirm this transaction in the bank ledger.
-                            </p>
-                            {p.decline_reason && (
-                              <div className="p-2.5 rounded-xl bg-white border border-rose-200 text-[11px]">
-                                <span className="text-[10px] uppercase font-bold text-rose-700 font-mono block">Reason from Accounts:</span>
-                                <span className="text-slate-800 font-medium">{p.decline_reason}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="pt-2 border-t border-[#E8D7B7]">
-                            <button
-                              type="button"
-                              onClick={() => openResubmitModal(p)}
-                              className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-600 to-[#D4AF37] hover:from-amber-500 hover:to-[#E5C158] text-[#0B1330] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-md transition-all"
-                            >
-                              <RefreshCw className="w-4 h-4" />
-                              <span>Re-submit Corrected Payment Proof</span>
-                            </button>
-                          </div>
-                        </>
-                      ) : p.status === 'pending' ? (
-                        <>
-                          {/* Step Indicator Bar for Pending Payment */}
-                          <div className="p-3.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-2">
-                            <div className="text-[11px] font-mono text-[#5A6679] flex justify-between">
-                              <span>Verification Trail</span>
-                              <span className="text-amber-700 font-bold">
-                                Awaiting Atelier Approval
-                              </span>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-1.5 text-center text-[10px] font-mono">
-                              <div className="p-1.5 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-800 font-semibold flex items-center justify-center gap-1">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                <span>1. Proof Sent</span>
-                              </div>
-                              <div className="p-1.5 rounded-lg bg-amber-50 border border-amber-300 text-amber-800 font-semibold flex items-center justify-center gap-1">
-                                <Clock className="w-3 h-3 animate-spin text-amber-600" />
-                                <span>2. Verifying</span>
-                              </div>
-                              <div className="p-1.5 rounded-lg bg-slate-100 border border-slate-300 text-slate-400 flex items-center justify-center gap-1 font-semibold">
-                                <Lock className="w-3 h-3" />
-                                <span>3. Download</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1">
-                            <div className="flex items-center gap-1.5 font-bold text-amber-800">
-                              <Clock className="w-3.5 h-3.5 text-amber-700" />
-                              <span>Atelier Payment Verification in Progress</span>
-                            </div>
-                            <p className="text-[11px] text-[#5A6679] leading-relaxed">
-                              Your payment receipt and verification details have been received by Studio Administration. Once verified, download access will be unlocked immediately.
-                            </p>
-                          </div>
-
-                          <div className="pt-2 border-t border-[#E8D7B7]">
-                            <button
-                              disabled
-                              className="w-full py-3 rounded-xl bg-slate-100 border border-slate-300 text-slate-500 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-not-allowed"
-                            >
-                              <Lock className="w-4 h-4 text-slate-400" />
-                              <span>Download Locked — Awaiting Admin Approval</span>
-                            </button>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          {/* Step Indicator Bar: Paid -> Verified -> Downloaded */}
-                          <div className="p-3.5 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-2">
-                            <div className="text-[11px] font-mono text-[#5A6679] flex justify-between">
-                              <span>Delivery Trail</span>
-                              <span className="text-emerald-700 font-bold">
-                                {p.is_downloaded ? 'Downloaded' : p.is_otp_verified ? 'OTP Verified' : 'Download Enabled'}
-                              </span>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-1.5 text-center text-[10px] font-mono">
-                              <div className="p-1.5 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-800 font-semibold flex items-center justify-center gap-1">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                <span>1. Approved</span>
-                              </div>
-                              <div className={`p-1.5 rounded-lg border flex items-center justify-center gap-1 font-semibold ${
-                                p.is_otp_verified || p.is_downloaded
-                                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                                  : 'bg-amber-50 border-amber-300 text-amber-800'
-                              }`}>
-                                <ShieldCheck className="w-3 h-3" />
-                                <span>2. Verified</span>
-                              </div>
-                              <div className={`p-1.5 rounded-lg border flex items-center justify-center gap-1 font-semibold ${
-                                p.is_downloaded
-                                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                                  : 'bg-slate-100 border-slate-300 text-slate-400'
-                              }`}>
-                                <Download className="w-3 h-3" />
-                                <span>3. Downloaded</span>
-                              </div>
-                            </div>
-
-                            {p.downloaded_at && (
-                              <div className="text-[10px] text-slate-500 font-mono text-right pt-1">
-                                Downloaded on {new Date(p.downloaded_at).toLocaleDateString()} at {new Date(p.downloaded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Re-Delivery / Download Action Section */}
-                          <div className="pt-2 border-t border-[#E8D7B7] space-y-2">
-                            <button
-                              onClick={() => handleRequestRedelivery(p.id, p.product_title)}
-                              disabled={isCapReached || resendingPurchaseId === p.id}
-                              className="btn-gold-luxury w-full py-3 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-md disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all"
-                            >
-                              <Send className={`w-4 h-4 text-[#0B1330] ${resendingPurchaseId === p.id ? 'animate-spin' : ''}`} />
-                              <span>
-                                {resendingPurchaseId === p.id
-                                  ? 'Sending Secure OTP...'
-                                  : !p.is_otp_verified && !p.is_downloaded
-                                  ? 'Verify Email & Download CAD'
-                                  : 'Resend Secure Download Link'}
-                              </span>
-                            </button>
-
-                            <div className="text-[11px] text-[#5A6679] text-center font-mono">
-                              {isCapReached ? (
-                                <span className="text-rose-700 font-bold block bg-rose-50 p-2 rounded-lg border border-rose-300">
-                                  Maximum limit of 3 download re-deliveries reached for this purchase. Need help? Contact Support.
-                                </span>
-                              ) : (
-                                <span>
-                                  Re-delivery used: <strong className="text-[#B88732]">{p.redelivery_count}</strong> of 3 max allowed.
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  );
-                })}
+                {purchases.length > 9 && (
+                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 bg-[#FAF8F5] p-3.5 rounded-2xl border border-[#E8D7B7]">
+                    <span className="text-xs text-[#5A6679] font-mono">
+                      Showing <span className="font-bold text-[#0B1330]">{showAllPurchases ? purchases.length : Math.min(9, purchases.length)}</span> of <span className="font-bold text-[#0B1330]">{purchases.length}</span> vault CAD packages ({showAllPurchases ? 'All' : '3 rows'})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowAllPurchases(!showAllPurchases)}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-[#FFF9F0] border border-[#E8D7B7] text-xs font-mono font-bold text-[#0B1330] hover:border-[#B88732] hover:text-[#B88732] transition-all shadow-2xs hover:shadow-xs cursor-pointer"
+                    >
+                      <span>
+                        {showAllPurchases
+                          ? 'Show Less'
+                          : `Show More (${purchases.length - 9} More)`}
+                      </span>
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 text-[#B88732] transition-transform duration-200 ${
+                          showAllPurchases ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
