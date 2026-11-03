@@ -24,7 +24,8 @@ import {
   Lock,
   Smartphone,
   ArrowRight,
-  ChevronDown
+  ChevronDown,
+  Copy
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -167,8 +168,60 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
     }
   };
 
+  // Dynamic Official Bank & Treasury Details from Admin Settings
+  const [bankDetails, setBankDetails] = useState({
+    beneficiaryName: localStorage.getItem('shiuli_bank_beneficiary_name') || 'Shiuli CAD Studio LLP',
+    bankName: localStorage.getItem('shiuli_bank_name') || 'HDFC Bank / Silicon Valley Bank',
+    accountNumber: localStorage.getItem('shiuli_bank_account_number') || '50200084739201',
+    ifscCode: localStorage.getItem('shiuli_bank_ifsc_code') || 'HDFC0000240',
+    swiftCode: localStorage.getItem('shiuli_bank_swift_code') || 'HDFCINBB',
+    branch: localStorage.getItem('shiuli_bank_branch') || 'Surat Main Branch',
+    accountType: localStorage.getItem('shiuli_bank_account_type') || 'Current Account',
+    upiId: localStorage.getItem('shiuli_studio_upi_id') || 'shiulicad@okhdfcbank',
+    notes: localStorage.getItem('shiuli_bank_notes') || 'Please include your registered phone number or Order/Client ID in the wire transfer description.',
+  });
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const handleCopy = (text: string, key: string) => {
+    if (!text) return;
+    navigator.clipboard?.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
+
+  const fetchBankDetails = async () => {
+    try {
+      const plat = await api.getPlatformSettings().catch(() => null);
+      if (plat) {
+        setBankDetails({
+          beneficiaryName: plat.bank_beneficiary_name || 'Shiuli CAD Studio LLP',
+          bankName: plat.bank_name || 'HDFC Bank / Silicon Valley Bank',
+          accountNumber: plat.bank_account_number || '50200084739201',
+          ifscCode: plat.bank_ifsc_code || 'HDFC0000240',
+          swiftCode: plat.bank_swift_code || 'HDFCINBB',
+          branch: plat.bank_branch || 'Surat Main Branch',
+          accountType: plat.bank_account_type || 'Current Account',
+          upiId: plat.studio_upi_id || 'shiulicad@okhdfcbank',
+          notes: plat.bank_notes || '',
+        });
+        if (plat.bank_beneficiary_name) localStorage.setItem('shiuli_bank_beneficiary_name', plat.bank_beneficiary_name);
+        if (plat.bank_name) localStorage.setItem('shiuli_bank_name', plat.bank_name);
+        if (plat.bank_account_number) localStorage.setItem('shiuli_bank_account_number', plat.bank_account_number);
+        if (plat.bank_ifsc_code) localStorage.setItem('shiuli_bank_ifsc_code', plat.bank_ifsc_code);
+        if (plat.bank_swift_code) localStorage.setItem('shiuli_bank_swift_code', plat.bank_swift_code);
+        if (plat.bank_branch) localStorage.setItem('shiuli_bank_branch', plat.bank_branch);
+        if (plat.bank_account_type) localStorage.setItem('shiuli_bank_account_type', plat.bank_account_type);
+        if (plat.bank_notes) localStorage.setItem('shiuli_bank_notes', plat.bank_notes);
+        if (plat.studio_upi_id) localStorage.setItem('shiuli_studio_upi_id', plat.studio_upi_id);
+      }
+    } catch {
+      // Offline fallback silently uses cached localStorage
+    }
+  };
+
   useEffect(() => {
     fetchWalletAndCredit();
+    fetchBankDetails();
     if (customerCurrency === 'INR') {
       setTopupAmount('5000');
     }
@@ -937,17 +990,80 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
                 </div>
               </div>
 
-              {/* Bank Details Card */}
-              <div className="p-3.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] space-y-1.5 text-xs text-[#17243B]">
-                <div className="font-semibold text-[11px] uppercase tracking-wider text-[#B88732] flex items-center gap-1">
-                  <Building2 className="w-3.5 h-3.5" />
-                  <span>Shiuli Atelier Official Treasury</span>
+              {/* Dynamic Bank Details Card from Admin */}
+              <div className="p-3.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] space-y-2 text-xs text-[#17243B]">
+                <div className="font-semibold text-[11px] uppercase tracking-wider text-[#B88732] flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-[#B88732]" />
+                    <span>{bankDetails.beneficiaryName || 'Shiuli Atelier Official Treasury'}</span>
+                  </div>
+                  {bankDetails.accountType && (
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-50 text-[#B88732] border border-[#E8D7B7]">
+                      {bankDetails.accountType}
+                    </span>
+                  )}
                 </div>
-                <div className="text-[11px] space-y-0.5 text-slate-600 font-mono">
-                  <div>Bank: <strong>HDFC Bank / Silicon Valley Bank</strong></div>
-                  <div>Account: <strong>50200084739201</strong></div>
-                  <div>SWIFT/IFSC: <strong>HDFC0000240</strong></div>
+                <div className="text-[11px] space-y-1 text-slate-700 font-mono">
+                  <div className="flex items-center justify-between">
+                    <span>Bank: <strong>{bankDetails.bankName || 'HDFC Bank Ltd.'}</strong></span>
+                    {bankDetails.branch && (
+                      <span className="text-[10px] text-slate-500 font-sans">{bankDetails.branch}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between bg-white px-2 py-1 rounded border border-[#E8D7B7]">
+                    <span>Account: <strong className="text-slate-900 tracking-wide">{bankDetails.accountNumber}</strong></span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(bankDetails.accountNumber, 'topup_acc')}
+                      className="text-[10px] text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      {copiedKey === 'topup_acc' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedKey === 'topup_acc' ? 'Copied' : 'Copy'}</span>
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between bg-white px-2 py-1 rounded border border-[#E8D7B7]">
+                    <span>IFSC: <strong className="text-slate-900">{bankDetails.ifscCode}</strong></span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(bankDetails.ifscCode, 'topup_ifsc')}
+                      className="text-[10px] text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      {copiedKey === 'topup_ifsc' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedKey === 'topup_ifsc' ? 'Copied' : 'Copy'}</span>
+                    </button>
+                  </div>
+                  {bankDetails.swiftCode && (
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
+                      <span>SWIFT/BIC: <strong className="text-slate-700">{bankDetails.swiftCode}</strong></span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(bankDetails.swiftCode, 'topup_swift')}
+                        className="text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        {copiedKey === 'topup_swift' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                        <span>{copiedKey === 'topup_swift' ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+                  )}
+                  {bankDetails.upiId && customerCurrency === 'INR' && (
+                    <div className="flex items-center justify-between bg-amber-50/50 px-2 py-1 rounded border border-amber-200/50">
+                      <span>UPI ID: <strong className="text-slate-900">{bankDetails.upiId}</strong></span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(bankDetails.upiId, 'topup_upi')}
+                        className="text-[10px] text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        {copiedKey === 'topup_upi' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                        <span>{copiedKey === 'topup_upi' ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
+                {bankDetails.notes && (
+                  <p className="text-[10px] text-slate-500 italic pt-1 border-t border-[#E8D7B7]/60 leading-normal">
+                    {bankDetails.notes}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -1281,18 +1397,80 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
                 ) : (
                   /* Option 2: Manual Bank Wire / UTR Slip */
                   <form onSubmit={handleRepaySubmit} className="space-y-4 pt-1">
-                    <div className="p-3.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] space-y-1.5 text-xs text-[#17243B]">
-                      <div className="font-semibold text-[11px] uppercase tracking-wider text-[#B88732] flex items-center gap-1">
-                        <Building2 className="w-3.5 h-3.5" />
-                        <span>Shiuli Atelier Official Bank Details</span>
+                    {/* Dynamic Bank Details Card from Admin */}
+                    <div className="p-3.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] space-y-2 text-xs text-[#17243B]">
+                      <div className="font-semibold text-[11px] uppercase tracking-wider text-[#B88732] flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <Building2 className="w-3.5 h-3.5 text-[#B88732]" />
+                          <span>{bankDetails.beneficiaryName || 'Shiuli Atelier Official Bank Details'}</span>
+                        </div>
+                        {bankDetails.accountType && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-50 text-[#B88732] border border-[#E8D7B7]">
+                            {bankDetails.accountType}
+                          </span>
+                        )}
                       </div>
-                      <div className="text-[11px] space-y-0.5 text-slate-600 font-mono">
-                        <div>Beneficiary: <strong>Shiuli CAD Studio LLP</strong></div>
-                        <div>Bank: <strong>HDFC Bank Ltd.</strong></div>
-                        <div>Account No: <strong>50200084739201</strong></div>
-                        <div>IFSC Code: <strong>HDFC0000240</strong></div>
-                        <div>UPI ID: <strong>shiulicad@okhdfcbank</strong></div>
+                      <div className="text-[11px] space-y-1 text-slate-700 font-mono">
+                        <div className="flex items-center justify-between">
+                          <span>Bank: <strong>{bankDetails.bankName || 'HDFC Bank Ltd.'}</strong></span>
+                          {bankDetails.branch && (
+                            <span className="text-[10px] text-slate-500 font-sans">{bankDetails.branch}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between bg-white px-2 py-1 rounded border border-[#E8D7B7]">
+                          <span>Account: <strong className="text-slate-900 tracking-wide">{bankDetails.accountNumber}</strong></span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(bankDetails.accountNumber, 'repay_acc')}
+                            className="text-[10px] text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
+                          >
+                            {copiedKey === 'repay_acc' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                            <span>{copiedKey === 'repay_acc' ? 'Copied' : 'Copy'}</span>
+                          </button>
+                        </div>
+                        <div className="flex items-center justify-between bg-white px-2 py-1 rounded border border-[#E8D7B7]">
+                          <span>IFSC: <strong className="text-slate-900">{bankDetails.ifscCode}</strong></span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(bankDetails.ifscCode, 'repay_ifsc')}
+                            className="text-[10px] text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
+                          >
+                            {copiedKey === 'repay_ifsc' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                            <span>{copiedKey === 'repay_ifsc' ? 'Copied' : 'Copy'}</span>
+                          </button>
+                        </div>
+                        {bankDetails.swiftCode && (
+                          <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
+                            <span>SWIFT/BIC: <strong className="text-slate-700">{bankDetails.swiftCode}</strong></span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(bankDetails.swiftCode, 'repay_swift')}
+                              className="text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
+                            >
+                              {copiedKey === 'repay_swift' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                              <span>{copiedKey === 'repay_swift' ? 'Copied' : 'Copy'}</span>
+                            </button>
+                          </div>
+                        )}
+                        {bankDetails.upiId && customerCurrency === 'INR' && (
+                          <div className="flex items-center justify-between bg-amber-50/50 px-2 py-1 rounded border border-amber-200/50">
+                            <span>UPI ID: <strong className="text-slate-900">{bankDetails.upiId}</strong></span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(bankDetails.upiId, 'repay_upi')}
+                              className="text-[10px] text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
+                            >
+                              {copiedKey === 'repay_upi' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                              <span>{copiedKey === 'repay_upi' ? 'Copied' : 'Copy'}</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
+                      {bankDetails.notes && (
+                        <p className="text-[10px] text-slate-500 italic pt-1 border-t border-[#E8D7B7]/60 leading-normal">
+                          {bankDetails.notes}
+                        </p>
+                      )}
                     </div>
 
                     <div>

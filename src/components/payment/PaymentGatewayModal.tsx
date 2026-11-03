@@ -20,7 +20,8 @@ import {
   Clock,
   Wallet,
   CreditCard,
-  Zap
+  Zap,
+  Building2
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -96,6 +97,22 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
   const [cashCheckInstructions, setCashCheckInstructions] = useState<string>(
     'For Cash or Cheque, please enter your transaction details and attach deposit receipt or cheque photo. Atelier accounts will confirm collection and enable your download.'
   );
+  const [bankBeneficiaryName, setBankBeneficiaryName] = useState('Shiuli CAD Studio LLP');
+  const [bankName, setBankName] = useState('HDFC Bank / Silicon Valley Bank');
+  const [bankAccountNumber, setBankAccountNumber] = useState('50200084739201');
+  const [bankIfscCode, setBankIfscCode] = useState('HDFC0000240');
+  const [bankSwiftCode, setBankSwiftCode] = useState('HDFCINBB');
+  const [bankBranch, setBankBranch] = useState('Surat Main Branch');
+  const [bankAccountType, setBankAccountType] = useState('Current Account');
+  const [bankNotes, setBankNotes] = useState('');
+  const [copiedBankField, setCopiedBankField] = useState<string | null>(null);
+
+  const handleCopyBank = (val: string, key: string) => {
+    if (!val) return;
+    navigator.clipboard?.writeText(val);
+    setCopiedBankField(key);
+    setTimeout(() => setCopiedBankField(null), 2000);
+  };
 
   // UPI Form State
   const [upiRefId, setUpiRefId] = useState('');
@@ -177,6 +194,23 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
       if (localUpi) setStudioUpiId(localUpi);
       if (localQr) setStudioQrCodeUrl(localQr);
 
+      const localBeneficiary = localStorage.getItem('shiuli_bank_beneficiary_name');
+      if (localBeneficiary) setBankBeneficiaryName(localBeneficiary);
+      const localBankName = localStorage.getItem('shiuli_bank_name');
+      if (localBankName) setBankName(localBankName);
+      const localAcc = localStorage.getItem('shiuli_bank_account_number');
+      if (localAcc) setBankAccountNumber(localAcc);
+      const localIfsc = localStorage.getItem('shiuli_bank_ifsc_code');
+      if (localIfsc) setBankIfscCode(localIfsc);
+      const localSwift = localStorage.getItem('shiuli_bank_swift_code');
+      if (localSwift) setBankSwiftCode(localSwift);
+      const localBranch = localStorage.getItem('shiuli_bank_branch');
+      if (localBranch) setBankBranch(localBranch);
+      const localAccType = localStorage.getItem('shiuli_bank_account_type');
+      if (localAccType) setBankAccountType(localAccType);
+      const localNotes = localStorage.getItem('shiuli_bank_notes');
+      if (localNotes) setBankNotes(localNotes);
+
       // Fetch latest from API
       api.getPlatformSettings()
         .then((plat) => {
@@ -192,6 +226,14 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
             if (plat.cash_check_instructions) {
               setCashCheckInstructions(plat.cash_check_instructions);
             }
+            if (plat.bank_beneficiary_name) setBankBeneficiaryName(plat.bank_beneficiary_name);
+            if (plat.bank_name) setBankName(plat.bank_name);
+            if (plat.bank_account_number) setBankAccountNumber(plat.bank_account_number);
+            if (plat.bank_ifsc_code) setBankIfscCode(plat.bank_ifsc_code);
+            if (plat.bank_swift_code) setBankSwiftCode(plat.bank_swift_code);
+            if (plat.bank_branch) setBankBranch(plat.bank_branch);
+            if (plat.bank_account_type) setBankAccountType(plat.bank_account_type);
+            if (plat.bank_notes) setBankNotes(plat.bank_notes);
           }
         })
         .catch(() => {});
@@ -1459,6 +1501,67 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                     <p className="text-xs leading-relaxed text-[#475569]">
                       {cashCheckInstructions}
                     </p>
+                  </div>
+
+                  {/* Dynamic Studio Bank & Treasury Details Card */}
+                  <div className="p-3.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] space-y-2 text-xs text-[#17243B]">
+                    <div className="font-semibold text-[11px] uppercase tracking-wider text-[#B88732] flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Building2 className="w-3.5 h-3.5 text-[#B88732]" />
+                        <span>{bankBeneficiaryName || 'Shiuli Atelier Official Bank Details'}</span>
+                      </div>
+                      {bankAccountType && (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-50 text-[#B88732] border border-[#E8D7B7]">
+                          {bankAccountType}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11px] space-y-1 text-slate-700 font-mono">
+                      <div className="flex items-center justify-between">
+                        <span>Bank: <strong>{bankName || 'HDFC Bank Ltd.'}</strong></span>
+                        {bankBranch && <span className="text-[10px] text-slate-500 font-sans">{bankBranch}</span>}
+                      </div>
+                      <div className="flex items-center justify-between bg-white px-2 py-1 rounded border border-[#E8D7B7]">
+                        <span>Account: <strong className="text-slate-900 tracking-wide">{bankAccountNumber}</strong></span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyBank(bankAccountNumber, 'chk_acc')}
+                          className="text-[10px] text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
+                        >
+                          {copiedBankField === 'chk_acc' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                          <span>{copiedBankField === 'chk_acc' ? 'Copied' : 'Copy'}</span>
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between bg-white px-2 py-1 rounded border border-[#E8D7B7]">
+                        <span>IFSC: <strong className="text-slate-900">{bankIfscCode}</strong></span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyBank(bankIfscCode, 'chk_ifsc')}
+                          className="text-[10px] text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
+                        >
+                          {copiedBankField === 'chk_ifsc' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                          <span>{copiedBankField === 'chk_ifsc' ? 'Copied' : 'Copy'}</span>
+                        </button>
+                      </div>
+                      {bankSwiftCode && (
+                        <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
+                          <span>SWIFT/BIC: <strong className="text-slate-700">{bankSwiftCode}</strong></span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyBank(bankSwiftCode, 'chk_swift')}
+                            className="text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
+                          >
+                            {copiedBankField === 'chk_swift' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                            <span>{copiedBankField === 'chk_swift' ? 'Copied' : 'Copy'}</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {bankNotes && (
+                      <p className="text-[10px] text-slate-500 italic pt-1 border-t border-[#E8D7B7]/60 leading-normal">
+                        {bankNotes}
+                      </p>
+                    )}
                   </div>
 
                   {/* ONE TEXT BOX FOR DETAILS */}

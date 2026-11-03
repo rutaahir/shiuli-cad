@@ -15,6 +15,7 @@ from google.oauth2 import credentials as user_credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaIoBaseUpload
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -384,3 +385,42 @@ def delete_file(file_id):
             logger.info("Google Drive file %s was already deleted (404).", file_id)
         else:
             logger.warning("Failed to delete Google Drive file %s: %s", file_id, err)
+
+
+def upload_file_from_stream(file_handle, filename, mime_type='application/octet-stream', folder_id=None):
+    """
+    Uploads a file-like object (or Django UploadedFile) directly to Google Drive.
+    Returns the uploaded file metadata dict containing 'id', 'name', 'size', etc.
+    """
+    service = get_drive_service()
+    target_folder_id = folder_id or get_folder_id()
+
+    file_metadata = {
+        'name': filename,
+        'parents': [target_folder_id]
+    }
+
+    if hasattr(file_handle, 'seek'):
+        file_handle.seek(0)
+
+    media = MediaIoBaseUpload(
+        file_handle,
+        mimetype=mime_type or 'application/octet-stream',
+        chunksize=CHUNK_SIZE_DEFAULT,
+        resumable=True
+    )
+
+    try:
+        file_obj = service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields='id, name, size, md5Checksum, webViewLink',
+            supportsAllDrives=True
+        ).execute()
+        return file_obj
+    except HttpError as err:
+        logger.error("Failed to upload file %s to Google Drive: %s", filename, err)
+        if err.resp.status == 403 and 'quota' in str(err).lower():
+            raise GoogleDriveQuotaError("Google Drive storage quota exceeded.")
+        raise GoogleDriveError(f"Google Drive upload error ({err.resp.status}): {err}")
+

@@ -28,6 +28,7 @@ import {
   Volume2,
   Wrench,
   Download,
+  Cloud,
   ExternalLink
 } from 'lucide-react';
 
@@ -64,6 +65,7 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
 
   // File Upload & Progress State
   const [uploadingFileType, setUploadingFileType] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const [selectedUploadFile, setSelectedUploadFile] = useState<{ file: File; fileType: string } | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const uploadAbortControllerRef = useRef<AbortController | null>(null);
@@ -244,9 +246,10 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
     setUploadingFileType(null);
     setSelectedUploadFile(null);
     setUploadError(null);
+    setUploadProgress({});
   };
 
-  // Handle File Upload to Backend with Strict Validation & Extension Check
+  // Handle File Upload to Backend with Strict Validation & Direct Google Drive Streaming for Large CAD Files
   const handleFileSelected = async (fileType: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -260,6 +263,7 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
       'stl': ['stl'],
       'render': ['jpg', 'jpeg', 'png', 'webp'],
       'video': ['mp4', 'webm', 'mov', 'mkv'],
+      'zip': ['zip', 'rar', '7z', 'tar', 'gz'],
     };
 
     const allowed = validExts[fileType] || [];
@@ -276,17 +280,18 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
     uploadAbortControllerRef.current = controller;
     setUploadingFileType(fileType);
     setSelectedUploadFile({ file, fileType });
+    setUploadProgress({ [fileType]: 0 });
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('file_type', fileType);
-
-      await api.request(`/orders/${effectiveOrderId}/deliverables/`, {
-        method: 'POST',
-        body: formData,
-        signal: controller.signal,
-      });
+      await api.uploadOrderDeliverable(
+        effectiveOrderId,
+        file,
+        fileType,
+        (percent) => {
+          setUploadProgress(prev => ({ ...prev, [fileType]: percent }));
+        },
+        controller.signal
+      );
 
       await fetchOrderDetails();
     } catch (err: any) {
@@ -299,6 +304,7 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
       uploadAbortControllerRef.current = null;
       setUploadingFileType(null);
       setSelectedUploadFile(null);
+      setUploadProgress({});
       if (fileInputRefs.current[fileType]) {
         fileInputRefs.current[fileType]!.value = '';
       }
@@ -314,6 +320,7 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
   const stlDeliverable = getDeliverableByType('stl');
   const renderDeliverable = getDeliverableByType('render') || (orderData?.preview_image ? { filename: 'Client_Preview_Render.png', uploaded_at: orderData.created_at } : null);
   const videoDeliverable = getDeliverableByType('video');
+  const zipDeliverable = getDeliverableByType('zip');
 
   // All deliverables are optional
   const missingRequirements: string[] = [];
@@ -845,24 +852,36 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
               </div>
             </div>
 
-            {/* Uploading Notification Alert with Cancel Button */}
+            {/* Uploading Notification Alert with Cancel Button & Progress Bar */}
             {uploadingFileType && (
-              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center justify-between shadow-xs animate-in fade-in duration-150">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <Loader2 className="w-4 h-4 text-[#C9A227] animate-spin shrink-0" />
-                  <span className="truncate">
-                    Uploading <strong>{uploadingFileType.toUpperCase()}</strong> deliverable: <span className="font-mono text-[11px] font-semibold">{selectedUploadFile?.file?.name || 'File'}</span>
-                  </span>
+              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-2 shadow-xs animate-in fade-in duration-150">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Loader2 className="w-4 h-4 text-[#C9A227] animate-spin shrink-0" />
+                    <span className="truncate">
+                      Uploading <strong>{uploadingFileType.toUpperCase()}</strong> deliverable: <span className="font-mono text-[11px] font-semibold">{selectedUploadFile?.file?.name || 'File'}</span>
+                      {selectedUploadFile?.file?.size ? ` (${(selectedUploadFile.file.size / (1024 * 1024)).toFixed(1)} MB)` : ''}
+                      {uploadProgress[uploadingFileType] !== undefined ? ` • ${uploadProgress[uploadingFileType]}%` : ''}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCancelUpload(uploadingFileType)}
+                    className="px-3 py-1.5 rounded-lg bg-white hover:bg-rose-50 border border-rose-300 text-rose-700 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-2xs"
+                    title="Cancel upload and reset file"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>Cancel Upload</span>
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleCancelUpload(uploadingFileType)}
-                  className="px-3 py-1.5 rounded-lg bg-white hover:bg-rose-50 border border-rose-300 text-rose-700 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-2xs"
-                  title="Cancel upload and reset file"
-                >
-                  <X className="w-3.5 h-3.5" />
-                  <span>Cancel Upload</span>
-                </button>
+                {uploadProgress[uploadingFileType] !== undefined && (
+                  <div className="w-full bg-amber-200/70 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="bg-gradient-to-r from-[#D9B66F] to-[#17345C] h-full transition-all duration-150 rounded-full"
+                      style={{ width: `${uploadProgress[uploadingFileType]}%` }}
+                    />
+                  </div>
+                )}
               </div>
             )}
 
@@ -900,20 +919,30 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                 />
 
                 {uploadingFileType === '3dm' ? (
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 py-2.5 rounded-xl bg-[#17345C] text-[#FFF9F0] font-bold text-xs flex items-center justify-center gap-2">
-                      <Loader2 className="w-3.5 h-3.5 text-[#D9B66F] animate-spin" />
-                      <span className="truncate">Uploading .3DM...</span>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 py-2.5 rounded-xl bg-[#17345C] text-[#FFF9F0] font-bold text-xs flex items-center justify-center gap-2">
+                        <Loader2 className="w-3.5 h-3.5 text-[#D9B66F] animate-spin" />
+                        <span className="truncate">Uploading .3DM... {uploadProgress['3dm'] !== undefined ? `${uploadProgress['3dm']}%` : ''}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCancelUpload('3dm')}
+                        className="py-2.5 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                        title="Cancel this upload"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        <span>Cancel</span>
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCancelUpload('3dm')}
-                      className="py-2.5 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0"
-                      title="Cancel this upload"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                      <span>Cancel</span>
-                    </button>
+                    {uploadProgress['3dm'] !== undefined && (
+                      <div className="w-full bg-slate-200 rounded-full h-1 overflow-hidden">
+                        <div
+                          className="bg-[#D9B66F] h-full transition-all duration-150 rounded-full"
+                          style={{ width: `${uploadProgress['3dm']}%` }}
+                        />
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <button
@@ -926,10 +955,34 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                 )}
 
                 {rhinoDeliverable && (
-                  <div className="text-[10px] font-mono text-emerald-800 bg-emerald-50 p-2.5 rounded border border-emerald-200 space-y-1">
-                    <div className="font-bold truncate">📄 {rhinoDeliverable.filename || 'Master_Model.3dm'}</div>
-                    <div className="text-[9px] text-emerald-600 flex justify-between">
-                      <span>{rhinoDeliverable.file_size || 'CAD File'}</span>
+                  <div className="text-[10px] font-mono text-emerald-800 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200 space-y-1.5">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <div className="font-bold truncate flex-1">📄 {rhinoDeliverable.filename || 'Master_Model.3dm'}</div>
+                      {rhinoDeliverable.id && (
+                        <a
+                          href={`/api/orders/${effectiveOrderId}/deliverables/${rhinoDeliverable.id}/download/?token=${localStorage.getItem('shiuli_access_token') || ''}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-1 hover:bg-emerald-100 rounded text-emerald-800 transition-colors shrink-0"
+                          title="Download / Inspect attached deliverable"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </a>
+                      )}
+                    </div>
+                    <div className="text-[9px] text-emerald-700 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span>{rhinoDeliverable.file_size || 'CAD File'}</span>
+                        {rhinoDeliverable.storage_provider === 'gdrive' ? (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-100/90 text-emerald-900 font-sans font-semibold text-[9px] border border-emerald-300">
+                            <Cloud className="w-2.5 h-2.5 text-emerald-700" /> Google Drive
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-sans text-[9px]">
+                            Protected Disk
+                          </span>
+                        )}
+                      </div>
                       <span>Uploaded {new Date(rhinoDeliverable.uploaded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   </div>
@@ -961,20 +1014,30 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                 />
 
                 {uploadingFileType === 'stl' ? (
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 py-2.5 rounded-xl bg-[#17345C] text-[#FFF9F0] font-bold text-xs flex items-center justify-center gap-2">
-                      <Loader2 className="w-3.5 h-3.5 text-[#D9B66F] animate-spin" />
-                      <span className="truncate">Uploading .STL...</span>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 py-2.5 rounded-xl bg-[#17345C] text-[#FFF9F0] font-bold text-xs flex items-center justify-center gap-2">
+                        <Loader2 className="w-3.5 h-3.5 text-[#D9B66F] animate-spin" />
+                        <span className="truncate">Uploading .STL... {uploadProgress['stl'] !== undefined ? `${uploadProgress['stl']}%` : ''}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCancelUpload('stl')}
+                        className="py-2.5 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                        title="Cancel this upload"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        <span>Cancel</span>
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCancelUpload('stl')}
-                      className="py-2.5 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0"
-                      title="Cancel this upload"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                      <span>Cancel</span>
-                    </button>
+                    {uploadProgress['stl'] !== undefined && (
+                      <div className="w-full bg-slate-200 rounded-full h-1 overflow-hidden">
+                        <div
+                          className="bg-[#D9B66F] h-full transition-all duration-150 rounded-full"
+                          style={{ width: `${uploadProgress['stl']}%` }}
+                        />
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <button
@@ -987,10 +1050,34 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                 )}
 
                 {stlDeliverable && (
-                  <div className="text-[10px] font-mono text-emerald-800 bg-emerald-50 p-2.5 rounded border border-emerald-200 space-y-1">
-                    <div className="font-bold truncate">📄 {stlDeliverable.filename || 'PrintReady.stl'}</div>
-                    <div className="text-[9px] text-emerald-600 flex justify-between">
-                      <span>{stlDeliverable.file_size || 'Mesh File'}</span>
+                  <div className="text-[10px] font-mono text-emerald-800 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200 space-y-1.5">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <div className="font-bold truncate flex-1">📄 {stlDeliverable.filename || 'PrintReady.stl'}</div>
+                      {stlDeliverable.id && (
+                        <a
+                          href={`/api/orders/${effectiveOrderId}/deliverables/${stlDeliverable.id}/download/?token=${localStorage.getItem('shiuli_access_token') || ''}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-1 hover:bg-emerald-100 rounded text-emerald-800 transition-colors shrink-0"
+                          title="Download / Inspect attached deliverable"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </a>
+                      )}
+                    </div>
+                    <div className="text-[9px] text-emerald-700 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span>{stlDeliverable.file_size || 'Mesh File'}</span>
+                        {stlDeliverable.storage_provider === 'gdrive' ? (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-100/90 text-emerald-900 font-sans font-semibold text-[9px] border border-emerald-300">
+                            <Cloud className="w-2.5 h-2.5 text-emerald-700" /> Google Drive
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-sans text-[9px]">
+                            Protected Disk
+                          </span>
+                        )}
+                      </div>
                       <span>Uploaded {new Date(stlDeliverable.uploaded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   </div>
@@ -1022,20 +1109,30 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                 />
 
                 {uploadingFileType === 'render' ? (
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 py-2.5 rounded-lg bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2">
-                      <Loader2 className="w-3.5 h-3.5 text-[#D4AF37] animate-spin" />
-                      <span className="truncate">Uploading Render...</span>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 py-2.5 rounded-lg bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2">
+                        <Loader2 className="w-3.5 h-3.5 text-[#D4AF37] animate-spin" />
+                        <span className="truncate">Uploading Render... {uploadProgress['render'] !== undefined ? `${uploadProgress['render']}%` : ''}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCancelUpload('render')}
+                        className="py-2.5 px-3 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                        title="Cancel this upload"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        <span>Cancel</span>
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCancelUpload('render')}
-                      className="py-2.5 px-3 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0"
-                      title="Cancel this upload"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                      <span>Cancel</span>
-                    </button>
+                    {uploadProgress['render'] !== undefined && (
+                      <div className="w-full bg-slate-200 rounded-full h-1 overflow-hidden">
+                        <div
+                          className="bg-[#D9B66F] h-full transition-all duration-150 rounded-full"
+                          style={{ width: `${uploadProgress['render']}%` }}
+                        />
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <button
@@ -1048,8 +1145,32 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                 )}
 
                 {renderDeliverable && (
-                  <div className="text-[10px] font-mono text-emerald-800 bg-emerald-50 p-2.5 rounded border border-emerald-200 truncate">
-                    🖼️ {renderDeliverable.filename || 'Preview_Render.png'}
+                  <div className="text-[10px] font-mono text-emerald-800 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200 space-y-1.5">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <div className="font-bold truncate flex-1">🖼️ {renderDeliverable.filename || 'Preview_Render.png'}</div>
+                      {renderDeliverable.id && (
+                        <a
+                          href={`/api/orders/${effectiveOrderId}/deliverables/${renderDeliverable.id}/download/?token=${localStorage.getItem('shiuli_access_token') || ''}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-1 hover:bg-emerald-100 rounded text-emerald-800 transition-colors shrink-0"
+                          title="Download / Inspect attached deliverable"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </a>
+                      )}
+                    </div>
+                    <div className="text-[9px] text-emerald-700 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span>{renderDeliverable.file_size || 'Preview Image'}</span>
+                        {renderDeliverable.storage_provider === 'gdrive' && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-100/90 text-emerald-900 font-sans font-semibold text-[9px] border border-emerald-300">
+                            <Cloud className="w-2.5 h-2.5 text-emerald-700" /> Google Drive
+                          </span>
+                        )}
+                      </div>
+                      <span>Uploaded {new Date(renderDeliverable.uploaded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1079,20 +1200,30 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                 />
 
                 {uploadingFileType === 'video' ? (
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 py-2.5 rounded-lg bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2">
-                      <Loader2 className="w-3.5 h-3.5 text-[#D4AF37] animate-spin" />
-                      <span className="truncate">Uploading Video...</span>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 py-2.5 rounded-lg bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2">
+                        <Loader2 className="w-3.5 h-3.5 text-[#D4AF37] animate-spin" />
+                        <span className="truncate">Uploading Video... {uploadProgress['video'] !== undefined ? `${uploadProgress['video']}%` : ''}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCancelUpload('video')}
+                        className="py-2.5 px-3 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                        title="Cancel this upload"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        <span>Cancel</span>
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCancelUpload('video')}
-                      className="py-2.5 px-3 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0"
-                      title="Cancel this upload"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                      <span>Cancel</span>
-                    </button>
+                    {uploadProgress['video'] !== undefined && (
+                      <div className="w-full bg-slate-200 rounded-full h-1 overflow-hidden">
+                        <div
+                          className="bg-[#D9B66F] h-full transition-all duration-150 rounded-full"
+                          style={{ width: `${uploadProgress['video']}%` }}
+                        />
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <button
@@ -1105,8 +1236,131 @@ export const StaffActiveJobWorkspace: React.FC<StaffActiveJobWorkspaceProps> = (
                 )}
 
                 {videoDeliverable && (
-                  <div className="text-[10px] font-mono text-emerald-800 bg-emerald-50 p-2.5 rounded border border-emerald-200 truncate">
-                    🎥 {videoDeliverable.filename || 'Turntable.mp4'}
+                  <div className="text-[10px] font-mono text-emerald-800 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200 space-y-1.5">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <div className="font-bold truncate flex-1">🎥 {videoDeliverable.filename || 'Turntable.mp4'}</div>
+                      {videoDeliverable.id && (
+                        <a
+                          href={`/api/orders/${effectiveOrderId}/deliverables/${videoDeliverable.id}/download/?token=${localStorage.getItem('shiuli_access_token') || ''}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-1 hover:bg-emerald-100 rounded text-emerald-800 transition-colors shrink-0"
+                          title="Download / Inspect attached deliverable"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </a>
+                      )}
+                    </div>
+                    <div className="text-[9px] text-emerald-700 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span>{videoDeliverable.file_size || 'Video File'}</span>
+                        {videoDeliverable.storage_provider === 'gdrive' ? (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-100/90 text-emerald-900 font-sans font-semibold text-[9px] border border-emerald-300">
+                            <Cloud className="w-2.5 h-2.5 text-emerald-700" /> Google Drive
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-sans text-[9px]">
+                            Protected Disk
+                          </span>
+                        )}
+                      </div>
+                      <span>Uploaded {new Date(videoDeliverable.uploaded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Slot 5: Master CAD Release (.ZIP / .RAR / .7Z) */}
+              <div className="p-4 rounded-xl bg-[#FFFDF9] border border-[#E8D7B7] space-y-3 sm:col-span-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-mono font-bold text-[#17345C]">5. Master Production Package (.ZIP / .RAR / .7Z)</span>
+                  {zipDeliverable ? (
+                    <span className="text-emerald-700 font-bold text-[10px] flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      <CheckCircle2 className="w-3 h-3" /> Attached
+                    </span>
+                  ) : (
+                    <span className="text-slate-500 font-medium text-[10px]">Optional (Recommended for multi-file releases)</span>
+                  )}
+                </div>
+                <p className="text-[11px] text-[#687386]">
+                  Complete release package bundled as a ZIP or 7Z archive. Large files stream directly to Google Drive.
+                </p>
+
+                <input
+                  type="file"
+                  accept=".zip,.rar,.7z,.tar,.gz"
+                  ref={(el) => (fileInputRefs.current['zip'] = el)}
+                  onChange={(e) => handleFileSelected('zip', e)}
+                  className="hidden"
+                />
+
+                {uploadingFileType === 'zip' ? (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 py-2.5 rounded-xl bg-[#17345C] text-[#FFF9F0] font-bold text-xs flex items-center justify-center gap-2">
+                        <Loader2 className="w-3.5 h-3.5 text-[#D9B66F] animate-spin" />
+                        <span className="truncate">Uploading ZIP... {uploadProgress['zip'] !== undefined ? `${uploadProgress['zip']}%` : ''}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCancelUpload('zip')}
+                        className="py-2.5 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                        title="Cancel this upload"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        <span>Cancel</span>
+                      </button>
+                    </div>
+                    {uploadProgress['zip'] !== undefined && (
+                      <div className="w-full bg-slate-200 rounded-full h-1 overflow-hidden">
+                        <div
+                          className="bg-[#D9B66F] h-full transition-all duration-150 rounded-full"
+                          style={{ width: `${uploadProgress['zip']}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => fileInputRefs.current['zip']?.click()}
+                    className="btn-gold-luxury w-full py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>{zipDeliverable ? 'Replace Archive (.ZIP)' : 'Upload Archive (.ZIP)'}</span>
+                  </button>
+                )}
+
+                {zipDeliverable && (
+                  <div className="text-[10px] font-mono text-emerald-800 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200 space-y-1.5">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <div className="font-bold truncate flex-1">📦 {zipDeliverable.filename || 'Master_Package.zip'}</div>
+                      {zipDeliverable.id && (
+                        <a
+                          href={`/api/orders/${effectiveOrderId}/deliverables/${zipDeliverable.id}/download/?token=${localStorage.getItem('shiuli_access_token') || ''}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-1 hover:bg-emerald-100 rounded text-emerald-800 transition-colors shrink-0"
+                          title="Download / Inspect attached deliverable"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </a>
+                      )}
+                    </div>
+                    <div className="text-[9px] text-emerald-700 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span>{zipDeliverable.file_size || 'Archive'}</span>
+                        {zipDeliverable.storage_provider === 'gdrive' ? (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-100/90 text-emerald-900 font-sans font-semibold text-[9px] border border-emerald-300">
+                            <Cloud className="w-2.5 h-2.5 text-emerald-700" /> Google Drive
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-sans text-[9px]">
+                            Protected Disk
+                          </span>
+                        )}
+                      </div>
+                      <span>Uploaded {new Date(zipDeliverable.uploaded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
                   </div>
                 )}
               </div>

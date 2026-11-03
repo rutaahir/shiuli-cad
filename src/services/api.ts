@@ -1331,6 +1331,14 @@ class ApiClient {
     cash_check_instructions: string;
     free_revisions_allowed: number;
     extra_revision_fee: number;
+    bank_beneficiary_name: string;
+    bank_name: string;
+    bank_account_number: string;
+    bank_ifsc_code: string;
+    bank_swift_code: string;
+    bank_branch: string;
+    bank_account_type: string;
+    bank_notes: string;
     smtp_email: string;
     smtp_app_password: string;
   }>) {
@@ -1392,20 +1400,189 @@ class ApiClient {
     });
   }
 
-  async uploadOrderDeliverable(orderId: string | number, file: File, fileType: string) {
-    const token = localStorage.getItem('shiuli_access_token');
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('file_type', fileType);
+  async createOrderDeliverableGDriveSession(
+    orderId: string | number,
+    file: File,
+    fileType: string
+  ): Promise<{ session_uri: string; file_type: string; filename: string }> {
+    return this.request<{ session_uri: string; file_type: string; filename: string }>(
+      `/orders/${orderId}/gdrive-upload-session/`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: file.name,
+          file_type: fileType,
+          file_size: file.size,
+          mime_type: file.type || 'application/octet-stream',
+        }),
+      }
+    );
+  }
 
-    const response = await fetch(`/api/orders/${orderId}/deliverables/`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
+  async completeOrderDeliverableGDrive(
+    orderId: string | number,
+    driveFileId: string,
+    fileType: string,
+    originalFilename?: string,
+    fileSize?: number
+  ): Promise<any> {
+    return this.request<any>(
+      `/orders/${orderId}/gdrive-upload-complete/`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          drive_file_id: driveFileId,
+          file_type: fileType,
+          original_filename: originalFilename || '',
+          file_size: fileSize || 0,
+        }),
+      }
+    );
+  }
+
+  async uploadOrderDeliverableToGDrive(
+    orderId: string | number,
+    file: File,
+    fileType: string,
+    onProgress?: (percent: number) => void,
+    signal?: AbortSignal
+  ): Promise<any> {
+    // 1. Request resumable upload session URI from Django
+    const sessionData = await this.createOrderDeliverableGDriveSession(orderId, file, fileType);
+    const sessionUri = sessionData.session_uri;
+
+    // 2. Upload file directly to Google Drive session URI (Zero server RAM buffering)
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      if (signal) {
+        signal.addEventListener('abort', () => {
+          xhr.abort();
+          reject(new DOMException('Upload aborted by user', 'AbortError'));
+        });
+      }
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable && onProgress) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          onProgress(percent);
+        }
+      });
+
+      xhr.addEventListener('load', async () => {
+        if (xhr.status === 200 || xhr.status === 201) {
+          try {
+            const driveData = JSON.parse(xhr.responseText || '{}');
+            const driveFileId = driveData.id;
+            if (!driveFileId) {
+              throw new Error('Google Drive upload response did not include a valid file ID.');
+            }
+            // 3. Finalize upload with backend to create OrderDeliverable record
+            const completed = await this.completeOrderDeliverableGDrive(
+              orderId,
+              driveFileId,
+              fileType,
+              file.name,
+              file.size
+            );
+            resolve(completed);
+          } catch (err) {
+            reject(err);
+          }
+        } else {
+          reject(new Error(`Google Drive upload failed with status ${xhr.status}: ${xhr.responseText}`));
+        }
+      });
+
+      xhr.addEventListener('error', () =>
+        reject(new Error(`Network error uploading "${file.name}" directly to Google Drive.`))
+      );
+      xhr.addEventListener('timeout', () =>
+        reject(new Error(`Upload timed out for "${file.name}" to Google Drive.`))
+      );
+      xhr.timeout = 60 * 60 * 1000; // 1 hour timeout for large CAD files
+
+      xhr.open('PUT', sessionUri);
+      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+      xhr.send(file);
     });
-    return await this.handleResponse<any>(response);
+  }
+
+  async uploadOrderDeliverable(
+    orderId: string | number,
+    file: File,
+    fileType: string,
+    onProgress?: (percent: number) => void,
+    signal?: AbortSignal
+  ) {
+    // If file is large (>= 10MB) or CAD/video/archive, prioritize Google Drive direct upload
+    const isLargeOrCad = file.size >= 10 * 1024 * 1024 || ['3dm', 'stl', 'video', 'zip'].includes(fileType);
+
+    if (isLargeOrCad) {
+      try {
+        const config = await this.getCadStorageConfig();
+        if (config.is_gdrive || file.size >= 10 * 1024 * 1024) {
+          return await this.uploadOrderDeliverableToGDrive(orderId, file, fileType, onProgress, signal);
+        }
+      } catch (gdriveErr: any) {
+        console.warn('Direct Google Drive upload failed or unavailable, falling back to server upload:', gdriveErr);
+        // Fall back to direct server upload below
+      }
+    }
+
+    // Direct server upload fallback (with XHR progress if onProgress provided)
+    return new Promise((resolve, reject) => {
+      const token = localStorage.getItem('shiuli_access_token');
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('file_type', fileType);
+
+      const xhr = new XMLHttpRequest();
+
+      if (signal) {
+        signal.addEventListener('abort', () => {
+          xhr.abort();
+          reject(new DOMException('Upload aborted by user', 'AbortError'));
+        });
+      }
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable && onProgress) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          onProgress(percent);
+        }
+      });
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText || '{}');
+            resolve(data);
+          } catch (e) {
+            resolve(xhr.responseText);
+          }
+        } else {
+          try {
+            const errData = JSON.parse(xhr.responseText || '{}');
+            reject(new Error(errData.error || errData.detail || `Upload failed with status ${xhr.status}`));
+          } catch {
+            reject(new Error(`Upload failed with status ${xhr.status}`));
+          }
+        }
+      });
+
+      xhr.addEventListener('error', () =>
+        reject(new Error(`Network error uploading "${file.name}" to server.`))
+      );
+
+      xhr.open('POST', `/api/orders/${orderId}/deliverables/`);
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
+      xhr.send(formData);
+    });
   }
 
   async completeOrder(orderId: string | number) {

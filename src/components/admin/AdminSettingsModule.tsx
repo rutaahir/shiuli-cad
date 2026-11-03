@@ -21,7 +21,8 @@ import {
   Eye,
   EyeOff,
   Trash2,
-  Clock
+  Clock,
+  Building2
 } from 'lucide-react';
 
 export const AdminSettingsModule: React.FC = () => {
@@ -31,6 +32,21 @@ export const AdminSettingsModule: React.FC = () => {
   const [cashCheckInstructions, setCashCheckInstructions] = useState(
     'For Cash or Cheque, please enter your transaction details and attach deposit receipt or cheque photo. Atelier accounts will confirm collection and enable your download.'
   );
+
+  // Dynamic Official Bank & Treasury Account Details State
+  const [bankBeneficiaryName, setBankBeneficiaryName] = useState('Shiuli CAD Studio LLP');
+  const [bankName, setBankName] = useState('HDFC Bank / Silicon Valley Bank');
+  const [bankAccountNumber, setBankAccountNumber] = useState('50200084739201');
+  const [bankIfscCode, setBankIfscCode] = useState('HDFC0000240');
+  const [bankSwiftCode, setBankSwiftCode] = useState('HDFCINBB');
+  const [bankBranch, setBankBranch] = useState('Surat Main Branch');
+  const [bankAccountType, setBankAccountType] = useState('Current Account');
+  const [bankNotes, setBankNotes] = useState(
+    'Please include your registered phone number or Order/Client ID in the wire transfer description.'
+  );
+  const [savingBank, setSavingBank] = useState(false);
+  const [bankToastMessage, setBankToastMessage] = useState<string | null>(null);
+  const [copiedBankField, setCopiedBankField] = useState<string | null>(null);
 
   // Dynamic Email Configuration State
   const [emailConfigured, setEmailConfigured] = useState(false);
@@ -70,6 +86,16 @@ export const AdminSettingsModule: React.FC = () => {
         if (plat.studio_upi_id) setStudioUpiId(plat.studio_upi_id);
         if (plat.studio_qr_code_url) setStudioQrCodeUrl(plat.studio_qr_code_url);
         if (plat.cash_check_instructions) setCashCheckInstructions(plat.cash_check_instructions);
+
+        // Dynamic Bank & Treasury Account details
+        if (plat.bank_beneficiary_name !== undefined) setBankBeneficiaryName(plat.bank_beneficiary_name || '');
+        if (plat.bank_name !== undefined) setBankName(plat.bank_name || '');
+        if (plat.bank_account_number !== undefined) setBankAccountNumber(plat.bank_account_number || '');
+        if (plat.bank_ifsc_code !== undefined) setBankIfscCode(plat.bank_ifsc_code || '');
+        if (plat.bank_swift_code !== undefined) setBankSwiftCode(plat.bank_swift_code || '');
+        if (plat.bank_branch !== undefined) setBankBranch(plat.bank_branch || '');
+        if (plat.bank_account_type !== undefined) setBankAccountType(plat.bank_account_type || '');
+        if (plat.bank_notes !== undefined) setBankNotes(plat.bank_notes || '');
         
         // Email configuration data
         setEmailConfigured(Boolean(plat.email_configured));
@@ -83,6 +109,23 @@ export const AdminSettingsModule: React.FC = () => {
         const localQr = localStorage.getItem('shiuli_studio_qr_code_url');
         if (localUpi) setStudioUpiId(localUpi);
         if (localQr) setStudioQrCodeUrl(localQr);
+
+        const localBeneficiary = localStorage.getItem('shiuli_bank_beneficiary_name');
+        if (localBeneficiary) setBankBeneficiaryName(localBeneficiary);
+        const localBankName = localStorage.getItem('shiuli_bank_name');
+        if (localBankName) setBankName(localBankName);
+        const localAcc = localStorage.getItem('shiuli_bank_account_number');
+        if (localAcc) setBankAccountNumber(localAcc);
+        const localIfsc = localStorage.getItem('shiuli_bank_ifsc_code');
+        if (localIfsc) setBankIfscCode(localIfsc);
+        const localSwift = localStorage.getItem('shiuli_bank_swift_code');
+        if (localSwift) setBankSwiftCode(localSwift);
+        const localBranch = localStorage.getItem('shiuli_bank_branch');
+        if (localBranch) setBankBranch(localBranch);
+        const localAccType = localStorage.getItem('shiuli_bank_account_type');
+        if (localAccType) setBankAccountType(localAccType);
+        const localNotes = localStorage.getItem('shiuli_bank_notes');
+        if (localNotes) setBankNotes(localNotes);
       }
     } catch (err) {
       console.warn('Failed to fetch platform settings:', err);
@@ -96,6 +139,59 @@ export const AdminSettingsModule: React.FC = () => {
     fetchSettings();
   }, []);
 
+  const handleCopyBankField = (val: string, field: string) => {
+    if (!val) return;
+    navigator.clipboard?.writeText(val);
+    setCopiedBankField(field);
+    setTimeout(() => setCopiedBankField(null), 2000);
+  };
+
+  const handleSaveBank = async () => {
+    setSavingBank(true);
+    setBankToastMessage(null);
+    try {
+      await api.updatePlatformSettings({
+        bank_beneficiary_name: bankBeneficiaryName,
+        bank_name: bankName,
+        bank_account_number: bankAccountNumber,
+        bank_ifsc_code: bankIfscCode,
+        bank_swift_code: bankSwiftCode,
+        bank_branch: bankBranch,
+        bank_account_type: bankAccountType,
+        bank_notes: bankNotes,
+        studio_upi_id: studioUpiId,
+      });
+
+      localStorage.setItem('shiuli_bank_beneficiary_name', bankBeneficiaryName);
+      localStorage.setItem('shiuli_bank_name', bankName);
+      localStorage.setItem('shiuli_bank_account_number', bankAccountNumber);
+      localStorage.setItem('shiuli_bank_ifsc_code', bankIfscCode);
+      localStorage.setItem('shiuli_bank_swift_code', bankSwiftCode);
+      localStorage.setItem('shiuli_bank_branch', bankBranch);
+      localStorage.setItem('shiuli_bank_account_type', bankAccountType);
+      localStorage.setItem('shiuli_bank_notes', bankNotes);
+      localStorage.setItem('shiuli_studio_upi_id', studioUpiId);
+
+      setBankToastMessage('Official Bank & Treasury account details saved and synchronized across all client deposit modals!');
+      setTimeout(() => setBankToastMessage(null), 4000);
+    } catch (err: any) {
+      if (
+        err?.status === 401 ||
+        err?.isAuthExpired ||
+        err?.message?.toLowerCase().includes('token') ||
+        err?.message?.toLowerCase().includes('session') ||
+        err?.message?.toLowerCase().includes('expired')
+      ) {
+        setShowReAuthModal(true);
+        setAuthError('Your admin session has expired. Sign in to save settings instantly without losing your inputs.');
+      } else {
+        alert(err?.message || 'Failed to save bank account settings');
+      }
+    } finally {
+      setSavingBank(false);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setToastMessage(null);
@@ -104,6 +200,14 @@ export const AdminSettingsModule: React.FC = () => {
         studio_upi_id: studioUpiId,
         studio_qr_code_url: studioQrCodeUrl,
         cash_check_instructions: cashCheckInstructions,
+        bank_beneficiary_name: bankBeneficiaryName,
+        bank_name: bankName,
+        bank_account_number: bankAccountNumber,
+        bank_ifsc_code: bankIfscCode,
+        bank_swift_code: bankSwiftCode,
+        bank_branch: bankBranch,
+        bank_account_type: bankAccountType,
+        bank_notes: bankNotes,
       });
       localStorage.setItem('shiuli_studio_upi_id', studioUpiId);
       if (studioQrCodeUrl) {
@@ -452,6 +556,324 @@ export const AdminSettingsModule: React.FC = () => {
               <>
                 <Check className="w-4 h-4 text-[#0B1330]" />
                 <span>Save Payment Gateway Settings</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Official Studio Bank & Treasury Account Details Card */}
+      <div className="bg-white rounded-2xl border border-[#E8D7B7] p-6 sm:p-8 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#E8D7B7] gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-amber-500/10 text-[#B88732] border border-[#E8D7B7]">
+              <Building2 className="w-5 h-5 text-[#B88732]" />
+            </div>
+            <div>
+              <h3 className="font-bold text-base text-[#17243B]">
+                Official Studio Bank &amp; Treasury Account Details
+              </h3>
+              <p className="text-xs text-[#6B7280]">
+                These details are shown dynamically to clients during Studio Wallet Top-Up, Corporate Credit Repayments, and Direct Bank Transfers.
+              </p>
+            </div>
+          </div>
+
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+            <Check className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Dynamic Sync Active</span>
+          </span>
+        </div>
+
+        {/* Success notification for bank save */}
+        {bankToastMessage && (
+          <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-2 text-xs font-semibold shadow-sm animate-in fade-in duration-200">
+            <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{bankToastMessage}</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Beneficiary / Entity Name */}
+          <div className="space-y-1.5">
+            <label className="font-semibold text-[#17243B] text-xs block">
+              Beneficiary / Entity Name
+            </label>
+            <input
+              type="text"
+              value={bankBeneficiaryName}
+              onChange={(e) => setBankBeneficiaryName(e.target.value)}
+              placeholder="e.g. Shiuli CAD Studio LLP"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] text-xs font-medium text-[#17243B] focus:border-[#B88732] focus:bg-white outline-none transition-all"
+            />
+            <span className="text-[11px] text-[#6B7280] block">
+              Official legal business or firm name registered with the bank.
+            </span>
+          </div>
+
+          {/* Bank Name */}
+          <div className="space-y-1.5">
+            <label className="font-semibold text-[#17243B] text-xs block">
+              Bank Name
+            </label>
+            <input
+              type="text"
+              value={bankName}
+              onChange={(e) => setBankName(e.target.value)}
+              placeholder="e.g. HDFC Bank / Silicon Valley Bank"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] text-xs font-medium text-[#17243B] focus:border-[#B88732] focus:bg-white outline-none transition-all"
+            />
+            <span className="text-[11px] text-[#6B7280] block">
+              Financial institution name where funds will be credited.
+            </span>
+          </div>
+
+          {/* Account Number */}
+          <div className="space-y-1.5">
+            <label className="font-semibold text-[#17243B] text-xs block">
+              Bank Account Number
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                value={bankAccountNumber}
+                onChange={(e) => setBankAccountNumber(e.target.value)}
+                placeholder="e.g. 50200084739201"
+                className="w-full pl-3.5 pr-20 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] font-mono text-xs text-[#17243B] focus:border-[#B88732] focus:bg-white outline-none transition-all tracking-wider"
+              />
+              <button
+                type="button"
+                onClick={() => handleCopyBankField(bankAccountNumber, 'acc')}
+                title="Test Copy"
+                className="absolute right-2 top-2 px-2.5 py-1 rounded-lg bg-white border border-[#E8D7B7] text-[11px] text-[#17345C] font-semibold flex items-center gap-1 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                {copiedBankField === 'acc' ? (
+                  <>
+                    <Check className="w-3 h-3 text-emerald-600" />
+                    <span>Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3 h-3" />
+                    <span>Copy</span>
+                  </>
+                )}
+              </button>
+            </div>
+            <span className="text-[11px] text-[#6B7280] block font-mono">
+              Receiving current or savings account number.
+            </span>
+          </div>
+
+          {/* Account Type */}
+          <div className="space-y-1.5">
+            <label className="font-semibold text-[#17243B] text-xs block">
+              Account Type
+            </label>
+            <select
+              value={bankAccountType}
+              onChange={(e) => setBankAccountType(e.target.value)}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] text-xs text-[#17243B] focus:border-[#B88732] focus:bg-white outline-none transition-all"
+            >
+              <option value="Current Account">Current Account (Corporate / Business)</option>
+              <option value="Savings Account">Savings Account</option>
+              <option value="Corporate Escrow">Corporate Escrow Account</option>
+              <option value="Treasury Pool">Treasury Pool Account</option>
+            </select>
+            <span className="text-[11px] text-[#6B7280] block">
+              Specifies the nature of the deposit account to customers.
+            </span>
+          </div>
+
+          {/* IFSC Code */}
+          <div className="space-y-1.5">
+            <label className="font-semibold text-[#17243B] text-xs block">
+              IFSC Code (Domestic Indian Transfers)
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                value={bankIfscCode}
+                onChange={(e) => setBankIfscCode(e.target.value.toUpperCase())}
+                placeholder="e.g. HDFC0000240"
+                className="w-full pl-3.5 pr-20 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] font-mono text-xs uppercase text-[#17243B] focus:border-[#B88732] focus:bg-white outline-none transition-all tracking-wider"
+              />
+              <button
+                type="button"
+                onClick={() => handleCopyBankField(bankIfscCode, 'ifsc')}
+                title="Test Copy"
+                className="absolute right-2 top-2 px-2.5 py-1 rounded-lg bg-white border border-[#E8D7B7] text-[11px] text-[#17345C] font-semibold flex items-center gap-1 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                {copiedBankField === 'ifsc' ? (
+                  <>
+                    <Check className="w-3 h-3 text-emerald-600" />
+                    <span>Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3 h-3" />
+                    <span>Copy</span>
+                  </>
+                )}
+              </button>
+            </div>
+            <span className="text-[11px] text-[#6B7280] block font-mono">
+              11-character Indian Financial System Code for NEFT / RTGS / IMPS.
+            </span>
+          </div>
+
+          {/* SWIFT / BIC Code */}
+          <div className="space-y-1.5">
+            <label className="font-semibold text-[#17243B] text-xs block">
+              SWIFT / BIC Code (International Wire Transfers)
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                value={bankSwiftCode}
+                onChange={(e) => setBankSwiftCode(e.target.value.toUpperCase())}
+                placeholder="e.g. HDFCINBB"
+                className="w-full pl-3.5 pr-20 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] font-mono text-xs uppercase text-[#17243B] focus:border-[#B88732] focus:bg-white outline-none transition-all tracking-wider"
+              />
+              <button
+                type="button"
+                onClick={() => handleCopyBankField(bankSwiftCode, 'swift')}
+                title="Test Copy"
+                className="absolute right-2 top-2 px-2.5 py-1 rounded-lg bg-white border border-[#E8D7B7] text-[11px] text-[#17345C] font-semibold flex items-center gap-1 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                {copiedBankField === 'swift' ? (
+                  <>
+                    <Check className="w-3 h-3 text-emerald-600" />
+                    <span>Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3 h-3" />
+                    <span>Copy</span>
+                  </>
+                )}
+              </button>
+            </div>
+            <span className="text-[11px] text-[#6B7280] block font-mono">
+              Required for international global wires (USD, EUR, GBP).
+            </span>
+          </div>
+
+          {/* Branch & City */}
+          <div className="space-y-1.5 md:col-span-2">
+            <label className="font-semibold text-[#17243B] text-xs block">
+              Branch Name &amp; Location
+            </label>
+            <input
+              type="text"
+              value={bankBranch}
+              onChange={(e) => setBankBranch(e.target.value)}
+              placeholder="e.g. Surat Main Branch, Ring Road, Gujarat"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] text-xs text-[#17243B] focus:border-[#B88732] focus:bg-white outline-none transition-all"
+            />
+            <span className="text-[11px] text-[#6B7280] block">
+              Physical branch location shown on customer wire instruction receipts.
+            </span>
+          </div>
+
+          {/* Bank Wire / Deposit Instructions & Notes */}
+          <div className="space-y-1.5 md:col-span-2">
+            <label className="font-semibold text-[#17243B] text-xs block">
+              Bank Wire &amp; Deposit Instructions for Customers
+            </label>
+            <textarea
+              rows={2}
+              value={bankNotes}
+              onChange={(e) => setBankNotes(e.target.value)}
+              placeholder="e.g. Please include your registered phone number or Order/Client ID in the wire transfer description."
+              className="w-full px-3.5 py-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] text-xs text-[#17243B] focus:border-[#B88732] focus:bg-white outline-none resize-none leading-relaxed transition-all"
+            />
+            <span className="text-[11px] text-[#6B7280] block">
+              Advisory shown at the bottom of the bank details card in the client dashboard.
+            </span>
+          </div>
+        </div>
+
+        {/* Live Client Preview Box */}
+        <div className="pt-2">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-[#B88732] mb-2 flex items-center gap-1.5">
+            <Eye className="w-3.5 h-3.5" />
+            <span>Live Client View Preview (How it appears in Top Up &amp; Repay Modals)</span>
+          </div>
+          <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] space-y-2 text-xs text-[#17243B] max-w-lg shadow-inner">
+            <div className="font-semibold text-[11px] uppercase tracking-wider text-[#B88732] flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5 text-[#B88732]" />
+                <span>{bankBeneficiaryName || 'Shiuli Atelier Official Treasury'}</span>
+              </div>
+              {bankAccountType && (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-50 text-[#B88732] border border-[#E8D7B7]">
+                  {bankAccountType}
+                </span>
+              )}
+            </div>
+            <div className="text-[11px] space-y-1 text-slate-700 font-mono">
+              <div className="flex items-center justify-between">
+                <span>Bank: <strong>{bankName || 'HDFC Bank Ltd.'}</strong></span>
+                {bankBranch && <span className="text-[10px] text-slate-500 font-sans">{bankBranch}</span>}
+              </div>
+              <div className="flex items-center justify-between bg-white px-2 py-1 rounded border border-[#E8D7B7]">
+                <span>Account: <strong className="text-slate-900 tracking-wide">{bankAccountNumber || '—'}</strong></span>
+                <span className="text-[10px] text-[#B88732] font-sans font-bold flex items-center gap-1">
+                  <Copy className="w-3 h-3" />
+                  <span>Copy</span>
+                </span>
+              </div>
+              <div className="flex items-center justify-between bg-white px-2 py-1 rounded border border-[#E8D7B7]">
+                <span>IFSC: <strong className="text-slate-900">{bankIfscCode || '—'}</strong></span>
+                <span className="text-[10px] text-[#B88732] font-sans font-bold flex items-center gap-1">
+                  <Copy className="w-3 h-3" />
+                  <span>Copy</span>
+                </span>
+              </div>
+              {bankSwiftCode && (
+                <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
+                  <span>SWIFT/BIC: <strong className="text-slate-700">{bankSwiftCode}</strong></span>
+                  <span className="text-[#B88732] font-sans font-bold flex items-center gap-1">
+                    <Copy className="w-3 h-3" />
+                    <span>Copy</span>
+                  </span>
+                </div>
+              )}
+              {studioUpiId && (
+                <div className="flex items-center justify-between bg-amber-50/50 px-2 py-1 rounded border border-amber-200/50">
+                  <span>UPI ID: <strong className="text-slate-900">{studioUpiId}</strong></span>
+                  <span className="text-[10px] text-[#B88732] font-sans font-bold flex items-center gap-1">
+                    <Copy className="w-3 h-3" />
+                    <span>Copy</span>
+                  </span>
+                </div>
+              )}
+            </div>
+            {bankNotes && (
+              <p className="text-[10px] text-slate-500 italic pt-1 border-t border-[#E8D7B7]/60 leading-normal">
+                {bankNotes}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Save Bank Details Button */}
+        <div className="pt-2 flex items-center gap-3">
+          <button
+            onClick={handleSaveBank}
+            disabled={savingBank}
+            className="btn-gold-luxury px-7 py-3 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-lg disabled:opacity-50"
+          >
+            {savingBank ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-[#0B1330]" />
+                <span>Saving Bank Details...</span>
+              </>
+            ) : (
+              <>
+                <Check className="w-4 h-4 text-[#0B1330]" />
+                <span>Save Bank &amp; Treasury Details</span>
               </>
             )}
           </button>

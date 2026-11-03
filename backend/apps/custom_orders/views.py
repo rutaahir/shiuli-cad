@@ -1,7 +1,9 @@
+import logging
+import os
 from decimal import Decimal
 import secrets
 from datetime import timedelta
-from django.http import FileResponse
+from django.http import FileResponse, StreamingHttpResponse
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -11,6 +13,8 @@ from apps.core.email_service import send_dynamic_mail as send_mail, send_otp_ema
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
+
+logger = logging.getLogger(__name__)
 
 from apps.core.permissions import IsClient, IsStaff, IsAdmin, IsStaffOrAdmin
 from apps.accounts.models import User
@@ -834,11 +838,162 @@ class OrderViewSet(viewsets.ModelViewSet):
         return Response(StaffOrderSerializer(order, context={'request': request}).data)
 
     # STAGE 9 — STAFF UPLOADS COMPLETED WORK (JPG PREVIEW + CAD FILES)
-    @action(detail=True, methods=['post'], permission_classes=[IsStaff], url_path='deliverables')
+    @action(detail=True, methods=['post'], permission_classes=[IsStaffOrAdmin], url_path='deliverables')
     def upload_deliverable_file(self, request, pk=None):
         return self.upload_deliverable(request, pk)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsStaff], url_path='upload-deliverable')
+    @action(detail=True, methods=['post'], permission_classes=[IsStaffOrAdmin], url_path='gdrive-upload-session')
+    def gdrive_upload_session(self, request, pk=None):
+        """
+        Initiates a direct Google Drive resumable upload session for custom order deliverables.
+        Allows staff to directly stream large CAD files (.3dm, .stl, .zip, .mp4, etc.) to Google Drive
+        with zero server RAM / buffer consumption.
+        """
+        order = self.get_object()
+        if getattr(order, 'is_deleted', False):
+            return Response({"error": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        is_same_staff = (
+            order.assigned_staff == request.user or
+            (order.assigned_staff and order.assigned_staff.email and request.user.email and
+             order.assigned_staff.email.split('@')[0].replace('0', '') == request.user.email.split('@')[0].replace('0', ''))
+        )
+        if order.assigned_staff and not is_same_staff and getattr(request.user, 'role', None) != 'admin' and not getattr(request.user, 'is_superuser', False):
+            return Response({"error": "Forbidden. You are not assigned to this order."}, status=status.HTTP_403_FORBIDDEN)
+
+        if not order.assigned_staff and request.user.is_authenticated:
+            order.assigned_staff = request.user
+            order.save(update_fields=['assigned_staff'])
+
+        filename = request.data.get('filename', '').strip()
+        file_type = str(request.data.get('file_type', '3dm')).lower().strip()
+        file_size = request.data.get('file_size')
+        mime_type = request.data.get('mime_type', 'application/octet-stream')
+
+        if not filename or not file_type or not file_size:
+            return Response({"error": "filename, file_type, and file_size are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if file_type not in ['3dm', 'stl', 'render', 'video', 'zip']:
+            return Response({"error": "Invalid file_type. Must be 3dm, stl, render, video, or zip."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate file extension
+        ext = os.path.splitext(filename)[1].lower().lstrip('.')
+        valid_exts = {
+            '3dm': ['3dm', 'rhino'],
+            'stl': ['stl'],
+            'render': ['jpg', 'jpeg', 'png', 'webp'],
+            'video': ['mp4', 'webm', 'mov', 'mkv'],
+            'zip': ['zip', 'rar', '7z', 'tar', 'gz']
+        }
+        allowed = valid_exts.get(file_type, [])
+        if allowed and ext not in allowed:
+            return Response({
+                "error": f"Invalid file type '.{ext}' for {file_type.upper()} slot. Expected format: {', '.join(allowed)}"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        from apps.core.gdrive_service import (
+            create_resumable_upload_session,
+            GoogleDriveError,
+            GoogleDriveAuthError,
+            GoogleDriveQuotaError,
+            GoogleDrivePermissionError,
+            GoogleDriveNotFoundError
+        )
+
+        origin = request.META.get('HTTP_ORIGIN')
+        clean_filename = f"ord_{order.id}_v{order.current_version}_{file_type}_{os.path.basename(filename)}"
+
+        try:
+            session_uri = create_resumable_upload_session(
+                filename=clean_filename,
+                mime_type=mime_type,
+                size=int(file_size),
+                origin=origin
+            )
+            return Response({
+                "session_uri": session_uri,
+                "order_id": order.id,
+                "file_type": file_type,
+                "filename": filename,
+                "clean_filename": clean_filename,
+                "file_size": file_size
+            }, status=status.HTTP_200_OK)
+        except GoogleDriveAuthError as e:
+            return Response({"error": str(e), "code": "gdrive_auth_required", "fallback_to_local": True}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        except GoogleDriveQuotaError as e:
+            return Response({"error": str(e), "code": "gdrive_quota_exceeded", "fallback_to_local": True}, status=status.HTTP_507_INSUFFICIENT_STORAGE)
+        except GoogleDrivePermissionError as e:
+            return Response({"error": str(e), "code": "gdrive_permission_denied", "fallback_to_local": True}, status=status.HTTP_403_FORBIDDEN)
+        except GoogleDriveNotFoundError as e:
+            return Response({"error": str(e), "code": "gdrive_folder_not_found", "fallback_to_local": True}, status=status.HTTP_404_NOT_FOUND)
+        except GoogleDriveError as e:
+            return Response({"error": str(e), "code": "gdrive_error", "fallback_to_local": True}, status=status.HTTP_502_BAD_GATEWAY)
+        except Exception as e:
+            logger.exception("Unexpected error creating Google Drive upload session: %s", e)
+            return Response({"error": str(e), "code": "gdrive_unavailable", "fallback_to_local": True}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsStaffOrAdmin], url_path='gdrive-upload-complete')
+    def gdrive_upload_complete(self, request, pk=None):
+        """
+        Finalizes an order deliverable after client browser has uploaded the file directly to Google Drive.
+        Registers the drive_file_id in OrderDeliverable and updates version history.
+        """
+        order = self.get_object()
+        if getattr(order, 'is_deleted', False):
+            return Response({"error": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        is_same_staff = (
+            order.assigned_staff == request.user or
+            (order.assigned_staff and order.assigned_staff.email and request.user.email and
+             order.assigned_staff.email.split('@')[0].replace('0', '') == request.user.email.split('@')[0].replace('0', ''))
+        )
+        if order.assigned_staff and not is_same_staff and getattr(request.user, 'role', None) != 'admin' and not getattr(request.user, 'is_superuser', False):
+            return Response({"error": "Forbidden. You are not assigned to this order."}, status=status.HTTP_403_FORBIDDEN)
+
+        if not order.assigned_staff and request.user.is_authenticated:
+            order.assigned_staff = request.user
+            order.save(update_fields=['assigned_staff'])
+
+        drive_file_id = request.data.get('drive_file_id', '').strip()
+        file_type = str(request.data.get('file_type', '3dm')).lower().strip()
+        original_filename = request.data.get('original_filename', '').strip()
+        file_size = request.data.get('file_size')
+
+        if not drive_file_id or not file_type:
+            return Response({"error": "drive_file_id and file_type are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if file_type not in ['3dm', 'stl', 'render', 'video', 'zip']:
+            return Response({"error": "Invalid file_type."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Verify Google Drive file metadata if possible
+        actual_size = int(file_size or 0)
+        try:
+            from apps.core.gdrive_service import get_file_metadata
+            meta = get_file_metadata(drive_file_id)
+            if meta and meta.get('size'):
+                actual_size = int(meta['size'])
+            if not original_filename and meta and meta.get('name'):
+                original_filename = meta['name']
+        except Exception as meta_err:
+            logger.warning("Could not fetch Google Drive file metadata for %s: %s", drive_file_id, meta_err)
+
+        with transaction.atomic():
+            # Delete existing deliverable for this file_type and current_version
+            OrderDeliverable.objects.filter(order=order, file_type=file_type, version=order.current_version).delete()
+
+            deliverable = OrderDeliverable.objects.create(
+                order=order,
+                file_type=file_type,
+                version=order.current_version,
+                storage_provider='gdrive',
+                drive_file_id=drive_file_id,
+                original_filename=original_filename or f"ord_{order.id}_v{order.current_version}_{file_type}",
+                file_size_bytes=actual_size if actual_size > 0 else None
+            )
+
+        return Response(StaffOrderSerializer(order, context={'request': request}).data)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsStaffOrAdmin], url_path='upload-deliverable')
     def upload_deliverable(self, request, pk=None):
         order = self.get_object()
         if getattr(order, 'is_deleted', False):
@@ -879,6 +1034,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                 "error": f"Invalid file type '.{ext}' for {file_type.upper()} slot. Expected format: {', '.join(allowed)}"
             }, status=status.HTTP_400_BAD_REQUEST)
 
+        file_size_bytes = getattr(file_obj, 'size', None)
+
         with transaction.atomic():
             # Delete existing deliverable for this file_type and current_version to ensure clean replacement for the active round
             OrderDeliverable.objects.filter(order=order, file_type=file_type, version=order.current_version).delete()
@@ -888,19 +1045,46 @@ class OrderViewSet(viewsets.ModelViewSet):
                 file_type=file_type,
                 version=order.current_version,
                 original_filename=file_obj.name,
-                file_size_bytes=getattr(file_obj, 'size', None)
+                file_size_bytes=file_size_bytes
             )
-            if file_type in ['3dm', 'stl', 'zip']:
-                from apps.catalog.models import protected_cad_storage
-                saved_name = protected_cad_storage.save(f"orders/deliverables/ord_{order.id}_v{order.current_version}_{file_type}_{file_obj.name}", file_obj)
-                deliverable.file.name = saved_name
-            else:
-                deliverable.file = file_obj
+
+            # Check if CAD storage should stream to Google Drive
+            use_gdrive = (
+                getattr(settings, 'CAD_STORAGE_BACKEND', 'local') == 'gdrive' or
+                (file_size_bytes and file_size_bytes >= 15 * 1024 * 1024)
+            )
+
+            gdrive_uploaded = False
+            if use_gdrive and file_type in ['3dm', 'stl', 'zip', 'video']:
+                try:
+                    from apps.core.gdrive_service import upload_file_from_stream
+                    clean_name = f"ord_{order.id}_v{order.current_version}_{file_type}_{file_obj.name}"
+                    mime = getattr(file_obj, 'content_type', 'application/octet-stream')
+                    g_meta = upload_file_from_stream(
+                        file_handle=file_obj,
+                        filename=clean_name,
+                        mime_type=mime
+                    )
+                    deliverable.storage_provider = 'gdrive'
+                    deliverable.drive_file_id = g_meta.get('id')
+                    deliverable.file_size_bytes = int(g_meta.get('size') or file_size_bytes or 0)
+                    gdrive_uploaded = True
+                except Exception as g_err:
+                    logger.warning("Stream upload to Google Drive failed, using local protected storage: %s", g_err)
+
+            if not gdrive_uploaded:
+                deliverable.storage_provider = 'local'
+                if file_type in ['3dm', 'stl', 'zip']:
+                    from apps.catalog.models import protected_cad_storage
+                    saved_name = protected_cad_storage.save(f"orders/deliverables/ord_{order.id}_v{order.current_version}_{file_type}_{file_obj.name}", file_obj)
+                    deliverable.file.name = saved_name
+                else:
+                    deliverable.file = file_obj
 
             deliverable.save()
 
             # Handle Render Preview
-            if file_type == 'render':
+            if file_type == 'render' and deliverable.file:
                 order.preview_image = deliverable.file
                 order.save(update_fields=['preview_image'])
 
@@ -940,7 +1124,37 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response({"error": "Forbidden. Only assigned staff or studio admins may inspect CAD deliverables."}, status=status.HTTP_403_FORBIDDEN)
 
         deliverable = order.deliverables.filter(id=deliverable_id).first()
-        if not deliverable or not deliverable.file:
+        if not deliverable:
+            return Response({"error": "Deliverable not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # 1. Google Drive Streaming
+        if deliverable.storage_provider == 'gdrive' and deliverable.drive_file_id:
+            try:
+                from apps.core.gdrive_service import stream_file
+                clean_filename = deliverable.original_filename or f"ord_{order.id}_{deliverable.file_type}"
+                content_type = 'application/octet-stream'
+                if clean_filename.lower().endswith('.mp4') or deliverable.file_type == 'video':
+                    content_type = 'video/mp4'
+                elif clean_filename.lower().endswith('.stl'):
+                    content_type = 'model/stl'
+                elif clean_filename.lower().endswith(('.jpg', '.jpeg')):
+                    content_type = 'image/jpeg'
+                elif clean_filename.lower().endswith('.png'):
+                    content_type = 'image/png'
+
+                response = StreamingHttpResponse(
+                    stream_file(deliverable.drive_file_id),
+                    content_type=content_type
+                )
+                response['Content-Disposition'] = f'attachment; filename="{clean_filename}"'
+                response['Access-Control-Expose-Headers'] = 'Content-Disposition'
+                return response
+            except Exception as e:
+                logger.error("Error streaming deliverable from Google Drive: %s", e)
+                return Response({"error": f"Unable to stream deliverable from Google Drive: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # 2. Local Storage
+        if not deliverable.file:
             return Response({"error": "Deliverable file not found."}, status=status.HTTP_404_NOT_FOUND)
 
         try:
@@ -950,7 +1164,6 @@ class OrderViewSet(viewsets.ModelViewSet):
             else:
                 file_handle = deliverable.file.open('rb')
 
-            import os
             raw_filename = os.path.basename(deliverable.file.name)
             clean_filename = raw_filename
             prefix = f"ord_{order.id}_{deliverable.file_type}_"

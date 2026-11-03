@@ -20,6 +20,8 @@ class PlatformSettingsSerializer(serializers.ModelSerializer):
             'assignment_mode', 'auto_escalation_minutes', 'advance_payment_percentage',
             'studio_upi_id', 'studio_qr_code', 'studio_qr_code_url', 'cash_check_instructions',
             'free_revisions_allowed', 'extra_revision_fee',
+            'bank_beneficiary_name', 'bank_name', 'bank_account_number',
+            'bank_ifsc_code', 'bank_swift_code', 'bank_branch', 'bank_account_type', 'bank_notes',
             'email_configured', 'masked_smtp_email', 'smtp_email', 'smtp_app_password',
             'smtp_updated_by_name', 'smtp_updated_at'
         ]

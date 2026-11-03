@@ -816,12 +816,12 @@ class OrderDeliverableSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrderDeliverable
-        fields = ['id', 'version', 'file_type', 'file', 'file_url', 'filename', 'file_size', 'uploaded_at']
-        read_only_fields = ['id', 'version', 'file_url', 'filename', 'file_size', 'uploaded_at']
+        fields = ['id', 'version', 'file_type', 'file', 'file_url', 'filename', 'file_size', 'storage_provider', 'drive_file_id', 'uploaded_at']
+        read_only_fields = ['id', 'version', 'file_url', 'filename', 'file_size', 'storage_provider', 'drive_file_id', 'uploaded_at']
 
     def get_file_url(self, obj):
         request = self.context.get('request')
-        if not obj.file:
+        if not obj.file and not obj.drive_file_id:
             return None
         user = getattr(request, 'user', None)
         # Provide direct admin/staff download endpoint
@@ -845,24 +845,26 @@ class OrderDeliverableSerializer(serializers.ModelSerializer):
             raw_name = os.path.basename(obj.file.name)
             cleaned = re.sub(rf"^ord_{obj.order_id}_(v\d+_)?({obj.file_type}_)?", "", raw_name)
             return cleaned or raw_name
-        return ""
+        return f"Order_{obj.order_id}_{obj.file_type}"
 
     def get_file_size(self, obj):
-        if obj.file:
+        size_bytes = obj.file_size_bytes
+        if not size_bytes and obj.file:
             try:
                 from apps.catalog.models import protected_cad_storage
                 if protected_cad_storage.exists(obj.file.name):
                     size_bytes = protected_cad_storage.size(obj.file.name)
                 else:
                     size_bytes = obj.file.size
-                if size_bytes < 1024:
-                    return f"{size_bytes} B"
-                elif size_bytes < 1024 * 1024:
-                    return f"{round(size_bytes / 1024, 1)} KB"
-                else:
-                    return f"{round(size_bytes / (1024 * 1024), 1)} MB"
             except Exception:
                 pass
+        if size_bytes:
+            if size_bytes < 1024:
+                return f"{size_bytes} B"
+            elif size_bytes < 1024 * 1024:
+                return f"{round(size_bytes / 1024, 1)} KB"
+            else:
+                return f"{round(size_bytes / (1024 * 1024), 1)} MB"
         return ""
 
 

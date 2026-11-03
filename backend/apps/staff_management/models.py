@@ -22,6 +22,19 @@ class PlatformSettings(models.Model):
     free_revisions_allowed = models.PositiveIntegerField(default=2)
     extra_revision_fee = models.DecimalField(max_digits=10, decimal_places=2, default=500.00)
 
+    # Dynamic Bank & Treasury Account Details (Admin-Managed)
+    bank_beneficiary_name = models.CharField(max_length=150, default="Shiuli CAD Studio LLP", blank=True)
+    bank_name = models.CharField(max_length=150, default="HDFC Bank / Silicon Valley Bank", blank=True)
+    bank_account_number = models.CharField(max_length=60, default="50200084739201", blank=True)
+    bank_ifsc_code = models.CharField(max_length=30, default="HDFC0000240", blank=True)
+    bank_swift_code = models.CharField(max_length=30, default="HDFCINBB", blank=True)
+    bank_branch = models.CharField(max_length=150, default="Surat Main Branch", blank=True)
+    bank_account_type = models.CharField(max_length=50, default="Current Account", blank=True)
+    bank_notes = models.TextField(
+        blank=True,
+        default="Please include your registered phone number or Order/Client ID in the wire transfer description."
+    )
+
     # Dynamic Admin-Editable SMTP Credentials (Encrypted at rest via Fernet)
     smtp_email = models.EmailField(max_length=255, blank=True, default="")
     smtp_app_password_encrypted = models.TextField(blank=True, default="")
