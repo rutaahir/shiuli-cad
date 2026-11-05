@@ -83,6 +83,7 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
   const [topupRef, setTopupRef] = useState<string>('');
   const [topupFile, setTopupFile] = useState<File | null>(null);
   const [submittingTopup, setSubmittingTopup] = useState<boolean>(false);
+  const [topupMode, setTopupMode] = useState<'razorpay' | 'manual'>('razorpay');
 
   // Credit Repayment State
   const [showRepayModal, setShowRepayModal] = useState<boolean>(false);
@@ -275,6 +276,94 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
     }
   };
 
+  // 1-Click Instant Wallet Top-Up with Razorpay
+  const handleRazorpayTopup = async () => {
+    const rawVal = parseFloat(topupAmount);
+    if (isNaN(rawVal) || rawVal <= 0) {
+      alert(`Please enter a valid deposit amount in ${customerCurrency}.`);
+      return;
+    }
+
+    const calculatedUsd = customerCurrency === 'USD'
+      ? rawVal
+      : convertCustomerToUsd(rawVal, customerCurrency, customerRate).usdAmount;
+
+    setSubmittingTopup(true);
+    try {
+      const orderRes = await api.createRazorpayWalletTopupOrder({
+        amount: rawVal,
+        currency: customerCurrency,
+        amount_usd: calculatedUsd,
+      });
+
+      const isLoaded = await loadRazorpayScript();
+      if (!isLoaded || !(window as any).Razorpay) {
+        throw new Error('Razorpay SDK could not be loaded. Please check your internet connection.');
+      }
+
+      const keyId = (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || orderRes.key_id;
+
+      const options = {
+        key: keyId,
+        amount: orderRes.amount_paise,
+        currency: orderRes.currency || 'INR',
+        name: 'Shiuli CAD Studio',
+        description: `Prepaid Wallet Recharge (${customerSymbol}${rawVal.toLocaleString()})`,
+        image: '/assets/logo.png',
+        order_id: orderRes.razorpay_order_id,
+        prefill: {
+          name: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username : '',
+          email: user?.email || '',
+          contact: user?.phone_number || '',
+        },
+        theme: {
+          color: '#17345C',
+        },
+        modal: {
+          ondismiss: function () {
+            setSubmittingTopup(false);
+          },
+        },
+        handler: async function (response: any) {
+          try {
+            setSubmittingTopup(true);
+            await api.verifyRazorpayWalletTopup({
+              razorpay_order_id: response.razorpay_order_id || orderRes.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              amount_usd: calculatedUsd,
+              amount_inr: orderRes.amount_inr,
+            });
+
+            try {
+              const confetti = (await import('canvas-confetti')).default;
+              confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+            } catch {}
+
+            alert(`Wallet recharged with ${customerSymbol}${rawVal.toLocaleString()}! Available balance has been credited immediately.`);
+            setShowTopupModal(false);
+            await fetchWalletAndCredit();
+          } catch (vErr: any) {
+            alert(vErr?.message || 'Wallet verification failed. If money was deducted, please contact Studio Support.');
+          } finally {
+            setSubmittingTopup(false);
+          }
+        },
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.on('payment.failed', function (resp: any) {
+        alert(resp?.error?.description || 'Razorpay payment was cancelled or failed.');
+        setSubmittingTopup(false);
+      });
+      rzp.open();
+    } catch (err: any) {
+      console.error('Razorpay wallet topup error:', err);
+      alert(err?.message || 'Failed to initiate Razorpay top-up.');
+      setSubmittingTopup(false);
+    }
+  };
+
   // 1-Click Online Settlement with Razorpay
   const handleRazorpayRepay = async () => {
     setRepayError('');
@@ -309,9 +398,11 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
         throw new Error('Razorpay SDK could not be loaded. Please check your internet connection or use manual wire transfer.');
       }
 
+      const keyId = (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || orderRes.key_id;
+
       // 3. Configure Checkout Options
       const options = {
-        key: orderRes.key_id,
+        key: keyId,
         amount: orderRes.amount_paise,
         currency: orderRes.currency || 'INR',
         name: 'Shiuli CAD Studio',
@@ -945,7 +1036,112 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
               </button>
             </div>
 
-            <form onSubmit={handleTopupSubmit} className="space-y-4">
+            {/* Top-up Method Switcher: Razorpay (Instant) vs Manual Bank Wire */}
+            <div className="grid grid-cols-2 gap-2 p-1 bg-[#FAF8F5] rounded-xl border border-[#E8D7B7]">
+              <button
+                type="button"
+                onClick={() => setTopupMode('razorpay')}
+                className={`py-2.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  topupMode === 'razorpay'
+                    ? 'bg-[#17345C] text-[#F5E7A3] shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <CreditCard className="w-3.5 h-3.5 text-[#D4AF37]" />
+                <span>Razorpay (Instant)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTopupMode('manual')}
+                className={`py-2.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  topupMode === 'manual'
+                    ? 'bg-white text-[#17345C] shadow-sm border border-[#D4AF37]/40'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Building2 className="w-3.5 h-3.5 text-slate-600" />
+                <span>Bank Wire / UTR</span>
+              </button>
+            </div>
+
+            {topupMode === 'razorpay' ? (
+              <div className="space-y-4 pt-2">
+                <div>
+                  <label className="block text-xs font-semibold text-[#17243B] mb-1">
+                    Deposit Amount ({customerCurrency} {customerSymbol})
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold font-mono">{customerSymbol}</span>
+                    <input
+                      type="number"
+                      value={topupAmount}
+                      onChange={(e) => setTopupAmount(e.target.value)}
+                      placeholder={customerCurrency === 'INR' ? 'e.g. 5000' : 'e.g. 100'}
+                      required
+                      min="1"
+                      className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-[#E8D7B7] text-sm font-mono font-bold text-[#17243B] focus:outline-none focus:border-[#B88732]"
+                    />
+                  </div>
+
+                  {customerCurrency !== 'USD' && (
+                    <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 mt-2 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span>Float Credited in Base USD:</span>
+                        <strong className="font-mono text-emerald-800 text-sm">
+                          ≈ {convertCustomerToUsd(topupAmount, customerCurrency, customerRate).displayUsd} USD
+                        </strong>
+                      </div>
+                      <div className="text-[10px] text-emerald-700/80 font-mono text-right">
+                        Conversion Rate: 1 USD = {customerSymbol}{Number(customerRate).toFixed(2)} {customerCurrency}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-1.5 mt-2">
+                    {(customerCurrency === 'INR' ? ['1000', '2500', '5000', '10000'] : ['50', '100', '250', '500']).map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setTopupAmount(preset)}
+                        className="px-2.5 py-1 rounded bg-[#FAF8F5] hover:bg-[#FFF9F0] border border-[#E8D7B7] text-[11px] font-mono font-bold text-[#17345C] cursor-pointer"
+                      >
+                        {customerSymbol}{Number(preset).toLocaleString(customerCurrency === 'INR' ? 'en-IN' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-gradient-to-r from-[#0B1330] via-[#17345C] to-[#0B1330] text-[#F5F1E8] border border-[#D4AF37]/40 text-xs space-y-1">
+                  <div className="flex items-center gap-2 font-bold text-[#F5E7A3]">
+                    <ShieldCheck className="w-4 h-4 text-[#D4AF37]" />
+                    <span>Instant Credit Verification</span>
+                  </div>
+                  <p className="text-[11px] text-slate-300">
+                    Pay securely with UPI, Credit/Debit Card, or Netbanking via Razorpay. Your Atelier Wallet balance is credited instantly upon authorization.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#E8D7B7]">
+                  <button
+                    type="button"
+                    onClick={() => setShowTopupModal(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRazorpayTopup}
+                    disabled={submittingTopup}
+                    className="btn-gold-luxury px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {submittingTopup ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+                    <span>Recharge Instantly ({customerSymbol}{Number(topupAmount || 0).toLocaleString()})</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+            <form onSubmit={handleTopupSubmit} className="space-y-4 pt-2">
               <div>
                 <label className="block text-xs font-semibold text-[#17243B] mb-1">
                   Deposit Amount ({customerCurrency} {customerSymbol})
@@ -1110,6 +1306,7 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       )}

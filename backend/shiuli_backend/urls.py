@@ -6,6 +6,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, Sp
 
 from apps.payments.views_purchases import download_cad_file
 import apps.services.views
+import apps.payments.views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -26,6 +27,12 @@ urlpatterns = [
     path('api/revision-requests/', include('apps.custom_orders.urls_revisions')),
     path('api/staff/', include('apps.staff_management.urls_staff')),
     path('api/platform-settings/', include('apps.staff_management.urls_settings')),
+    # Standard Razorpay Integration Endpoints
+    path('api/create-order/', apps.payments.views.standard_create_order, name='standard-create-order'),
+    path('api/create-order', apps.payments.views.standard_create_order),
+    path('api/verify-payment/', apps.payments.views.standard_verify_payment, name='standard-verify-payment'),
+    path('api/verify-payment', apps.payments.views.standard_verify_payment),
+
     path('api/payments/', include('apps.payments.urls_payments')),
     path('api/settlements/', include('apps.payments.urls_settlements')),
     path('api/notifications/', include('apps.notifications.urls')),

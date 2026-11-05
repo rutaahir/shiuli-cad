@@ -1,6 +1,8 @@
 import json
 import hmac
 import hashlib
+import uuid
+import razorpay
 from django.conf import settings
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -93,17 +95,184 @@ def pay_full_order_payment(request):
 
 
 @api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.AllowAny])
+def standard_create_order(request):
+    """
+    POST /api/create-order or /api/create-order/
+    Calls Razorpay API: POST https://api.razorpay.com/v1/orders
+    Request: { amount (paise), currency, receipt, notes? }
+    Return: { order_id, amount, currency }
+    Minimum amount: 100 paise
+    """
+    key_id = getattr(settings, 'RAZORPAY_KEY_ID', '').strip()
+    key_secret = getattr(settings, 'RAZORPAY_KEY_SECRET', '').strip()
+
+    if not key_id or not key_secret:
+        return Response({"error": "Razorpay credentials not configured on server."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    raw_amount = request.data.get('amount')
+    if raw_amount is None:
+        raw_amount = request.data.get('amount_paise')
+    if raw_amount is None:
+        return Response({"error": "amount is required (in paise)."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        amount_paise = int(round(float(raw_amount)))
+    except (ValueError, TypeError):
+        return Response({"error": "Invalid amount format. Must be numeric value in paise."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if amount_paise < 100:
+        return Response({"error": "Amount must be at least 100 paise (₹1.00)."}, status=status.HTTP_400_BAD_REQUEST)
+
+    currency = (request.data.get('currency') or 'INR').upper()
+    receipt = str(request.data.get('receipt') or f"rcpt_{uuid.uuid4().hex[:12]}")
+    notes = request.data.get('notes', {})
+    if not isinstance(notes, dict):
+        notes = {'notes': str(notes)}
+
+    try:
+        client = razorpay.Client(auth=(key_id, key_secret))
+        order_payload = {
+            'amount': amount_paise,
+            'currency': currency,
+            'receipt': receipt,
+            'notes': notes
+        }
+        rzp_order = client.order.create(data=order_payload)
+        order_id = rzp_order.get('id')
+
+        # Link order if related order_id or stage_id is present
+        order_fk_id = request.data.get('order_id')
+        stage_fk_id = request.data.get('stage_id')
+        payment_type = request.data.get('payment_type', 'advance')
+        if order_fk_id or stage_fk_id:
+            try:
+                order_obj = Order.objects.filter(id=order_fk_id).first() if order_fk_id else None
+                stage_obj = OrderPaymentStage.objects.filter(id=stage_fk_id).first() if stage_fk_id else None
+                if stage_obj and not order_obj:
+                    order_obj = stage_obj.order
+                if order_obj:
+                    Payment.objects.create(
+                        order=order_obj,
+                        payment_stage=stage_obj,
+                        payment_type=payment_type,
+                        amount=round(amount_paise / 100.0, 2),
+                        gateway_transaction_id=order_id,
+                        status=Payment.Status.PENDING
+                    )
+            except Exception:
+                pass
+
+        return Response({
+            "order_id": order_id,
+            "amount": rzp_order.get('amount', amount_paise),
+            "currency": rzp_order.get('currency', currency),
+            "key_id": key_id,
+            "receipt": receipt,
+            "razorpay_order_id": order_id
+        }, status=status.HTTP_201_CREATED)
+
+    except razorpay.errors.BadRequestError as e:
+        return Response({"error": f"Razorpay bad request error: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+    except razorpay.errors.ServerError as e:
+        return Response({"error": f"Razorpay server error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    except Exception as e:
+        err_msg = str(e)
+        err_lower = err_msg.lower()
+        if 'auth' in err_lower or 'unauthorized' in err_lower or '401' in err_lower:
+            return Response({"error": f"Razorpay authentication failed: {err_msg}"}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response({"error": f"Failed to create Razorpay order: {err_msg}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def standard_verify_payment(request):
+    """
+    POST /api/verify-payment or /api/verify-payment/
+    Algorithm: HMAC-SHA256(order_id + "|" + payment_id, KEY_SECRET)
+    Compare generated signature with razorpay_signature
+    Return success only if signatures match
+    """
+    key_secret = getattr(settings, 'RAZORPAY_KEY_SECRET', '').strip()
+    if not key_secret:
+        return Response({"error": "Razorpay secret key not configured on server."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    order_id = request.data.get('order_id') or request.data.get('razorpay_order_id')
+    payment_id = request.data.get('payment_id') or request.data.get('razorpay_payment_id')
+    signature = request.data.get('signature') or request.data.get('razorpay_signature')
+
+    # Missing fields check
+    missing = []
+    if not order_id: missing.append("order_id")
+    if not payment_id: missing.append("payment_id")
+    if not signature: missing.append("signature")
+    if missing:
+        return Response({
+            "error": f"Missing required fields: {', '.join(missing)} are required."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # HMAC-SHA256(order_id + "|" + payment_id, KEY_SECRET)
+    message = f"{order_id}|{payment_id}".encode('utf-8')
+    generated_signature = hmac.new(
+        key_secret.encode('utf-8'),
+        message,
+        hashlib.sha256
+    ).hexdigest()
+
+    if not hmac.compare_digest(generated_signature, signature):
+        return Response({
+            "status": "failure",
+            "error": "Signature mismatch. Cryptographic payment verification failed."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # Valid signature! Update Payment / Order / Stage state
+    payment = Payment.objects.filter(gateway_transaction_id=order_id).first()
+    if not payment:
+        payment = Payment.objects.filter(gateway_transaction_id=payment_id).first()
+
+    if payment:
+        if payment.status != Payment.Status.SUCCESS:
+            payment.status = Payment.Status.SUCCESS
+            payment.gateway_transaction_id = payment_id
+            payment.save(update_fields=['status', 'gateway_transaction_id'])
+            if payment.payment_stage:
+                process_stage_payment_success(payment.payment_stage, transaction_id=payment_id)
+            elif payment.order:
+                if payment.payment_type == Payment.PaymentType.FULL:
+                    from .services import process_full_order_payment_success
+                    process_full_order_payment_success(payment.order, transaction_id=payment_id)
+                elif payment.payment_type in [Payment.PaymentType.ADVANCE, Payment.PaymentType.STAGE]:
+                    first_stage = payment.order.payment_stages.filter(order_index=0).first()
+                    if first_stage:
+                        process_stage_payment_success(first_stage, transaction_id=payment_id)
+
+    return Response({
+        "status": "success",
+        "message": "Payment verified successfully.",
+        "order_id": order_id,
+        "payment_id": payment_id
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
 def create_payment_session(request):
     order_id = request.data.get('order_id')
     stage_id = request.data.get('stage_id')
     payment_type = request.data.get('payment_type', 'advance')
 
+    # If pure amount provided without order/stage id, route to standard create order
+    if not order_id and not stage_id and (request.data.get('amount') or request.data.get('amount_paise')):
+        return standard_create_order(request)
+
     order = None
     stage = None
     if stage_id:
         try:
-            stage = OrderPaymentStage.objects.get(id=stage_id, order__client=request.user)
+            if request.user.is_authenticated:
+                stage = OrderPaymentStage.objects.get(id=stage_id, order__client=request.user)
+            else:
+                stage = OrderPaymentStage.objects.get(id=stage_id)
             order = stage.order
             if getattr(order, 'is_deleted', False):
                 return Response({"error": "Cannot checkout for a deleted order."}, status=status.HTTP_404_NOT_FOUND)
@@ -113,7 +282,10 @@ def create_payment_session(request):
             return Response({"error": "Payment stage not found or not owned by you."}, status=status.HTTP_404_NOT_FOUND)
     elif order_id:
         try:
-            order = Order.objects.get(id=order_id, client=request.user)
+            if request.user.is_authenticated:
+                order = Order.objects.get(id=order_id, client=request.user)
+            else:
+                order = Order.objects.get(id=order_id)
             if getattr(order, 'is_deleted', False):
                 return Response({"error": "Cannot checkout for a deleted order."}, status=status.HTTP_404_NOT_FOUND)
         except Order.DoesNotExist:
@@ -126,7 +298,7 @@ def create_payment_session(request):
         else:
             amount = order.total_price
     else:
-        return Response({"error": "order_id or stage_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "order_id, stage_id, or amount is required."}, status=status.HTTP_400_BAD_REQUEST)
 
     gateway = get_payment_gateway()
     session_data = gateway.create_payment_session(order, payment_type, amount)
@@ -142,6 +314,14 @@ def create_payment_session(request):
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
 def verify_payment(request):
+    # Support standard verification directly
+    signature = request.data.get('signature') or request.data.get('razorpay_signature')
+    order_id = request.data.get('order_id') or request.data.get('razorpay_order_id')
+    payment_id = request.data.get('payment_id') or request.data.get('razorpay_payment_id')
+
+    if signature and (order_id or payment_id):
+        return standard_verify_payment(request)
+
     gateway = get_payment_gateway()
     success, message, payment = gateway.verify_payment(request.data)
 

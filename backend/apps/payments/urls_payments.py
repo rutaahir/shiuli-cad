@@ -3,6 +3,8 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     create_payment_session,
     verify_payment,
+    standard_create_order,
+    standard_verify_payment,
     pay_stage_payment,
     pay_full_order_payment,
     PaymentPlanTemplateViewSet,
@@ -49,6 +51,8 @@ urlpatterns = [
     path('gateway-log/', incoming_gateway_logs, name='payment-gateway-log'),
     path('create-order/', create_payment_session, name='payment-create-order'),
     path('verify/', verify_payment, name='payment-verify'),
+    path('razorpay/create-order/', standard_create_order, name='payment-standard-create-order'),
+    path('razorpay/verify/', standard_verify_payment, name='payment-standard-verify'),
     path('webhook/', razorpay_webhook, name='payment-webhook'),
     path('pay-stage/', pay_stage_payment, name='payment-pay-stage'),
     path('pay-full-order/', pay_full_order_payment, name='payment-pay-full-order'),

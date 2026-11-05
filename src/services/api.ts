@@ -2067,6 +2067,48 @@ class ApiClient {
     return res.json();
   }
 
+  // --- Standard Razorpay Integration Endpoints ---
+  async createRazorpayOrder(payload: {
+    amount: number; // in paise
+    currency?: string;
+    receipt?: string;
+    notes?: any;
+    order_id?: number | string;
+    stage_id?: number | string;
+    payment_type?: string;
+  }): Promise<{
+    order_id: string;
+    amount: number;
+    currency: string;
+    key_id: string;
+    receipt?: string;
+    razorpay_order_id: string;
+  }> {
+    return this.request<any>('/create-order/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async verifyRazorpayPayment(payload: {
+    order_id?: string;
+    razorpay_order_id?: string;
+    payment_id?: string;
+    razorpay_payment_id?: string;
+    signature?: string;
+    razorpay_signature?: string;
+  }): Promise<{
+    status: string;
+    message: string;
+    order_id: string;
+    payment_id: string;
+  }> {
+    return this.request<any>('/verify-payment/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
   async createRazorpayCreditRepaymentOrder(payload: {
     amount: number | string;
     currency?: string;

@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { loadRazorpayScript } from './RazorpayCheckoutButton';
 import { ClientWallet, ClientCreditAccount } from '../../types';
 import { useCustomerCountry } from '../../utils/countryContext';
 import { convertUsdToCustomer, formatUSD } from '../../utils/currencyHelper';
@@ -64,7 +65,7 @@ export interface PaymentGatewayModalProps {
   onPaymentSuccess: (result: PaymentSuccessResult) => Promise<void> | void;
 }
 
-type TabType = 'wallet' | 'credit' | 'upi' | 'cash_check';
+type TabType = 'razorpay' | 'wallet' | 'credit' | 'upi' | 'cash_check';
 
 export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
   isOpen,
@@ -77,8 +78,8 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
   orderDetails,
   onPaymentSuccess,
 }) => {
-  const { isLoggedIn, openAuthModal } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>('upi');
+  const { user, isLoggedIn, openAuthModal } = useAuth();
+  const [activeTab, setActiveTab] = useState<TabType>('razorpay');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStage, setProcessingStage] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -432,6 +433,189 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
     }
   };
 
+  // 1-Click Online Payment with Razorpay Standard Checkout
+  const handleRazorpayCheckout = async () => {
+    setErrorMessage('');
+    if (!isLoggedIn) {
+      setErrorMessage('You must be signed in to complete checkout.');
+      openAuthModal('Please sign in to complete your payment.');
+      return;
+    }
+
+    setIsProcessing(true);
+    setProcessingStage('Connecting to Razorpay Secure Gateway...');
+
+    try {
+      // 0. If split payment is applied, execute deduction on backend first
+      if (totalDeductionUSD > 0) {
+        setProcessingStage('Deducting split payment from Credit Line / Wallet...');
+        const splitNotes = `Split payment: ${appliedCreditUSD > 0 ? `Credit Line -$${appliedCreditUSD.toFixed(2)} USD ` : ''}${appliedWalletUSD > 0 ? `Wallet Float -$${appliedWalletUSD.toFixed(2)} USD ` : ''}for ${title}`;
+
+        try {
+          const splitRes = await api.applySplitPayment({
+            credit_amount_usd: appliedCreditUSD > 0 ? appliedCreditUSD : undefined,
+            wallet_amount_usd: appliedWalletUSD > 0 ? appliedWalletUSD : undefined,
+            notes: splitNotes,
+          });
+          if (splitRes) {
+            if (splitRes.new_wallet_balance !== undefined) {
+              setClientWallet((prev) => prev ? { ...prev, balance: splitRes.new_wallet_balance } : prev);
+            }
+            if (splitRes.new_available_credit !== undefined) {
+              setClientCredit((prev) => prev ? {
+                ...prev,
+                available_credit: splitRes.new_available_credit,
+                used_credit: splitRes.new_used_credit ?? prev.used_credit,
+              } : prev);
+            }
+          }
+        } catch (splitErr: any) {
+          console.error('Split payment deduction failed:', splitErr);
+          setIsProcessing(false);
+          setErrorMessage(splitErr?.response?.data?.error || splitErr?.message || 'Failed to apply split payment deduction.');
+          return;
+        }
+      }
+
+      // Calculate amount in paise (minimum 100 paise)
+      const inrToPay = totalDeductionUSD > 0 ? netPayableINR : amountINR;
+      const paise = Math.max(100, Math.round(inrToPay * 100));
+
+      // 1. Create server-side order with Razorpay
+      setProcessingStage('Generating Razorpay order session...');
+      const orderRes = await api.createRazorpayOrder({
+        amount: paise,
+        currency: 'INR',
+        receipt: `rcpt_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+        notes: {
+          title,
+          itemType,
+          order_id: orderDetails?.id || undefined,
+          country: orderDetails?.country || undefined,
+        },
+        order_id: orderDetails?.id,
+        stage_id: itemType === 'milestone_stage' ? orderDetails?.id : undefined,
+        payment_type: itemType === 'order_full_payment' ? 'full' : itemType === 'custom_advance' ? 'advance' : 'stage',
+      });
+
+      // 2. Load Razorpay script
+      const isLoaded = await loadRazorpayScript();
+      if (!isLoaded || !(window as any).Razorpay) {
+        throw new Error('Razorpay checkout SDK could not be loaded. Please check your internet connection.');
+      }
+
+      const keyId = (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || orderRes.key_id;
+
+      // 3. Configure Checkout Options
+      const options = {
+        key: keyId,
+        amount: orderRes.amount,
+        currency: orderRes.currency || 'INR',
+        name: 'Shiuli CAD Studio',
+        description: `${title} (${convertUsdToCustomer(totalDeductionUSD > 0 ? netPayableUSD : amountUSD, customerCurrency, customerRate).display})`,
+        image: '/assets/logo.png',
+        order_id: orderRes.order_id,
+        prefill: {
+          name: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username : '',
+          email: user?.email || '',
+          contact: user?.phone_number || '',
+        },
+        theme: {
+          color: '#17345C',
+        },
+        modal: {
+          ondismiss: () => {
+            setIsProcessing(false);
+            setProcessingStage('');
+          },
+        },
+        handler: async (response: {
+          razorpay_payment_id: string;
+          razorpay_order_id: string;
+          razorpay_signature: string;
+        }) => {
+          try {
+            setIsProcessing(true);
+            setProcessingStage('Cryptographically verifying payment with Razorpay...');
+
+            // 4. Verify signature on backend
+            await api.verifyRazorpayPayment({
+              order_id: response.razorpay_order_id || orderRes.order_id,
+              razorpay_order_id: response.razorpay_order_id || orderRes.order_id,
+              payment_id: response.razorpay_payment_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              signature: response.razorpay_signature,
+              razorpay_signature: response.razorpay_signature,
+            });
+
+            // If ready CAD purchase, also record purchase on backend
+            if (itemType === 'ready_cad' && orderDetails?.id) {
+              try {
+                await api.post('/payments/purchases/verify/', {
+                  product_id: orderDetails.id,
+                  license_type: orderDetails.license || 'atelier',
+                  razorpay_order_id: response.razorpay_order_id || orderRes.order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                });
+              } catch (pErr) {
+                console.warn('Purchase record link warning:', pErr);
+              }
+            }
+
+            // Trigger confetti
+            try {
+              const confetti = (await import('canvas-confetti')).default;
+              confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 } });
+            } catch {}
+
+            const finalAmount = totalDeductionUSD > 0
+              ? (isUSD ? netPayableUSD : netPayableINR)
+              : (isUSD ? amountUSD : amountINR);
+
+            const payload: PaymentSuccessResult = {
+              transactionId: response.razorpay_payment_id,
+              method: totalDeductionUSD > 0 ? 'Razorpay + Split' : 'Razorpay (Online Standard)',
+              amount: finalAmount,
+              currency: isUSD ? 'USD' : 'INR',
+              timestamp: new Date().toISOString(),
+              receiptNumber: response.razorpay_order_id || `RCP-${Date.now()}`,
+              isPendingVerification: false,
+              paymentDetails: `Razorpay Payment ID: ${response.razorpay_payment_id} | Order: ${response.razorpay_order_id}`,
+            };
+
+            setSubmissionResult(payload);
+            setIsSubmitted(true);
+            setIsProcessing(false);
+            setProcessingStage('');
+
+            await onPaymentSuccess(payload);
+          } catch (vErr: any) {
+            setIsProcessing(false);
+            setProcessingStage('');
+            setErrorMessage(vErr?.message || vErr?.error || 'Payment signature verification failed.');
+          }
+        },
+      };
+
+      const rzpInstance = new (window as any).Razorpay(options);
+
+      rzpInstance.on('payment.failed', (resp: any) => {
+        setIsProcessing(false);
+        setProcessingStage('');
+        setErrorMessage(resp?.error?.description || resp?.error?.reason || 'Payment failed or declined by issuing bank.');
+      });
+
+      setIsProcessing(false);
+      setProcessingStage('');
+      rzpInstance.open();
+    } catch (err: any) {
+      setIsProcessing(false);
+      setProcessingStage('');
+      setErrorMessage(err?.message || err?.error || 'Failed to initiate Razorpay checkout.');
+    }
+  };
+
   // 1-Click Pay with Shiuli Prepaid Wallet
   const handlePayWithWallet = async () => {
     setErrorMessage('');
@@ -604,10 +788,10 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
           <div className="flex items-center gap-3 shrink-0">
             <div className="text-right">
               <span className="text-[9px] text-[#64748B] block font-mono font-semibold uppercase tracking-wider">
-                {totalDeductionUSD > 0 && (activeTab === 'upi' || activeTab === 'cash_check') ? 'Payable' : 'Amount'}
+                {totalDeductionUSD > 0 && (activeTab === 'razorpay' || activeTab === 'upi' || activeTab === 'cash_check') ? 'Payable' : 'Amount'}
               </span>
               <span className="font-serif text-xl sm:text-2xl font-black text-[#0B1330]">
-                {totalDeductionUSD > 0 && (activeTab === 'upi' || activeTab === 'cash_check')
+                {totalDeductionUSD > 0 && (activeTab === 'razorpay' || activeTab === 'upi' || activeTab === 'cash_check')
                   ? netPayableCustomer.display
                   : convertedPayable.display}
               </span>
@@ -791,9 +975,27 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
               </div>
             )}
 
-            {/* PAYMENT METHOD SELECTOR: WALLET, CREDIT LINE, UPI, CASH */}
+            {/* PAYMENT METHOD SELECTOR: RAZORPAY, WALLET, CREDIT LINE, UPI, CASH */}
             <div className="px-6 py-3 border-b border-[#E8D7B7] bg-white">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-serif">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs font-serif">
+                {/* 0. Razorpay Tab (Recommended) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('razorpay');
+                    setErrorMessage('');
+                  }}
+                  className={`py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 font-bold transition-all cursor-pointer relative ${
+                    activeTab === 'razorpay'
+                      ? 'bg-[#0B1330] text-[#F5E7A3] border border-[#D4AF37]/60 shadow-xs ring-1 ring-[#D4AF37]/30'
+                      : 'bg-[#FAF8F5] border border-[#E8D7B7] text-[#475569] hover:text-[#0B1330] hover:bg-[#FFF9F0]'
+                  }`}
+                >
+                  <CreditCard className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
+                  <span className="truncate">Razorpay</span>
+                  <span className="hidden sm:inline-block text-[9px] bg-[#D4AF37]/20 text-[#D4AF37] px-1 rounded font-sans">Instant</span>
+                </button>
+
                 {/* 1. Wallet Tab */}
                 <button
                   type="button"
@@ -866,6 +1068,117 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
 
             {/* Tab Contents */}
             <div className="p-6 space-y-5 bg-[#FFFDF9]">
+              {/* TAB 0: RAZORPAY STANDARD WEB CHECKOUT */}
+              {activeTab === 'razorpay' && (
+                <div className="space-y-4 animate-in fade-in-50">
+                  {/* Trust Banner */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-[#0B1330] via-[#17345C] to-[#0B1330] text-[#F5F1E8] border border-[#D4AF37]/40 shadow-sm flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4 text-[#D4AF37]" />
+                        <span className="font-serif font-bold text-sm text-[#F5E7A3]">
+                          Razorpay Standard Checkout
+                        </span>
+                        <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-mono px-2 py-0.5 rounded-full border border-emerald-500/30">
+                          1-Click Instant
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-300">
+                        Cards, UPI, Netbanking &amp; Wallets with 256-bit Bank Grade SSL
+                      </p>
+                    </div>
+                    <div className="text-right hidden sm:block">
+                      <span className="text-[10px] text-slate-400 font-mono block">Payable</span>
+                      <strong className="text-base font-serif font-black text-[#F5E7A3]">
+                        {totalDeductionUSD > 0 ? netPayableCustomer.display : convertedPayable.display}
+                      </strong>
+                    </div>
+                  </div>
+
+                  {/* Payment Breakdown Card */}
+                  <div className="p-4 rounded-xl bg-white border border-[#E8D7B7] space-y-3">
+                    <div className="flex items-center justify-between text-xs pb-2 border-b border-slate-100">
+                      <span className="text-slate-600">Order / Item:</span>
+                      <strong className="text-[#0B1330] font-semibold truncate max-w-[280px]">{title}</strong>
+                    </div>
+                    <div className="flex items-center justify-between text-xs pb-2 border-b border-slate-100">
+                      <span className="text-slate-600">Original Amount:</span>
+                      <span className="font-mono text-slate-800 font-bold">{convertedPayable.display} (≈ ₹{amountINR.toLocaleString('en-IN')})</span>
+                    </div>
+
+                    {totalDeductionUSD > 0 && (
+                      <div className="p-2.5 rounded-lg bg-amber-50/70 border border-amber-200/60 text-xs text-amber-900 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span>Split Payment Deductions:</span>
+                          <span className="font-mono font-bold text-amber-800">-{totalDeductionCustomer.display}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-amber-700/80">
+                          <span>Remaining Balance to Charge:</span>
+                          <span className="font-mono font-bold">{netPayableCustomer.display} (≈ ₹{netPayableINR.toLocaleString('en-IN')})</span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-xs font-bold text-[#0B1330] uppercase tracking-wider">Net Payable via Razorpay:</span>
+                      <span className="text-xl font-serif font-black text-[#0B1330]">
+                        ₹{(totalDeductionUSD > 0 ? netPayableINR : amountINR).toLocaleString('en-IN')} INR
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Payment Channels Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col items-center justify-center gap-1">
+                      <CreditCard className="w-4 h-4 text-[#17345C]" />
+                      <span className="font-semibold text-slate-700">Cards</span>
+                      <span className="text-[10px] text-slate-400">Visa, MC, RuPay</span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col items-center justify-center gap-1">
+                      <Smartphone className="w-4 h-4 text-emerald-600" />
+                      <span className="font-semibold text-slate-700">Instant UPI</span>
+                      <span className="text-[10px] text-slate-400">GPay, PhonePe, Paytm</span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col items-center justify-center gap-1">
+                      <Building2 className="w-4 h-4 text-amber-600" />
+                      <span className="font-semibold text-slate-700">Netbanking</span>
+                      <span className="text-[10px] text-slate-400">50+ Banks</span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col items-center justify-center gap-1">
+                      <Zap className="w-4 h-4 text-purple-600" />
+                      <span className="font-semibold text-slate-700">Wallets</span>
+                      <span className="text-[10px] text-slate-400">Mobikwik, Freecharge</span>
+                    </div>
+                  </div>
+
+                  {/* Main Action Button */}
+                  <button
+                    type="button"
+                    onClick={handleRazorpayCheckout}
+                    disabled={isProcessing}
+                    className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#0B1330] via-[#17345C] to-[#0B1330] hover:from-[#172554] hover:to-[#17345C] text-[#F5E7A3] font-serif font-bold text-base shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 border border-[#D4AF37]/60 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isProcessing ? (
+                      <>
+                        <RefreshCw className="w-5 h-5 animate-spin text-[#D4AF37]" />
+                        <span>{processingStage || 'Opening Razorpay Gateway...'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="w-4 h-4 text-[#D4AF37]" />
+                        <span>Pay ₹{(totalDeductionUSD > 0 ? netPayableINR : amountINR).toLocaleString('en-IN')} with Razorpay</span>
+                        <ArrowRight className="w-4 h-4 text-[#D4AF37] ml-1" />
+                      </>
+                    )}
+                  </button>
+
+                  <p className="text-center text-[11px] text-slate-500 flex items-center justify-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Your transaction is encrypted end-to-end by Razorpay.</span>
+                  </p>
+                </div>
+              )}
+
               {/* TAB 1: PREPAID WALLET */}
               {activeTab === 'wallet' && (
                 <div className="space-y-4 animate-in fade-in-50">

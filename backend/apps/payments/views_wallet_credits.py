@@ -358,13 +358,10 @@ def verify_razorpay_credit_repayment(request):
         except Exception as e:
             print(f"[RAZORPAY CREDIT SIGNATURE CHECK ERROR] {e}")
             is_valid = False
-    elif getattr(settings, 'DEBUG', False) or (key_id and key_id.startswith('rzp_test')) or not key_secret:
-        if key_secret and razorpay_signature and razorpay_order_id:
-            msg = f"{razorpay_order_id}|{razorpay_payment_id}".encode()
-            expected = hmac.new(key_secret.encode(), msg, hashlib.sha256).hexdigest()
-            is_valid = hmac.compare_digest(expected, razorpay_signature)
-        else:
-            is_valid = True
+    elif key_secret and razorpay_signature and razorpay_order_id and razorpay_payment_id:
+        msg = f"{razorpay_order_id}|{razorpay_payment_id}".encode('utf-8')
+        expected = hmac.new(key_secret.encode('utf-8'), msg, hashlib.sha256).hexdigest()
+        is_valid = hmac.compare_digest(expected, razorpay_signature)
     else:
         is_valid = False
 
@@ -522,13 +519,10 @@ def verify_razorpay_wallet_topup(request):
         except Exception as e:
             print(f"[RAZORPAY TOPUP SIGNATURE CHECK ERROR] {e}")
             is_valid = False
-    elif getattr(settings, 'DEBUG', False) or (key_id and key_id.startswith('rzp_test')) or not key_secret:
-        if key_secret and razorpay_signature and razorpay_order_id:
-            msg = f"{razorpay_order_id}|{razorpay_payment_id}".encode()
-            expected = hmac.new(key_secret.encode(), msg, hashlib.sha256).hexdigest()
-            is_valid = hmac.compare_digest(expected, razorpay_signature)
-        else:
-            is_valid = True
+    elif key_secret and razorpay_signature and razorpay_order_id and razorpay_payment_id:
+        msg = f"{razorpay_order_id}|{razorpay_payment_id}".encode('utf-8')
+        expected = hmac.new(key_secret.encode('utf-8'), msg, hashlib.sha256).hexdigest()
+        is_valid = hmac.compare_digest(expected, razorpay_signature)
     else:
         is_valid = False
 

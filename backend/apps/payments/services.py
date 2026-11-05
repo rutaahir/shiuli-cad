@@ -343,30 +343,22 @@ class RazorpayPaymentGatewayService(PaymentGatewayInterface):
 
         # Cryptographic signature verification
         is_valid = False
-        if self.client and self.key_secret and razorpay_signature and razorpay_payment_id:
+        actual_order_id = razorpay_order_id or (payment.gateway_transaction_id if payment else '')
+        if self.key_secret and razorpay_signature and actual_order_id and razorpay_payment_id:
+            msg = f"{actual_order_id}|{razorpay_payment_id}".encode('utf-8')
+            expected = hmac.new(self.key_secret.encode('utf-8'), msg, hashlib.sha256).hexdigest()
+            is_valid = hmac.compare_digest(expected, razorpay_signature)
+        elif self.client and self.key_secret and razorpay_signature and razorpay_payment_id:
             try:
                 self.client.utility.verify_payment_signature({
-                    'razorpay_order_id': razorpay_order_id or payment.gateway_transaction_id,
+                    'razorpay_order_id': actual_order_id,
                     'razorpay_payment_id': razorpay_payment_id,
                     'razorpay_signature': razorpay_signature
                 })
                 is_valid = True
-            except razorpay.errors.SignatureVerificationError:
-                is_valid = False
             except Exception as e:
                 logger.error(f"Signature check error: {e}")
                 is_valid = False
-        elif self.is_sandbox_mode():
-            # In sandbox/development test mode
-            if self.key_secret and razorpay_signature and razorpay_order_id and razorpay_payment_id:
-                msg = f"{razorpay_order_id}|{razorpay_payment_id}".encode()
-                expected = hmac.new(self.key_secret.encode(), msg, hashlib.sha256).hexdigest()
-                is_valid = hmac.compare_digest(expected, razorpay_signature)
-            else:
-                # Sandbox test bypass allowed if transaction id provided
-                is_valid = bool(razorpay_payment_id or razorpay_order_id)
-        else:
-            is_valid = False
 
         if is_valid:
             payment = process_payment_success(payment, razorpay_payment_id or razorpay_order_id)
