@@ -504,7 +504,7 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
         throw new Error('Razorpay checkout SDK could not be loaded. Please check your internet connection.');
       }
 
-      const keyId = (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || orderRes.key_id;
+      const keyId = orderRes.key_id || (import.meta as any).env?.VITE_RAZORPAY_KEY_ID;
 
       // 3. Configure Checkout Options
       const options = {

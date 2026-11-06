@@ -101,7 +101,7 @@ export const RazorpayCheckoutButton: React.FC<RazorpayCheckoutButtonProps> = ({
         payment_type: paymentType,
       });
 
-      const keyId = (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || orderRes.key_id;
+      const keyId = orderRes.key_id || (import.meta as any).env?.VITE_RAZORPAY_KEY_ID;
 
       // 4. Configure Razorpay Standard Checkout options
       const options = {

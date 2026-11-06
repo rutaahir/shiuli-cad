@@ -301,7 +301,7 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
         throw new Error('Razorpay SDK could not be loaded. Please check your internet connection.');
       }
 
-      const keyId = (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || orderRes.key_id;
+      const keyId = orderRes.key_id || (import.meta as any).env?.VITE_RAZORPAY_KEY_ID;
 
       const options = {
         key: keyId,
@@ -398,7 +398,7 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
         throw new Error('Razorpay SDK could not be loaded. Please check your internet connection or use manual wire transfer.');
       }
 
-      const keyId = (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || orderRes.key_id;
+      const keyId = orderRes.key_id || (import.meta as any).env?.VITE_RAZORPAY_KEY_ID;
 
       // 3. Configure Checkout Options
       const options = {
@@ -1580,16 +1580,18 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
                       </button>
                     </div>
 
-                    {/* Simulation helper for test environments */}
-                    <div className="text-center pt-1">
-                      <button
-                        type="button"
-                        onClick={handleSimulateRazorpaySuccess}
-                        className="text-[11px] text-slate-400 hover:text-slate-600 underline cursor-pointer"
-                      >
-                        Test Sandbox: Simulate Successful Payment
-                      </button>
-                    </div>
+                    {/* Simulation helper strictly for dev test environments */}
+                    {(import.meta as any).env?.DEV && (import.meta as any).env?.VITE_APP_ENV !== 'production' && (
+                      <div className="text-center pt-1">
+                        <button
+                          type="button"
+                          onClick={handleSimulateRazorpaySuccess}
+                          className="text-[11px] text-slate-400 hover:text-slate-600 underline cursor-pointer"
+                        >
+                          Test Sandbox: Simulate Successful Payment
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   /* Option 2: Manual Bank Wire / UTR Slip */

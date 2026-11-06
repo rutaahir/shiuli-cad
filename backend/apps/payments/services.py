@@ -271,7 +271,7 @@ class RazorpayPaymentGatewayService(PaymentGatewayInterface):
     def is_sandbox_mode(self):
         if not self.key_id or not self.key_secret:
             return True
-        if self.key_id.startswith('rzp_test_') or getattr(settings, 'DEBUG', False):
+        if self.key_id.startswith('rzp_test_'):
             return True
         return False
 

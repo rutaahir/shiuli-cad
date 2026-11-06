@@ -1,9 +1,19 @@
 import os
 from pathlib import Path
 from datetime import timedelta
-from decouple import config
+from decouple import Config, RepositoryEnv, config as default_config
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Robust .env loader: checks backend/.env first, then root .env, then system env
+_backend_env = BASE_DIR / '.env'
+_root_env = BASE_DIR.parent / '.env'
+if _backend_env.exists():
+    config = Config(RepositoryEnv(str(_backend_env)))
+elif _root_env.exists():
+    config = Config(RepositoryEnv(str(_root_env)))
+else:
+    config = default_config
 
 # Add apps directory to sys.path so apps can be imported cleanly
 import sys
