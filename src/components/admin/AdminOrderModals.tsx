@@ -181,8 +181,9 @@ export const AdminCreateOrderModal: React.FC<AdminCreateOrderModalProps> = ({
         if (initPrice) {
           const numP = parseFloat(String(initPrice));
           if (!isNaN(numP) && numP > 0) {
-            setTotalPrice(numP.toFixed(2));
-            setAdvanceAmount((numP * 0.1).toFixed(2));
+            const dollarP = numP > 500 ? Number((numP / 86.85).toFixed(2)) : numP;
+            setTotalPrice(dollarP.toFixed(2));
+            setAdvanceAmount((dollarP * 0.1).toFixed(2));
           }
         }
         setAdminCallNotes(initialValues.admin_call_notes || '');

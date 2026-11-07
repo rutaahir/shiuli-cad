@@ -612,30 +612,76 @@ class AdminClientsListView(APIView):
         from apps.payments.models import Purchase
         from apps.file_edits.models import FileEditRequest
 
+        def to_usd(amount, currency=None, exchange_rate=None, original_price_usd=None):
+            if original_price_usd and float(original_price_usd) > 0:
+                return round(float(original_price_usd), 2)
+            amt = float(amount or 0.0)
+            if amt <= 0:
+                return 0.0
+            cur = (currency or 'INR').upper()
+            if cur == 'USD':
+                return round(amt, 2)
+            if exchange_rate and float(exchange_rate) > 0:
+                return round(amt / float(exchange_rate), 2)
+            # Default rate for INR amounts entered by clients
+            return round(amt / 86.85, 2)
+
         clients = User.objects.filter(role=User.Role.CLIENT).order_by('-created_at')
         client_data = []
+
+        country_map = {
+            'IN': 'India',
+            'US': 'United States',
+            'GB': 'United Kingdom',
+            'AE': 'United Arab Emirates',
+            'CA': 'Canada',
+            'AU': 'Australia',
+            'DE': 'Germany',
+            'FR': 'France',
+            'IT': 'Italy',
+            'SG': 'Singapore',
+            'CH': 'Switzerland',
+        }
 
         for client in clients:
             orders_qs = Order.objects.filter(client=client)
             orders_count = orders_qs.count()
-            orders_spend = orders_qs.filter(
-                status__in=[Order.Status.COMPLETED, Order.Status.PREVIEW_READY, Order.Status.PENDING_FINAL_PAYMENT]
-            ).aggregate(total=Sum('total_price'))['total'] or 0.0
+            orders_spend_usd = sum(
+                to_usd(
+                    o.total_price,
+                    currency=o.currency,
+                    exchange_rate=o.exchange_rate,
+                    original_price_usd=o.original_price_usd
+                )
+                for o in orders_qs.filter(
+                    status__in=[Order.Status.COMPLETED, Order.Status.PREVIEW_READY, Order.Status.PENDING_FINAL_PAYMENT]
+                )
+            )
 
             purchases_qs = Purchase.objects.filter(buyer=client)
             purchases_count = purchases_qs.count()
-            purchases_spend = purchases_qs.filter(
-                status=Purchase.Status.PAID
-            ).aggregate(total=Sum('price_paid'))['total'] or 0.0
+            purchases_spend_usd = sum(
+                to_usd(
+                    p.price_paid,
+                    currency=p.currency,
+                    exchange_rate=p.exchange_rate,
+                    original_price_usd=p.original_price_usd
+                )
+                for p in purchases_qs.filter(status=Purchase.Status.PAID)
+            )
 
             edits_qs = FileEditRequest.objects.filter(client=client)
             edits_count = edits_qs.count()
-            edits_spend = edits_qs.filter(
-                agreed_price__isnull=False
-            ).aggregate(total=Sum('agreed_price'))['total'] or 0.0
+            edits_spend_usd = sum(
+                to_usd(
+                    e.agreed_price,
+                    currency=e.currency
+                )
+                for e in edits_qs.filter(agreed_price__isnull=False)
+            )
 
             total_orders = orders_count + purchases_count + edits_count
-            total_spend = float(orders_spend) + float(purchases_spend) + float(edits_spend)
+            total_spend_usd = round(orders_spend_usd + purchases_spend_usd + edits_spend_usd, 2)
 
             dates = [client.created_at]
             last_order = orders_qs.order_by('-created_at').first()
@@ -651,33 +697,80 @@ class AdminClientsListView(APIView):
             latest_date = max(dates)
             full_name = f"{client.first_name} {client.last_name}".strip() or client.username
 
+            # Country resolution
+            country_code = ''
+            ord_with_country = orders_qs.exclude(country_code='').first()
+            if ord_with_country:
+                country_code = ord_with_country.country_code
+            else:
+                pur_with_country = purchases_qs.exclude(country_code='').first()
+                if pur_with_country:
+                    country_code = pur_with_country.country_code
+
+            client_country = country_map.get(country_code.upper())
+            if not client_country:
+                phone_str = str(client.phone_number or '').strip()
+                if phone_str.startswith('+1'):
+                    client_country = 'United States'
+                elif phone_str.startswith('+44'):
+                    client_country = 'United Kingdom'
+                elif phone_str.startswith('+971'):
+                    client_country = 'United Arab Emirates'
+                elif phone_str.startswith('+91') or len(phone_str.replace(' ', '').replace('-', '')) == 10:
+                    client_country = 'India'
+                else:
+                    client_country = 'India'
+
             order_items = []
             for o in orders_qs.order_by('-created_at')[:5]:
                 order_title = (o.product.title if o.product else None) or (o.custom_request.category.name if (o.custom_request and o.custom_request.category) else None) or f"Custom CAD Order #{o.id}"
+                usd_amt = to_usd(
+                    o.total_price,
+                    currency=o.currency,
+                    exchange_rate=o.exchange_rate,
+                    original_price_usd=o.original_price_usd
+                )
                 order_items.append({
                     'id': f"ORD-{o.id}",
                     'type': 'Custom Commission',
                     'title': order_title,
                     'status': o.get_status_display(),
-                    'amount': float(o.total_price),
+                    'amount': usd_amt,
+                    'original_amount': float(o.total_price),
+                    'original_currency': o.currency or 'INR',
                     'date': o.created_at.strftime('%b %d, %Y')
                 })
             for p in purchases_qs.order_by('-purchased_at')[:5]:
+                usd_amt = to_usd(
+                    p.price_paid,
+                    currency=p.currency,
+                    exchange_rate=p.exchange_rate,
+                    original_price_usd=p.original_price_usd
+                )
                 order_items.append({
                     'id': f"PUR-{p.id}",
                     'type': 'Ready CAD Purchase',
                     'title': p.product.title if p.product else f"Purchase #{p.id}",
                     'status': p.get_status_display(),
-                    'amount': float(p.price_paid),
+                    'amount': usd_amt,
+                    'original_amount': float(p.price_paid),
+                    'original_currency': p.currency or 'INR',
                     'date': p.purchased_at.strftime('%b %d, %Y')
                 })
             for e in edits_qs.order_by('-created_at')[:5]:
+                usd_amt = to_usd(
+                    e.agreed_price,
+                    currency=e.currency
+                )
+                edit_title = getattr(e, 'original_file_name', '') or (e.description[:35] + '...' if getattr(e, 'description', '') and len(e.description) > 35 else getattr(e, 'description', '')) or f"Request #{e.id}"
                 order_items.append({
                     'id': f"EDT-{e.id}",
                     'type': 'CAD File Modification',
-                    'title': f"Modification: {e.title}",
+                    'title': f"Modification: {edit_title}",
                     'status': e.get_status_display(),
-                    'amount': float(e.agreed_price or 0.0),
+                    'amount': usd_amt,
+                    'original_amount': float(e.agreed_price or 0.0),
+                    'original_currency': e.currency or 'INR',
                     'date': e.created_at.strftime('%b %d, %Y')
                 })
 
@@ -687,10 +780,10 @@ class AdminClientsListView(APIView):
                 'username': client.username,
                 'email': client.email,
                 'phone': client.phone_number or 'Not provided',
-                'country': 'India',
+                'country': client_country,
                 'orders_count': total_orders,
-                'total_spend': f"${round(total_spend, 2):,.2f}",
-                'total_spend_raw': round(total_spend, 2),
+                'total_spend': f"${total_spend_usd:,.2f}",
+                'total_spend_raw': total_spend_usd,
                 'last_activity': latest_date.strftime('%b %d, %Y'),
                 'created_at': client.created_at.strftime('%b %d, %Y'),
                 'history': order_items

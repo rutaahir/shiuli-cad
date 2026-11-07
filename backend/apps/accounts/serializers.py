@@ -1,4 +1,4 @@
-from rest_framework import serializers
+from rest_framework import serializers, exceptions
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 from django.db import models
@@ -108,16 +108,34 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         if isinstance(username_or_email, str):
             username_or_email = username_or_email.strip()
 
-        # Allow authentication by either Email or Username
+        password = attrs.get('password', '')
+
+        # Check user existence and validate password explicitly for accurate feedback
+        user_obj = None
         if username_or_email:
             user_obj = User.objects.filter(
                 models.Q(email__iexact=username_or_email) | models.Q(username__iexact=username_or_email)
             ).first()
-            if user_obj:
-                attrs[self.username_field] = user_obj.username
-            else:
-                attrs[self.username_field] = username_or_email
 
+        if not user_obj:
+            raise exceptions.AuthenticationFailed(
+                'No account found with this email or username.',
+                'account_not_found',
+            )
+
+        if not user_obj.is_active:
+            raise exceptions.AuthenticationFailed(
+                'This account is inactive or disabled. Please contact support.',
+                'inactive_account',
+            )
+
+        if not user_obj.check_password(password):
+            raise exceptions.AuthenticationFailed(
+                'Incorrect password. Please check your password and try again.',
+                'invalid_password',
+            )
+
+        attrs[self.username_field] = user_obj.username
         data = super().validate(attrs)
         user_serializer = UserSerializer(self.user)
         data['user'] = user_serializer.data

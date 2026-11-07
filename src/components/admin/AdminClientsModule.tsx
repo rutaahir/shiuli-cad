@@ -8,6 +8,8 @@ interface ClientOrderHistory {
   title: string;
   status: string;
   amount: number;
+  original_amount?: number;
+  original_currency?: string;
   date: string;
 }
 
@@ -25,6 +27,24 @@ interface ClientCRMRecord {
   created_at: string;
   history?: ClientOrderHistory[];
 }
+
+const USD_RATE = 86.85;
+
+const toUSDNumber = (amt: number): number => {
+  if (!amt || isNaN(amt)) return 0;
+  if (amt > 500) {
+    return Math.round((amt / USD_RATE) * 100) / 100;
+  }
+  return amt;
+};
+
+const formatSpendUSD = (c: ClientCRMRecord): string => {
+  if (typeof c.total_spend_raw === 'number' && c.total_spend_raw > 500) {
+    const converted = Math.round((c.total_spend_raw / USD_RATE) * 100) / 100;
+    return `$${converted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  return c.total_spend || '$0.00';
+};
 
 export const AdminClientsModule: React.FC = () => {
   const [clients, setClients] = useState<ClientCRMRecord[]>([]);
@@ -150,7 +170,7 @@ export const AdminClientsModule: React.FC = () => {
                   <td className="p-4 font-mono font-bold text-[#17345C]">
                     {c.orders_count} {c.orders_count === 1 ? 'order' : 'orders'}
                   </td>
-                  <td className="p-4 font-mono font-bold text-[#1F9D66]">{c.total_spend}</td>
+                  <td className="p-4 font-mono font-bold text-[#1F9D66]">{formatSpendUSD(c)}</td>
                   <td className="p-4 text-[#6B7280] font-mono">{c.last_activity}</td>
                   <td className="p-4 text-right">
                     <button
@@ -216,7 +236,7 @@ export const AdminClientsModule: React.FC = () => {
                 <div className="bg-white p-3 rounded-lg border border-[#E8D7B7]">
                   <div className="text-[10px] uppercase font-mono text-[#6B7280]">Total Lifetime Spend</div>
                   <div className="font-mono font-bold text-base text-[#1F9D66]">
-                    {selectedClientDrawer.total_spend}
+                    {formatSpendUSD(selectedClientDrawer)}
                   </div>
                 </div>
                 <div className="bg-white p-3 rounded-lg border border-[#E8D7B7]">
@@ -244,9 +264,16 @@ export const AdminClientsModule: React.FC = () => {
                     >
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-semibold text-[#17243B]">{item.title}</span>
-                        <span className="font-mono font-bold text-[#1F9D66]">
-                          ${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                        </span>
+                        <div className="text-right">
+                          <span className="font-mono font-bold text-[#1F9D66]">
+                            ${toUSDNumber(item.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                          {item.original_currency && item.original_currency !== 'USD' && item.original_amount && (
+                            <span className="block text-[10px] font-mono text-[#6B7280]">
+                              ({item.original_currency === 'INR' ? '₹' : item.original_currency + ' '}{Number(item.original_amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       <div className="flex items-center justify-between text-[11px] text-[#6B7280]">

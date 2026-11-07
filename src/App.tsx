@@ -674,9 +674,6 @@ function MainApp() {
         onNavigate={handleNavigate}
       />
 
-      {/* Client Atelier Authentication Modal */}
-      <AuthModal />
-
       {/* Quick View Modal */}
       <QuickViewModal
         product={quickViewProduct}
@@ -691,6 +688,9 @@ function MainApp() {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
       />
+
+      {/* Client Atelier Authentication Modal */}
+      <AuthModal />
 
       {/* Floating Quick Menu + Scroll-to-Top */}
       {!isAuthPage && <FloatingQuickMenu onNavigate={handleNavigate} currentPage={currentPage} />}
