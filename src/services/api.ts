@@ -551,6 +551,15 @@ class ApiClient {
     return await this.request<any[]>('/payments/gateway-log/');
   }
 
+  async resetFinancialAudit(options?: { keep_orders?: boolean; clear_clients?: boolean; clear_pending_approvals?: boolean }) {
+    await this.ensureAdminToken();
+    return await this.request<any>('/payments/admin/reset-financial-audit/', {
+      method: 'POST',
+      body: JSON.stringify(options || {}),
+    });
+  }
+
+
   async adminApprovePurchase(purchaseId: number | string) {
     this.ensureAdminToken();
     return await this.request<any>(`/payments/purchases/${purchaseId}/admin-approve/`, {
@@ -2241,6 +2250,20 @@ class ApiClient {
     return this.request<any>('/payments/admin/client-credits/verify-transaction/', {
       method: 'POST',
       body: JSON.stringify(payload),
+    });
+  }
+
+  async adminClearAllClients(): Promise<any> {
+    await this.ensureAdminToken();
+    return this.request<any>('/payments/admin/client-credits/clear-all/', {
+      method: 'POST',
+    });
+  }
+
+  async adminDeleteClient(clientId: number): Promise<any> {
+    await this.ensureAdminToken();
+    return this.request<any>(`/payments/admin/client-credits/${clientId}/delete/`, {
+      method: 'DELETE',
     });
   }
 }

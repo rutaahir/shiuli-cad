@@ -169,18 +169,23 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
     }
   };
 
+  const isDummyBankNumber = (acc?: string | null) => {
+    if (!acc) return true;
+    return !acc.trim();
+  };
+
   // Dynamic Official Bank & Treasury Details from Admin Settings
-  const [bankDetails, setBankDetails] = useState({
-    beneficiaryName: localStorage.getItem('shiuli_bank_beneficiary_name') || 'Shiuli CAD Studio LLP',
-    bankName: localStorage.getItem('shiuli_bank_name') || 'HDFC Bank / Silicon Valley Bank',
-    accountNumber: localStorage.getItem('shiuli_bank_account_number') || '50200084739201',
-    ifscCode: localStorage.getItem('shiuli_bank_ifsc_code') || 'HDFC0000240',
-    swiftCode: localStorage.getItem('shiuli_bank_swift_code') || 'HDFCINBB',
-    branch: localStorage.getItem('shiuli_bank_branch') || 'Surat Main Branch',
-    accountType: localStorage.getItem('shiuli_bank_account_type') || 'Current Account',
-    upiId: localStorage.getItem('shiuli_studio_upi_id') || 'shiulicad@okhdfcbank',
-    notes: localStorage.getItem('shiuli_bank_notes') || 'Please include your registered phone number or Order/Client ID in the wire transfer description.',
-  });
+  const [bankDetails, setBankDetails] = useState(() => ({
+    beneficiaryName: typeof window !== 'undefined' ? localStorage.getItem('shiuli_bank_beneficiary_name') || '' : '',
+    bankName: typeof window !== 'undefined' ? localStorage.getItem('shiuli_bank_name') || '' : '',
+    accountNumber: typeof window !== 'undefined' ? localStorage.getItem('shiuli_bank_account_number') || '' : '',
+    ifscCode: typeof window !== 'undefined' ? localStorage.getItem('shiuli_bank_ifsc_code') || '' : '',
+    swiftCode: typeof window !== 'undefined' ? localStorage.getItem('shiuli_bank_swift_code') || '' : '',
+    branch: typeof window !== 'undefined' ? localStorage.getItem('shiuli_bank_branch') || '' : '',
+    accountType: typeof window !== 'undefined' ? localStorage.getItem('shiuli_bank_account_type') || '' : '',
+    upiId: typeof window !== 'undefined' ? localStorage.getItem('shiuli_studio_upi_id') || 'shiulicad@okhdfcbank' : 'shiulicad@okhdfcbank',
+    notes: typeof window !== 'undefined' ? localStorage.getItem('shiuli_bank_notes') || '' : '',
+  }));
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const handleCopy = (text: string, key: string) => {
@@ -194,26 +199,36 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
     try {
       const plat = await api.getPlatformSettings().catch(() => null);
       if (plat) {
+        const rawAcc = plat.bank_account_number || '';
         setBankDetails({
-          beneficiaryName: plat.bank_beneficiary_name || 'Shiuli CAD Studio LLP',
-          bankName: plat.bank_name || 'HDFC Bank / Silicon Valley Bank',
-          accountNumber: plat.bank_account_number || '50200084739201',
-          ifscCode: plat.bank_ifsc_code || 'HDFC0000240',
-          swiftCode: plat.bank_swift_code || 'HDFCINBB',
-          branch: plat.bank_branch || 'Surat Main Branch',
-          accountType: plat.bank_account_type || 'Current Account',
+          beneficiaryName: plat.bank_beneficiary_name || '',
+          bankName: plat.bank_name || '',
+          accountNumber: rawAcc,
+          ifscCode: plat.bank_ifsc_code || '',
+          swiftCode: plat.bank_swift_code || '',
+          branch: plat.bank_branch || '',
+          accountType: plat.bank_account_type || '',
           upiId: plat.studio_upi_id || 'shiulicad@okhdfcbank',
           notes: plat.bank_notes || '',
         });
+
         if (plat.bank_beneficiary_name) localStorage.setItem('shiuli_bank_beneficiary_name', plat.bank_beneficiary_name);
+        else localStorage.removeItem('shiuli_bank_beneficiary_name');
         if (plat.bank_name) localStorage.setItem('shiuli_bank_name', plat.bank_name);
-        if (plat.bank_account_number) localStorage.setItem('shiuli_bank_account_number', plat.bank_account_number);
+        else localStorage.removeItem('shiuli_bank_name');
+        if (rawAcc) localStorage.setItem('shiuli_bank_account_number', rawAcc);
+        else localStorage.removeItem('shiuli_bank_account_number');
         if (plat.bank_ifsc_code) localStorage.setItem('shiuli_bank_ifsc_code', plat.bank_ifsc_code);
+        else localStorage.removeItem('shiuli_bank_ifsc_code');
         if (plat.bank_swift_code) localStorage.setItem('shiuli_bank_swift_code', plat.bank_swift_code);
+        else localStorage.removeItem('shiuli_bank_swift_code');
         if (plat.bank_branch) localStorage.setItem('shiuli_bank_branch', plat.bank_branch);
+        else localStorage.removeItem('shiuli_bank_branch');
         if (plat.bank_account_type) localStorage.setItem('shiuli_bank_account_type', plat.bank_account_type);
+        else localStorage.removeItem('shiuli_bank_account_type');
         if (plat.bank_notes) localStorage.setItem('shiuli_bank_notes', plat.bank_notes);
-        if (plat.studio_upi_id) localStorage.setItem('shiuli_studio_upi_id', plat.studio_upi_id);
+        else localStorage.removeItem('shiuli_bank_notes');
+        if (plat.studio_upi_id !== undefined) localStorage.setItem('shiuli_studio_upi_id', plat.studio_upi_id || '');
       }
     } catch {
       // Offline fallback silently uses cached localStorage
@@ -227,6 +242,30 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
       setTopupAmount('5000');
     }
   }, [customerCurrency]);
+
+  useEffect(() => {
+    const handleBankUpdate = (e: any) => {
+      const d = e.detail;
+      if (d) {
+        setBankDetails((prev) => ({
+          ...prev,
+          beneficiaryName: d.bankBeneficiaryName !== undefined ? d.bankBeneficiaryName : prev.beneficiaryName,
+          bankName: d.bankName !== undefined ? d.bankName : prev.bankName,
+          accountNumber: d.bankAccountNumber !== undefined ? d.bankAccountNumber : prev.accountNumber,
+          ifscCode: d.bankIfscCode !== undefined ? d.bankIfscCode : prev.ifscCode,
+          swiftCode: d.bankSwiftCode !== undefined ? d.bankSwiftCode : prev.swiftCode,
+          branch: d.bankBranch !== undefined ? d.bankBranch : prev.branch,
+          accountType: d.bankAccountType !== undefined ? d.bankAccountType : prev.accountType,
+          notes: d.bankNotes !== undefined ? d.bankNotes : prev.notes,
+          upiId: d.studioUpiId !== undefined ? d.studioUpiId : prev.upiId,
+        }));
+      }
+    };
+    window.addEventListener('shiuli:bank_details_updated', handleBankUpdate);
+    return () => {
+      window.removeEventListener('shiuli:bank_details_updated', handleBankUpdate);
+    };
+  }, []);
 
   const openRepayModal = () => {
     setRepayError('');
@@ -338,7 +377,7 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
             try {
               const confetti = (await import('canvas-confetti')).default;
               confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
-            } catch {}
+            } catch { }
 
             alert(`Wallet recharged with ${customerSymbol}${rawVal.toLocaleString()}! Available balance has been credited immediately.`);
             setShowTopupModal(false);
@@ -442,7 +481,7 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
             try {
               const confetti = (await import('canvas-confetti')).default;
               confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
-            } catch {}
+            } catch { }
 
             setRepaySuccessData({
               paymentId: response.razorpay_payment_id,
@@ -500,7 +539,7 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
       try {
         const confetti = (await import('canvas-confetti')).default;
         confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
-      } catch {}
+      } catch { }
 
       setRepaySuccessData({
         paymentId: mockPayId,
@@ -674,22 +713,21 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
                 <CreditCard className="w-4 h-4 text-blue-700" />
                 Corporate Credit Facility
               </span>
-              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
-                isExpired
-                  ? 'bg-rose-100 text-rose-800 border border-rose-300'
-                  : hasActiveCredit && creditAccount?.expires_at
+              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${isExpired
+                ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                : hasActiveCredit && creditAccount?.expires_at
                   ? 'bg-amber-100 text-amber-900 border border-amber-300 animate-pulse'
                   : hasActiveCredit
-                  ? 'bg-blue-50 text-blue-800 border border-blue-200'
-                  : 'bg-slate-100 text-slate-500 border border-slate-200'
-              }`}>
+                    ? 'bg-blue-50 text-blue-800 border border-blue-200'
+                    : 'bg-slate-100 text-slate-500 border border-slate-200'
+                }`}>
                 {isExpired
                   ? 'Expired Credit Facility'
                   : hasActiveCredit && creditAccount?.expires_at
-                  ? `⏳ ${formatCountdown(secondsRemaining ?? creditAccount.time_remaining_seconds ?? 0)} Left`
-                  : hasActiveCredit
-                  ? 'Active VIP Line'
-                  : 'Not Activated'}
+                    ? `⏳ ${formatCountdown(secondsRemaining ?? creditAccount.time_remaining_seconds ?? 0)} Left`
+                    : hasActiveCredit
+                      ? 'Active VIP Line'
+                      : 'Not Activated'}
               </span>
             </div>
 
@@ -854,11 +892,10 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
               <button
                 disabled={usedCredit <= 0}
                 onClick={openRepayModal}
-                className={`w-full h-12 rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                  usedCredit > 0
-                    ? 'bg-gradient-to-r from-[#17345C] to-[#0B1330] hover:from-[#1E4273] hover:to-[#17345C] text-[#F5E7A3] border border-[#D4AF37] hover:shadow-md'
-                    : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                }`}
+                className={`w-full h-12 rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${usedCredit > 0
+                  ? 'bg-gradient-to-r from-[#17345C] to-[#0B1330] hover:from-[#1E4273] hover:to-[#17345C] text-[#F5E7A3] border border-[#D4AF37] hover:shadow-md'
+                  : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                  }`}
               >
                 <Receipt className="w-4 h-4 text-[#D4AF37]" />
                 <span>
@@ -925,9 +962,8 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
                         {new Date(tx.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
                       </td>
                       <td className="p-3.5">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
-                          tx.account_type === 'wallet' ? 'bg-emerald-50 text-emerald-800' : 'bg-blue-50 text-blue-800'
-                        }`}>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${tx.account_type === 'wallet' ? 'bg-emerald-50 text-emerald-800' : 'bg-blue-50 text-blue-800'
+                          }`}>
                           {tx.account_type === 'wallet' ? 'Prepaid Wallet' : 'Corporate Credit'}
                         </span>
                       </td>
@@ -956,13 +992,12 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
                         )}
                       </td>
                       <td className="p-3.5">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold font-mono ${
-                          tx.status === 'completed'
-                            ? 'bg-emerald-50 text-emerald-700'
-                            : tx.status === 'pending'
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold font-mono ${tx.status === 'completed'
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : tx.status === 'pending'
                             ? 'bg-amber-50 text-amber-700'
                             : 'bg-rose-50 text-rose-700'
-                        }`}>
+                          }`}>
                           {tx.status}
                         </span>
                       </td>
@@ -1006,9 +1041,8 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
                   : `Show More (${transactions.length - 5} More)`}
               </span>
               <ChevronDown
-                className={`w-3.5 h-3.5 text-[#B88732] transition-transform duration-200 ${
-                  showAllTransactions ? 'rotate-180' : ''
-                }`}
+                className={`w-3.5 h-3.5 text-[#B88732] transition-transform duration-200 ${showAllTransactions ? 'rotate-180' : ''
+                  }`}
               />
             </button>
           </div>
@@ -1041,11 +1075,10 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
               <button
                 type="button"
                 onClick={() => setTopupMode('razorpay')}
-                className={`py-2.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  topupMode === 'razorpay'
-                    ? 'bg-[#17345C] text-[#F5E7A3] shadow-sm'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
+                className={`py-2.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${topupMode === 'razorpay'
+                  ? 'bg-[#17345C] text-[#F5E7A3] shadow-sm'
+                  : 'text-slate-500 hover:text-slate-800'
+                  }`}
               >
                 <CreditCard className="w-3.5 h-3.5 text-[#D4AF37]" />
                 <span>Razorpay (Instant)</span>
@@ -1053,11 +1086,10 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
               <button
                 type="button"
                 onClick={() => setTopupMode('manual')}
-                className={`py-2.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  topupMode === 'manual'
-                    ? 'bg-white text-[#17345C] shadow-sm border border-[#D4AF37]/40'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
+                className={`py-2.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${topupMode === 'manual'
+                  ? 'bg-white text-[#17345C] shadow-sm border border-[#D4AF37]/40'
+                  : 'text-slate-500 hover:text-slate-800'
+                  }`}
               >
                 <Building2 className="w-3.5 h-3.5 text-slate-600" />
                 <span>Bank Wire / UTR</span>
@@ -1141,171 +1173,173 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
                 </div>
               </div>
             ) : (
-            <form onSubmit={handleTopupSubmit} className="space-y-4 pt-2">
-              <div>
-                <label className="block text-xs font-semibold text-[#17243B] mb-1">
-                  Deposit Amount ({customerCurrency} {customerSymbol})
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold font-mono">{customerSymbol}</span>
+              <form onSubmit={handleTopupSubmit} className="space-y-4 pt-2">
+                <div>
+                  <label className="block text-xs font-semibold text-[#17243B] mb-1">
+                    Deposit Amount ({customerCurrency} {customerSymbol})
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold font-mono">{customerSymbol}</span>
+                    <input
+                      type="number"
+                      value={topupAmount}
+                      onChange={(e) => setTopupAmount(e.target.value)}
+                      placeholder={customerCurrency === 'INR' ? 'e.g. 5000' : 'e.g. 100'}
+                      required
+                      className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-[#E8D7B7] text-sm font-mono font-bold text-[#17243B] focus:outline-none focus:border-[#B88732]"
+                    />
+                  </div>
+
+                  {customerCurrency !== 'USD' && (
+                    <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 mt-2 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span>Float Credited in Base USD:</span>
+                        <strong className="font-mono text-emerald-800 text-sm">
+                          ≈ {convertCustomerToUsd(topupAmount, customerCurrency, customerRate).displayUsd} USD
+                        </strong>
+                      </div>
+                      <div className="text-[10px] text-emerald-700/80 font-mono text-right">
+                        Conversion Rate: 1 USD = {customerSymbol}{Number(customerRate).toFixed(2)} {customerCurrency}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-1.5 mt-2">
+                    {(customerCurrency === 'INR' ? ['1000', '2500', '5000', '10000'] : ['50', '100', '250', '500']).map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setTopupAmount(preset)}
+                        className="px-2.5 py-1 rounded bg-[#FAF8F5] hover:bg-[#FFF9F0] border border-[#E8D7B7] text-[11px] font-mono font-bold text-[#17345C] cursor-pointer"
+                      >
+                        {customerSymbol}{Number(preset).toLocaleString(customerCurrency === 'INR' ? 'en-IN' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Dynamic Bank Details Card from Admin - ONLY SHOWN IF CONFIGURED */}
+                {Boolean(bankDetails.accountNumber && bankDetails.accountNumber.trim() && !isDummyBankNumber(bankDetails.accountNumber)) && (
+                  <div className="p-3.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] space-y-2 text-xs text-[#17243B]">
+                    <div className="font-semibold text-[11px] uppercase tracking-wider text-[#B88732] flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Building2 className="w-3.5 h-3.5 text-[#B88732]" />
+                        <span>{bankDetails.beneficiaryName || 'Shiuli Atelier Official Treasury'}</span>
+                      </div>
+                      {bankDetails.accountType && (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-50 text-[#B88732] border border-[#E8D7B7]">
+                          {bankDetails.accountType}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11px] space-y-1 text-slate-700 font-mono">
+                      <div className="flex items-center justify-between">
+
+                        {bankDetails.branch && (
+                          <span className="text-[10px] text-slate-500 font-sans">{bankDetails.branch}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between bg-white px-2 py-1 rounded border border-[#E8D7B7]">
+                        <span>Account: <strong className="text-slate-900 tracking-wide">{bankDetails.accountNumber}</strong></span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(bankDetails.accountNumber, 'topup_acc')}
+                          className="text-[10px] text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
+                        >
+                          {copiedKey === 'topup_acc' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                          <span>{copiedKey === 'topup_acc' ? 'Copied' : 'Copy'}</span>
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between bg-white px-2 py-1 rounded border border-[#E8D7B7]">
+                        <span>IFSC: <strong className="text-slate-900">{bankDetails.ifscCode}</strong></span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(bankDetails.ifscCode, 'topup_ifsc')}
+                          className="text-[10px] text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
+                        >
+                          {copiedKey === 'topup_ifsc' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                          <span>{copiedKey === 'topup_ifsc' ? 'Copied' : 'Copy'}</span>
+                        </button>
+                      </div>
+                      {bankDetails.swiftCode && (
+                        <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
+                          <span>SWIFT/BIC: <strong className="text-slate-700">{bankDetails.swiftCode}</strong></span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(bankDetails.swiftCode, 'topup_swift')}
+                            className="text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
+                          >
+                            {copiedKey === 'topup_swift' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                            <span>{copiedKey === 'topup_swift' ? 'Copied' : 'Copy'}</span>
+                          </button>
+                        </div>
+                      )}
+                      {bankDetails.upiId && customerCurrency === 'INR' && (
+                        <div className="flex items-center justify-between bg-amber-50/50 px-2 py-1 rounded border border-amber-200/50">
+                          <span>UPI ID: <strong className="text-slate-900">{bankDetails.upiId}</strong></span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(bankDetails.upiId, 'topup_upi')}
+                            className="text-[10px] text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
+                          >
+                            {copiedKey === 'topup_upi' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                            <span>{copiedKey === 'topup_upi' ? 'Copied' : 'Copy'}</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {bankDetails.notes && (
+                      <p className="text-[10px] text-slate-500 italic pt-1 border-t border-[#E8D7B7]/60 leading-normal">
+                        {bankDetails.notes}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#17243B] mb-1">
+                    Bank Reference / UTR / Transaction ID
+                  </label>
                   <input
-                    type="number"
-                    value={topupAmount}
-                    onChange={(e) => setTopupAmount(e.target.value)}
-                    placeholder={customerCurrency === 'INR' ? 'e.g. 5000' : 'e.g. 100'}
+                    type="text"
+                    value={topupRef}
+                    onChange={(e) => setTopupRef(e.target.value)}
+                    placeholder="e.g. UTR-983749284 / Wire Ref"
                     required
-                    className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-[#E8D7B7] text-sm font-mono font-bold text-[#17243B] focus:outline-none focus:border-[#B88732]"
+                    className="w-full px-3 py-2 rounded-xl border border-[#E8D7B7] text-xs font-mono text-[#17243B] focus:outline-none focus:border-[#B88732]"
                   />
                 </div>
 
-                {customerCurrency !== 'USD' && (
-                  <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 mt-2 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span>Float Credited in Base USD:</span>
-                      <strong className="font-mono text-emerald-800 text-sm">
-                        ≈ {convertCustomerToUsd(topupAmount, customerCurrency, customerRate).displayUsd} USD
-                      </strong>
-                    </div>
-                    <div className="text-[10px] text-emerald-700/80 font-mono text-right">
-                      Conversion Rate: 1 USD = {customerSymbol}{Number(customerRate).toFixed(2)} {customerCurrency}
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex items-center gap-1.5 mt-2">
-                  {(customerCurrency === 'INR' ? ['1000', '2500', '5000', '10000'] : ['50', '100', '250', '500']).map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setTopupAmount(preset)}
-                      className="px-2.5 py-1 rounded bg-[#FAF8F5] hover:bg-[#FFF9F0] border border-[#E8D7B7] text-[11px] font-mono font-bold text-[#17345C] cursor-pointer"
-                    >
-                      {customerSymbol}{Number(preset).toLocaleString(customerCurrency === 'INR' ? 'en-IN' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </button>
-                  ))}
+                <div>
+                  <label className="block text-xs font-semibold text-[#17243B] mb-1">
+                    Upload Payment Proof / Screenshot (Optional)
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => setTopupFile(e.target.files?.[0] || null)}
+                    className="w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-[#FAF8F5] file:text-[#17345C] hover:file:bg-[#FFF9F0] cursor-pointer"
+                  />
                 </div>
-              </div>
 
-              {/* Dynamic Bank Details Card from Admin */}
-              <div className="p-3.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] space-y-2 text-xs text-[#17243B]">
-                <div className="font-semibold text-[11px] uppercase tracking-wider text-[#B88732] flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <Building2 className="w-3.5 h-3.5 text-[#B88732]" />
-                    <span>{bankDetails.beneficiaryName || 'Shiuli Atelier Official Treasury'}</span>
-                  </div>
-                  {bankDetails.accountType && (
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-50 text-[#B88732] border border-[#E8D7B7]">
-                      {bankDetails.accountType}
-                    </span>
-                  )}
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#E8D7B7]">
+                  <button
+                    type="button"
+                    onClick={() => setShowTopupModal(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingTopup}
+                    className="btn-gold-luxury px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm flex items-center gap-2 cursor-pointer"
+                  >
+                    {submittingTopup ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                    <span>Submit Deposit</span>
+                  </button>
                 </div>
-                <div className="text-[11px] space-y-1 text-slate-700 font-mono">
-                  <div className="flex items-center justify-between">
-                    <span>Bank: <strong>{bankDetails.bankName || 'HDFC Bank Ltd.'}</strong></span>
-                    {bankDetails.branch && (
-                      <span className="text-[10px] text-slate-500 font-sans">{bankDetails.branch}</span>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between bg-white px-2 py-1 rounded border border-[#E8D7B7]">
-                    <span>Account: <strong className="text-slate-900 tracking-wide">{bankDetails.accountNumber}</strong></span>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(bankDetails.accountNumber, 'topup_acc')}
-                      className="text-[10px] text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
-                    >
-                      {copiedKey === 'topup_acc' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                      <span>{copiedKey === 'topup_acc' ? 'Copied' : 'Copy'}</span>
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between bg-white px-2 py-1 rounded border border-[#E8D7B7]">
-                    <span>IFSC: <strong className="text-slate-900">{bankDetails.ifscCode}</strong></span>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(bankDetails.ifscCode, 'topup_ifsc')}
-                      className="text-[10px] text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
-                    >
-                      {copiedKey === 'topup_ifsc' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                      <span>{copiedKey === 'topup_ifsc' ? 'Copied' : 'Copy'}</span>
-                    </button>
-                  </div>
-                  {bankDetails.swiftCode && (
-                    <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
-                      <span>SWIFT/BIC: <strong className="text-slate-700">{bankDetails.swiftCode}</strong></span>
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(bankDetails.swiftCode, 'topup_swift')}
-                        className="text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
-                      >
-                        {copiedKey === 'topup_swift' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                        <span>{copiedKey === 'topup_swift' ? 'Copied' : 'Copy'}</span>
-                      </button>
-                    </div>
-                  )}
-                  {bankDetails.upiId && customerCurrency === 'INR' && (
-                    <div className="flex items-center justify-between bg-amber-50/50 px-2 py-1 rounded border border-amber-200/50">
-                      <span>UPI ID: <strong className="text-slate-900">{bankDetails.upiId}</strong></span>
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(bankDetails.upiId, 'topup_upi')}
-                        className="text-[10px] text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
-                      >
-                        {copiedKey === 'topup_upi' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                        <span>{copiedKey === 'topup_upi' ? 'Copied' : 'Copy'}</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-                {bankDetails.notes && (
-                  <p className="text-[10px] text-slate-500 italic pt-1 border-t border-[#E8D7B7]/60 leading-normal">
-                    {bankDetails.notes}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-[#17243B] mb-1">
-                  Bank Reference / UTR / Transaction ID
-                </label>
-                <input
-                  type="text"
-                  value={topupRef}
-                  onChange={(e) => setTopupRef(e.target.value)}
-                  placeholder="e.g. UTR-983749284 / Wire Ref"
-                  required
-                  className="w-full px-3 py-2 rounded-xl border border-[#E8D7B7] text-xs font-mono text-[#17243B] focus:outline-none focus:border-[#B88732]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-[#17243B] mb-1">
-                  Upload Payment Proof / Screenshot (Optional)
-                </label>
-                <input
-                  type="file"
-                  accept="image/*,.pdf"
-                  onChange={(e) => setTopupFile(e.target.files?.[0] || null)}
-                  className="w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-[#FAF8F5] file:text-[#17345C] hover:file:bg-[#FFF9F0] cursor-pointer"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#E8D7B7]">
-                <button
-                  type="button"
-                  onClick={() => setShowTopupModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingTopup}
-                  className="btn-gold-luxury px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm flex items-center gap-2 cursor-pointer"
-                >
-                  {submittingTopup ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                  <span>Submit Deposit</span>
-                </button>
-              </div>
-            </form>
+              </form>
             )}
           </div>
         </div>
@@ -1415,11 +1449,10 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
                       setRepayMethod('razorpay');
                       setRepayError('');
                     }}
-                    className={`py-2.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                      repayMethod === 'razorpay'
-                        ? 'bg-white text-[#17345C] shadow-sm border border-[#D4AF37]/40'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
+                    className={`py-2.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${repayMethod === 'razorpay'
+                      ? 'bg-white text-[#17345C] shadow-sm border border-[#D4AF37]/40'
+                      : 'text-slate-500 hover:text-slate-800'
+                      }`}
                   >
                     <Zap className="w-3.5 h-3.5 text-[#D4AF37]" />
                     <span>Razorpay (Instant)</span>
@@ -1430,11 +1463,10 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
                       setRepayMethod('manual');
                       setRepayError('');
                     }}
-                    className={`py-2.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                      repayMethod === 'manual'
-                        ? 'bg-white text-[#17345C] shadow-sm border border-[#D4AF37]/40'
-                        : 'text-slate-500 hover:text-slate-800'
-                    }`}
+                    className={`py-2.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${repayMethod === 'manual'
+                      ? 'bg-white text-[#17345C] shadow-sm border border-[#D4AF37]/40'
+                      : 'text-slate-500 hover:text-slate-800'
+                      }`}
                   >
                     <Building2 className="w-3.5 h-3.5 text-slate-600" />
                     <span>Bank Wire / UTR</span>
@@ -1596,81 +1628,92 @@ export const ClientWalletCreditTab: React.FC<ClientWalletCreditTabProps> = () =>
                 ) : (
                   /* Option 2: Manual Bank Wire / UTR Slip */
                   <form onSubmit={handleRepaySubmit} className="space-y-4 pt-1">
-                    {/* Dynamic Bank Details Card from Admin */}
-                    <div className="p-3.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] space-y-2 text-xs text-[#17243B]">
-                      <div className="font-semibold text-[11px] uppercase tracking-wider text-[#B88732] flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <Building2 className="w-3.5 h-3.5 text-[#B88732]" />
-                          <span>{bankDetails.beneficiaryName || 'Shiuli Atelier Official Bank Details'}</span>
-                        </div>
-                        {bankDetails.accountType && (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-50 text-[#B88732] border border-[#E8D7B7]">
-                            {bankDetails.accountType}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-[11px] space-y-1 text-slate-700 font-mono">
-                        <div className="flex items-center justify-between">
-                          <span>Bank: <strong>{bankDetails.bankName || 'HDFC Bank Ltd.'}</strong></span>
-                          {bankDetails.branch && (
-                            <span className="text-[10px] text-slate-500 font-sans">{bankDetails.branch}</span>
+                    {/* Dynamic Bank Details Card from Admin - ONLY SHOWN IF CONFIGURED */}
+                    {Boolean(bankDetails.accountNumber && bankDetails.accountNumber.trim() && !isDummyBankNumber(bankDetails.accountNumber)) ? (
+                      <div className="p-3.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] space-y-2 text-xs text-[#17243B]">
+                        <div className="font-semibold text-[11px] uppercase tracking-wider text-[#B88732] flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <Building2 className="w-3.5 h-3.5 text-[#B88732]" />
+                            <span>{bankDetails.beneficiaryName || 'Shiuli Atelier Official Bank Details'}</span>
+                          </div>
+                          {bankDetails.accountType && (
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-50 text-[#B88732] border border-[#E8D7B7]">
+                              {bankDetails.accountType}
+                            </span>
                           )}
                         </div>
-                        <div className="flex items-center justify-between bg-white px-2 py-1 rounded border border-[#E8D7B7]">
-                          <span>Account: <strong className="text-slate-900 tracking-wide">{bankDetails.accountNumber}</strong></span>
-                          <button
-                            type="button"
-                            onClick={() => handleCopy(bankDetails.accountNumber, 'repay_acc')}
-                            className="text-[10px] text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
-                          >
-                            {copiedKey === 'repay_acc' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                            <span>{copiedKey === 'repay_acc' ? 'Copied' : 'Copy'}</span>
-                          </button>
-                        </div>
-                        <div className="flex items-center justify-between bg-white px-2 py-1 rounded border border-[#E8D7B7]">
-                          <span>IFSC: <strong className="text-slate-900">{bankDetails.ifscCode}</strong></span>
-                          <button
-                            type="button"
-                            onClick={() => handleCopy(bankDetails.ifscCode, 'repay_ifsc')}
-                            className="text-[10px] text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
-                          >
-                            {copiedKey === 'repay_ifsc' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                            <span>{copiedKey === 'repay_ifsc' ? 'Copied' : 'Copy'}</span>
-                          </button>
-                        </div>
-                        {bankDetails.swiftCode && (
-                          <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
-                            <span>SWIFT/BIC: <strong className="text-slate-700">{bankDetails.swiftCode}</strong></span>
+                        <div className="text-[11px] space-y-1 text-slate-700 font-mono">
+                          {bankDetails.bankName && (
+                            <div className="flex items-center justify-between">
+                              <span>Bank: <strong>{bankDetails.bankName}</strong></span>
+                              {bankDetails.branch && (
+                                <span className="text-[10px] text-slate-500 font-sans">{bankDetails.branch}</span>
+                              )}
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between bg-white px-2 py-1 rounded border border-[#E8D7B7]">
+                            <span>Account: <strong className="text-slate-900 tracking-wide">{bankDetails.accountNumber}</strong></span>
                             <button
                               type="button"
-                              onClick={() => handleCopy(bankDetails.swiftCode, 'repay_swift')}
-                              className="text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
-                            >
-                              {copiedKey === 'repay_swift' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                              <span>{copiedKey === 'repay_swift' ? 'Copied' : 'Copy'}</span>
-                            </button>
-                          </div>
-                        )}
-                        {bankDetails.upiId && customerCurrency === 'INR' && (
-                          <div className="flex items-center justify-between bg-amber-50/50 px-2 py-1 rounded border border-amber-200/50">
-                            <span>UPI ID: <strong className="text-slate-900">{bankDetails.upiId}</strong></span>
-                            <button
-                              type="button"
-                              onClick={() => handleCopy(bankDetails.upiId, 'repay_upi')}
+                              onClick={() => handleCopy(bankDetails.accountNumber, 'repay_acc')}
                               className="text-[10px] text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
                             >
-                              {copiedKey === 'repay_upi' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                              <span>{copiedKey === 'repay_upi' ? 'Copied' : 'Copy'}</span>
+                              {copiedKey === 'repay_acc' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                              <span>{copiedKey === 'repay_acc' ? 'Copied' : 'Copy'}</span>
                             </button>
                           </div>
+                          {bankDetails.ifscCode && (
+                            <div className="flex items-center justify-between bg-white px-2 py-1 rounded border border-[#E8D7B7]">
+                              <span>IFSC: <strong className="text-slate-900">{bankDetails.ifscCode}</strong></span>
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(bankDetails.ifscCode, 'repay_ifsc')}
+                                className="text-[10px] text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
+                              >
+                                {copiedKey === 'repay_ifsc' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                                <span>{copiedKey === 'repay_ifsc' ? 'Copied' : 'Copy'}</span>
+                              </button>
+                            </div>
+                          )}
+                          {bankDetails.swiftCode && (
+                            <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
+                              <span>SWIFT/BIC: <strong className="text-slate-700">{bankDetails.swiftCode}</strong></span>
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(bankDetails.swiftCode, 'repay_swift')}
+                                className="text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
+                              >
+                                {copiedKey === 'repay_swift' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                                <span>{copiedKey === 'repay_swift' ? 'Copied' : 'Copy'}</span>
+                              </button>
+                            </div>
+                          )}
+                          {bankDetails.upiId && customerCurrency === 'INR' && (
+                            <div className="flex items-center justify-between bg-amber-50/50 px-2 py-1 rounded border border-amber-200/50">
+                              <span>UPI ID: <strong className="text-slate-900">{bankDetails.upiId}</strong></span>
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(bankDetails.upiId, 'repay_upi')}
+                                className="text-[10px] text-[#B88732] hover:text-[#8C6218] font-sans font-bold flex items-center gap-1 cursor-pointer"
+                              >
+                                {copiedKey === 'repay_upi' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                                <span>{copiedKey === 'repay_upi' ? 'Copied' : 'Copy'}</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        {bankDetails.notes && (
+                          <p className="text-[10px] text-slate-500 italic pt-1 border-t border-[#E8D7B7]/60 leading-normal">
+                            {bankDetails.notes}
+                          </p>
                         )}
                       </div>
-                      {bankDetails.notes && (
-                        <p className="text-[10px] text-slate-500 italic pt-1 border-t border-[#E8D7B7]/60 leading-normal">
-                          {bankDetails.notes}
-                        </p>
-                      )}
-                    </div>
+                    ) : (
+                      <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                        <span>Direct studio bank wire instructions are currently offline. Please use digital payment or contact studio administration.</span>
+                      </div>
+                    )}
+
 
                     <div>
                       <label className="block text-xs font-semibold text-[#17243B] mb-1">

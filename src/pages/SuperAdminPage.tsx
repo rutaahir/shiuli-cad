@@ -14,8 +14,6 @@ import { AdminOrdersModule } from '../components/admin/AdminOrdersModule';
 import { AdminPaymentsModule } from '../components/admin/AdminPaymentsModule';
 import { AdminCreditsModule } from '../components/admin/AdminCreditsModule';
 import { AdminClientsModule } from '../components/admin/AdminClientsModule';
-import { AdminAnalyticsModule } from '../components/admin/AdminAnalyticsModule';
-import { AdminNotificationsModule } from '../components/admin/AdminNotificationsModule';
 import { AdminSettingsModule } from '../components/admin/AdminSettingsModule';
 
 import { AdminServicesModule } from '../components/admin/AdminServicesModule';
@@ -32,12 +30,19 @@ interface SuperAdminPageProps {
 
 export const SuperAdminPage: React.FC<SuperAdminPageProps> = ({ onNavigate, initialTab }) => {
   const { logout } = useAuth();
-  const [activeModule, setActiveModuleState] = useState<AdminModuleId>(initialTab || 'overview');
+  const sanitizeModule = (mod?: AdminModuleId): AdminModuleId => {
+    if (!mod || (mod as string) === 'analytics' || (mod as string) === 'notifications') {
+      return 'overview';
+    }
+    return mod;
+  };
+
+  const [activeModule, setActiveModuleState] = useState<AdminModuleId>(sanitizeModule(initialTab));
 
   // Sync state from URL tab param if initialTab changes
   useEffect(() => {
-    if (initialTab && initialTab !== activeModule) {
-      setActiveModuleState(initialTab);
+    if (initialTab) {
+      setActiveModuleState(sanitizeModule(initialTab));
     }
   }, [initialTab]);
 
@@ -223,16 +228,6 @@ export const SuperAdminPage: React.FC<SuperAdminPageProps> = ({ onNavigate, init
       {activeModule === 'credits' && <AdminCreditsModule />}
 
       {activeModule === 'clients' && <AdminClientsModule />}
-
-      {activeModule === 'analytics' && <AdminAnalyticsModule />}
-
-      {activeModule === 'notifications' && (
-        <AdminNotificationsModule
-          notifications={notifications}
-          onMarkAllRead={handleMarkAllNotificationsRead}
-          onPostAnnouncement={handlePostAnnouncement}
-        />
-      )}
 
       {activeModule === 'settings' && <AdminSettingsModule />}
     </AdminLayout>

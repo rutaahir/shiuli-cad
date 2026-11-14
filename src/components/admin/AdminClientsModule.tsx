@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserCheck, Search, Mail, Phone, ShoppingBag, X, Loader2, Calendar, RefreshCw } from 'lucide-react';
+import { UserCheck, Search, Mail, Phone, ShoppingBag, X, Loader2, Calendar, RefreshCw, Trash2, AlertTriangle, Sparkles } from 'lucide-react';
 import { api } from '../../services/api';
 
 interface ClientOrderHistory {
@@ -53,6 +53,38 @@ export const AdminClientsModule: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedClientDrawer, setSelectedClientDrawer] = useState<ClientCRMRecord | null>(null);
 
+  const [showClearModal, setShowClearModal] = useState<boolean>(false);
+  const [clearingClients, setClearingClients] = useState<boolean>(false);
+  const [deletingClientId, setDeletingClientId] = useState<number | null>(null);
+
+  const handleClearAllClients = async () => {
+    setClearingClients(true);
+    try {
+      await api.adminClearAllClients();
+      setShowClearModal(false);
+      await fetchClients();
+    } catch (err: any) {
+      alert(err?.message || 'Failed to clear clients.');
+    } finally {
+      setClearingClients(false);
+    }
+  };
+
+  const handleDeleteClient = async (clientId: number, clientName: string) => {
+    if (!window.confirm(`Are you sure you want to remove client "${clientName}"? This will delete their account and associated histories.`)) {
+      return;
+    }
+    setDeletingClientId(clientId);
+    try {
+      await api.adminDeleteClient(clientId);
+      await fetchClients();
+    } catch (err: any) {
+      alert(err?.message || 'Failed to delete client.');
+    } finally {
+      setDeletingClientId(null);
+    }
+  };
+
   const fetchClients = async () => {
     setLoading(true);
     setError(null);
@@ -94,7 +126,7 @@ export const AdminClientsModule: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           <div className="relative">
             <Search className="w-4 h-4 text-[#9CA3AF] absolute left-3 top-1/2 -translate-y-1/2" />
             <input
@@ -102,14 +134,24 @@ export const AdminClientsModule: React.FC = () => {
               placeholder="Search clients by name, email, phone..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-4 py-2 bg-[#FAF8F5] border border-[#E8D7B7] rounded-xl text-xs focus:outline-none focus:border-[#B88732] w-64 transition-all"
+              className="pl-9 pr-4 py-2 bg-[#FAF8F5] border border-[#E8D7B7] rounded-xl text-xs focus:outline-none focus:border-[#B88732] w-60 sm:w-64 transition-all"
             />
           </div>
 
           <button
+            onClick={() => setShowClearModal(true)}
+            disabled={loading || clearingClients}
+            className="px-3 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 hover:border-rose-300 text-xs font-semibold flex items-center gap-1.5 shadow-2xs cursor-pointer transition-all"
+            title="Wipe demo and test clients for a fresh public launch"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+            <span>Fresh Start (Clear Demo Clients)</span>
+          </button>
+
+          <button
             onClick={fetchClients}
             disabled={loading}
-            className="p-2 rounded-xl border border-[#E8D7B7] text-[#6B7280] hover:text-[#17243B] hover:bg-[#FAF8F5] transition-colors"
+            className="p-2 rounded-xl border border-[#E8D7B7] text-[#6B7280] hover:text-[#17243B] hover:bg-[#FAF8F5] transition-colors cursor-pointer"
             title="Refresh Client List"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -137,11 +179,17 @@ export const AdminClientsModule: React.FC = () => {
             </button>
           </div>
         ) : filteredClients.length === 0 ? (
-          <div className="py-16 text-center space-y-2">
-            <UserCheck className="w-10 h-10 text-[#9CA3AF] mx-auto" />
-            <p className="text-sm font-semibold text-[#17243B]">No Clients Found</p>
-            <p className="text-xs text-[#6B7280]">
-              {searchTerm ? 'No client accounts match your search filter.' : 'No registered clients found in system.'}
+          <div className="py-16 text-center space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-[#FFF9F0] border border-[#E8D7B7] text-[#B88732] flex items-center justify-center mx-auto shadow-2xs">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <p className="text-base font-serif font-bold text-[#17243B]">
+              {clients.length === 0 ? 'Fresh Launch Directory (0 Clients)' : 'No Matching Clients Found'}
+            </p>
+            <p className="text-xs text-[#6B7280] max-w-md mx-auto">
+              {clients.length === 0
+                ? 'Your client CRM is clean and ready for public launch. When clients register on your store or place custom jewelry requests, their profiles, order counts, and lifetime spend will automatically appear here.'
+                : 'No client accounts match your search filter.'}
             </p>
           </div>
         ) : (
@@ -173,12 +221,26 @@ export const AdminClientsModule: React.FC = () => {
                   <td className="p-4 font-mono font-bold text-[#1F9D66]">{formatSpendUSD(c)}</td>
                   <td className="p-4 text-[#6B7280] font-mono">{c.last_activity}</td>
                   <td className="p-4 text-right">
-                    <button
-                      onClick={() => setSelectedClientDrawer(c)}
-                      className="px-3.5 py-1.5 rounded-lg bg-[#17345C] text-white text-xs font-semibold hover:bg-[#17243B] transition-colors shadow-sm"
-                    >
-                      View Profile
-                    </button>
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        onClick={() => setSelectedClientDrawer(c)}
+                        className="px-3.5 py-1.5 rounded-lg bg-[#17345C] text-white text-xs font-semibold hover:bg-[#17243B] transition-colors shadow-sm cursor-pointer"
+                      >
+                        View Profile
+                      </button>
+                      <button
+                        onClick={() => handleDeleteClient(c.id, c.name)}
+                        disabled={deletingClientId === c.id}
+                        className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold border border-rose-200 cursor-pointer transition-colors shadow-2xs"
+                        title="Remove / Delete Client Account"
+                      >
+                        {deletingClientId === c.id ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin text-rose-600" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                        )}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -295,6 +357,73 @@ export const AdminClientsModule: React.FC = () => {
                   No previous order history recorded for this client yet.
                 </p>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fresh Start Confirmation Modal */}
+      {showClearModal && (
+        <div
+          onClick={() => !clearingClients && setShowClearModal(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs cursor-pointer"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl max-w-md w-full border border-rose-200 shadow-2xl p-6 space-y-4 cursor-default animate-in fade-in zoom-in-95 duration-150"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-serif font-bold text-[#17243B]">
+                  Fresh Start: Clear All Clients
+                </h3>
+                <p className="text-xs text-[#5A6679]">
+                  Pre-launch CRM & Directory Reset
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-rose-50/70 border border-rose-200/80 text-xs text-rose-950 space-y-2">
+              <p className="font-semibold">
+                Are you sure you want to clear all client CRM accounts?
+              </p>
+              <ul className="list-disc pl-4 space-y-1 text-rose-800 text-[11px]">
+                <li>Deletes test/demo client user accounts from the database.</li>
+                <li>Cleans client order histories, spend metrics, and wallets.</li>
+                <li className="font-bold text-rose-950">SuperAdmin and Staff profiles are strictly preserved.</li>
+              </ul>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={clearingClients}
+                onClick={() => setShowClearModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#5A6679] hover:bg-slate-100 cursor-pointer transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={clearingClients}
+                onClick={handleClearAllClients}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-sm flex items-center gap-1.5 cursor-pointer transition-colors"
+              >
+                {clearingClients ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Clearing Directory...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Yes, Clear Demo Clients</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

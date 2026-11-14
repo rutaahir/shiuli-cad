@@ -26,7 +26,8 @@ import {
   Building2,
   Coins,
   Check,
-  X
+  X,
+  Trash2
 } from 'lucide-react';
 import { api } from '../../services/api';
 import {
@@ -77,6 +78,38 @@ export const AdminCreditsModule: React.FC = () => {
 
   const [inspectScreenshot, setInspectScreenshot] = useState<string | null>(null);
   const [processingTxId, setProcessingTxId] = useState<number | null>(null);
+
+  const [showClearModal, setShowClearModal] = useState<boolean>(false);
+  const [clearingClients, setClearingClients] = useState<boolean>(false);
+  const [deletingClientId, setDeletingClientId] = useState<number | null>(null);
+
+  const handleClearAllClients = async () => {
+    setClearingClients(true);
+    try {
+      await api.adminClearAllClients();
+      setShowClearModal(false);
+      await fetchCreditsData();
+    } catch (e: any) {
+      alert(e?.message || 'Failed to clear test clients.');
+    } finally {
+      setClearingClients(false);
+    }
+  };
+
+  const handleDeleteClient = async (clientId: number, clientName: string) => {
+    if (!window.confirm(`Are you sure you want to remove client "${clientName}"? This will delete their test account, wallet, and credit profile.`)) {
+      return;
+    }
+    setDeletingClientId(clientId);
+    try {
+      await api.adminDeleteClient(clientId);
+      await fetchCreditsData();
+    } catch (e: any) {
+      alert(e?.message || 'Failed to delete client.');
+    } finally {
+      setDeletingClientId(null);
+    }
+  };
 
   const fetchCreditsData = async () => {
     setLoading(true);
@@ -240,14 +273,26 @@ export const AdminCreditsModule: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={fetchCreditsData}
-          disabled={loading}
-          className="px-4 py-2 rounded-xl bg-white border border-[#E8D7B7] text-[#17345C] hover:bg-[#FAF8F5] text-xs font-semibold flex items-center gap-2 shadow-xs cursor-pointer transition-all self-start sm:self-auto"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[#C9A227]' : ''}`} />
-          <span>Refresh Ledger</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+          <button
+            onClick={() => setShowClearModal(true)}
+            disabled={loading || clearingClients}
+            className="px-3.5 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 hover:border-rose-300 text-xs font-semibold flex items-center gap-1.5 shadow-2xs cursor-pointer transition-all"
+            title="Reset client directory and wipe test accounts for fresh public launch"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+            <span>Fresh Start (Clear Demo Clients)</span>
+          </button>
+
+          <button
+            onClick={fetchCreditsData}
+            disabled={loading}
+            className="px-4 py-2 rounded-xl bg-white border border-[#E8D7B7] text-[#17345C] hover:bg-[#FAF8F5] text-xs font-semibold flex items-center gap-2 shadow-xs cursor-pointer transition-all"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[#C9A227]' : ''}`} />
+            <span>Refresh Ledger</span>
+          </button>
+        </div>
       </div>
 
       {/* 4 Core Financial KPI Metric Cards */}
@@ -427,8 +472,20 @@ export const AdminCreditsModule: React.FC = () => {
                 <tbody className="divide-y divide-[#E8D7B7]/60 text-xs">
                   {filteredClients.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-[#5A6679]">
-                        No client records found matching search filters.
+                      <td colSpan={6} className="p-12 text-center">
+                        <div className="max-w-md mx-auto space-y-2">
+                          <div className="w-12 h-12 rounded-2xl bg-[#FFF9F0] border border-[#E8D7B7] text-[#B88732] flex items-center justify-center mx-auto mb-3 shadow-2xs">
+                            <Sparkles className="w-6 h-6" />
+                          </div>
+                          <div className="font-serif font-bold text-[#17345C] text-base">
+                            {clients.length === 0 ? 'Fresh Launch Directory (0 Clients)' : 'No Matching Clients Found'}
+                          </div>
+                          <p className="text-xs text-[#5A6679]">
+                            {clients.length === 0
+                              ? 'Your client directory and credit ledgers are clean and ready for public launch. When new clients register on your store or request custom CAD designs, they will automatically appear here.'
+                              : 'No client records matched your search query or selected filter.'}
+                          </p>
+                        </div>
                       </td>
                     </tr>
                   ) : (
@@ -555,6 +612,20 @@ export const AdminCreditsModule: React.FC = () => {
                               >
                                 <Coins className="w-3 h-3 text-emerald-700" />
                                 <span>Wallet</span>
+                              </button>
+
+                              {/* Delete Test Client */}
+                              <button
+                                onClick={() => handleDeleteClient(client.id, client.name)}
+                                disabled={deletingClientId === client.id}
+                                className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-semibold flex items-center border border-rose-200 cursor-pointer transition-colors shadow-2xs"
+                                title="Remove / Delete Client Account"
+                              >
+                                {deletingClientId === client.id ? (
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-rose-600" />
+                                ) : (
+                                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                                )}
                               </button>
                             </div>
                           </td>
@@ -1160,6 +1231,74 @@ export const AdminCreditsModule: React.FC = () => {
                 alt="Transaction Slip"
                 className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-sm"
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL 4: FRESH START CONFIRMATION ─────────────────────────────── */}
+      {showClearModal && (
+        <div
+          onClick={() => !clearingClients && setShowClearModal(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs cursor-pointer"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl max-w-md w-full border border-rose-200 shadow-2xl p-6 space-y-4 cursor-default animate-in fade-in zoom-in-95 duration-150"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-serif font-bold text-[#17243B]">
+                  Fresh Start: Clear All Clients
+                </h3>
+                <p className="text-xs text-[#5A6679]">
+                  Pre-launch directory cleanup
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-rose-50/70 border border-rose-200/80 text-xs text-rose-950 space-y-2">
+              <p className="font-semibold">
+                Are you sure you want to clear all client accounts?
+              </p>
+              <ul className="list-disc pl-4 space-y-1 text-rose-800 text-[11px]">
+                <li>Removes test/demo client user accounts from the directory.</li>
+                <li>Resets prepaid wallet floats and corporate credit lines to $0.00.</li>
+                <li>Clears pending wallet top-up and credit repayment queues.</li>
+                <li className="font-bold text-rose-950">SuperAdmin and Staff accounts will NOT be deleted.</li>
+              </ul>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={clearingClients}
+                onClick={() => setShowClearModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#5A6679] hover:bg-slate-100 cursor-pointer transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={clearingClients}
+                onClick={handleClearAllClients}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-sm flex items-center gap-1.5 cursor-pointer transition-colors"
+              >
+                {clearingClients ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Clearing Directory...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Yes, Clear Demo Clients</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

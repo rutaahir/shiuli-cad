@@ -38,8 +38,10 @@ import {
   ChevronUp,
   UserCheck,
   PieChart,
-  Users
+  Users,
+  Trash2
 } from 'lucide-react';
+
 
 export interface OrderStageItem {
   id: number;
@@ -212,6 +214,42 @@ export const AdminPaymentsModule: React.FC = () => {
   const [clientPayType, setClientPayType] = useState('Custom CAD Booking (10%)');
   const [clientPayNotes, setClientPayNotes] = useState('');
   const [isSubmittingClientPay, setIsSubmittingClientPay] = useState(false);
+  const [isResettingAudit, setIsResettingAudit] = useState(false);
+
+  const handleResetFinancialAudit = async () => {
+    const confirmed = window.confirm(
+      "⚡ PRODUCTION FRESH START CONFIRMATION:\n\n" +
+      "Are you sure you want to perform a clean, pristine fresh start for the live studio?\n\n" +
+      "• All test purchases, payment proofs, and settlement logs will be cleared (Total Bookings -> 0).\n" +
+      "• All CAD file modification requests (FED records) & test custom requests will be wiped.\n" +
+      "• Pending QC submissions in Staff Design Approvals will be cleared.\n" +
+      "• Demo client accounts and credit/wallet records will be reset.\n" +
+      "• Official Studio Bank & Treasury details will be activated.\n" +
+      "• Approved catalog products, categories, staff profiles, and admin accounts remain 100% SAFE.\n\n" +
+      "Proceed with production fresh start?"
+    );
+    if (!confirmed) return;
+
+    setIsResettingAudit(true);
+    try {
+      const res = await api.resetFinancialAudit({ clear_clients: true, clear_pending_approvals: true });
+      setClientPayments([]);
+      setSettlements([]);
+      setAnalyticsSummary(null);
+      await Promise.allSettled([
+        fetchSettlements(),
+        fetchGatewayLogs(),
+        fetchAnalytics(),
+      ]);
+      window.dispatchEvent(new CustomEvent('shiuli_financials_cleared'));
+      alert("✅ Live Server Fresh Start Complete!\n\n" + (res?.message || "All test logs cleared. Ready for public launch!"));
+    } catch (err: any) {
+      alert("Failed to reset live records: " + (err?.message || "Unknown error"));
+    } finally {
+      setIsResettingAudit(false);
+    }
+  };
+
 
   const fetchSettlements = async () => {
     setLoadingSettlements(true);
@@ -769,8 +807,23 @@ export const AdminPaymentsModule: React.FC = () => {
               <FileSpreadsheet className="w-3.5 h-3.5 text-[#1F9D66]" />
               <span>Export CSV</span>
             </button>
+
+            <button
+              onClick={handleResetFinancialAudit}
+              disabled={isResettingAudit}
+              className="px-3.5 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 hover:border-rose-300 text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+              title="Reset test financial audit logs and bookings for a clean public launch"
+            >
+              {isResettingAudit ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-600" />
+              ) : (
+                <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+              )}
+              <span>Fresh Start (Reset Logs)</span>
+            </button>
           </div>
         </div>
+
 
         {/* 3 Dedicated Core Financial Division Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-2 border-t border-[#E8D7B7]">

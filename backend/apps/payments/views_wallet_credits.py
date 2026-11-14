@@ -1342,3 +1342,48 @@ def admin_verify_transaction(request):
         "message": msg,
         "transaction": WalletCreditTransactionSerializer(tx, context={'request': request}).data
     }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([IsAdmin])
+def admin_clear_all_clients(request):
+    """
+    Clears all demo and test client accounts, wallet balances, and corporate credit records
+    for a fresh public launch. Staff and Admin accounts are strictly preserved.
+    """
+    client_qs = User.objects.filter(role=User.Role.CLIENT)
+    count = client_qs.count()
+    client_qs.delete()
+
+    ClientCreditAccount.objects.all().update(credit_limit=Decimal('0.00'), used_credit=Decimal('0.00'))
+    ClientWallet.objects.all().update(balance=Decimal('0.00'))
+    WalletCreditTransaction.objects.all().delete()
+
+    return Response({
+        "success": True,
+        "message": f"Successfully cleared {count} test client account(s). Credits & Wallets directory is now clean.",
+        "cleared_count": count
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['DELETE', 'POST'])
+@permission_classes([IsAdmin])
+def admin_delete_client(request, client_id):
+    """
+    Admin removes an individual client account and cleans up their wallets & credits.
+    Staff and Admin accounts are protected.
+    """
+    try:
+        target_user = User.objects.get(id=client_id, role=User.Role.CLIENT)
+    except User.DoesNotExist:
+        return Response({"error": "Client not found or user is not a client account."}, status=status.HTTP_404_NOT_FOUND)
+
+    client_name = f"{target_user.first_name} {target_user.last_name}".strip() or target_user.username
+    target_user.delete()
+
+    return Response({
+        "success": True,
+        "message": f"Client account '{client_name}' was removed successfully.",
+        "client_id": client_id
+    }, status=status.HTTP_200_OK)
+

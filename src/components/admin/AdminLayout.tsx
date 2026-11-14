@@ -12,7 +12,6 @@ import {
   CreditCard,
   Wallet,
   UserCheck,
-  BarChart3,
   Bell,
   Settings,
   Search,
@@ -27,8 +26,13 @@ import {
   ShieldCheck,
   Sliders,
   Mail,
-  Menu
+  Menu,
+  Pencil
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { getOptimizedImageUrl } from '../../utils/imageHelper';
+import { AdminProfileEditModal } from './AdminProfileEditModal';
+
 
 interface AdminLayoutProps {
   activeModule: AdminModuleId;
@@ -59,6 +63,44 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   const [customRequestResults, setCustomRequestResults] = useState<any[]>([]);
   const [fileEditResults, setFileEditResults] = useState<any[]>([]);
   const [isSearchingOrders, setIsSearchingOrders] = useState(false);
+
+  // Editable Admin Profile State
+  const { user } = useAuth();
+  const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
+  const [adminCustomName, setAdminCustomName] = useState(() => {
+    return typeof window !== 'undefined' ? (localStorage.getItem('shiuli_admin_custom_name') || '') : '';
+  });
+  const [adminTitle, setAdminTitle] = useState(() => {
+    return typeof window !== 'undefined' ? (localStorage.getItem('shiuli_admin_title') || 'Head CAD Engineer') : 'Head CAD Engineer';
+  });
+  const [adminAvatar, setAdminAvatar] = useState<string | null>(() => {
+    return user?.profile_photo || null;
+  });
+
+  useEffect(() => {
+    const handleProfileUpdate = (e: any) => {
+      if (e?.detail) {
+        if (e.detail.name) setAdminCustomName(e.detail.name);
+        if (e.detail.title) setAdminTitle(e.detail.title);
+        if (e.detail.avatar !== undefined) setAdminAvatar(e.detail.avatar);
+      }
+    };
+    window.addEventListener('shiuli_admin_profile_updated', handleProfileUpdate);
+    return () => window.removeEventListener('shiuli_admin_profile_updated', handleProfileUpdate);
+  }, []);
+
+  const userFullName = user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : '';
+  const activeAdminName = adminCustomName || userFullName || user?.username || 'Harshil Shah';
+  const activeAdminTitle = adminTitle || 'Head CAD Engineer';
+  const activeAdminAvatar = adminAvatar || user?.profile_photo || null;
+
+  const adminInitials = activeAdminName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((n) => n[0]?.toUpperCase())
+    .join('') || 'AD';
+
 
   useEffect(() => {
     if (!showCommandPalette || !searchQuery.trim()) {
@@ -306,8 +348,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     { id: 'payments', label: 'Payments & Gateway', icon: <CreditCard className="w-4 h-4" />, badge: getBadgeNumber('payments') },
     { id: 'credits', label: 'Credits & Wallets', icon: <Wallet className="w-4 h-4" /> },
     { id: 'clients', label: 'Client Base', icon: <UserCheck className="w-4 h-4" /> },
-    { id: 'analytics', label: 'Reports & Analytics', icon: <BarChart3 className="w-4 h-4" /> },
-    { id: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" />, badge: getBadgeNumber('notifications') },
     { id: 'settings', label: 'Studio Settings', icon: <Settings className="w-4 h-4" /> },
   ];
 
@@ -370,17 +410,53 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             </nav>
           </div>
           <div className="p-4 border-t border-[#E8D7B7] bg-[#FFF9F0]">
-            <div className="flex items-center gap-3 p-2 rounded-xl bg-white border border-[#E8D7B7]">
-              <img
-                src="/unsplash-img/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80"
-                alt="Admin"
-                className="w-8 h-8 rounded-full object-cover border-2 border-[#D9B66F]"
-              />
-              <div className="flex-1 overflow-hidden">
-                <div className="text-xs font-serif font-bold text-[#17345C] truncate">Harshil Shah</div>
-                <div className="text-[10px] text-[#B88732] font-semibold">Head CAD Engineer</div>
+            <div
+              onClick={() => setIsProfileEditOpen(true)}
+              className="flex items-center gap-3 p-2 rounded-xl bg-white border border-[#E8D7B7] hover:border-[#B88732] hover:bg-amber-50/40 transition-all cursor-pointer group shadow-2xs"
+              title="Click to edit admin profile"
+            >
+              <div className="relative flex-shrink-0">
+                {activeAdminAvatar ? (
+                  <img
+                    src={getOptimizedImageUrl(activeAdminAvatar)}
+                    alt={activeAdminName}
+                    className="w-8 h-8 rounded-full object-cover border-2 border-[#D9B66F]"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                      const parent = (e.target as HTMLElement).parentElement;
+                      if (parent) {
+                        const fb = parent.querySelector('.admin-init-fb-mob') as HTMLElement;
+                        if (fb) fb.style.display = 'flex';
+                      }
+                    }}
+                  />
+                ) : null}
+                <div
+                  className={`admin-init-fb-mob w-8 h-8 rounded-full bg-[#17345C] text-[#FFF9F0] font-serif font-bold text-xs flex items-center justify-center border-2 border-[#D9B66F] ${
+                    activeAdminAvatar ? 'hidden' : 'flex'
+                  }`}
+                >
+                  {adminInitials}
+                </div>
               </div>
-              <button onClick={onExitAdmin} className="text-[#687386] hover:text-rose-600 p-1">
+              <div className="flex-1 overflow-hidden">
+                <div className="text-xs font-serif font-bold text-[#17345C] truncate flex items-center gap-1.5">
+                  <span className="truncate">{activeAdminName}</span>
+                  <Pencil className="w-2.5 h-2.5 text-[#B88732] opacity-70 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                </div>
+                <div className="text-[10px] text-[#B88732] font-semibold truncate">
+                  {activeAdminTitle}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onExitAdmin();
+                }}
+                title="Exit Admin"
+                className="text-[#687386] hover:text-rose-600 p-1 transition-colors"
+              >
                 <LogOut className="w-4 h-4" />
               </button>
             </div>
@@ -456,24 +532,67 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             </button>
 
             {/* Admin Profile Mini Card */}
-            <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white border border-[#E8D7B7] shadow-2xs">
-              <img
-                src="/unsplash-img/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80"
-                alt="Admin"
-                className="w-8 h-8 rounded-full object-cover border-2 border-[#D9B66F]"
-              />
+            <div
+              onClick={() => setIsProfileEditOpen(true)}
+              title={isSidebarCollapsed ? `Edit Profile (${activeAdminName})` : 'Click to edit admin profile'}
+              className={`flex items-center gap-2.5 p-2.5 rounded-xl bg-white border border-[#E8D7B7] hover:border-[#B88732] hover:bg-amber-50/40 transition-all shadow-2xs cursor-pointer group ${
+                isSidebarCollapsed ? 'justify-center' : ''
+              }`}
+            >
+              <div className="relative flex-shrink-0">
+                {activeAdminAvatar ? (
+                  <img
+                    src={getOptimizedImageUrl(activeAdminAvatar)}
+                    alt={activeAdminName}
+                    className="w-8 h-8 rounded-full object-cover border-2 border-[#D9B66F]"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                      const parent = (e.target as HTMLElement).parentElement;
+                      if (parent) {
+                        const fb = parent.querySelector('.admin-init-fb-desk') as HTMLElement;
+                        if (fb) fb.style.display = 'flex';
+                      }
+                    }}
+                  />
+                ) : null}
+                <div
+                  className={`admin-init-fb-desk w-8 h-8 rounded-full bg-[#17345C] text-[#FFF9F0] font-serif font-bold text-xs flex items-center justify-center border-2 border-[#D9B66F] ${
+                    activeAdminAvatar ? 'hidden' : 'flex'
+                  }`}
+                >
+                  {adminInitials}
+                </div>
+              </div>
               {!isSidebarCollapsed && (
                 <div className="flex-1 overflow-hidden">
-                  <div className="text-xs font-serif font-bold text-[#17345C] truncate">
-                    Harshil Shah
+                  <div className="text-xs font-serif font-bold text-[#17345C] truncate flex items-center gap-1.5">
+                    <span className="truncate">{activeAdminName}</span>
+                    <Pencil className="w-2.5 h-2.5 text-[#B88732] opacity-70 group-hover:opacity-100 transition-opacity flex-shrink-0" />
                   </div>
                   <div className="text-[10px] text-[#B88732] font-semibold tracking-wide truncate">
-                    Head CAD Engineer
+                    {activeAdminTitle}
                   </div>
                 </div>
               )}
+              {!isSidebarCollapsed && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsProfileEditOpen(true);
+                  }}
+                  title="Edit Admin Profile"
+                  className="p-1 rounded-md text-[#687386] hover:text-[#B88732] hover:bg-[#FFF9F0] transition-colors cursor-pointer"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+              )}
               <button
-                onClick={onExitAdmin}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onExitAdmin();
+                }}
                 title="Exit Admin"
                 className="text-[#687386] hover:text-rose-600 transition-colors p-1 cursor-pointer"
               >
@@ -553,15 +672,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                     >
                       + Register Staff Member
                     </button>
-                    <button
-                      onClick={() => {
-                        setShowQuickNew(false);
-                        onSelectModule('notifications');
-                      }}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-[#FFF9F0] text-[#17345C] font-medium transition-colors"
-                    >
-                      + Post Announcement
-                    </button>
                   </div>
                 )}
               </div>
@@ -616,16 +726,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                         </div>
                       ))}
                     </div>
-
-                    <button
-                      onClick={() => {
-                        setShowNotifications(false);
-                        onSelectModule('notifications');
-                      }}
-                      className="w-full text-center text-xs font-semibold text-[#B88732] hover:underline pt-2 border-t border-[#E8D7B7]/50 cursor-pointer"
-                    >
-                      View All Notifications Center →
-                    </button>
                   </div>
                 )}
               </div>
@@ -846,6 +946,17 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           </div>
         </div>
       )}
+
+      {/* Admin Profile Edit Modal */}
+      <AdminProfileEditModal
+        isOpen={isProfileEditOpen}
+        onClose={() => setIsProfileEditOpen(false)}
+        onProfileUpdated={(name, title, avatar) => {
+          setAdminCustomName(name);
+          setAdminTitle(title);
+          setAdminAvatar(avatar);
+        }}
+      />
     </div>
   );
 };

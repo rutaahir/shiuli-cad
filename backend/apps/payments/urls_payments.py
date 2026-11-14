@@ -11,8 +11,10 @@ from .views import (
     incoming_gateway_logs,
     razorpay_webhook,
     admin_approve_custom_payment,
-    admin_decline_custom_payment
+    admin_decline_custom_payment,
+    admin_reset_financial_audit
 )
+
 from .views_purchases import (
     create_purchase,
     create_razorpay_purchase_order,
@@ -42,6 +44,8 @@ from .views_wallet_credits import (
     admin_set_credit_limit,
     admin_adjust_wallet,
     admin_verify_transaction,
+    admin_clear_all_clients,
+    admin_delete_client,
 )
 
 router = DefaultRouter()
@@ -86,6 +90,9 @@ urlpatterns = [
     path('admin/client-credits/set-limit/', admin_set_credit_limit, name='admin-set-credit-limit'),
     path('admin/client-credits/adjust-wallet/', admin_adjust_wallet, name='admin-adjust-wallet'),
     path('admin/client-credits/verify-transaction/', admin_verify_transaction, name='admin-verify-transaction'),
+    path('admin/client-credits/clear-all/', admin_clear_all_clients, name='admin-clear-all-clients'),
+    path('admin/client-credits/<int:client_id>/delete/', admin_delete_client, name='admin-delete-client'),
+    path('admin/reset-financial-audit/', admin_reset_financial_audit, name='admin-reset-financial-audit'),
 
     path('', include(router.urls)),
 ]

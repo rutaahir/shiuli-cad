@@ -931,3 +931,64 @@ class SettlementViewSet(viewsets.ReadOnlyModelViewSet):
         })
 
 
+@api_view(['POST'])
+@permission_classes([IsAdmin])
+def admin_reset_financial_audit(request):
+    """Admin-only endpoint to clear test purchases, payments, settlements, file edits, custom requests, and reset ledger for a clean public launch."""
+    from .models import Purchase, Payment, Settlement, WalletCreditTransaction, ClientCreditAccount, ClientWallet
+    from apps.custom_orders.models import Order, CustomRequest
+    from apps.notifications.models import Notification
+    from apps.file_edits.models import FileEditRequest
+    from apps.catalog.models import Product
+    from apps.staff_management.models import PlatformSettings
+
+    keep_orders = bool(request.data.get('keep_orders', False))
+    clear_clients = bool(request.data.get('clear_clients', True))
+    clear_pending_approvals = bool(request.data.get('clear_pending_approvals', True))
+
+    pur_count, _ = Purchase.objects.all().delete()
+    pay_count, _ = Payment.objects.all().delete()
+    settle_count, _ = Settlement.objects.all().delete()
+    wallet_tx_count, _ = WalletCreditTransaction.objects.all().delete()
+
+    fe_count, _ = FileEditRequest.objects.all().delete()
+
+    ClientCreditAccount.objects.all().update(credit_limit=0, used_credit=0)
+    ClientWallet.objects.all().update(balance=0)
+
+    ord_count = 0
+    req_count = 0
+    if not keep_orders:
+        ord_count, _ = Order.objects.all().delete()
+        req_count, _ = CustomRequest.objects.all().delete()
+
+    pending_approvals_count = 0
+    if clear_pending_approvals:
+        pending_approvals_count, _ = Product.objects.filter(status=Product.Status.PENDING).delete()
+
+    client_count = 0
+    if clear_clients:
+        from apps.accounts.models import User
+        client_count, _ = User.objects.filter(role=User.Role.CLIENT).delete()
+
+    notif_count, _ = Notification.objects.all().delete()
+
+    return Response({
+        "success": True,
+        "message": "Live server fresh start completed. Test transactions, file edits, custom requests, and demo clients cleared.",
+        "cleared": {
+            "purchases": pur_count,
+            "payments": pay_count,
+            "settlements": settle_count,
+            "wallet_transactions": wallet_tx_count,
+            "orders": ord_count,
+            "custom_requests": req_count,
+            "file_edits": fe_count,
+            "pending_approvals": pending_approvals_count,
+            "clients": client_count,
+            "notifications": notif_count
+        }
+    })
+
+
+
