@@ -74,9 +74,8 @@ export function isJunkCategory(nameOrSlug?: string | null): boolean {
     s.includes('sample') ||
     s.includes('dummy') ||
     s.includes('temp') ||
-    s === 'boll( pada)' ||
-    s === 'boll' ||
-    s === 'abcd'
+    s === 'abcd' ||
+    s === 'asdf'
   ) {
     return true;
   }
@@ -99,6 +98,8 @@ export function formatCategoryName(rawName?: string | null): string {
   if (lower === 'bangle' || lower === 'bangles') return 'Bangles';
   if (lower.includes('bracelet') && lower.includes('bangle')) return 'Bracelets & Bangles';
   if (lower.includes('chain') && lower.includes('bracelet')) return 'Chains & Bracelets';
+  if (lower.includes('boll') && lower.includes('pada')) return 'Boll (Pada)';
+  if (lower === 'boll' || lower === 'bolls') return 'Boll';
 
   // Capitalize words properly
   return trimmed

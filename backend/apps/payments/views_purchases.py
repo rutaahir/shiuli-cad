@@ -29,21 +29,50 @@ CHUNK_SIZE = 1024 * 1024  # 1 MB chunk streaming size
 def get_frontend_base_url(request=None):
     """
     Returns the frontend client URL (e.g., http://localhost:3000 in dev, or FRONTEND_URL in prod).
-    Ensures backend port 8000 is never used for customer-facing frontend links.
+    Ensures backend port 8000 is never used for customer-facing frontend links,
+    and dynamically detects the live website origin so live links never point to localhost.
     """
-    frontend_url = getattr(settings, 'FRONTEND_URL', None)
-    if frontend_url:
-        return frontend_url.rstrip('/')
+    # 1. If request is provided, inspect HTTP_ORIGIN or HTTP_REFERER first
     if request:
         origin = request.META.get('HTTP_ORIGIN') or request.META.get('HTTP_REFERER')
         if origin:
             from urllib.parse import urlparse
             parsed = urlparse(origin)
             if parsed.scheme and parsed.netloc:
+                is_local = any(h in parsed.netloc for h in ('localhost', '127.0.0.1', '0.0.0.0'))
+                if not is_local:
+                    return f"{parsed.scheme}://{parsed.netloc}".rstrip('/')
                 if parsed.port == 8000 or ':8000' in parsed.netloc:
                     hostname = parsed.hostname or 'localhost'
                     return f"{parsed.scheme}://{hostname}:3000"
                 return f"{parsed.scheme}://{parsed.netloc}".rstrip('/')
+
+        # Also inspect forwarded host / host headers
+        forwarded_host = request.META.get('HTTP_X_FORWARDED_HOST') or request.META.get('HTTP_HOST')
+        if forwarded_host:
+            host_clean = forwarded_host.split(',')[0].strip()
+            is_local = any(h in host_clean for h in ('localhost', '127.0.0.1', '0.0.0.0', 'testserver'))
+            if not is_local:
+                scheme = 'https' if (request.is_secure() or request.META.get('HTTP_X_FORWARDED_PROTO') == 'https') else 'http'
+                frontend_url = getattr(settings, 'FRONTEND_URL', None)
+                if frontend_url and not any(h in frontend_url for h in ('localhost', '127.0.0.1')):
+                    return frontend_url.rstrip('/')
+                if host_clean.startswith('api.'):
+                    host_clean = host_clean[4:]
+                return f"{scheme}://{host_clean}".rstrip('/')
+
+    # 2. Check explicit settings.FRONTEND_URL
+    frontend_url = getattr(settings, 'FRONTEND_URL', None)
+    if frontend_url:
+        if not any(h in frontend_url for h in ('localhost', '127.0.0.1')):
+            return frontend_url.rstrip('/')
+        if getattr(settings, 'PRODUCTION', False) or not getattr(settings, 'DEBUG', True):
+            return 'https://shiulicad.com'
+        return frontend_url.rstrip('/')
+
+    if getattr(settings, 'PRODUCTION', False) or not getattr(settings, 'DEBUG', True):
+        return 'https://shiulicad.com'
+
     return "http://localhost:3000"
 
 
@@ -737,7 +766,7 @@ def admin_decline_purchase(request, purchase_id):
                 "Please visit your account dashboard to re-submit your valid bank reference (UTR) or upload a clear transaction screenshot."
             ],
             action_button_text="GO TO MY PURCHASES",
-            action_button_url="http://localhost:3000/account?tab=downloads",
+            action_button_url=f"{get_frontend_base_url(request)}/account?tab=downloads",
             footer_note="If you already made the transfer, please reply to this email with your bank payment advice."
         )
         send_mail(

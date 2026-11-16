@@ -173,7 +173,7 @@ else:
     CORS_ALLOW_CREDENTIALS = True
     SECURE_SSL_REDIRECT = False
 
-FRONTEND_URL = config('FRONTEND_URL', default='https://shiulicad.com' if PRODUCTION else 'http://localhost:3000')
+FRONTEND_URL = config('FRONTEND_URL', default='https://shiulicad.com' if (PRODUCTION or not DEBUG) else 'http://localhost:3000')
 
 # Django REST Framework Settings
 REST_FRAMEWORK = {

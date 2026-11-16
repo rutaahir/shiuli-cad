@@ -110,7 +110,11 @@ export const OTPVerificationModal: React.FC<OTPVerificationModalProps> = ({
     try {
       const res = await api.post<any>(`/payments/purchases/${purchaseId}/verify-otp/`, { code });
       if (res && res.download_url) {
-        setDownloadUrl(res.download_url);
+        const rawUrl = String(res.download_url);
+        const relativeUrl = rawUrl.includes('/download/')
+          ? rawUrl.substring(rawUrl.indexOf('/download/'))
+          : rawUrl;
+        setDownloadUrl(relativeUrl);
       }
       setIsVerified(true);
       onVerifiedSuccess();

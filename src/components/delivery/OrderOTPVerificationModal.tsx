@@ -116,7 +116,11 @@ export const OrderOTPVerificationModal: React.FC<OrderOTPVerificationModalProps>
       });
 
       if (res?.download_url) {
-        setVerifiedDownloadUrl(res.download_url);
+        const rawUrl = String(res.download_url);
+        const relativeUrl = rawUrl.includes('/download/')
+          ? rawUrl.substring(rawUrl.indexOf('/download/'))
+          : rawUrl;
+        setVerifiedDownloadUrl(relativeUrl);
       }
 
       setIsVerified(true);
