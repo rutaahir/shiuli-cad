@@ -58,6 +58,9 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
   // Real dynamic states
   const [orders, setOrders] = useState<any[]>([]);
   const [customRequests, setCustomRequests] = useState<any[]>([]);
+  const [fileEdits, setFileEdits] = useState<any[]>([]);
+  const [pendingProducts, setPendingProducts] = useState<any[]>([]);
+  const [purchases, setPurchases] = useState<any[]>([]);
   const [analyticsData, setAnalyticsData] = useState<any | null>(null);
   const [pendingAppsCount, setPendingAppsCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
@@ -88,11 +91,14 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
     try {
       try { api.ensureAdminToken(); } catch {}
 
-      const [ordersRes, customReqsRes, analyticsRes, appsRes] = await Promise.allSettled([
+      const [ordersRes, customReqsRes, analyticsRes, appsRes, fileEditsRes, pendingProdsRes, gatewayRes] = await Promise.allSettled([
         api.request<any>('/orders/'),
         api.getCustomRequests(),
         api.getAnalyticsSummary(),
         api.getDesignerApplications('pending'),
+        api.getFileEditRequests(),
+        api.request<any>('/catalog/products/pending/?page_size=500'),
+        api.getGatewayLogs(),
       ]);
 
       // 1. Process Orders
@@ -118,6 +124,28 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
       if (appsRes.status === 'fulfilled') {
         const apps = Array.isArray(appsRes.value) ? appsRes.value : [];
         setPendingAppsCount(apps.length);
+      }
+
+      // 5. Process File Edit Requests
+      if (fileEditsRes.status === 'fulfilled') {
+        const raw = fileEditsRes.value as any;
+        const arr = Array.isArray(raw) ? raw : (raw?.results || raw?.data || []);
+        setFileEdits(arr);
+      }
+
+      // 6. Process Pending Staff Catalog Products (Staff Design Approvals Queue)
+      if (pendingProdsRes.status === 'fulfilled') {
+        const raw = pendingProdsRes.value as any;
+        const arr = Array.isArray(raw) ? raw : (raw?.results || raw?.data || []);
+        setPendingProducts(arr);
+      }
+
+      // 7. Process Gateway Purchases (Store Orders)
+      if (gatewayRes.status === 'fulfilled') {
+        const raw = gatewayRes.value;
+        const list = Array.isArray(raw) ? raw : [];
+        const purList = list.filter((it: any) => it.entry_type === 'purchase' || it.purchase_id || String(it.id).startsWith('PUR-'));
+        setPurchases(purList);
       }
     } catch (err) {
       console.warn('[AdminOverview] Error fetching live dashboard data:', err);
@@ -161,15 +189,58 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
     return orders.filter((o) => !o.is_deleted);
   }, [orders]);
 
+  const isSameDay = (dateStr?: string | null) => {
+    if (!dateStr) return false;
+    try {
+      const d = new Date(dateStr);
+      const now = new Date();
+      return (
+        d.getFullYear() === now.getFullYear() &&
+        d.getMonth() === now.getMonth() &&
+        d.getDate() === now.getDate()
+      );
+    } catch {
+      return false;
+    }
+  };
+
   const customOrdersCount = useMemo(() => {
     return nonDeletedOrders.filter((o) => o.order_type === 'custom').length;
   }, [nonDeletedOrders]);
 
-  const fileEditOrdersCount = useMemo(() => {
-    return nonDeletedOrders.filter((o) => o.order_type === 'file_edit').length;
+  // File Modification Orders (orders + file edit requests)
+  const fileEditOrders = useMemo(() => {
+    return nonDeletedOrders.filter((o) => o.order_type === 'file_edit' || Boolean(o.is_file_edit));
   }, [nonDeletedOrders]);
 
-  const totalOrdersCount = nonDeletedOrders.length;
+  const activeFileEditsCount = useMemo(() => {
+    return fileEdits.filter((f) => !['completed', 'rejected', 'cancelled'].includes(f.status)).length;
+  }, [fileEdits]);
+
+  const totalFileEditsCount = useMemo(() => {
+    return fileEdits.length;
+  }, [fileEdits]);
+
+  // Active Custom Requests in pipeline (excluding completed/rejected/cancelled or already converted to master orders)
+  const activeCustomRequestsCount = useMemo(() => {
+    const linkedReqIds = new Set(
+      nonDeletedOrders.map((o) => o.custom_request?.id || o.custom_request_id).filter(Boolean)
+    );
+    return customRequests.filter((r) => !['completed', 'rejected', 'cancelled'].includes(r.status) && !linkedReqIds.has(r.id)).length;
+  }, [customRequests, nonDeletedOrders]);
+
+  // Total Orders sum across all studio channels (Master Orders + Standalone Custom Requests + Standalone File Edits + Store Purchases)
+  const totalAllOrdersSum = useMemo(() => {
+    const linkedReqIds = new Set(
+      nonDeletedOrders.map((o) => o.custom_request?.id || o.custom_request_id).filter(Boolean)
+    );
+    const linkedFeIds = new Set(
+      nonDeletedOrders.map((o) => o.file_edit_request?.id || o.file_edit_request_id).filter(Boolean)
+    );
+    const unlinkedReqs = customRequests.filter((r) => !linkedReqIds.has(r.id));
+    const unlinkedFes = fileEdits.filter((f) => !linkedFeIds.has(f.id));
+    return nonDeletedOrders.length + unlinkedReqs.length + unlinkedFes.length + purchases.length;
+  }, [nonDeletedOrders, customRequests, fileEdits, purchases]);
 
   // Active Master Orders in studio pipeline (excluding completed/cancelled)
   const masterOrdersList = useMemo(() => {
@@ -196,25 +267,32 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
       });
   }, [nonDeletedOrders]);
 
-  // Orders placed today
-  const todayOrders = useMemo(() => {
-    const todayStr = new Date().toDateString();
-    return nonDeletedOrders.filter((o) => {
-      if (!o.created_at) return false;
-      return new Date(o.created_at).toDateString() === todayStr;
-    });
-  }, [nonDeletedOrders]);
+  // Orders placed today (present calendar day)
+  const todayOrdersCount = useMemo(() => {
+    const ordersToday = nonDeletedOrders.filter((o) => isSameDay(o.created_at));
+    const linkedReqIds = new Set(
+      nonDeletedOrders.map((o) => o.custom_request?.id || o.custom_request_id).filter(Boolean)
+    );
+    const linkedFeIds = new Set(
+      nonDeletedOrders.map((o) => o.file_edit_request?.id || o.file_edit_request_id).filter(Boolean)
+    );
 
-  // Pending Approvals count (Quality reviews awaiting admin + pending designer applications)
+    const reqsToday = customRequests.filter((r) => isSameDay(r.created_at) && !linkedReqIds.has(r.id));
+    const fesToday = fileEdits.filter((f) => isSameDay(f.created_at) && !linkedFeIds.has(f.id));
+    const pursToday = purchases.filter((p) => isSameDay(p.created_at_iso || p.date));
+
+    const total = ordersToday.length + reqsToday.length + fesToday.length + pursToday.length;
+    return Math.min(total, totalAllOrdersSum);
+  }, [nonDeletedOrders, customRequests, fileEdits, purchases, totalAllOrdersSum]);
+
+  // Pending Approvals count (Staff Design Approvals Queue: pending QC on orders + staff catalog designs + pending applications)
   const pendingQualityReviews = useMemo(() => {
-    return orders.filter((o) => o.status === 'pending_review');
+    return orders.filter((o) => o.status === 'pending_review' || o.status === 'revision_requested');
   }, [orders]);
-  const totalPendingApprovals = pendingQualityReviews.length + pendingAppsCount;
 
-  // Active Custom Requests (not completed / rejected)
-  const activeCustomRequests = useMemo(() => {
-    return customRequests.filter((r) => !['completed', 'rejected', 'order_placed'].includes(r.status));
-  }, [customRequests]);
+  const totalPendingApprovals = useMemo(() => {
+    return pendingQualityReviews.length + pendingProducts.length + pendingAppsCount;
+  }, [pendingQualityReviews, pendingProducts, pendingAppsCount]);
 
   // Monthly Revenue Calculation
   const totalCalculatedRevenue = useMemo(() => {
@@ -359,7 +437,7 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
             onClick={() => onSelectModule('custom-requests')}
             className="btn-gold-luxury px-4 py-2 rounded-xl text-xs font-semibold uppercase tracking-wider shadow-md cursor-pointer"
           >
-            Manage Quotes ({activeCustomRequests.length})
+            Manage Quotes ({activeCustomRequestsCount})
           </button>
         </div>
       </div>
@@ -378,11 +456,11 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
             </span>
           </div>
           <div className="font-serif text-2xl font-bold text-[#17243B]">
-            {loading ? <Loader2 className="w-5 h-5 animate-spin text-slate-400" /> : todayOrders.length > 0 ? todayOrders.length : nonDeletedOrders.length}
+            {loading ? <Loader2 className="w-5 h-5 animate-spin text-slate-400" /> : todayOrdersCount}
           </div>
           <div className="flex items-center gap-1 text-[11px] text-[#1F9D66] font-medium truncate">
-            <span>{todayOrders.length > 0 ? `+${todayOrders.length} Today` : `Active pipeline`}</span>
-            <span className="text-[#6B7280] font-normal">({nonDeletedOrders.length} total)</span>
+            <span>{todayOrdersCount > 0 ? `+${todayOrdersCount} Today` : `0 Today`}</span>
+            <span className="text-[#6B7280] font-normal">({totalAllOrdersSum} total)</span>
           </div>
         </div>
 
@@ -401,7 +479,11 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
             {loading ? <Loader2 className="w-5 h-5 animate-spin text-slate-400" /> : totalPendingApprovals}
           </div>
           <div className="text-[11px] text-[#E8A93B] font-medium truncate">
-            {totalPendingApprovals > 0 ? `${totalPendingApprovals} Needs review` : 'All clear'}
+            {totalPendingApprovals > 0 ? (
+              `${pendingProducts.length > 0 ? `${pendingProducts.length} staff designs` : ''}${pendingProducts.length > 0 && pendingQualityReviews.length > 0 ? ', ' : ''}${pendingQualityReviews.length > 0 ? `${pendingQualityReviews.length} order QC` : ''}${totalPendingApprovals === pendingAppsCount ? `${pendingAppsCount} applications` : ''} needs review`
+            ) : (
+              'All clear'
+            )}
           </div>
         </div>
 
@@ -417,16 +499,16 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
             </span>
           </div>
           <div className="font-serif text-2xl font-bold text-[#17243B]">
-            {loading ? <Loader2 className="w-5 h-5 animate-spin text-slate-400" /> : activeCustomRequests.length}
+            {loading ? <Loader2 className="w-5 h-5 animate-spin text-slate-400" /> : activeCustomRequestsCount}
           </div>
           <div className="text-[11px] text-[#17345C] font-medium truncate">
-            {activeCustomRequests.length > 0 ? `${activeCustomRequests.length} in negotiation` : 'Up to date'}
+            {activeCustomRequestsCount > 0 ? `${activeCustomRequestsCount} active in studio` : 'Up to date'}
           </div>
         </div>
 
         {/* Stat 4: File Modification Orders */}
         <div
-          onClick={() => onSelectModule('orders')}
+          onClick={() => onSelectModule('file-edits')}
           className="bg-white p-4 rounded-2xl border border-[#E8D7B7] shadow-sm hover:border-[#C9A227]/40 transition-all space-y-2 cursor-pointer group min-w-0 overflow-hidden"
         >
           <div className="flex items-center justify-between text-xs text-[#6B7280]">
@@ -436,10 +518,10 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
             </span>
           </div>
           <div className="font-serif text-2xl font-bold text-[#17243B]">
-            {loading ? <Loader2 className="w-5 h-5 animate-spin text-slate-400" /> : fileEditOrdersCount}
+            {loading ? <Loader2 className="w-5 h-5 animate-spin text-slate-400" /> : activeFileEditsCount > 0 ? activeFileEditsCount : totalFileEditsCount}
           </div>
           <div className="text-[11px] text-[#6B7280] font-normal truncate">
-            order_type = file_edit
+            {activeFileEditsCount > 0 ? `${activeFileEditsCount} active in pipeline` : totalFileEditsCount > 0 ? `${totalFileEditsCount} total requests` : 'No file edits'}
           </div>
         </div>
 
@@ -455,10 +537,10 @@ export const AdminOverviewModule: React.FC<AdminOverviewModuleProps> = ({
             </span>
           </div>
           <div className="font-serif text-2xl font-bold text-[#17243B]">
-            {loading ? <Loader2 className="w-5 h-5 animate-spin text-slate-400" /> : totalOrdersCount}
+            {loading ? <Loader2 className="w-5 h-5 animate-spin text-slate-400" /> : totalAllOrdersSum}
           </div>
           <div className="text-[11px] text-[#1F9D66] font-medium truncate">
-            Excludes deleted orders
+            {totalAllOrdersSum > 0 ? 'Custom, edits & purchases' : 'Excludes deleted orders'}
           </div>
         </div>
 

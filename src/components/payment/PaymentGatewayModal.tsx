@@ -65,7 +65,7 @@ export interface PaymentGatewayModalProps {
   onPaymentSuccess: (result: PaymentSuccessResult) => Promise<void> | void;
 }
 
-type TabType = 'razorpay' | 'wallet' | 'credit' | 'upi' | 'cash_check';
+type TabType = 'razorpay' | 'wallet' | 'credit' | 'cash_check';
 
 export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
   isOpen,
@@ -120,11 +120,6 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
     setCopiedBankField(key);
     setTimeout(() => setCopiedBankField(null), 2000);
   };
-
-  // UPI Form State
-  const [upiRefId, setUpiRefId] = useState('');
-  const [upiScreenshot, setUpiScreenshot] = useState<File | null>(null);
-  const [upiScreenshotPreview, setUpiScreenshotPreview] = useState<string>('');
 
   // CASH / Check Form State
   const [cashCheckDetails, setCashCheckDetails] = useState('');
@@ -301,30 +296,6 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleCopyUPI = () => {
-    navigator.clipboard.writeText(studioUpiId);
-    setCopiedUpi(true);
-    setTimeout(() => setCopiedUpi(false), 2000);
-  };
-
-  // Handle UPI Screenshot Upload
-  const handleUpiScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        setErrorMessage('Screenshot file exceeds 10MB limit.');
-        return;
-      }
-      setUpiScreenshot(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setUpiScreenshotPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-      setErrorMessage('');
-    }
-  };
-
   // Handle Cash/Check Screenshot Upload
   const handleCashCheckScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -355,12 +326,7 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
     // Validation
     if (activeTab === 'cash_check') {
       if (!cashCheckDetails.trim() && !cashCheckScreenshot) {
-        setErrorMessage('Please enter transaction details (cheque number, bank, or cash counter receipt) or attach screenshot proof.');
-        return;
-      }
-    } else if (activeTab === 'upi') {
-      if (!upiRefId.trim() && !upiScreenshot) {
-        setErrorMessage('Please enter UPI Transaction Reference/UTR or attach payment screenshot.');
+        setErrorMessage('Please enter transaction details (cheque number, bank wire ref, or deposit receipt) or attach screenshot proof.');
         return;
       }
     }
@@ -372,11 +338,9 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
     const receiptNumber = `RCP-SCS-${Math.floor(100000 + Math.random() * 900000)}`;
     const nowIso = new Date().toISOString();
 
-    let chosenMethod = activeTab === 'upi' ? 'UPI / QR Code' : 'CASH / Check';
-    let chosenDetails = activeTab === 'upi'
-      ? (upiRefId.trim() ? `UPI Ref/UTR: ${upiRefId.trim()}` : 'UPI Transfer')
-      : cashCheckDetails.trim();
-    const chosenScreenshot = activeTab === 'upi' ? upiScreenshotPreview : cashCheckScreenshotPreview;
+    let chosenMethod = 'CASH / Check';
+    let chosenDetails = cashCheckDetails.trim();
+    const chosenScreenshot = cashCheckScreenshotPreview;
 
     try {
       // 0. If split payment is applied, execute deduction on backend first
@@ -410,7 +374,7 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
         }
 
         chosenMethod = `${chosenMethod} + Split (${appliedCreditUSD > 0 ? 'Credit' : ''}${appliedCreditUSD > 0 && appliedWalletUSD > 0 ? ' & ' : ''}${appliedWalletUSD > 0 ? 'Wallet' : ''})`;
-        chosenDetails = `[Part Split Payment: ${appliedCreditUSD > 0 ? `Applied Credit -$${appliedCreditUSD.toFixed(2)} USD (${appliedCreditCustomer.display}) ` : ''}${appliedWalletUSD > 0 ? `Applied Wallet -$${appliedWalletUSD.toFixed(2)} USD (${appliedWalletCustomer.display}) ` : ''}| Remainder via ${activeTab === 'upi' ? 'UPI' : 'Cash/Cheque'}: $${netPayableUSD.toFixed(2)} USD (${netPayableCustomer.display})] - ${chosenDetails}`;
+        chosenDetails = `[Part Split Payment: ${appliedCreditUSD > 0 ? `Applied Credit -$${appliedCreditUSD.toFixed(2)} USD (${appliedCreditCustomer.display}) ` : ''}${appliedWalletUSD > 0 ? `Applied Wallet -$${appliedWalletUSD.toFixed(2)} USD (${appliedWalletCustomer.display}) ` : ''}| Remainder via Cash/Cheque: $${netPayableUSD.toFixed(2)} USD (${netPayableCustomer.display})] - ${chosenDetails}`;
       }
 
       await new Promise((resolve) => setTimeout(resolve, 800));
@@ -832,10 +796,10 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
           <div className="flex items-center gap-3 shrink-0">
             <div className="text-right">
               <span className="text-[9px] text-[#64748B] block font-mono font-semibold uppercase tracking-wider">
-                {totalDeductionUSD > 0 && (activeTab === 'razorpay' || activeTab === 'upi' || activeTab === 'cash_check') ? 'Payable' : 'Amount'}
+                {totalDeductionUSD > 0 && (activeTab === 'razorpay' || activeTab === 'cash_check') ? 'Payable' : 'Amount'}
               </span>
               <span className="font-serif text-xl sm:text-2xl font-black text-[#0B1330]">
-                {totalDeductionUSD > 0 && (activeTab === 'razorpay' || activeTab === 'upi' || activeTab === 'cash_check')
+                {totalDeductionUSD > 0 && (activeTab === 'razorpay' || activeTab === 'cash_check')
                   ? netPayableCustomer.display
                   : convertedPayable.display}
               </span>
@@ -1019,9 +983,9 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
               </div>
             )}
 
-            {/* PAYMENT METHOD SELECTOR: RAZORPAY, WALLET, CREDIT LINE, UPI, CASH */}
+            {/* PAYMENT METHOD SELECTOR: RAZORPAY, WALLET, CREDIT LINE, CASH / CHEQUE */}
             <div className="px-6 py-3 border-b border-[#E8D7B7] bg-white">
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs font-serif">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-serif">
                 {/* 0. Razorpay Tab (Recommended) */}
                 <button
                   type="button"
@@ -1074,24 +1038,7 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                   <span className="truncate">Credit {hasActiveCredit ? `(${convertUsdToCustomer(availableCredit, customerCurrency, customerRate).display})` : ''}</span>
                 </button>
 
-                {/* 3. UPI / QR Tab */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab('upi');
-                    setErrorMessage('');
-                  }}
-                  className={`py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 font-bold transition-all cursor-pointer ${
-                    activeTab === 'upi'
-                      ? 'bg-[#0B1330] text-[#F5E7A3] border border-[#D4AF37]/60 shadow-xs ring-1 ring-[#D4AF37]/30'
-                      : 'bg-[#FAF8F5] border border-[#E8D7B7] text-[#475569] hover:text-[#0B1330] hover:bg-[#FFF9F0]'
-                  }`}
-                >
-                  <Smartphone className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
-                  <span className="truncate">UPI / QR</span>
-                </button>
-
-                {/* 4. Cash / Check Tab */}
+                {/* 3. Cash / Check Tab */}
                 <button
                   type="button"
                   onClick={() => {
@@ -1316,7 +1263,7 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                               <span className="font-serif font-bold text-xs text-emerald-800">-{convertUsdToCustomer(walletBalance, customerCurrency, customerRate).display}</span>
                             </div>
                             <div>
-                              <span className="text-[9px] font-mono uppercase text-[#B88732] block">Net via UPI/QR</span>
+                              <span className="text-[9px] font-mono uppercase text-[#B88732] block">Net Payable</span>
                               <span className="font-serif font-bold text-xs text-[#0B1330]">{convertUsdToCustomer(amountUSD - walletBalance, customerCurrency, customerRate).display}</span>
                             </div>
                           </div>
@@ -1326,13 +1273,13 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                             onClick={() => {
                               setUseSplitWallet(true);
                               setUseSplitCredit(false);
-                              setActiveTab('upi');
+                              setActiveTab('cash_check');
                               setErrorMessage('');
                             }}
                             className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#F3DE9C] to-[#B88732] text-[#070D22] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md hover:brightness-105 active:scale-[0.99] transition-all cursor-pointer"
                           >
                             <Sparkles className="w-4 h-4 text-[#070D22]" />
-                            <span>Use {convertUsdToCustomer(walletBalance, customerCurrency, customerRate).display} Wallet &amp; Pay Remainder via UPI / QR</span>
+                            <span>Use {convertUsdToCustomer(walletBalance, customerCurrency, customerRate).display} Wallet &amp; Pay Remainder</span>
                           </button>
                         </div>
 
@@ -1340,13 +1287,13 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                           type="button"
                           onClick={() => {
                             setUseSplitWallet(false);
-                            setActiveTab('upi');
+                            setActiveTab('cash_check');
                             setErrorMessage('');
                           }}
                           className="px-5 py-2.5 rounded-xl bg-white border border-[#E8D7B7] text-[#475569] hover:text-[#0B1330] text-xs font-serif font-medium flex items-center justify-center gap-2 transition-all cursor-pointer w-full"
                         >
-                          <Smartphone className="w-3.5 h-3.5 text-[#64748B]" />
-                          <span>Or Pay Full Amount ({convertedPayable.display}) with UPI / QR</span>
+                          <Banknote className="w-3.5 h-3.5 text-[#64748B]" />
+                          <span>Or Pay Full Amount ({convertedPayable.display}) via Cash / Cheque</span>
                         </button>
                       </div>
                     ) : (
@@ -1364,20 +1311,20 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                         <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] text-xs text-[#475569] space-y-1">
                           <span className="font-bold text-[#0B1330] block">How to Top Up Your Wallet:</span>
                           <p className="text-[11px] leading-relaxed">
-                            Visit your <strong>Client Dashboard &gt; Credits &amp; Wallets</strong> to submit a prepaid deposit slip. Alternatively, you can complete this purchase right now using UPI or Cash / Cheque below.
+                            Visit your <strong>Client Dashboard &gt; Credits &amp; Wallets</strong> to submit a prepaid deposit slip. Alternatively, you can complete this purchase right now using Razorpay or Cash / Cheque below.
                           </p>
                         </div>
 
                         <button
                           type="button"
                           onClick={() => {
-                            setActiveTab('upi');
+                            setActiveTab('cash_check');
                             setErrorMessage('');
                           }}
                           className="px-5 py-2.5 rounded-xl bg-[#0B1330] text-[#F5E7A3] text-xs font-bold font-serif flex items-center justify-center gap-2 hover:bg-[#17345C] transition-all cursor-pointer w-full"
                         >
-                          <Smartphone className="w-3.5 h-3.5 text-[#D4AF37]" />
-                          <span>Pay with UPI / QR Code</span>
+                          <Banknote className="w-3.5 h-3.5 text-[#D4AF37]" />
+                          <span>Pay via Cash / Cheque or Wire</span>
                         </button>
                       </div>
                     )}
@@ -1497,7 +1444,7 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                                 <span className="font-serif font-bold text-xs text-emerald-800">-{convertUsdToCustomer(availableCredit, customerCurrency, customerRate).display}</span>
                               </div>
                               <div>
-                                <span className="text-[9px] font-mono uppercase text-[#B88732] block">Net via UPI/QR</span>
+                                <span className="text-[9px] font-mono uppercase text-[#B88732] block">Net Payable</span>
                                 <span className="font-serif font-bold text-xs text-[#0B1330]">{convertUsdToCustomer(amountUSD - availableCredit, customerCurrency, customerRate).display}</span>
                               </div>
                             </div>
@@ -1507,13 +1454,13 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                               onClick={() => {
                                 setUseSplitCredit(true);
                                 setUseSplitWallet(false);
-                                setActiveTab('upi');
+                                setActiveTab('cash_check');
                                 setErrorMessage('');
                               }}
                               className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#F3DE9C] to-[#B88732] text-[#070D22] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md hover:brightness-105 active:scale-[0.99] transition-all cursor-pointer"
                             >
                               <Sparkles className="w-4 h-4 text-[#070D22]" />
-                              <span>Charge {convertUsdToCustomer(availableCredit, customerCurrency, customerRate).display} to Credit &amp; Pay Remainder via UPI / QR</span>
+                              <span>Charge {convertUsdToCustomer(availableCredit, customerCurrency, customerRate).display} to Credit &amp; Pay Remainder</span>
                             </button>
                           </div>
 
@@ -1521,13 +1468,13 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                             type="button"
                             onClick={() => {
                               setUseSplitCredit(false);
-                              setActiveTab('upi');
+                              setActiveTab('cash_check');
                               setErrorMessage('');
                             }}
                             className="px-5 py-2.5 rounded-xl bg-white border border-[#E8D7B7] text-[#475569] hover:text-[#0B1330] text-xs font-serif font-medium flex items-center justify-center gap-2 transition-all cursor-pointer w-full"
                           >
-                            <Smartphone className="w-3.5 h-3.5 text-[#64748B]" />
-                            <span>Or Pay Full Amount ({convertedPayable.display}) with UPI / QR</span>
+                            <Banknote className="w-3.5 h-3.5 text-[#64748B]" />
+                            <span>Or Pay Full Amount ({convertedPayable.display}) via Cash / Cheque</span>
                           </button>
                         </div>
                       ) : (
@@ -1543,19 +1490,19 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                           </div>
 
                           <p className="text-xs text-[#475569] leading-relaxed">
-                            Please settle your outstanding credit bill under the <strong>Credits &amp; Wallets</strong> tab in your dashboard, or choose UPI / Cash &amp; Cheque below.
+                            Please settle your outstanding credit bill under the <strong>Credits &amp; Wallets</strong> tab in your dashboard, or choose Razorpay or Cash &amp; Cheque below.
                           </p>
 
                           <button
                             type="button"
                             onClick={() => {
-                              setActiveTab('upi');
+                              setActiveTab('cash_check');
                               setErrorMessage('');
                             }}
                             className="px-5 py-2.5 rounded-xl bg-[#0B1330] text-[#F5E7A3] text-xs font-bold font-serif flex items-center justify-center gap-2 hover:bg-[#17345C] transition-all cursor-pointer w-full"
                           >
-                            <Smartphone className="w-3.5 h-3.5 text-[#D4AF37]" />
-                            <span>Pay with UPI / QR Code Instead</span>
+                            <Banknote className="w-3.5 h-3.5 text-[#D4AF37]" />
+                            <span>Pay via Cash / Cheque Instead</span>
                           </button>
                         </div>
                       )}
@@ -1578,19 +1525,19 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                       </div>
 
                       <p className="leading-relaxed text-[#475569]">
-                        Your credit facility of ${creditLimit.toFixed(0)} USD has expired. Unused credit has lapsed. Please complete your checkout using UPI / QR or Cash &amp; Cheque below.
+                        Your credit facility of ${creditLimit.toFixed(0)} USD has expired. Unused credit has lapsed. Please complete your checkout using Razorpay or Cash &amp; Cheque below.
                       </p>
 
                       <button
                         type="button"
                         onClick={() => {
-                          setActiveTab('upi');
+                          setActiveTab('cash_check');
                           setErrorMessage('');
                         }}
                         className="px-5 py-2.5 rounded-xl bg-[#0B1330] text-[#F5E7A3] text-xs font-bold font-serif flex items-center justify-center gap-2 hover:bg-[#17345C] transition-all cursor-pointer w-full"
                       >
-                        <Smartphone className="w-3.5 h-3.5 text-[#D4AF37]" />
-                        <span>Pay with UPI / QR Code Instead</span>
+                        <Banknote className="w-3.5 h-3.5 text-[#D4AF37]" />
+                        <span>Pay via Cash / Cheque Instead</span>
                       </button>
                     </div>
                   ) : (
@@ -1630,222 +1577,16 @@ export const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
                         <button
                           type="button"
                           onClick={() => {
-                            setActiveTab('upi');
+                            setActiveTab('cash_check');
                             setErrorMessage('');
                           }}
                           className="px-3 py-1.5 rounded-lg bg-[#0B1330] text-[#F5E7A3] font-bold text-[10px] uppercase font-mono hover:bg-[#17345C] transition-colors cursor-pointer"
                         >
-                          Use UPI / Cash
+                          Use Cash / Cheque
                         </button>
                       </div>
                     </div>
                   )}
-                </div>
-              )}
-
-              {/* 3. UPI / QR CODE TAB */}
-              {activeTab === 'upi' && (
-                <div className="space-y-5 animate-in fade-in-50">
-                  {/* Compact Split Multi-Tender Selector */}
-                  {((hasActiveCredit && availableCredit > 0) || walletBalance > 0) && (
-                    <div className="p-2.5 rounded-xl bg-amber-50/60 border border-[#E8D7B7] flex flex-wrap items-center justify-between gap-2 text-xs">
-                      <div className="flex items-center gap-1.5 font-serif font-bold text-[#0B1330]">
-                        <Sparkles className="w-3.5 h-3.5 text-[#B88732]" />
-                        <span>Use Balance:</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {hasActiveCredit && availableCredit > 0 && (
-                          <label className="flex items-center gap-1.5 cursor-pointer font-mono text-xs text-[#0B1330]">
-                            <input
-                              type="checkbox"
-                              checked={useSplitCredit}
-                              onChange={(e) => setUseSplitCredit(e.target.checked)}
-                              className="w-3.5 h-3.5 text-[#B88732] rounded border-[#E8D7B7] cursor-pointer"
-                            />
-                            <span>Credit ({convertUsdToCustomer(availableCredit, customerCurrency, customerRate).display})</span>
-                          </label>
-                        )}
-                        {walletBalance > 0 && (
-                          <label className="flex items-center gap-1.5 cursor-pointer font-mono text-xs text-[#0B1330]">
-                            <input
-                              type="checkbox"
-                              checked={useSplitWallet}
-                              onChange={(e) => setUseSplitWallet(e.target.checked)}
-                              className="w-3.5 h-3.5 text-[#B88732] rounded border-[#E8D7B7] cursor-pointer"
-                            />
-                            <span>Wallet ({convertUsdToCustomer(walletBalance, customerCurrency, customerRate).display})</span>
-                          </label>
-                        )}
-                      </div>
-                      {totalDeductionUSD > 0 && (
-                        <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">
-                          Remainder: {netPayableCustomer.display}
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
-                    {/* Dynamic QR Code Card (Left Column) */}
-                    <div className="bg-white border border-[#E8D7B7] rounded-2xl p-4 flex flex-col justify-between items-center text-center space-y-3 shadow-xs h-full">
-                      <div className="flex items-center justify-center gap-1.5 text-xs text-[#0B1330] font-bold">
-                        <QrCode className="w-4 h-4 text-[#B88732]" />
-                        <span>{totalDeductionUSD > 0 ? `Scan to Pay Remaining ${netPayableCustomer.display}` : 'Scan to Pay with Any UPI App'}</span>
-                      </div>
-
-                      <div className="w-36 h-36 mx-auto bg-[#FAF8F5] p-2 rounded-2xl shadow-inner border border-[#E8D7B7] flex items-center justify-center relative overflow-hidden group">
-                        {studioQrCodeUrl ? (
-                          <img
-                            src={studioQrCodeUrl}
-                            alt="Studio UPI QR Code"
-                            className="w-full h-full object-contain"
-                          />
-                        ) : (
-                          /* High Fidelity SVG QR Code fallback */
-                          <svg viewBox="0 0 100 100" className="w-full h-full text-[#0B1330] fill-current">
-                            <rect x="5" y="5" width="26" height="26" rx="4" fill="#0B1330" />
-                            <rect x="9" y="9" width="18" height="18" rx="2" fill="#FFFFFF" />
-                            <rect x="13" y="13" width="10" height="10" rx="1" fill="#0B1330" />
-
-                            <rect x="69" y="5" width="26" height="26" rx="4" fill="#0B1330" />
-                            <rect x="73" y="9" width="18" height="18" rx="2" fill="#FFFFFF" />
-                            <rect x="77" y="13" width="10" height="10" rx="1" fill="#0B1330" />
-
-                            <rect x="5" y="69" width="26" height="26" rx="4" fill="#0B1330" />
-                            <rect x="9" y="73" width="18" height="18" rx="2" fill="#FFFFFF" />
-                            <rect x="13" y="77" width="10" height="10" rx="1" fill="#0B1330" />
-
-                            <rect x="36" y="8" width="6" height="6" fill="#0B1330" />
-                            <rect x="46" y="8" width="6" height="6" fill="#0B1330" />
-                            <rect x="56" y="8" width="6" height="6" fill="#0B1330" />
-                            <rect x="36" y="18" width="6" height="6" fill="#0B1330" />
-                            <rect x="46" y="24" width="6" height="6" fill="#0B1330" />
-                            <rect x="56" y="18" width="6" height="6" fill="#0B1330" />
-
-                            <rect x="8" y="36" width="6" height="6" fill="#0B1330" />
-                            <rect x="18" y="36" width="6" height="6" fill="#0B1330" />
-                            <rect x="8" y="46" width="6" height="6" fill="#0B1330" />
-                            <rect x="18" y="56" width="6" height="6" fill="#0B1330" />
-
-                            <rect x="34" y="34" width="32" height="32" rx="4" fill="#F3DE9C" />
-                            <circle cx="50" cy="50" r="8" fill="#0B1330" />
-
-                            <rect x="70" y="36" width="6" height="6" fill="#0B1330" />
-                            <rect x="82" y="36" width="6" height="6" fill="#0B1330" />
-                            <rect x="76" y="48" width="6" height="6" fill="#0B1330" />
-                            <rect x="86" y="56" width="6" height="6" fill="#0B1330" />
-
-                            <rect x="36" y="72" width="6" height="6" fill="#0B1330" />
-                            <rect x="48" y="72" width="6" height="6" fill="#0B1330" />
-                            <rect x="40" y="82" width="6" height="6" fill="#0B1330" />
-                            <rect x="52" y="86" width="6" height="6" fill="#0B1330" />
-                            <rect x="72" y="72" width="6" height="6" fill="#0B1330" />
-                            <rect x="84" y="78" width="6" height="6" fill="#0B1330" />
-                            <rect x="74" y="86" width="6" height="6" fill="#0B1330" />
-                          </svg>
-                        )}
-                      </div>
-
-                      {/* Copy UPI ID */}
-                      {Boolean(studioUpiId && studioUpiId.trim()) && (
-                        <div className="w-full flex items-center justify-between bg-[#FAF8F5] p-2 rounded-xl border border-[#E8D7B7] text-xs font-mono shadow-2xs">
-                          <span className="text-[#0B1330] font-bold truncate text-[11px]">{studioUpiId}</span>
-                          <button
-                            type="button"
-                            onClick={handleCopyUPI}
-                            className="px-2.5 py-1 rounded-lg bg-[#0B1330] hover:bg-[#17345C] text-[#F5E7A3] flex items-center gap-1 font-bold text-[11px] transition-colors cursor-pointer shadow-xs shrink-0"
-                          >
-                            {copiedUpi ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-[#D4AF37]" />}
-                            <span>{copiedUpi ? 'Copied' : 'Copy'}</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Reference ID + Proof Upload (Right Column) */}
-                    <div className="bg-white border border-[#E8D7B7] rounded-2xl p-4 flex flex-col justify-between space-y-3 shadow-xs h-full">
-                      {/* UPI Reference / UTR Input */}
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-mono text-[#0B1330] uppercase tracking-wider block font-bold">
-                          Transaction Ref / UTR (Optional)
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. 423981765412"
-                          value={upiRefId}
-                          onChange={(e) => setUpiRefId(e.target.value)}
-                          className="w-full bg-[#FAF8F5] border border-[#E8D7B7] focus:border-[#B88732] focus:bg-white focus:ring-1 focus:ring-[#B88732] rounded-xl px-3 py-2 text-xs text-[#0B1330] placeholder-slate-400 outline-none font-mono shadow-2xs transition-all"
-                        />
-                      </div>
-
-                      {/* Screenshot Upload Box */}
-                      <div className="space-y-1 flex-1 flex flex-col">
-                        <label className="text-[11px] font-mono text-[#0B1330] uppercase tracking-wider block font-bold">
-                          Attach Screenshot / Payment Slip
-                        </label>
-
-                        {upiScreenshotPreview ? (
-                          <div className="p-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] flex items-center justify-between gap-2.5 shadow-xs flex-1">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <img
-                                src={upiScreenshotPreview}
-                                alt="Payment Proof"
-                                className="w-10 h-10 object-cover rounded-lg border border-[#E8D7B7] shrink-0"
-                              />
-                              <div className="truncate">
-                                <span className="text-xs font-mono text-[#0B1330] font-bold block truncate">
-                                  {upiScreenshot?.name || 'Screenshot.png'}
-                                </span>
-                                <span className="text-[10px] text-emerald-700 font-mono font-bold flex items-center gap-1">
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Attached
-                                </span>
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setUpiScreenshot(null);
-                                setUpiScreenshotPreview('');
-                              }}
-                              className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
-                              title="Remove image"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <label className="border-2 border-dashed border-[#E8D7B7] hover:border-[#B88732] rounded-xl p-3 flex flex-col items-center justify-center gap-1 text-center cursor-pointer transition-all bg-[#FAF8F5] hover:bg-[#FFF9F0] shadow-2xs flex-1">
-                            <UploadCloud className="w-5 h-5 text-[#B88732]" />
-                            <span className="text-xs font-bold text-[#0B1330]">
-                              Click to attach payment proof
-                            </span>
-                            <span className="text-[10px] text-[#475569] font-mono">
-                              Screenshot or bank debit slip
-                            </span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={handleUpiScreenshotChange}
-                              className="hidden"
-                            />
-                          </label>
-                        )}
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={handleSubmitProof}
-                        className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#F3DE9C] to-[#B88732] text-[#070D22] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md hover:brightness-105 active:scale-[0.99] transition-all cursor-pointer w-full"
-                      >
-                        <Sparkles className="w-4 h-4 text-[#070D22]" />
-                        <span>
-                          {totalDeductionUSD > 0
-                            ? `Submit Remainder (${netPayableCustomer.display})`
-                            : `Submit & Unlock CAD (${convertedPayable.display})`}
-                        </span>
-                      </button>
-                    </div>
-                  </div>
                 </div>
               )}
 

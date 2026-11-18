@@ -103,6 +103,8 @@ class ProductListSerializer(serializers.ModelSerializer):
     uploaded_by_name = serializers.SerializerMethodField()
     uploaded_by_avatar = serializers.SerializerMethodField()
     resolved_pricing = serializers.SerializerMethodField()
+    sales_count = serializers.SerializerMethodField()
+    sales_earned_usd = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -114,8 +116,28 @@ class ProductListSerializer(serializers.ModelSerializer):
             'pricing_mode', 'regional_pricing', 'resolved_pricing',
             'is_active', 'agreed_terms', 'uploaded_by', 'uploaded_by_name', 'uploaded_by_avatar',
             'metal_weight_grams', 'stone_count',
-            'status', 'is_bestseller', 'is_new', 'is_featured', 'primary_image', 'created_at'
+            'status', 'is_bestseller', 'is_new', 'is_featured', 'primary_image', 'created_at',
+            'sales_count', 'sales_earned_usd'
         ]
+
+    def get_sales_count(self, obj):
+        try:
+            return obj.purchases.filter(status='paid').count()
+        except Exception:
+            return 0
+
+    def get_sales_earned_usd(self, obj):
+        try:
+            paid_purchases = obj.purchases.filter(status='paid')
+            total_usd = 0.0
+            comm = float(obj.commission_rate if obj.commission_rate is not None else 20.0)
+            staff_share_pct = max(0.0, (100.0 - comm) / 100.0)
+            for p in paid_purchases:
+                val = float(p.original_price_usd or obj.price or 0.0)
+                total_usd += val * staff_share_pct
+            return round(total_usd, 2)
+        except Exception:
+            return 0.0
 
     def get_resolved_pricing(self, obj):
         request = self.context.get('request')
@@ -161,6 +183,8 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     uploaded_by_name = serializers.SerializerMethodField()
     uploaded_by_avatar = serializers.SerializerMethodField()
     resolved_pricing = serializers.SerializerMethodField()
+    sales_count = serializers.SerializerMethodField()
+    sales_earned_usd = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -175,8 +199,28 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             'description', 'metal_weight_grams',
             'stone_count', 'status', 'rejection_reason', 'is_bestseller',
             'is_new', 'is_featured', 'casting_tips', 'specs', 'formats_available',
-            'images', 'primary_image', 'files', 'has_purchased', 'created_at', 'approved_at'
+            'images', 'primary_image', 'files', 'has_purchased', 'created_at', 'approved_at',
+            'sales_count', 'sales_earned_usd'
         ]
+
+    def get_sales_count(self, obj):
+        try:
+            return obj.purchases.filter(status='paid').count()
+        except Exception:
+            return 0
+
+    def get_sales_earned_usd(self, obj):
+        try:
+            paid_purchases = obj.purchases.filter(status='paid')
+            total_usd = 0.0
+            comm = float(obj.commission_rate if obj.commission_rate is not None else 20.0)
+            staff_share_pct = max(0.0, (100.0 - comm) / 100.0)
+            for p in paid_purchases:
+                val = float(p.original_price_usd or obj.price or 0.0)
+                total_usd += val * staff_share_pct
+            return round(total_usd, 2)
+        except Exception:
+            return 0.0
 
     def get_resolved_pricing(self, obj):
         request = self.context.get('request')

@@ -405,7 +405,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                       alt={`View ${idx + 1}`}
                       onError={(e) => handleImgError(e, product.category)}
                       referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain p-1"
                     />
                   </button>
                 ))}

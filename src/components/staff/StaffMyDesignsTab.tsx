@@ -18,6 +18,10 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  ShoppingBag,
+  TrendingUp,
+  Coins,
+  Building2,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { ProductModal, CategoryItem, DesignStyleItem } from '../common/ProductModal';
@@ -191,6 +195,18 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
   const totalPages = pageSize === -1 ? 1 : Math.max(1, Math.ceil(totalItems / pageSize));
   const activePage = Math.min(currentPage, totalPages);
 
+  const totalSalesCount = useMemo(() => {
+    return products.reduce((acc, p) => acc + (p.sales_count || 0), 0);
+  }, [products]);
+
+  const totalSalesEarnedUSD = useMemo(() => {
+    return products.reduce((acc, p) => acc + (p.sales_earned_usd || 0), 0);
+  }, [products]);
+
+  const totalLiveCount = useMemo(() => {
+    return products.filter((p) => p.status === 'approved' && p.is_active !== false).length;
+  }, [products]);
+
   const paginatedProducts = useMemo(() => {
     if (pageSize === -1) return filteredProducts;
     const start = (activePage - 1) * pageSize;
@@ -220,7 +236,7 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
             My Designs &amp; Storefront Catalog
           </h1>
           <p className="text-xs text-[#687386] max-w-2xl font-light">
-            Upload and manage your personal jewellery CAD models. Check real-time dynamic category commissions, monitor net earnings, and toggle designs active or disabled on the live storefront.
+            Upload and sell your jewellery CAD models. When a customer purchases your design, you receive <strong>80% net payout</strong> and the studio retains <strong>20% platform fee</strong>.
           </p>
         </div>
 
@@ -231,6 +247,81 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
           <Plus className="w-4 h-4 stroke-[3]" />
           <span>Add New Product</span>
         </button>
+      </div>
+
+      {/* 4 Quick Performance Metrics Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="p-4 rounded-xl bg-white border border-[#E8D7B7] shadow-sm space-y-1">
+          <div className="flex items-center justify-between text-xs text-[#6B7280]">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 text-slate-700">
+              <Layers className="w-3.5 h-3.5 text-[#17345C]" />
+              Uploaded Designs
+            </span>
+            <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
+              Total
+            </span>
+          </div>
+          <div className="text-2xl font-bold font-mono text-[#17243B]">
+            {products.length}
+          </div>
+          <div className="text-[11px] text-slate-500 font-sans">
+            Personal CAD models uploaded
+          </div>
+        </div>
+
+        <div className="p-4 rounded-xl bg-emerald-50/80 border border-emerald-200 shadow-sm space-y-1">
+          <div className="flex items-center justify-between text-xs text-emerald-900">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 text-emerald-800">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              Live on Storefront
+            </span>
+            <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+              Active
+            </span>
+          </div>
+          <div className="text-2xl font-bold font-mono text-emerald-950">
+            {totalLiveCount}
+          </div>
+          <div className="text-[11px] text-emerald-800 font-sans">
+            Approved &amp; visible for public purchase
+          </div>
+        </div>
+
+        <div className="p-4 rounded-xl bg-blue-50/80 border border-blue-200 shadow-sm space-y-1">
+          <div className="flex items-center justify-between text-xs text-blue-900">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 text-blue-800">
+              <ShoppingBag className="w-3.5 h-3.5 text-blue-600" />
+              Storefront Sales
+            </span>
+            <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-blue-100 text-blue-800 border border-blue-300">
+              Volume
+            </span>
+          </div>
+          <div className="text-2xl font-bold font-mono text-blue-950">
+            {totalSalesCount} {totalSalesCount === 1 ? 'Sale' : 'Sales'}
+          </div>
+          <div className="text-[11px] text-blue-800 font-sans">
+            Total customer purchases of your designs
+          </div>
+        </div>
+
+        <div className="p-4 rounded-xl bg-amber-50/80 border border-amber-200 shadow-sm space-y-1">
+          <div className="flex items-center justify-between text-xs text-amber-900">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 text-amber-800">
+              <Coins className="w-3.5 h-3.5 text-amber-600" />
+              Your 80% Earnings
+            </span>
+            <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-100 text-amber-900 border border-amber-300">
+              80% Net
+            </span>
+          </div>
+          <div className="text-2xl font-bold font-mono text-amber-950">
+            ${totalSalesEarnedUSD.toFixed(2)}
+          </div>
+          <div className="text-[10.5px] text-amber-800 font-sans">
+            Net payout • 20% studio fee retained by Admin
+          </div>
+        </div>
       </div>
 
       {/* Main Container */}
@@ -280,6 +371,7 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
                   <th className="p-4 font-medium">Design & Title</th>
                   <th className="p-4 font-medium">Category</th>
                   <th className="p-4 font-medium">Pricing & Payout</th>
+                  <th className="p-4 font-medium">Customer Sales</th>
                   <th className="p-4 font-medium">Store Visibility</th>
                   <th className="p-4 font-medium">Status</th>
                   <th className="p-4 font-medium text-right">Actions</th>
@@ -335,6 +427,26 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
                           Fee: {prod.commission_rate}%
                         </div>
                       ) : null}
+                    </td>
+
+                    {/* Customer Sales & Net Earnings */}
+                    <td className="p-4 font-mono text-xs">
+                      <div className="font-bold text-[#17243B] flex items-center gap-1.5">
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                          (prod.sales_count || 0) > 0 ? 'bg-blue-100 text-blue-900 border border-blue-200' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {prod.sales_count || 0} {(prod.sales_count || 0) === 1 ? 'sale' : 'sales'}
+                        </span>
+                      </div>
+                      {(prod.sales_count || 0) > 0 ? (
+                        <div className="text-[10px] text-emerald-700 font-extrabold mt-1">
+                          +${(prod.sales_earned_usd || 0).toFixed(2)} (80% You)
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          No sales yet
+                        </div>
+                      )}
                     </td>
 
                     {/* Store Visibility Toggle */}
@@ -417,7 +529,7 @@ export const StaffMyDesignsTab: React.FC<StaffMyDesignsTabProps> = () => {
 
                 {filteredProducts.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="p-12 text-center text-[#6B7280]">
+                    <td colSpan={7} className="p-12 text-center text-[#6B7280]">
                       <Sparkles className="w-8 h-8 text-[#C9A227] mx-auto opacity-50 mb-2" />
                       <div className="font-serif font-bold text-base text-[#17243B]">No Products Found</div>
                       <p className="text-xs text-slate-500 mt-1">

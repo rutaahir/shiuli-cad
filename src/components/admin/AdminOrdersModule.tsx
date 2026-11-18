@@ -55,7 +55,7 @@ export const resolveOrderUSD = (val: number | string | undefined | null, currenc
   if (val === undefined || val === null || val === '') return 0;
   const num = typeof val === 'number' ? val : parseFloat(String(val));
   if (isNaN(num) || num <= 0) return 0;
-  if (currency === 'USD') return round2(num);
+  if (currency === 'USD' || num <= 500) return round2(num);
   // Default entered amounts (e.g. 5000, 2500, 58555) were entered in INR -> convert to USD
   return round2(num / USD_TO_INR_RATE);
 };
@@ -70,8 +70,10 @@ export const formatUSD = (val: number | string | undefined | null, isAlreadyUSD:
 
 export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList }) => {
   const [orders, setOrders] = useState<any[]>([]);
+  const [purchases, setPurchases] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedOrderDrawer, setSelectedOrderDrawer] = useState<any | null>(null);
+  const [selectedPurchaseDrawer, setSelectedPurchaseDrawer] = useState<any | null>(null);
   const [reassignModalOrder, setReassignModalOrder] = useState<any | null>(null);
   const [newAssignedStaffId, setNewAssignedStaffId] = useState<string>('');
   
@@ -84,6 +86,7 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
   const [rejectionNotes, setRejectionNotes] = useState<string>('');
   const [isSubmittingReview, setIsSubmittingReview] = useState<boolean>(false);
   const [togglingDownloadId, setTogglingDownloadId] = useState<number | null>(null);
+  const [togglingPurchaseDownloadId, setTogglingPurchaseDownloadId] = useState<number | null>(null);
 
   // Filter & Search state
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -177,23 +180,60 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
     try {
       const q = typeof query === 'string' ? query.trim() : searchQuery.trim();
       const endpoint = q ? `/orders/?search=${encodeURIComponent(q)}` : '/orders/';
-      const res = await api.request<any>(endpoint);
+      const [ordersRes, gatewayRes] = await Promise.allSettled([
+        api.request<any>(endpoint),
+        api.getGatewayLogs(),
+      ]);
+
       const ensureArray = (r: any) => {
         if (Array.isArray(r)) return r;
         if (r && Array.isArray(r.results)) return r.results;
         if (r && Array.isArray(r.data)) return r.data;
         return [];
       };
-      const fetched = ensureArray(res);
-      setOrders(fetched);
-      if (selectedOrderDrawer) {
-        const refreshedSelected = fetched.find((o: any) => o.id === selectedOrderDrawer.id);
-        if (refreshedSelected) setSelectedOrderDrawer(refreshedSelected);
+
+      if (ordersRes.status === 'fulfilled') {
+        const fetched = ensureArray(ordersRes.value);
+        setOrders(fetched);
+        if (selectedOrderDrawer) {
+          const refreshedSelected = fetched.find((o: any) => o.id === selectedOrderDrawer.id);
+          if (refreshedSelected) setSelectedOrderDrawer(refreshedSelected);
+        }
+      }
+
+      if (gatewayRes.status === 'fulfilled') {
+        const list = Array.isArray(gatewayRes.value) ? gatewayRes.value : [];
+        const purList = list.filter((it: any) => it.entry_type === 'purchase' || it.purchase_id || String(it.id).startsWith('PUR-'));
+        setPurchases(purList);
+        if (selectedPurchaseDrawer) {
+          const refreshedPur = purList.find((p: any) => p.purchase_id === selectedPurchaseDrawer.purchase_id);
+          if (refreshedPur) setSelectedPurchaseDrawer(refreshedPur);
+        }
       }
     } catch (err) {
-      console.warn('Failed to fetch admin orders:', err);
+      console.warn('Failed to fetch admin orders/purchases:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTogglePurchaseDownload = async (purchaseId: number) => {
+    setTogglingPurchaseDownloadId(purchaseId);
+    try {
+      const res = await api.togglePurchaseDownloadPermission(purchaseId);
+      const isEnabled = res?.download_enabled_by_admin ?? true;
+      setPurchases((prev) =>
+        prev.map((p) =>
+          p.purchase_id === purchaseId ? { ...p, download_enabled_by_admin: isEnabled } : p
+        )
+      );
+      if (selectedPurchaseDrawer?.purchase_id === purchaseId) {
+        setSelectedPurchaseDrawer((prev: any) => (prev ? { ...prev, download_enabled_by_admin: isEnabled } : null));
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Failed to toggle download access for purchase.');
+    } finally {
+      setTogglingPurchaseDownloadId(null);
     }
   };
 
@@ -362,15 +402,55 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
     }
   };
 
-  const filteredOrders = orders.filter((o) => {
-    if (o.is_deleted) return true; // Always show when returned via exact search
-    if (statusFilter === 'pending_review') return o.status === 'pending_review';
-    if (statusFilter === 'in_design') return o.status === 'in_design';
-    if (statusFilter === 'preview_ready') return o.status === 'preview_ready';
-    if (statusFilter === 'completed') return o.status === 'completed';
-    if (statusFilter === 'cancelled') return o.status === 'cancelled';
-    return true;
-  });
+  const filteredPurchases = React.useMemo(() => {
+    if (!searchQuery.trim()) return purchases;
+    const q = searchQuery.toLowerCase().trim();
+    return purchases.filter((p) => {
+      const idMatch = String(p.id || '').toLowerCase().includes(q) || String(p.purchase_id || '').includes(q);
+      const clientMatch = String(p.client || '').toLowerCase().includes(q) || String(p.client_email || '').toLowerCase().includes(q);
+      const itemMatch = String(p.item_title || '').toLowerCase().includes(q);
+      const refMatch = String(p.ref || '').toLowerCase().includes(q);
+      return idMatch || clientMatch || itemMatch || refMatch;
+    });
+  }, [purchases, searchQuery]);
+
+  const filteredOrders = React.useMemo(() => {
+    return orders.filter((o) => {
+      if (o.is_deleted) return true; // Always show when returned via exact search
+      if (statusFilter === 'pending_review') return o.status === 'pending_review';
+      if (statusFilter === 'in_design') return o.status === 'in_design';
+      if (statusFilter === 'preview_ready') return o.status === 'preview_ready';
+      if (statusFilter === 'completed') return o.status === 'completed';
+      if (statusFilter === 'cancelled') return o.status === 'cancelled';
+      if (statusFilter === 'ready_cad') return false;
+      return true;
+    });
+  }, [orders, statusFilter]);
+
+  const displayItems = React.useMemo(() => {
+    if (statusFilter === 'ready_cad') {
+      return filteredPurchases.map((p) => ({ ...p, is_purchase: true }));
+    }
+    if (statusFilter === 'completed') {
+      const compPurs = filteredPurchases.filter((p) => p.raw_status === 'paid').map((p) => ({ ...p, is_purchase: true }));
+      return [...filteredOrders, ...compPurs];
+    }
+    if (statusFilter === 'cancelled') {
+      const decPurs = filteredPurchases.filter((p) => p.raw_status === 'declined').map((p) => ({ ...p, is_purchase: true }));
+      return [...filteredOrders, ...decPurs];
+    }
+    if (statusFilter === 'all') {
+      const allPurs = filteredPurchases.map((p) => ({ ...p, is_purchase: true }));
+      const combined = [...filteredOrders, ...allPurs];
+      combined.sort((a: any, b: any) => {
+        const dateA = new Date(a.created_at || a.created_at_iso || a.date || 0).getTime();
+        const dateB = new Date(b.created_at || b.created_at_iso || b.date || 0).getTime();
+        return dateB - dateA;
+      });
+      return combined;
+    }
+    return filteredOrders;
+  }, [statusFilter, filteredOrders, filteredPurchases]);
 
   return (
     <div className="space-y-6">
@@ -416,12 +496,13 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
         {/* Filter Tabs */}
         <div className="flex flex-wrap gap-2 text-xs">
           {[
-            { key: 'all', label: `All Orders (${orders.filter(o => !o.is_deleted).length})` },
+            { key: 'all', label: `All Orders (${orders.filter(o => !o.is_deleted).length + purchases.length})` },
+            { key: 'ready_cad', label: `Ready CAD Sales (${purchases.length})` },
             { key: 'pending_review', label: `Pending QC Review (${orders.filter(o => !o.is_deleted && o.status === 'pending_review').length})` },
             { key: 'in_design', label: `In Design (${orders.filter(o => !o.is_deleted && o.status === 'in_design').length})` },
             { key: 'preview_ready', label: `Preview Ready (${orders.filter(o => !o.is_deleted && o.status === 'preview_ready').length})` },
-            { key: 'completed', label: `Completed (${orders.filter(o => !o.is_deleted && o.status === 'completed').length})` },
-            { key: 'cancelled', label: `Cancelled (${orders.filter(o => !o.is_deleted && o.status === 'cancelled').length})` },
+            { key: 'completed', label: `Completed (${orders.filter(o => !o.is_deleted && o.status === 'completed').length + purchases.filter(p => p.raw_status === 'paid').length})` },
+            { key: 'cancelled', label: `Cancelled (${orders.filter(o => !o.is_deleted && o.status === 'cancelled').length + purchases.filter(p => p.raw_status === 'declined').length})` },
           ].map((t) => (
             <button
               key={t.key}
@@ -469,12 +550,12 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
 
       {/* Orders Table */}
       <div className="bg-white rounded-2xl border border-[#E8D7B7] shadow-sm overflow-hidden">
-        {loading && orders.length === 0 ? (
+        {loading && orders.length === 0 && purchases.length === 0 ? (
           <div className="py-20 text-center flex flex-col items-center justify-center gap-3">
             <Loader2 className="w-8 h-8 text-[#C9A227] animate-spin" />
             <span className="text-xs font-mono text-[#6B7280]">Loading live orders from database...</span>
           </div>
-        ) : filteredOrders.length === 0 ? (
+        ) : displayItems.length === 0 ? (
           <div className="py-16 text-center text-xs text-[#6B7280]">
             No orders match the selected filter.
           </div>
@@ -492,7 +573,194 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E8D7B7] text-xs">
-              {filteredOrders.map((ord) => {
+              {displayItems.map((item: any) => {
+                if (item.is_purchase) {
+                  const pur = item;
+                  return (
+                    <tr key={`purchase-${pur.id || pur.purchase_id}`} className="hover:bg-amber-50/30 transition-colors">
+                      {/* Order & Client */}
+                      <td className="p-4 font-mono">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded border border-amber-300">
+                            {pur.id || `PUR-${pur.purchase_id}`}
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded bg-[#12204D] text-[#F5E7A3] text-[9px] font-bold uppercase flex items-center gap-1">
+                            <ShoppingBag className="w-2.5 h-2.5" />
+                            Ready CAD Sale
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-[#17243B] font-sans font-semibold mt-1">
+                          {pur.client || 'Customer'}
+                        </div>
+                        <div className="text-[10px] text-[#6B7280] font-sans">
+                          {pur.client_email}
+                        </div>
+                        <div className="text-[10px] text-[#9CA3AF]">
+                          {pur.date}
+                        </div>
+                      </td>
+
+                      {/* Design Brief / Product Title */}
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          {pur.product_image ? (
+                            <img
+                              src={pur.product_image}
+                              alt={pur.item_title}
+                              className="w-10 h-10 rounded-lg object-cover border border-[#E8D7B7] shrink-0"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700 shrink-0">
+                              <ShoppingBag className="w-5 h-5" />
+                            </div>
+                          )}
+                          <div>
+                            <div className="font-semibold text-[#17243B]">
+                              {pur.item_title}
+                            </div>
+                            <div className="text-[11px] text-[#6B7280]">
+                              {pur.license_name || pur.type || 'Standard License'} &bull; Instant Storefront Download
+                            </div>
+                            <div className="text-[10px] text-slate-500 font-mono">
+                              Ref: {pur.ref}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Assigned Modeller / Creator */}
+                      <td className="p-4">
+                        {pur.assigned_staff_name && pur.assigned_staff_name !== 'Ready CAD Catalog Asset' ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-[#12204D] border border-[#D4AF37]/50 flex items-center justify-center text-[#F5E7A3] text-xs font-bold shrink-0">
+                              {pur.assigned_staff_name[0] || 'S'}
+                            </div>
+                            <div>
+                              <div className="font-semibold text-[#17243B]">
+                                {pur.assigned_staff_name}
+                              </div>
+                              <span className="text-[10px] text-emerald-700 font-mono font-semibold">
+                                {pur.assigned_staff_role || 'Staff Modeller (80% Share)'}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="font-semibold text-[#17243B] flex items-center gap-1 text-xs">
+                              <Sparkles className="w-3 h-3 text-[#C9A227]" />
+                              <span>Shiuli Atelier Asset</span>
+                            </div>
+                            <span className="text-[10px] text-slate-500 font-mono">
+                              100% Studio Catalog
+                            </span>
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Progress / QC Status */}
+                      <td className="p-4">
+                        <div className="space-y-1">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider inline-flex items-center gap-1 ${
+                            pur.raw_status === 'paid'
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                              : pur.raw_status === 'declined'
+                              ? 'bg-red-100 text-red-800 border border-red-300'
+                              : 'bg-amber-100 text-amber-800 border border-amber-300'
+                          }`}>
+                            {pur.raw_status === 'paid' ? '✓ Delivered & Paid' : pur.status}
+                          </span>
+                          <div className="text-[10px] text-slate-500 font-sans flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            <span>Storefront CAD Asset</span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Price & Admin Commission & Staff Payout */}
+                      <td className="p-4 font-mono">
+                        <div className="font-bold text-[#17243B] text-sm">
+                          {pur.amount}
+                        </div>
+                        {pur.client_amount_disp && (
+                          <div className="text-[10px] text-slate-500">
+                            Paid: {pur.client_amount_disp}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1.5 text-[10px] mt-0.5">
+                          <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 font-bold">
+                            Admin: {pur.admin_margin_amount || `${pur.admin_percent}%`}
+                          </span>
+                          {pur.staff_percent > 0 && (
+                            <span className="text-emerald-700 font-bold">
+                              Staff: {pur.staff_payout_amount || `${pur.staff_percent}%`}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-1">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1">
+                            ✓ 100% Fully Paid ({pur.payment_method?.toUpperCase()})
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Download Toggle Switch */}
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleTogglePurchaseDownload(pur.purchase_id)}
+                            disabled={togglingPurchaseDownloadId === pur.purchase_id}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-mono font-bold transition-all shadow-sm cursor-pointer ${
+                              pur.download_enabled_by_admin !== false
+                                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                : 'bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-200'
+                            }`}
+                          >
+                            {pur.download_enabled_by_admin !== false ? (
+                              <>
+                                <ToggleRight className="w-4 h-4 text-white" />
+                                <span>ENABLED</span>
+                              </>
+                            ) : (
+                              <>
+                                <ToggleLeft className="w-4 h-4 text-slate-400" />
+                                <span>DISABLED</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                        <span className="text-[9px] text-[#6B7280] block mt-0.5">
+                          {pur.download_enabled_by_admin !== false ? 'Customer CAD download active' : 'Locked by Admin'}
+                        </span>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="p-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                          <button
+                            onClick={() => setSelectedPurchaseDrawer(pur)}
+                            className="px-2.5 py-1.5 rounded-lg bg-[#FAF8F5] border border-[#E8D7B7] text-[#17243B] hover:bg-[#E8D7B7] font-semibold text-xs transition-colors cursor-pointer"
+                            title="Inspect Purchase & Product"
+                          >
+                            Inspect
+                          </button>
+                          {pur.product_slug && (
+                            <a
+                              href={`/product/${pur.product_slug}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-1.5 rounded-lg bg-slate-100 border border-slate-300 text-slate-700 hover:bg-slate-200 transition-colors"
+                              title="View Storefront Product"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                }
+
+                const ord = item;
                 const req = ord.custom_request;
                 const assignedStaff = ord.assigned_staff;
                 const isFullyPaid = ord.is_fully_paid;
@@ -623,7 +891,9 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
                       </div>
                       <div className="flex items-center gap-1.5 text-[10px] mt-0.5">
                         <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 font-bold">
-                          Admin: {ord.admin_commission_percentage ?? 20}%
+                          Admin: {ord.admin_commission_amount_usd != null
+                            ? formatUSD(ord.admin_commission_amount_usd, true)
+                            : `${ord.admin_commission_percentage ?? 20}%`}
                         </span>
                         <span className="text-emerald-700 font-bold">
                           Staff: {ord.staff_payout_price_usd != null
@@ -1482,6 +1752,205 @@ export const AdminOrdersModule: React.FC<AdminOrdersModuleProps> = ({ staffList 
               </div>
             )}
 
+          </div>
+        </div>
+      )}
+
+      {/* READY CAD STOREFRONT PURCHASE DETAILS DRAWER */}
+      {selectedPurchaseDrawer && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-end">
+          <div className="w-full max-w-2xl bg-white h-full shadow-2xl p-6 sm:p-8 overflow-y-auto space-y-6 animate-in slide-in-from-right duration-250">
+            <div className="flex items-center justify-between border-b border-[#E8D7B7] pb-4">
+              <div>
+                <span className="font-mono text-xs font-bold text-amber-800 flex items-center gap-1.5 flex-wrap">
+                  <span className="bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
+                    PURCHASE #{selectedPurchaseDrawer.id || selectedPurchaseDrawer.purchase_id}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full bg-[#12204D] text-[#F5E7A3] text-[10px] font-bold uppercase flex items-center gap-1">
+                    <ShoppingBag className="w-3 h-3" />
+                    READY CAD STOREFRONT SALE
+                  </span>
+                </span>
+                <h3 className="font-serif text-xl font-bold text-[#17243B] mt-1">
+                  Ready CAD Purchase &amp; Delivery Access Record
+                </h3>
+              </div>
+              <button
+                onClick={() => setSelectedPurchaseDrawer(null)}
+                className="p-2 rounded-xl text-[#6B7280] hover:text-[#17243B] hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Product Card */}
+            <div className="p-4 rounded-xl bg-amber-50/50 border border-amber-200/80 flex items-center gap-4">
+              {selectedPurchaseDrawer.product_image ? (
+                <img
+                  src={selectedPurchaseDrawer.product_image}
+                  alt={selectedPurchaseDrawer.item_title}
+                  className="w-16 h-16 rounded-xl object-cover border border-[#E8D7B7] shrink-0"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-800 shrink-0">
+                  <ShoppingBag className="w-7 h-7" />
+                </div>
+              )}
+              <div className="space-y-1 min-w-0 flex-1">
+                <h4 className="font-serif text-base font-bold text-[#17243B] truncate">
+                  {selectedPurchaseDrawer.item_title}
+                </h4>
+                <div className="flex items-center gap-2 text-xs text-[#6B7280] flex-wrap">
+                  <span className="px-2 py-0.5 rounded bg-white border border-amber-200 font-mono font-semibold text-amber-900">
+                    {selectedPurchaseDrawer.license_name || 'Standard License'}
+                  </span>
+                  <span>&bull;</span>
+                  <span>Instant CAD Download Delivery</span>
+                </div>
+                {selectedPurchaseDrawer.product_slug && (
+                  <div className="pt-1">
+                    <a
+                      href={`/product/${selectedPurchaseDrawer.product_slug}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-[#17345C] hover:underline font-semibold inline-flex items-center gap-1"
+                    >
+                      <span>View Live Storefront Listing</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Customer Buyer Information */}
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+              <h5 className="text-[11px] font-mono uppercase tracking-wider text-slate-500 font-bold">
+                Customer / Buyer Information
+              </h5>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-slate-500 block text-[10px]">Buyer Name</span>
+                  <span className="font-semibold text-[#17243B]">{selectedPurchaseDrawer.client || 'Client'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px]">Buyer Email</span>
+                  <span className="font-mono text-[#17243B]">{selectedPurchaseDrawer.client_email || '—'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px]">Purchase Date</span>
+                  <span className="text-[#17243B]">{selectedPurchaseDrawer.date}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px]">Delivery Channel</span>
+                  <span className="font-semibold text-emerald-800">Secure Direct OTP Delivery</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Financial Details & Revenue Split */}
+            <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E8D7B7] space-y-3">
+              <h5 className="text-[11px] font-mono uppercase tracking-wider text-slate-500 font-bold flex items-center justify-between">
+                <span>Payment &amp; Revenue Breakdown</span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-300">
+                  {selectedPurchaseDrawer.status}
+                </span>
+              </h5>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                <div className="p-3 rounded-lg bg-white border border-[#E8D7B7]">
+                  <span className="text-[10px] text-slate-500 block uppercase">Price Paid</span>
+                  <span className="font-bold text-sm font-mono text-[#17243B]">
+                    {selectedPurchaseDrawer.amount}
+                  </span>
+                </div>
+                <div className="p-3 rounded-lg bg-white border border-[#E8D7B7]">
+                  <span className="text-[10px] text-slate-500 block uppercase">Studio Margin</span>
+                  <span className="font-bold text-sm font-mono text-purple-700">
+                    {selectedPurchaseDrawer.admin_margin_amount || `${selectedPurchaseDrawer.admin_percent}%`}
+                  </span>
+                </div>
+                <div className="p-3 rounded-lg bg-white border border-[#E8D7B7]">
+                  <span className="text-[10px] text-slate-500 block uppercase">Staff Share</span>
+                  <span className="font-bold text-sm font-mono text-emerald-700">
+                    {selectedPurchaseDrawer.staff_payout_amount || `${selectedPurchaseDrawer.staff_percent}%`}
+                  </span>
+                </div>
+                <div className="p-3 rounded-lg bg-white border border-[#E8D7B7]">
+                  <span className="text-[10px] text-slate-500 block uppercase">Method</span>
+                  <span className="font-bold text-xs uppercase text-[#17243B] block truncate">
+                    {selectedPurchaseDrawer.payment_method || 'UPI/Card'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="text-[11px] text-slate-600 font-mono space-y-1 pt-1">
+                <div>Transaction Ref: <span className="text-[#17243B] font-semibold">{selectedPurchaseDrawer.ref}</span></div>
+                {selectedPurchaseDrawer.payment_details && (
+                  <div>Payment Details: <span className="text-[#17243B]">{selectedPurchaseDrawer.payment_details}</span></div>
+                )}
+                {selectedPurchaseDrawer.assigned_staff_name && (
+                  <div>Creator / Modeller: <span className="text-emerald-800 font-semibold">{selectedPurchaseDrawer.assigned_staff_name} ({selectedPurchaseDrawer.assigned_staff_role || 'Staff'})</span></div>
+                )}
+              </div>
+            </div>
+
+            {/* Download Toggle & Authorization Control */}
+            <div className="p-5 rounded-xl bg-white border border-[#E8D7B7] shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h5 className="font-serif font-bold text-sm text-[#17243B]">
+                    Customer CAD Download Permission
+                  </h5>
+                  <p className="text-xs text-[#6B7280]">
+                    Control whether the customer can download the production 3D assets (.3dm, .stl, renders).
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleTogglePurchaseDownload(selectedPurchaseDrawer.purchase_id)}
+                  disabled={togglingPurchaseDownloadId === selectedPurchaseDrawer.purchase_id}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-mono font-bold transition-all shadow-sm cursor-pointer ${
+                    selectedPurchaseDrawer.download_enabled_by_admin !== false
+                      ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                      : 'bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-200'
+                  }`}
+                >
+                  {selectedPurchaseDrawer.download_enabled_by_admin !== false ? (
+                    <>
+                      <ToggleRight className="w-4 h-4 text-white" />
+                      <span>DOWNLOAD ENABLED</span>
+                    </>
+                  ) : (
+                    <>
+                      <ToggleLeft className="w-4 h-4 text-slate-400" />
+                      <span>DOWNLOAD DISABLED</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>
+                  {selectedPurchaseDrawer.download_enabled_by_admin !== false
+                    ? 'Customer download access is active. Customer receives secure OTP verification to access files.'
+                    : 'Download access is locked. Customer cannot access the download files until unlocked.'}
+                </span>
+              </div>
+            </div>
+
+            {/* Payment Proof Screenshot if applicable */}
+            {selectedPurchaseDrawer.screenshot && (
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <h5 className="text-[11px] font-mono uppercase tracking-wider text-slate-500 font-bold">
+                  Payment Proof Screenshot
+                </h5>
+                <img
+                  src={selectedPurchaseDrawer.screenshot}
+                  alt="Payment Screenshot"
+                  className="max-h-60 rounded-lg border border-slate-300 object-contain bg-white"
+                />
+              </div>
+            )}
           </div>
         </div>
       )}

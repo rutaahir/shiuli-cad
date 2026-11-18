@@ -55,6 +55,27 @@ import {
 import { triggerNegotiationAlert } from '../../utils/negotiationNotificationHelper';
 import { getCancellationInfo } from '../../utils/adminStatusHelper';
 
+const toUSD = (val: number | string | null | undefined): number => {
+  if (val == null || val === '') return 0;
+  const num = Number(val);
+  if (isNaN(num)) return 0;
+  return num > 500 ? num / 86.85 : num;
+};
+
+const formatUSD = (val: number | string | null | undefined): string => {
+  const usd = toUSD(val);
+  return usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const formatDualAdmin = (val: number | string | null | undefined): string => {
+  if (val == null || val === '') return '';
+  const num = Number(val);
+  if (isNaN(num)) return String(val);
+  const usd = num > 500 ? num / 86.85 : num;
+  const inr = num > 500 ? Math.round(num) : Math.round(num * 86.85);
+  return `$${usd.toFixed(2)} USD (≈ ₹${inr.toLocaleString('en-IN')})`;
+};
+
 interface CustomRequestItem {
   id: number;
   client_name: string;
@@ -180,7 +201,12 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
       setLoading(true);
     }
     try {
-      await api.ensureAdminToken();
+      try {
+        await api.ensureAdminToken();
+      } catch (authErr) {
+        // Multi-tab role recovery: allow reading requests gracefully
+      }
+
       let dbRequests: CustomRequestItem[] = [];
       try {
         const res = await api.request<any>('/custom-requests/');
@@ -195,40 +221,65 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
         console.warn('Backend custom requests fetch notice:', backendErr);
       }
 
-      // Also merge any local session custom requests so nothing is missed
-      const localRequests = appStore.getCustomRequests() || [];
-      const combined: CustomRequestItem[] = [...dbRequests];
+      // Sync and merge local persistent store so customer orders never disappear
+      let localRequests: CustomRequestItem[] = [];
+      try {
+        localRequests = (appStore.getCustomRequests() || []).map((loc: any) => ({
+          id: Number(loc.id) || loc.id,
+          client_name: loc.client_name || loc.contact_name || 'Client',
+          contact_name: loc.contact_name || loc.client_name || 'Client',
+          contact_phone: loc.contact_phone || '',
+          contact_email: loc.contact_email || loc.client_email || '',
+          description: loc.description || '',
+          special_instructions: loc.special_instructions || '',
+          status: loc.status || 'new',
+          submission_intent: loc.submission_intent || 'place_order',
+          request_mode: loc.request_mode || 'step_by_step',
+          category_name: loc.category_name || (loc.description?.match(/(?:Requirement|Category):\s*([^\n•]+)/i)?.[1]?.trim()) || 'Bespoke Design',
+          metal_alloy_name: loc.metal_alloy_name || (loc.description?.match(/Material:\s*([^\n•]+)/i)?.[1]?.trim()) || 'Gold',
+          timeline: loc.timeline || '',
+          needed_by_date: loc.needed_by_date || '',
+          agreed_price: loc.agreed_price || '',
+          estimated_price_shown: loc.estimated_price_shown || '',
+          created_at: loc.createdAt || loc.created_at || new Date().toISOString(),
+          reference_product_title: loc.reference_product_title || '',
+          reference_product_image: loc.reference_product_image || '',
+          voice_recording_url: loc.voice_recording_url || '',
+          messages: loc.messages || [],
+          sketches: loc.sketches || [],
+          admin_call_notes: loc.admin_call_notes || '',
+        }));
+      } catch {}
 
-      localRequests.forEach((loc: any) => {
-        if (!combined.some((c: any) => String(c.id) === String(loc.id))) {
-          const numId = typeof loc.id === 'number' ? loc.id : parseInt(String(loc.id).replace(/\D/g, '') || String(Date.now()).slice(-4), 10);
-          combined.push({
-            id: numId,
-            client_name: loc.clientName || 'Client',
-            contact_name: loc.clientName || 'Client',
-            contact_email: loc.clientEmail || '',
-            contact_phone: loc.clientPhone || '',
-            request_mode: loc.request_mode || 'quick',
-            category_name: loc.jewelleryType || 'Custom Jewellery',
-            aesthetic_style_name: loc.metalPreference || 'Luxury Style',
-            metal_alloy_name: loc.metalPreference || 'Custom Gold',
-            estimated_price_shown: parseFloat(String(loc.currentQuote || loc.targetBudget || '0').replace(/[^0-9.]/g, '')) || 0,
-            status: loc.status || 'new',
-            description: loc.description || 'Bespoke CAD Design Brief',
-            reference_image: loc.referenceImage || loc.reference_image,
-            voice_recording_url: loc.voice_recording_url || '',
-            admin_call_notes: loc.admin_call_notes || '',
-            created_at: loc.createdAt || new Date().toISOString(),
-            messages: (loc.messages || []).map((m: any, idx: number) => ({
-              id: idx + 1,
-              sender_type: m.sender || 'client',
-              message: m.text || '',
-              offered_price: m.priceOffer,
-              created_at: m.timestamp || new Date().toISOString()
-            })),
-          });
-        }
+      // Merge: DB requests take precedence, local persistent requests supplement
+      const mergedMap = new Map<string, CustomRequestItem>();
+      localRequests.forEach((r) => {
+        if (r.id) mergedMap.set(String(r.id), r);
       });
+      dbRequests.forEach((r) => {
+        if (r.id) mergedMap.set(String(r.id), r);
+      });
+
+      const combined: CustomRequestItem[] = Array.from(mergedMap.values()).sort(
+        (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+      );
+
+      // Cache verified DB requests into local appStore
+      if (dbRequests.length > 0) {
+        try {
+          const currentStore = appStore.getCustomRequests() || [];
+          const updatedStore = [...currentStore];
+          dbRequests.forEach((d: any) => {
+            const idx = updatedStore.findIndex((m: any) => String(m.id) === String(d.id));
+            if (idx >= 0) {
+              updatedStore[idx] = { ...updatedStore[idx], ...d };
+            } else {
+              updatedStore.push(d);
+            }
+          });
+          appStore.saveCustomRequests(updatedStore);
+        } catch {}
+      }
 
       // Check for incoming client negotiation messages or counter-offers
       combined.forEach((r) => {
@@ -239,7 +290,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
             const prevId = lastClientMsgIdRef.current[r.id] || 0;
             if (latestClientMsg.id > prevId) {
               lastClientMsgIdRef.current[r.id] = latestClientMsg.id;
-              const offerTxt = latestClientMsg.offered_price ? ` (Client Offer: $${(Number(latestClientMsg.offered_price) / 86.85).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})` : '';
+              const offerTxt = latestClientMsg.offered_price ? ` (Client Offer: $${formatUSD(latestClientMsg.offered_price)})` : '';
 
               triggerNegotiationAlert({
                 title: `Shiuli Studio: New Client Counter-Offer on REQ #${r.id}`,
@@ -404,7 +455,16 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
     );
     if (!confirmed) return;
     try {
-      await api.deleteCustomRequest(req.id);
+      try {
+        await api.deleteCustomRequest(req.id);
+      } catch (backendErr) {
+        console.warn('Backend delete custom request notice:', backendErr);
+      }
+      try {
+        const stored = appStore.getCustomRequests();
+        const updated = stored.filter((item: any) => String(item.id) !== String(req.id));
+        appStore.saveCustomRequests(updated);
+      } catch (e) {}
       alert(`Custom Request #REQ-${req.id} permanently deleted.`);
       setRequests((prev) => prev.filter((r) => r.id !== req.id));
       if (selectedReqId === req.id || selectedReqIdRef.current === req.id) {
@@ -437,7 +497,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
         ? req.status === 'new'
         : activeTab === 'negotiating'
         ? req.status === 'negotiating' || req.status === 'quoted'
-        : req.status === 'agreed' || req.status === 'in_progress';
+        : req.status === 'agreed' || req.status === 'in_progress' || req.status === 'order_created' || req.status === 'completed' || Boolean((req as any).order);
 
     const matchesMode =
       modeTab === 'all'
@@ -460,10 +520,10 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
   const stepByStepCount = requests.filter((r) => r.request_mode !== 'quick').length;
   const newCount = requests.filter((r) => r.status === 'new').length;
   const negotiatingCount = requests.filter((r) => r.status === 'negotiating' || r.status === 'quoted').length;
-  const agreedCount = requests.filter((r) => r.status === 'agreed' || r.status === 'in_progress').length;
+  const agreedCount = requests.filter((r) => r.status === 'agreed' || r.status === 'in_progress' || r.status === 'order_created' || Boolean((r as any).order)).length;
   const totalAgreedValue = requests
-    .filter((r) => r.status === 'agreed' || r.status === 'in_progress')
-    .reduce((sum, r) => sum + Number(r.agreed_price || r.estimated_price_shown || 0), 0);
+    .filter((r) => r.status === 'agreed' || r.status === 'in_progress' || r.status === 'order_created' || Boolean((r as any).order))
+    .reduce((sum, r) => sum + toUSD(r.agreed_price || r.estimated_price_shown || 0), 0);
 
   const handleSendQuote = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -471,7 +531,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
 
     setIsSending(true);
     try {
-      await api.ensureAdminToken();
+      try { await api.ensureAdminToken(); } catch {}
       const updated = await api.request<CustomRequestItem>(`/custom-requests/${activeReq.id}/quote/`, {
         method: 'POST',
         body: JSON.stringify({
@@ -493,7 +553,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
   const handleAcceptClientOffer = async (reqId: number) => {
     setIsSending(true);
     try {
-      await api.ensureAdminToken();
+      try { await api.ensureAdminToken(); } catch {}
       await api.request(`/custom-requests/${reqId}/accept-quote/`, {
         method: 'POST',
       });
@@ -569,7 +629,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                 {adminNegotiationAlert.message}
                 {adminNegotiationAlert.offeredPrice && (
                   <span className="font-bold ml-1 font-mono text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">
-                    Client Target: ${(Number(adminNegotiationAlert.offeredPrice) / 86.85).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    Client Target: ${formatUSD(adminNegotiationAlert.offeredPrice)}
                   </span>
                 )}
               </p>
@@ -618,7 +678,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
               Active: {negotiatingCount}
             </span>
             <span className="px-2.5 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 font-bold border border-emerald-200">
-              Agreed: {agreedCount} (${(totalAgreedValue / 86.85).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+              Agreed: {agreedCount} (${formatUSD(totalAgreedValue)})
             </span>
           </div>
         </div>
@@ -800,7 +860,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                         {req.submission_intent === 'place_order' ? (
                           <span className="text-[#C9A227]">Direct Order</span>
                         ) : (
-                          `Est: $${req.estimated_price_shown ? (Number(req.estimated_price_shown) / 86.85).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '--'}`
+                          `Est: $${req.estimated_price_shown ? formatUSD(req.estimated_price_shown) : '--'}`
                         )}
                       </span>
                     </div>
@@ -1597,14 +1657,22 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                             <span>{isAdmin ? 'Super Admin' : activeReq.contact_name || 'Client'}</span>
                             <span>{new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                           </div>
-                          <p>{m.message}</p>
+                          <p>
+                            {(() => {
+                              if (m.message && m.message.includes('Official Quote issued for ₹')) {
+                                const raw = m.offered_price || m.message.replace(/[^0-9.]/g, '');
+                                return `Official Quote issued: ${formatDualAdmin(raw)}`;
+                              }
+                              return m.message;
+                            })()}
+                          </p>
                           {m.offered_price && (
                             <span
                               className={`inline-block px-2 py-0.5 rounded font-mono font-bold text-[10px] ${
                                 isAdmin ? 'bg-[#C9A227] text-white' : 'bg-emerald-100 text-emerald-900'
                               }`}
                             >
-                              Offer: ${(Number(m.offered_price) / 86.85).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              Offer: ${formatUSD(m.offered_price)} USD
                             </span>
                           )}
                         </div>
@@ -1624,7 +1692,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                         <span className="font-bold">Agreed &amp; Contract Locked</span>
                       </div>
                       <div className="font-mono font-bold text-xs bg-white px-3 py-1 rounded-lg border border-emerald-300">
-                        Final Price: ${(Number(activeReq.agreed_price || activeReq.estimated_price_shown) / 86.85).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        Final Price: ${formatUSD(activeReq.agreed_price || activeReq.estimated_price_shown)} USD
                       </div>
                     </div>
                   );
@@ -1643,7 +1711,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                       <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-300 flex items-center justify-between gap-2 text-xs">
                         <div className="flex items-center gap-1.5 text-amber-950">
                           <MessageSquare className="w-4 h-4 text-amber-700 shrink-0" />
-                          <span>Client Counter: <strong>${(Number(latestMsg.offered_price) / 86.85).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
+                          <span>Client Counter: <strong>${formatUSD(latestMsg.offered_price)} USD</strong></span>
                         </div>
                         <button
                           type="button"
@@ -1665,7 +1733,7 @@ export const AdminCustomRequestsModule: React.FC<AdminCustomRequestsModuleProps>
                           type="number"
                           value={quoteInput}
                           onChange={(e) => setQuoteInput(e.target.value ? Number(e.target.value) : '')}
-                          placeholder={String(activeReq.estimated_price_shown || 25000)}
+                          placeholder={String(activeReq.agreed_price ? toUSD(activeReq.agreed_price).toFixed(0) : (activeReq.estimated_price_shown ? toUSD(activeReq.estimated_price_shown).toFixed(0) : '250'))}
                           className="w-full pl-6 pr-2 py-1.5 text-xs rounded-xl bg-white border border-[#E8D7B7] font-mono font-bold text-[#17243B] focus:outline-none focus:border-[#C9A227]"
                         />
                       </div>

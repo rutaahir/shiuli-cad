@@ -57,7 +57,7 @@ export const StaffEarningsTab: React.FC<StaffEarningsTabProps> = ({
       return;
     }
 
-    const headers = 'Settlement ID,Order Number,Design Piece,Date,Total Payout (INR),Amount Paid (INR),Balance Due (INR),Status,Payment Method,Transaction Ref\n';
+    const headers = 'Settlement ID,Order Number,Design Piece,Date,Total Payout (USD),Amount Paid (USD),Balance Due (USD),Status,Payment Method,Transaction Ref\n';
     const rows = earnings
       .map(
         (e) =>

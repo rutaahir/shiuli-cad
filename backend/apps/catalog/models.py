@@ -129,6 +129,7 @@ class Product(models.Model):
         return f"{self.title} (${self.price})"
 
     def save(self, *args, **kwargs):
+        from decimal import Decimal
         if not self.slug:
             base_slug = slugify(self.title)
             slug = base_slug
@@ -137,6 +138,17 @@ class Product(models.Model):
                 slug = f"{base_slug}-{counter}"
                 counter += 1
             self.slug = slug
+
+        if self.uploaded_by and getattr(self.uploaded_by, 'role', '') == 'staff':
+            if self.commission_rate is None:
+                cat_comm = getattr(self.category, 'commission_percentage', None) if self.category else None
+                self.commission_rate = cat_comm if cat_comm is not None else Decimal('20.00')
+            if self.price is not None:
+                comm_pct = self.commission_rate or Decimal('20.00')
+                self.commission_amount = round(Decimal(str(self.price)) * (Decimal(str(comm_pct)) / Decimal('100.00')), 2)
+                if self.staff_price is None:
+                    self.staff_price = round(Decimal(str(self.price)) - self.commission_amount, 2)
+
         super().save(*args, **kwargs)
 
 

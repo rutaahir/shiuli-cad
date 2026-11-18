@@ -32,6 +32,14 @@ import { appStore } from '../../services/store';
 import { getOptimizedImageUrl } from '../../utils/imageHelper';
 import { AdminDesignerApplicationsSection } from './AdminDesignerApplicationsSection';
 
+const formatApprovalPrice = (val: number | string | null | undefined): string => {
+  if (val == null || val === '') return '0.00';
+  const num = typeof val === 'number' ? val : parseFloat(String(val));
+  if (isNaN(num) || num <= 0) return '0.00';
+  const usd = num > 500 ? num / 86.85 : num;
+  return usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
 export const AdminApprovalsModule: React.FC = () => {
   const [approvals, setApprovals] = useState<DesignApproval[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -160,7 +168,7 @@ export const AdminApprovalsModule: React.FC = () => {
               thumbnail: ord.preview_image || req.sketches?.[0]?.image_url || req.sketches?.[0]?.image || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&q=80&w=600',
               status: isRevision ? 'revision' : isPendingReview ? 'pending' : isApproved ? 'approved' : 'rejected',
               fileFormats: ['3DM', 'STL', 'Render'],
-              suggestedPrice: Math.round(rawPrice > 0 ? rawPrice : 250),
+              suggestedPrice: rawPrice > 0 ? (rawPrice > 500 ? rawPrice / 86.85 : rawPrice) : 250,
               specs: {
                 metalWeight18k: orderMetal,
                 diamondCount: orderStones,
@@ -586,7 +594,7 @@ export const AdminApprovalsModule: React.FC = () => {
                           <FileCode className="w-3 h-3 text-[#C9A227]" /> Attached CAD Deliverables:
                         </span>
                         <span className="font-bold text-xs text-[#17243B]">
-                          Value: ${(item.suggestedPrice / 86.85).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          Value: ${formatApprovalPrice(item.suggestedPrice)}
                         </span>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
@@ -624,7 +632,7 @@ export const AdminApprovalsModule: React.FC = () => {
                         </span>
                       ))}
                       <span className="ml-auto font-bold text-xs text-[#17243B]">
-                        Value: ${(item.suggestedPrice / 86.85).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        Value: ${formatApprovalPrice(item.suggestedPrice)}
                       </span>
                     </div>
                   )}
@@ -1072,7 +1080,7 @@ export const AdminApprovalsModule: React.FC = () => {
                 Stone: <strong className="text-amber-300">{inspectingItem.specs?.diamondCount || 'As Specified'}</strong>
               </span>
               <span className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-slate-300">
-                Value: <strong className="text-white">${((inspectingItem.suggestedPrice || 0) / 86.85).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                Value: <strong className="text-white">${formatApprovalPrice(inspectingItem.suggestedPrice)}</strong>
               </span>
               <div className="flex items-center gap-1">
                 {inspectingItem.fileFormats?.map((f) => (

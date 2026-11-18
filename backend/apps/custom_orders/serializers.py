@@ -139,10 +139,29 @@ class CustomRequestImageSerializer(serializers.ModelSerializer):
 
 
 class NegotiationMessageSerializer(serializers.ModelSerializer):
+    offered_price_usd = serializers.SerializerMethodField()
+    offered_price_inr = serializers.SerializerMethodField()
+
     class Meta:
         model = NegotiationMessage
-        fields = ['id', 'request', 'sender_type', 'message', 'offered_price', 'created_at']
+        fields = ['id', 'request', 'sender_type', 'message', 'offered_price', 'offered_price_usd', 'offered_price_inr', 'created_at']
         read_only_fields = ['id', 'sender_type', 'created_at']
+
+    def get_offered_price_usd(self, obj):
+        if obj.offered_price is None:
+            return None
+        val = float(obj.offered_price)
+        if val > 500:
+            return round(val / 86.85, 2)
+        return round(val, 2)
+
+    def get_offered_price_inr(self, obj):
+        if obj.offered_price is None:
+            return None
+        val = float(obj.offered_price)
+        if val > 500:
+            return int(round(val))
+        return int(round(val * 86.85))
 
 
 from apps.payments.serializers import OrderPaymentStageSerializer
@@ -289,6 +308,10 @@ class CustomRequestSerializer(serializers.ModelSerializer):
     selections = CustomRequestSelectionSerializer(many=True, read_only=True)
     sketches = CustomRequestImageSerializer(many=True, read_only=True)
     messages = NegotiationMessageSerializer(many=True, read_only=True)
+    agreed_price_usd = serializers.SerializerMethodField()
+    agreed_price_inr = serializers.SerializerMethodField()
+    estimated_price_shown_usd = serializers.SerializerMethodField()
+    estimated_price_shown_inr = serializers.SerializerMethodField()
 
     order = serializers.SerializerMethodField()
 
@@ -315,6 +338,8 @@ class CustomRequestSerializer(serializers.ModelSerializer):
             'reference_product_price', 'reference_product_image',
             'voice_recording', 'voice_recording_url', 'description',
             'contact_name', 'contact_phone', 'contact_email', 'status', 'agreed_price',
+            'agreed_price_usd', 'agreed_price_inr',
+            'estimated_price_shown_usd', 'estimated_price_shown_inr',
             'admin_commission_percentage', 'admin_call_notes',
             'client_consent_to_feature',
             'gemstones', 'stones', 'selections', 'sketches', 'messages',
@@ -349,6 +374,26 @@ class CustomRequestSerializer(serializers.ModelSerializer):
             request = self.context.get('request')
             return ClientOrderSerializer(obj.order, context={'request': request}).data
         return None
+
+    def _to_usd_inr(self, val):
+        if val is None:
+            return None, None
+        f_val = float(val)
+        if f_val > 500:
+            return round(f_val / 86.85, 2), int(round(f_val))
+        return round(f_val, 2), int(round(f_val * 86.85))
+
+    def get_agreed_price_usd(self, obj):
+        return self._to_usd_inr(obj.agreed_price)[0]
+
+    def get_agreed_price_inr(self, obj):
+        return self._to_usd_inr(obj.agreed_price)[1]
+
+    def get_estimated_price_shown_usd(self, obj):
+        return self._to_usd_inr(obj.estimated_price_shown)[0]
+
+    def get_estimated_price_shown_inr(self, obj):
+        return self._to_usd_inr(obj.estimated_price_shown)[1]
 
     def get_client_name(self, obj):
         if obj.client:
@@ -676,6 +721,10 @@ class OrderCustomRequestSummarySerializer(serializers.ModelSerializer):
     selections = CustomRequestSelectionSerializer(many=True, read_only=True)
     sketches = CustomRequestImageSerializer(many=True, read_only=True)
     messages = NegotiationMessageSerializer(many=True, read_only=True)
+    agreed_price_usd = serializers.SerializerMethodField()
+    agreed_price_inr = serializers.SerializerMethodField()
+    estimated_price_shown_usd = serializers.SerializerMethodField()
+    estimated_price_shown_inr = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomRequest
@@ -692,6 +741,8 @@ class OrderCustomRequestSummarySerializer(serializers.ModelSerializer):
             'reference_product_price', 'reference_product_image',
             'voice_recording', 'voice_recording_url', 'description',
             'contact_name', 'contact_phone', 'contact_email', 'status', 'agreed_price',
+            'agreed_price_usd', 'agreed_price_inr',
+            'estimated_price_shown_usd', 'estimated_price_shown_inr',
             'admin_commission_percentage', 'admin_call_notes', 'client_consent_to_feature',
             'gemstones', 'stones', 'selections', 'sketches', 'messages', 'created_at'
         ]
@@ -729,6 +780,26 @@ class OrderCustomRequestSummarySerializer(serializers.ModelSerializer):
 
     def get_metal_swatch_color(self, obj):
         return resolve_custom_request_swatch(obj)
+
+    def _to_usd_inr(self, val):
+        if val is None:
+            return None, None
+        f_val = float(val)
+        if f_val > 500:
+            return round(f_val / 86.85, 2), int(round(f_val))
+        return round(f_val, 2), int(round(f_val * 86.85))
+
+    def get_agreed_price_usd(self, obj):
+        return self._to_usd_inr(obj.agreed_price)[0]
+
+    def get_agreed_price_inr(self, obj):
+        return self._to_usd_inr(obj.agreed_price)[1]
+
+    def get_estimated_price_shown_usd(self, obj):
+        return self._to_usd_inr(obj.estimated_price_shown)[0]
+
+    def get_estimated_price_shown_inr(self, obj):
+        return self._to_usd_inr(obj.estimated_price_shown)[1]
 
 
 def sanitize_staff_text(text):
@@ -800,6 +871,26 @@ class StaffCustomRequestSerializer(serializers.ModelSerializer):
 
     def get_metal_swatch_color(self, obj):
         return resolve_custom_request_swatch(obj)
+
+    def _to_usd_inr(self, val):
+        if val is None:
+            return None, None
+        f_val = float(val)
+        if f_val > 500:
+            return round(f_val / 86.85, 2), int(round(f_val))
+        return round(f_val, 2), int(round(f_val * 86.85))
+
+    def get_agreed_price_usd(self, obj):
+        return self._to_usd_inr(obj.agreed_price)[0]
+
+    def get_agreed_price_inr(self, obj):
+        return self._to_usd_inr(obj.agreed_price)[1]
+
+    def get_estimated_price_shown_usd(self, obj):
+        return self._to_usd_inr(obj.estimated_price_shown)[0]
+
+    def get_estimated_price_shown_inr(self, obj):
+        return self._to_usd_inr(obj.estimated_price_shown)[1]
 
 
 class OrderMilestoneSerializer(serializers.ModelSerializer):
@@ -1038,6 +1129,7 @@ class StaffOrderSerializer(serializers.ModelSerializer):
     revision_requests = StaffRevisionRequestSerializer(many=True, read_only=True)
     preview_image = serializers.SerializerMethodField()
     staff_payout_price = serializers.SerializerMethodField()
+    staff_payout_price_usd = serializers.SerializerMethodField()
     payout_price = serializers.SerializerMethodField()
 
     class Meta:
@@ -1048,7 +1140,7 @@ class StaffOrderSerializer(serializers.ModelSerializer):
             'deadline_hours', 'due_at', 'is_overdue', 'assigned_at',
             'unassigned_since', 'preview_image', 'admin_review_notes',
             'milestones', 'deliverables', 'revision_requests', 'created_at',
-            'staff_payout_price', 'payout_price'
+            'staff_payout_price', 'staff_payout_price_usd', 'payout_price', 'currency'
         ]
 
     def get_is_file_edit(self, obj):
@@ -1063,14 +1155,19 @@ class StaffOrderSerializer(serializers.ModelSerializer):
     def get_staff_payout_price(self, obj):
         curr = getattr(obj, 'currency', 'INR') or 'INR'
         raw = 0.0
-        if obj.staff_payout_price is not None:
+        if obj.staff_payout_price is not None and float(obj.staff_payout_price) > 0:
             raw = float(obj.staff_payout_price)
-        elif obj.total_price is not None:
+        elif obj.total_price is not None and float(obj.total_price) > 0:
             pct = float(obj.admin_commission_percentage if obj.admin_commission_percentage is not None else 20.00)
             raw = float(obj.total_price) * max(0.0, (100.0 - pct) / 100.0)
-        if curr == 'INR':
-            return round(raw / 86.85, 2)
-        return round(raw, 2)
+
+        # If raw is <= 500 or curr is 'USD', this is already in USD!
+        if curr == 'USD' or raw <= 500:
+            return round(raw, 2)
+        return round(raw / 86.85, 2)
+
+    def get_staff_payout_price_usd(self, obj):
+        return self.get_staff_payout_price(obj)
 
     def get_payout_price(self, obj):
         return self.get_staff_payout_price(obj)
@@ -1129,7 +1226,7 @@ class AdminOrderSerializer(serializers.ModelSerializer):
             return 0.0
         f_val = float(val)
         curr = getattr(obj, 'currency', 'INR') or 'INR'
-        if curr == 'USD':
+        if curr == 'USD' or f_val <= 500:
             return round(f_val, 2)
         return round(f_val / 86.85, 2)
 
@@ -1246,7 +1343,7 @@ class ClientOrderSerializer(serializers.ModelSerializer):
     def get_total_price_usd(self, obj):
         curr = getattr(obj, 'currency', 'INR') or 'INR'
         amt = float(obj.total_price or 0)
-        return round(amt if curr == 'USD' else amt / 86.85, 2)
+        return round(amt if (curr == 'USD' or amt <= 500) else amt / 86.85, 2)
 
     def get_is_file_edit(self, obj):
         return obj.order_type == Order.OrderType.FILE_EDIT or bool(obj.file_edit_request_id or getattr(obj, 'file_edit_source', None))

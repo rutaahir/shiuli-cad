@@ -80,11 +80,41 @@ import {
 
 const USD_TO_INR_RATE = 86.85;
 
+export const formatNegotiationPrice = (price: number | string | null | undefined) => {
+  if (price == null || price === '') return { usd: '$0.00 USD', inr: '₹0', display: '$0.00 USD', shortDisplay: '$0.00', buttonDisplay: '$0.00 USD' };
+  const num = Number(price);
+  if (isNaN(num) || num <= 0) return { usd: '$0.00 USD', inr: '₹0', display: '$0.00 USD', shortDisplay: '$0.00', buttonDisplay: '$0.00 USD' };
+
+  let usdNum: number;
+  let inrNum: number;
+
+  if (num > 500) {
+    inrNum = Math.round(num);
+    usdNum = Number((num / USD_TO_INR_RATE).toFixed(2));
+  } else {
+    usdNum = Number(num.toFixed(2));
+    inrNum = Math.round(num * USD_TO_INR_RATE);
+  }
+
+  const usdStr = `$${usdNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+  const inrStr = `₹${inrNum.toLocaleString('en-IN')}`;
+  return {
+    usd: usdStr,
+    inr: inrStr,
+    usdNum,
+    inrNum,
+    display: `${usdStr} (≈ ${inrStr})`,
+    shortDisplay: `$${usdNum.toFixed(2)} USD`,
+    buttonDisplay: `$${usdNum.toFixed(2)} USD / ${inrStr}`,
+  };
+};
+
 const formatINR = (val: number | string | undefined | null) => {
   if (val === undefined || val === null || val === '') return '₹0';
-  const num = typeof val === 'number' ? val : parseFloat(val);
+  const num = typeof val === 'number' ? val : parseFloat(String(val));
   if (isNaN(num) || num <= 0) return '₹0';
-  return `₹${Math.round(num).toLocaleString('en-IN')}`;
+  const inr = num > 500 ? Math.round(num) : Math.round(num * USD_TO_INR_RATE);
+  return `₹${inr.toLocaleString('en-IN')}`;
 };
 
 interface ClientDashboardPageProps {
@@ -308,7 +338,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
   // Re-submit Payment Proof State
   const [resubmitModalPurchase, setResubmitModalPurchase] = useState<any | null>(null);
   const [resubmitUtr, setResubmitUtr] = useState('');
-  const [resubmitMethod, setResubmitMethod] = useState<'upi' | 'cash_check'>('upi');
+  const [resubmitMethod, setResubmitMethod] = useState<'cash_check'>('cash_check');
   const [resubmitDetails, setResubmitDetails] = useState('');
   const [resubmitFile, setResubmitFile] = useState<File | null>(null);
   const [resubmitFilePreview, setResubmitFilePreview] = useState<string | null>(null);
@@ -317,7 +347,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
   const openResubmitModal = (purchase: any) => {
     setResubmitModalPurchase(purchase);
     setResubmitUtr(purchase.payment_transaction_id || '');
-    setResubmitMethod(purchase.payment_method === 'cash_check' ? 'cash_check' : 'upi');
+    setResubmitMethod('cash_check');
     setResubmitDetails(purchase.payment_details || '');
     setResubmitFile(null);
     setResubmitFilePreview(null);
@@ -618,7 +648,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
             const prevMsgId = lastAdminMsgIdRef.current[itemKey] || 0;
             if (latestAdminMsg.id > prevMsgId) {
               lastAdminMsgIdRef.current[itemKey] = latestAdminMsg.id;
-              const offerTxt = latestAdminMsg.offered_price ? ` (Quote Offer: ${formatINR(latestAdminMsg.offered_price)})` : '';
+              const offerTxt = latestAdminMsg.offered_price ? ` (Quote Offer: ${formatNegotiationPrice(latestAdminMsg.offered_price).usd})` : '';
 
               playNegotiationRing();
               triggerNegotiationAlert({
@@ -664,7 +694,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                 reqId: r.id,
                 orderId: ord?.id,
                 title: `${ordNum} APPROVED!`,
-                message: `Studio Admin approved your order. Final agreed price: ${formatINR(r.agreed_price || r.estimated_price_shown)}.`,
+                message: `Studio Admin approved your order. Final agreed price: ${formatNegotiationPrice(r.agreed_price || r.estimated_price_shown).usd}.`,
                 offeredPrice: r.agreed_price ? Number(r.agreed_price) : undefined,
               });
             } else if (r.status === 'rejected') {
@@ -951,24 +981,28 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
     title: string;
     amount: number;
     percentage: number;
+    currency?: string;
   }>({
     isOpen: false,
     stageId: 0,
     title: '',
     amount: 0,
     percentage: 0,
+    currency: 'USD',
   });
 
   const handlePayStage = (stage: any, orderId?: number) => {
     const isObj = typeof stage === 'object' && stage !== null;
+    const amountVal = isObj ? (Number(stage.amount) || 0) : 0;
     setStagePaymentModalState({
       isOpen: true,
       stageId: isObj ? stage.id : stage,
       orderId: orderId,
       isFullPayment: false,
       title: (isObj ? (stage.stage_name || stage.label) : null) || 'Milestone CAD Stage Payment',
-      amount: isObj ? (Number(stage.amount) || 0) : 0,
+      amount: amountVal,
       percentage: isObj ? (Number(stage.percentage) || 0) : 0,
+      currency: isObj && stage.currency ? stage.currency : (amountVal <= 500 ? 'USD' : 'INR'),
     });
   };
 
@@ -981,6 +1015,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
       title: `Order #${targetOrder?.id || ''} — Settle Complete Balance in Full`,
       amount: unpaidAmount,
       percentage: 100,
+      currency: targetOrder?.currency || (Number(unpaidAmount) <= 500 ? 'USD' : 'INR'),
     });
   };
 
@@ -1495,7 +1530,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                               {negotiationAlertBanner.message}
                               {negotiationAlertBanner.offeredPrice && (
                                 <span className="text-[#B88732] font-black ml-1.5 font-mono text-sm">
-                                  (Offered Price: {formatINR(negotiationAlertBanner.offeredPrice)})
+                                  (Offered Price: {formatNegotiationPrice(negotiationAlertBanner.offeredPrice).display})
                                 </span>
                               )}
                             </p>
@@ -1811,7 +1846,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                       <div>
                                         <span className="text-[10px] text-[#687386] block leading-none font-semibold">ORDER TOTAL</span>
                                         <span className="text-xs font-extrabold text-[#0B1330]">
-                                          {itemTotal > 0 ? formatINR(itemTotal) : 'Estimating'}
+                                          {itemTotal > 0 ? `${formatNegotiationPrice(itemTotal).usd} (≈ ${formatNegotiationPrice(itemTotal).inr})` : 'Estimating'}
                                         </span>
                                       </div>
                                       <div className="text-right">
@@ -1929,7 +1964,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                             <div className="text-left md:text-right font-mono">
                               <span className="text-[10px] text-slate-300 block uppercase leading-none">Order Balance</span>
                               <span className="text-xs sm:text-sm font-bold text-[#F5E7A3]">
-                                {totalVal > 0 ? formatINR(totalVal) : 'Est'} • <span className={isFullyPaid ? 'text-emerald-300' : 'text-amber-300'}>{paidPct}% Paid</span>
+                                {totalVal > 0 ? `${formatNegotiationPrice(totalVal).usd} (≈ ${formatNegotiationPrice(totalVal).inr})` : 'Est'} • <span className={isFullyPaid ? 'text-emerald-300' : 'text-amber-300'}>{paidPct}% Paid</span>
                               </span>
                             </div>
                             <button
@@ -2233,7 +2268,13 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                           <>
                             <div className="flex justify-between text-xs font-mono">
                               <span className="text-[#5A6679]">Payment Progress</span>
-                              <span className="text-[#B88732] font-bold">{formatINR(paidVal)} of {formatINR(totalVal)} ({paidPct}%)</span>
+                              <span className="text-[#B88732] font-bold">
+                                {formatNegotiationPrice(paidVal).usd} of {formatNegotiationPrice(totalVal).usd} ({paidPct}%)
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center text-[10px] font-mono text-[#5A6679]">
+                              <span>Settled in INR:</span>
+                              <span className="font-semibold text-[#0B1330]">{formatNegotiationPrice(paidVal).inr} of {formatNegotiationPrice(totalVal).inr}</span>
                             </div>
                             <div className="w-full h-2.5 rounded-full bg-[#EAE2D2] overflow-hidden p-0.5 border border-[#E8D7B7]/60">
                               <div
@@ -2262,9 +2303,9 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                               {req.status === 'rejected'
                                 ? (req.rejection_reason || 'File could not be modified according to specifications.')
                                 : req.status === 'agreed'
-                                ? `Agreed at ${formatINR(req.agreed_price || req.quoted_price || req.estimated_price_shown)}${req.agreed_price_usd ? ` ($${Number(req.agreed_price_usd).toFixed(2)} USD)` : ''}. Production scheduled.`
+                                ? `Agreed at ${formatNegotiationPrice(req.agreed_price || req.quoted_price || req.estimated_price_shown).display}. Production scheduled.`
                                 : req.status === 'quoted'
-                                ? `Official price of ${formatINR(req.quoted_price || req.agreed_price || req.estimated_price_shown)}${req.quoted_price_usd ? ` ($${Number(req.quoted_price_usd).toFixed(2)} USD)` : ''} quoted. Order confirms upon agreement.`
+                                ? `Official price of ${formatNegotiationPrice(req.quoted_price || req.agreed_price || req.estimated_price_shown).display} quoted. Order confirms upon agreement.`
                                 : req.status === 'negotiating'
                                 ? 'Price counter-offer is being negotiated with Studio SuperAdmin.'
                                 : req.is_file_edit
@@ -2978,13 +3019,11 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                 </div>
                                 <div className="text-left sm:text-right">
                                   <span className="font-serif text-2xl font-bold text-[#B88732] block">
-                                    {formatINR(currentOfferedPrice)}
+                                    {formatNegotiationPrice(currentOfferedPrice).usd}
                                   </span>
-                                  {req.is_file_edit && (req.agreed_price_usd || req.quoted_price_usd) && (
-                                    <span className="text-xs font-mono font-semibold text-[#5A6679] block">
-                                      ≈ ${Number(req.agreed_price_usd || req.quoted_price_usd).toFixed(2)} USD (1 USD = ₹86.85)
-                                    </span>
-                                  )}
+                                  <span className="text-xs font-mono font-semibold text-[#5A6679] block">
+                                    ≈ {formatNegotiationPrice(currentOfferedPrice).inr} INR (1 USD = ₹86.85)
+                                  </span>
                                   <span className="text-[10px] font-mono text-[#5A6679]">
                                     {isOrderConfirmed
                                       ? 'Agreed Contract Price'
@@ -3022,17 +3061,23 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                             <span className="font-bold">{isAdmin ? 'Senior CAD Engineer (Admin)' : 'You'}</span>
                                             <span className="font-mono">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                           </div>
-                                          <p className={isAdmin ? 'text-[#2A3547]' : 'text-slate-100'}>{msg.message}</p>
+                                          <p className={isAdmin ? 'text-[#2A3547]' : 'text-slate-100'}>
+                                            {(() => {
+                                              if (msg.message && msg.message.includes('Official Quote issued for ₹')) {
+                                                const raw = msg.offered_price || msg.message.replace(/[^0-9.]/g, '');
+                                                return `Official Quote issued: ${formatNegotiationPrice(raw).display}`;
+                                              }
+                                              return msg.message;
+                                            })()}
+                                          </p>
                                           {msg.offered_price && (
                                             <div className={`mt-2 p-2 rounded-xl border flex items-center justify-between text-xs ${isAdmin ? 'bg-[#FFF9EE] border-[#E8D7B7] text-[#0B1330]' : 'bg-white/10 border-[#D4AF37]/40 text-[#F5E7A3]'}`}>
                                               <span className="text-[10px] uppercase font-mono">Official Price Offer:</span>
                                               <span className="font-mono font-bold text-[#B88732]">
-                                                {formatINR(msg.offered_price)}
-                                                {msg.offered_price_usd ? (
-                                                  <span className="text-[10px] font-normal text-[#5A6679] ml-1">
-                                                    (${Number(msg.offered_price_usd).toFixed(2)} USD)
-                                                  </span>
-                                                ) : null}
+                                                {formatNegotiationPrice(msg.offered_price).usd}
+                                                <span className="text-[10px] font-normal text-[#5A6679] ml-1.5">
+                                                  (≈ {formatNegotiationPrice(msg.offered_price).inr})
+                                                </span>
                                               </span>
                                             </div>
                                           )}
@@ -3079,8 +3124,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                     <div>
                                       <span className="font-bold text-emerald-950 text-sm block">Quote Accepted &amp; Status AGREED!</span>
                                       <span className="text-emerald-800 text-[11px]">
-                                        Agreed Final Price: <strong>{formatINR(req.agreed_price || req.estimated_price_shown)}</strong>
-                                        {req.agreed_price_usd ? <span className="text-emerald-900 font-mono font-normal ml-1">(${Number(req.agreed_price_usd).toFixed(2)} USD)</span> : null}. Payment schedule is active below.
+                                        Agreed Final Price: <strong>{formatNegotiationPrice(req.agreed_price || req.estimated_price_shown).usd}</strong> <span className="text-emerald-900 font-mono font-normal ml-1">({formatNegotiationPrice(req.agreed_price || req.estimated_price_shown).inr})</span>. Payment schedule is active below.
                                       </span>
                                     </div>
                                   </div>
@@ -3104,14 +3148,14 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                         <div className="space-y-0.5">
                                           <div className="flex items-center gap-2">
                                             <span className="font-bold text-amber-950 text-sm">
-                                              Your Counter-Offer of {formatINR(currentOfferedPrice)} is with SuperAdmin
+                                              Your Counter-Offer of {formatNegotiationPrice(currentOfferedPrice).usd} is with SuperAdmin
                                             </span>
                                             <span className="px-2 py-0.5 rounded bg-amber-200 text-amber-900 border border-amber-300 text-[9px] font-mono font-bold uppercase">
                                               Pending Admin Decision
                                             </span>
                                           </div>
                                           <p className="text-amber-800 text-[11px] leading-relaxed">
-                                            You offered {formatINR(currentOfferedPrice)}. Waiting for the Studio Admin to review and accept your offer or reply with revised terms. You cannot accept your own counter-offer.
+                                            You offered {formatNegotiationPrice(currentOfferedPrice).display}. Waiting for the Studio Admin to review and accept your offer or reply with revised terms. You cannot accept your own counter-offer.
                                           </p>
                                         </div>
                                       </div>
@@ -3137,7 +3181,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                         ) : (
                                           <CheckCircle2 className="w-4 h-4 text-[#0B1330]" />
                                         )}
-                                        <span>Accept Quote ({formatINR(currentOfferedPrice)}{req.is_file_edit && (req.agreed_price_usd || req.quoted_price_usd) ? ` / $${Number(req.agreed_price_usd || req.quoted_price_usd).toFixed(2)} USD` : ''}) &amp; Confirm Order</span>
+                                        <span>Accept Quote ({formatNegotiationPrice(currentOfferedPrice).buttonDisplay}) &amp; Confirm Order</span>
                                       </button>
 
                                       {/* Option 2: Propose Counter Price / Send Price Request */}
@@ -3273,7 +3317,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                 3. Order Payment Options
                               </span>
                               <span className="text-[10px] font-mono text-[#5A6679]">
-                                {isFullyPaid ? '100% Fully Settled' : isOrderConfirmed ? `Balance: ${formatINR(unpaidVal)}` : 'Awaiting Order Approval'}
+                                {isFullyPaid ? '100% Fully Settled' : isOrderConfirmed ? `Balance: ${formatNegotiationPrice(unpaidVal).display}` : 'Awaiting Order Approval'}
                               </span>
                             </div>
                           </div>
@@ -3318,7 +3362,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                             ) : (
                               <span className="px-3.5 py-1 rounded-full bg-amber-50 text-[#B88732] border border-[#E8D7B7] text-[11px] font-mono font-bold inline-flex items-center gap-1.5 shadow-sm">
                                 <CreditCard className="w-3.5 h-3.5 text-[#B88732]" />
-                                Balance Due: {formatINR(unpaidVal)}
+                                Balance Due: {formatNegotiationPrice(unpaidVal).display}
                               </span>
                             )}
                           </div>
@@ -3343,10 +3387,10 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                         : Number(req.agreed_price || req.estimated_price_shown || 0);
 
                                       if (isLatestOfferFromClient) {
-                                        return `Your counter-offer of ${formatINR(currentOfferedPrice)} is waiting for SuperAdmin review. Stage payment unlocks once admin accepts your offer.`;
+                                        return `Your counter-offer of ${formatNegotiationPrice(currentOfferedPrice).usd} is waiting for SuperAdmin review. Stage payment unlocks once admin accepts your offer.`;
                                       }
                                       if (req.status === 'quoted') {
-                                        return `Studio has quoted ${formatINR(currentOfferedPrice)}. Accept the quote above to confirm the order and unlock Stage 1 payment.`;
+                                        return `Studio has quoted ${formatNegotiationPrice(currentOfferedPrice).display}. Accept the quote above to confirm the order and unlock Stage 1 payment.`;
                                       }
                                       if (req.status === 'negotiating') {
                                         return 'Negotiation is in progress. Stage payment will unlock once an offer is accepted by either you or the atelier administrator.';
@@ -3380,7 +3424,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                       ) : (
                                         <CheckCircle2 className="w-3.5 h-3.5 text-[#0B1330]" />
                                       )}
-                                      <span>Accept Admin Quote ({formatINR(currentOfferedPrice)})</span>
+                                      <span>Accept Admin Quote ({formatNegotiationPrice(currentOfferedPrice).buttonDisplay})</span>
                                     </button>
                                   );
                                 }
@@ -3398,7 +3442,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                 </div>
                                 <div className="space-y-0.5">
                                   <h4 className="font-serif font-bold text-emerald-900 text-base flex items-center gap-2">
-                                    <span>Order Completely Paid in Full ({formatINR(paidVal)})</span>
+                                    <span>Order Completely Paid in Full ({formatNegotiationPrice(paidVal).display})</span>
                                   </h4>
                                   <p className="text-xs text-emerald-700">
                                     All payment stages are cleared. 3D inspection preview and final CAD deliverables are unlocked.
@@ -3435,8 +3479,8 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                   </h4>
                                   <p className="text-xs text-slate-300 leading-relaxed">
                                     {paidVal > 0
-                                      ? `You have paid ${formatINR(paidVal)} so far. Settle the remaining balance (${formatINR(unpaidVal)}) now to complete your order without stage interruptions.`
-                                      : `Settle the full ${formatINR(unpaidVal)} upfront. Automatically unlocks all 3D inspection previews and final CAD file deliverables upon completion.`}
+                                      ? `You have paid ${formatNegotiationPrice(paidVal).display} so far. Settle the remaining balance (${formatNegotiationPrice(unpaidVal).display}) now to complete your order without stage interruptions.`
+                                      : `Settle the full ${formatNegotiationPrice(unpaidVal).display} upfront. Automatically unlocks all 3D inspection previews and final CAD file deliverables upon completion.`}
                                   </p>
                                 </div>
 
@@ -3447,13 +3491,8 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                     </span>
                                     <div className="flex items-baseline gap-2">
                                       <span className="font-serif text-2xl font-extrabold text-[#F5E7A3]">
-                                        {formatINR(unpaidVal)}
+                                        {formatNegotiationPrice(unpaidVal).display}
                                       </span>
-                                      {req.is_file_edit && (req.agreed_price_usd || req.quoted_price_usd) && (
-                                        <span className="text-xs font-mono text-slate-300 font-normal">
-                                          (${((unpaidVal / (totalVal || 1)) * Number(req.agreed_price_usd || req.quoted_price_usd)).toFixed(2)} USD)
-                                        </span>
-                                      )}
                                     </div>
                                   </div>
                                   <button
@@ -3461,7 +3500,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                     className="btn-gold-luxury px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-[0_4px_20px_rgba(212,175,55,0.4)] cursor-pointer hover:scale-[1.02] transition-all"
                                   >
                                     <CreditCard className="w-4 h-4 text-[#0B1330]" />
-                                    <span>Pay Full Amount ({formatINR(unpaidVal)})</span>
+                                    <span>Pay Full Amount ({formatNegotiationPrice(unpaidVal).buttonDisplay})</span>
                                   </button>
                                 </div>
                               </div>
@@ -3505,7 +3544,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                     <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-mono font-bold">10% Split</span>
                                   </div>
                                   <div className="flex items-baseline justify-between">
-                                    <span className="text-sm font-serif font-bold text-[#B88732]">{hasOfficialQuote ? formatINR(totalVal * 0.1) : 'Quote Pending'}</span>
+                                    <span className="text-sm font-serif font-bold text-[#B88732]">{hasOfficialQuote ? formatNegotiationPrice(totalVal * 0.1).display : 'Quote Pending'}</span>
                                     <span className="text-[10px] text-[#5A6679]">Due Immediately to Start CAD</span>
                                   </div>
                                   <div className="pt-2 border-t border-[#E8D7B7]/50 flex items-center justify-center">
@@ -3520,7 +3559,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                     <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-mono font-bold">30% Split</span>
                                   </div>
                                   <div className="flex items-baseline justify-between">
-                                    <span className="text-sm font-serif font-bold text-[#B88732]">{hasOfficialQuote ? formatINR(totalVal * 0.3) : 'Quote Pending'}</span>
+                                    <span className="text-sm font-serif font-bold text-[#B88732]">{hasOfficialQuote ? formatNegotiationPrice(totalVal * 0.3).display : 'Quote Pending'}</span>
                                     <span className="text-[10px] text-[#5A6679]">Due on 3D Preview Approval</span>
                                   </div>
                                   <div className="pt-2 border-t border-[#E8D7B7]/50 flex items-center justify-center">
@@ -3535,7 +3574,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                     <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-mono font-bold">60% Split</span>
                                   </div>
                                   <div className="flex items-baseline justify-between">
-                                    <span className="text-sm font-serif font-bold text-[#B88732]">{hasOfficialQuote ? formatINR(totalVal * 0.6) : 'Quote Pending'}</span>
+                                    <span className="text-sm font-serif font-bold text-[#B88732]">{hasOfficialQuote ? formatNegotiationPrice(totalVal * 0.6).display : 'Quote Pending'}</span>
                                     <span className="text-[10px] text-[#5A6679]">Due Before Final File Release</span>
                                   </div>
                                   <div className="pt-2 border-t border-[#E8D7B7]/50 flex items-center justify-center">
@@ -3553,7 +3592,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                     <span className="px-2 py-0.5 rounded-full bg-[#FFF9EE] text-[#B88732] border border-[#E8D7B7] text-[10px] font-mono font-bold">{st.percentage}% Split</span>
                                   </div>
                                   <div className="flex items-baseline justify-between">
-                                    <span className="text-base font-serif font-bold text-[#B88732]">{formatINR(st.amount)}</span>
+                                    <span className="text-base font-serif font-bold text-[#B88732]">{formatNegotiationPrice(st.amount).display}</span>
                                     <span className="text-[10px] text-[#5A6679]">
                                       {st.trigger_type === 'immediate'
                                         ? 'Due Immediately to Start CAD'
@@ -3574,7 +3613,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                         className="w-full btn-gold-luxury py-2.5 rounded-xl text-xs font-black uppercase tracking-wider shadow-md cursor-pointer flex items-center justify-center gap-2"
                                       >
                                         <CreditCard className="w-3.5 h-3.5 text-[#0B1330]" />
-                                        <span>Pay Stage ({formatINR(st.amount)})</span>
+                                        <span>Pay Stage ({formatNegotiationPrice(st.amount).buttonDisplay})</span>
                                       </button>
                                     ) : (
                                       <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 text-slate-500 border border-slate-300 text-xs font-mono w-full justify-center">
@@ -3646,15 +3685,15 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                               <div className="p-4 rounded-2xl bg-[#FCFAF7] border border-[#E8D7B7] space-y-2.5">
                                 <div className="flex items-center justify-between text-xs font-mono">
                                   <span className="text-[#5A6679]">Total Order Valuation:</span>
-                                  <span className="font-serif font-bold text-[#0B1330]">{formatINR(totalVal)}</span>
+                                  <span className="font-serif font-bold text-[#0B1330]">{formatNegotiationPrice(totalVal).display}</span>
                                 </div>
                                 <div className="flex items-center justify-between text-xs font-mono">
                                   <span className="text-[#5A6679]">Paid Amount:</span>
-                                  <span className="font-bold text-emerald-600">{formatINR(paidVal)}</span>
+                                  <span className="font-bold text-emerald-600">{formatNegotiationPrice(paidVal).display}</span>
                                 </div>
                                 <div className="flex items-center justify-between text-xs font-mono">
                                   <span className="text-[#5A6679]">Remaining Balance:</span>
-                                  <span className="font-bold text-[#B88732]">{formatINR(unpaidVal)}</span>
+                                  <span className="font-bold text-[#B88732]">{formatNegotiationPrice(unpaidVal).display}</span>
                                 </div>
                                 {isFullyPaid ? (
                                   <span className="text-xs font-mono font-bold text-emerald-600 flex items-center justify-center gap-1 pt-1">
@@ -3680,7 +3719,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                 <tr>
                                   <th className="p-4 font-bold">Stage Name</th>
                                   <th className="p-4 font-bold">% Split</th>
-                                  <th className="p-4 font-bold">Amount (INR)</th>
+                                  <th className="p-4 font-bold">Amount (USD / INR)</th>
                                   <th className="p-4 font-bold">Trigger Condition</th>
                                   <th className="p-4 text-right font-bold">Payment Status</th>
                                 </tr>
@@ -3692,12 +3731,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                       <td className="p-4 font-bold text-[#0B1330]">Stage 1: Booking Confirmation</td>
                                       <td className="p-4 font-mono font-medium text-[#0B1330]">10.00%</td>
                                       <td className="p-4 font-serif text-sm font-bold text-[#B88732]">
-                                        {hasOfficialQuote ? formatINR(totalVal * 0.1) : 'Quote Pending'}
-                                        {hasOfficialQuote && req.is_file_edit && (req.agreed_price_usd || req.quoted_price_usd) && (
-                                          <span className="text-[11px] font-mono font-normal text-[#5A6679] block">
-                                            (${((totalVal * 0.1) / 86.85).toFixed(2)} USD)
-                                          </span>
-                                        )}
+                                        {hasOfficialQuote ? formatNegotiationPrice(totalVal * 0.1).display : 'Quote Pending'}
                                       </td>
                                       <td className="p-4 text-xs text-[#5A6679]">Due Immediately upon Order Confirmation</td>
                                       <td className="p-4 text-right">
@@ -3711,12 +3745,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                       <td className="p-4 font-bold text-[#0B1330]">Stage 2: Design Approval Milestone</td>
                                       <td className="p-4 font-mono font-medium text-[#0B1330]">30.00%</td>
                                       <td className="p-4 font-serif text-sm font-bold text-[#B88732]">
-                                        {hasOfficialQuote ? formatINR(totalVal * 0.3) : 'Quote Pending'}
-                                        {hasOfficialQuote && req.is_file_edit && (req.agreed_price_usd || req.quoted_price_usd) && (
-                                          <span className="text-[11px] font-mono font-normal text-[#5A6679] block">
-                                            (${((totalVal * 0.3) / 86.85).toFixed(2)} USD)
-                                          </span>
-                                        )}
+                                        {hasOfficialQuote ? formatNegotiationPrice(totalVal * 0.3).display : 'Quote Pending'}
                                       </td>
                                       <td className="p-4 text-xs text-[#5A6679]">Due on Client 3D Preview Approval</td>
                                       <td className="p-4 text-right">
@@ -3730,12 +3759,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                       <td className="p-4 font-bold text-[#0B1330]">Stage 3: Final CAD Delivery</td>
                                       <td className="p-4 font-mono font-medium text-[#0B1330]">60.00%</td>
                                       <td className="p-4 font-serif text-sm font-bold text-[#B88732]">
-                                        {hasOfficialQuote ? formatINR(totalVal * 0.6) : 'Quote Pending'}
-                                        {hasOfficialQuote && req.is_file_edit && (req.agreed_price_usd || req.quoted_price_usd) && (
-                                          <span className="text-[11px] font-mono font-normal text-[#5A6679] block">
-                                            (${((totalVal * 0.6) / 86.85).toFixed(2)} USD)
-                                          </span>
-                                        )}
+                                        {hasOfficialQuote ? formatNegotiationPrice(totalVal * 0.6).display : 'Quote Pending'}
                                       </td>
                                       <td className="p-4 text-xs text-[#5A6679]">Due Before Final File Release</td>
                                       <td className="p-4 text-right">
@@ -3751,7 +3775,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                     <tr key={st.id} className="hover:bg-[#FFFDF9] transition-colors">
                                       <td className="p-4 font-bold text-[#0B1330]">{st.label}</td>
                                       <td className="p-4 font-mono font-medium text-[#0B1330]">{st.percentage}%</td>
-                                      <td className="p-4 font-serif text-sm font-bold text-[#B88732]">{formatINR(st.amount)}</td>
+                                      <td className="p-4 font-serif text-sm font-bold text-[#B88732]">{formatNegotiationPrice(st.amount).display}</td>
                                       <td className="p-4 text-xs text-[#5A6679]">
                                         {st.trigger_type === 'immediate'
                                           ? 'Due Immediately to Start CAD'
@@ -3770,7 +3794,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                             onClick={() => handlePayStage(st, order?.id)}
                                             className="btn-gold-luxury px-4 py-1.5 rounded-xl text-[11px] font-extrabold uppercase tracking-wider shadow-md cursor-pointer"
                                           >
-                                            Pay Stage ({formatINR(st.amount)})
+                                            Pay Stage ({formatNegotiationPrice(st.amount).buttonDisplay})
                                           </button>
                                         ) : (
                                           <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-300 text-[10px] font-mono">
@@ -3787,12 +3811,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                       <td className="p-4 font-bold text-[#0B1330]">Stage 1: Booking Confirmation</td>
                                       <td className="p-4 font-mono font-medium text-[#0B1330]">10.00%</td>
                                       <td className="p-4 font-serif text-sm font-bold text-[#B88732]">
-                                        {formatINR(totalVal * 0.1)}
-                                        {req.is_file_edit && (req.agreed_price_usd || req.quoted_price_usd) && (
-                                          <span className="text-[11px] font-mono font-normal text-[#5A6679] block">
-                                            (${((totalVal * 0.1) / 86.85).toFixed(2)} USD)
-                                          </span>
-                                        )}
+                                        {formatNegotiationPrice(totalVal * 0.1).display}
                                       </td>
                                       <td className="p-4 text-xs text-[#5A6679]">Due Immediately to Start CAD</td>
                                       <td className="p-4 text-right">
@@ -3800,7 +3819,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                           onClick={() => handlePayStage({ id: 1, stage_name: 'Stage 1: Booking Confirmation', amount: totalVal * 0.1, percentage: 10 }, order?.id)}
                                           className="btn-gold-luxury px-4 py-1.5 rounded-xl text-[11px] font-extrabold uppercase tracking-wider shadow-md cursor-pointer"
                                         >
-                                          Pay Stage 1
+                                          Pay Stage 1 ({formatNegotiationPrice(totalVal * 0.1).buttonDisplay})
                                         </button>
                                       </td>
                                     </tr>
@@ -3808,12 +3827,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                       <td className="p-4 font-bold text-[#0B1330]">Stage 2: Design Approval Milestone</td>
                                       <td className="p-4 font-mono font-medium text-[#0B1330]">30.00%</td>
                                       <td className="p-4 font-serif text-sm font-bold text-[#B88732]">
-                                        {formatINR(totalVal * 0.3)}
-                                        {req.is_file_edit && (req.agreed_price_usd || req.quoted_price_usd) && (
-                                          <span className="text-[11px] font-mono font-normal text-[#5A6679] block">
-                                            (${((totalVal * 0.3) / 86.85).toFixed(2)} USD)
-                                          </span>
-                                        )}
+                                        {formatNegotiationPrice(totalVal * 0.3).display}
                                       </td>
                                       <td className="p-4 text-xs text-[#5A6679]">Due on Client 3D Preview Approval</td>
                                       <td className="p-4 text-right">
@@ -3827,12 +3841,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                       <td className="p-4 font-bold text-[#0B1330]">Stage 3: Final CAD Delivery</td>
                                       <td className="p-4 font-mono font-medium text-[#0B1330]">60.00%</td>
                                       <td className="p-4 font-serif text-sm font-bold text-[#B88732]">
-                                        {formatINR(totalVal * 0.6)}
-                                        {req.is_file_edit && (req.agreed_price_usd || req.quoted_price_usd) && (
-                                          <span className="text-[11px] font-mono font-normal text-[#5A6679] block">
-                                            (${((totalVal * 0.6) / 86.85).toFixed(2)} USD)
-                                          </span>
-                                        )}
+                                        {formatNegotiationPrice(totalVal * 0.6).display}
                                       </td>
                                       <td className="p-4 text-xs text-[#5A6679]">Due Before Final File Release</td>
                                       <td className="p-4 text-right">
@@ -3852,15 +3861,10 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                       Total Order Summary:
                                     </td>
                                     <td className="p-4 font-serif font-bold text-[#B88732] text-sm">
-                                      {formatINR(totalVal)}
-                                      {req.is_file_edit && (req.agreed_price_usd || req.quoted_price_usd) && (
-                                        <span className="text-[11px] font-mono font-normal text-[#5A6679] block">
-                                          (${Number(req.agreed_price_usd || req.quoted_price_usd).toFixed(2)} USD)
-                                        </span>
-                                      )}
+                                      {formatNegotiationPrice(totalVal).display}
                                     </td>
                                     <td className="p-4 text-xs font-mono text-[#5A6679]">
-                                      Paid: <strong className="text-emerald-600">{formatINR(paidVal)}</strong> | Remaining: <strong className="text-[#B88732]">{formatINR(unpaidVal)}</strong>
+                                      Paid: <strong className="text-emerald-600">{formatNegotiationPrice(paidVal).display}</strong> | Remaining: <strong className="text-[#B88732]">{formatNegotiationPrice(unpaidVal).display}</strong>
                                     </td>
                                     <td className="p-4 text-right">
                                       {isFullyPaid ? (
@@ -3872,7 +3876,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                                           onClick={() => handlePayFullOrder(order || { id: req.id, is_file_edit: req.is_file_edit }, unpaidVal)}
                                           className="btn-gold-luxury px-3.5 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider cursor-pointer shadow transition-all"
                                         >
-                                          Pay Full Balance ({formatINR(unpaidVal)})
+                                          Pay Full Balance ({formatNegotiationPrice(unpaidVal).buttonDisplay})
                                         </button>
                                       ) : null}
                                     </td>
@@ -5453,7 +5457,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
             : `Milestone ${stagePaymentModalState.percentage ? `${stagePaymentModalState.percentage}% ` : ''}Stage Settlement`
         }
         amount={stagePaymentModalState.amount}
-        currency="INR"
+        currency={stagePaymentModalState.currency || (stagePaymentModalState.amount <= 500 ? 'USD' : 'INR')}
         itemType={stagePaymentModalState.isFullPayment ? 'order_full_payment' : 'milestone_stage'}
         orderDetails={{
           id: stagePaymentModalState.isFullPayment ? stagePaymentModalState.orderId : stagePaymentModalState.stageId,
@@ -5560,8 +5564,7 @@ export const ClientDashboardPage: React.FC<ClientDashboardPageProps> = ({
                   onChange={(e) => setResubmitMethod(e.target.value as any)}
                   className="w-full p-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-[#D4AF37] outline-none"
                 >
-                  <option value="upi">UPI / QR Code Transfer</option>
-                  <option value="cash_check">Cash / Cheque Deposit</option>
+                  <option value="cash_check">Cash / Cheque / Bank Transfer</option>
                 </select>
               </div>
 

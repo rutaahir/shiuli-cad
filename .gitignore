@@ -46,3 +46,9 @@ media/
 backend/media/
 protected_media/
 backend/protected_media/
+
+# Scratch & Local credentials
+gmail-app.txt
+backend/scratch/
+*.tmp
+

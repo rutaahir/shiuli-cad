@@ -12,7 +12,8 @@ from .views import (
     razorpay_webhook,
     admin_approve_custom_payment,
     admin_decline_custom_payment,
-    admin_reset_financial_audit
+    admin_reset_financial_audit,
+    staff_catalog_sales
 )
 
 from .views_purchases import (
@@ -53,6 +54,7 @@ router.register(r'templates', PaymentPlanTemplateViewSet, basename='payment-plan
 
 urlpatterns = [
     path('gateway-log/', incoming_gateway_logs, name='payment-gateway-log'),
+    path('staff-catalog-sales/', staff_catalog_sales, name='payment-staff-catalog-sales'),
     path('create-order/', create_payment_session, name='payment-create-order'),
     path('verify/', verify_payment, name='payment-verify'),
     path('razorpay/create-order/', standard_create_order, name='payment-standard-create-order'),

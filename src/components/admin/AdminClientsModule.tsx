@@ -32,18 +32,15 @@ const USD_RATE = 86.85;
 
 const toUSDNumber = (amt: number): number => {
   if (!amt || isNaN(amt)) return 0;
-  if (amt > 500) {
-    return Math.round((amt / USD_RATE) * 100) / 100;
-  }
-  return amt;
+  return typeof amt === 'number' ? amt : parseFloat(String(amt)) || 0;
 };
 
 const formatSpendUSD = (c: ClientCRMRecord): string => {
-  if (typeof c.total_spend_raw === 'number' && c.total_spend_raw > 500) {
-    const converted = Math.round((c.total_spend_raw / USD_RATE) * 100) / 100;
-    return `$${converted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  if (c.total_spend) return c.total_spend;
+  if (typeof c.total_spend_raw === 'number') {
+    return `$${c.total_spend_raw.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
-  return c.total_spend || '$0.00';
+  return '$0.00';
 };
 
 export const AdminClientsModule: React.FC = () => {

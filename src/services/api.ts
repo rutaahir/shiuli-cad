@@ -551,6 +551,17 @@ class ApiClient {
     return await this.request<any[]>('/payments/gateway-log/');
   }
 
+  async getStaffCatalogSales(staffId?: number | string) {
+    const q = staffId ? `?staff_id=${staffId}` : '';
+    return await this.request<{
+      sales: any[];
+      count: number;
+      total_gross_usd: number;
+      total_staff_net_usd: number;
+      total_admin_fee_usd: number;
+    }>(`/payments/staff-catalog-sales/${q}`);
+  }
+
   async resetFinancialAudit(options?: { keep_orders?: boolean; clear_clients?: boolean; clear_pending_approvals?: boolean }) {
     await this.ensureAdminToken();
     return await this.request<any>('/payments/admin/reset-financial-audit/', {

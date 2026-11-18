@@ -240,12 +240,13 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         customRequestsCount = list.filter((r: any) => r.status === 'new' || r.status === 'negotiating').length;
       } catch {}
 
-      // 3. Design Approvals queue (pending custom order review + pending designer applications)
+      // 3. Design Approvals queue (pending custom order review + pending staff catalog uploads + pending designer applications)
       let approvalsCount = 0;
       try {
-        const [ordersRes, appsRes] = await Promise.allSettled([
+        const [ordersRes, appsRes, prodsRes] = await Promise.allSettled([
           api.request<any>('/orders/'),
           api.getDesignerApplications('pending'),
+          api.request<any>('/catalog/products/pending/?page_size=500'),
         ]);
         if (ordersRes.status === 'fulfilled') {
           const ordVal: any = ordersRes.value;
@@ -256,6 +257,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           const appVal: any = appsRes.value;
           const appList = Array.isArray(appVal) ? appVal : appVal?.results || [];
           approvalsCount += appList.length;
+        }
+        if (prodsRes.status === 'fulfilled') {
+          const prodVal: any = prodsRes.value;
+          const prodList = Array.isArray(prodVal) ? prodVal : prodVal?.results || [];
+          approvalsCount += prodList.length;
         }
       } catch {}
 

@@ -438,12 +438,14 @@ class RequestPasswordResetOTPView(APIView):
             user = request.user
             email = user.email
         else:
-            email = str(request.data.get("email", "")).strip().lower()
-            if not email:
-                return Response({"error": "Email address is required."}, status=status.HTTP_400_BAD_REQUEST)
-            user = User.objects.filter(email__iexact=email).first()
+            identifier = str(request.data.get("email", "")).strip()
+            if not identifier:
+                return Response({"error": "Email address or username is required."}, status=status.HTTP_400_BAD_REQUEST)
+            user = User.objects.filter(
+                models.Q(email__iexact=identifier) | models.Q(username__iexact=identifier)
+            ).first()
             if not user:
-                return Response({"error": "No account found matching this email address."}, status=status.HTTP_404_NOT_FOUND)
+                return Response({"error": "No account found matching this email address or username."}, status=status.HTTP_404_NOT_FOUND)
 
         now = timezone.now()
         otp_code = generate_6digit_otp()
@@ -484,6 +486,7 @@ class RequestPasswordResetOTPView(APIView):
         response_data = {
             "message": f"Verification code sent to {user.email}. Enter code and new password to confirm.",
             "email": user.email,
+            "username": user.username,
             "expires_in_seconds": 600,
             "email_sent": email_sent,
         }
@@ -512,12 +515,14 @@ class VerifyPasswordResetOTPView(APIView):
         if request.user and request.user.is_authenticated:
             user = request.user
         else:
-            email = str(request.data.get("email", "")).strip().lower()
-            if not email:
-                return Response({"error": "Email address is required."}, status=status.HTTP_400_BAD_REQUEST)
-            user = User.objects.filter(email__iexact=email).first()
+            identifier = str(request.data.get("email", "")).strip()
+            if not identifier:
+                return Response({"error": "Email address or username is required."}, status=status.HTTP_400_BAD_REQUEST)
+            user = User.objects.filter(
+                models.Q(email__iexact=identifier) | models.Q(username__iexact=identifier)
+            ).first()
             if not user:
-                return Response({"error": "No account found matching this email address."}, status=status.HTTP_404_NOT_FOUND)
+                return Response({"error": "No account found matching this email address or username."}, status=status.HTTP_404_NOT_FOUND)
 
         now = timezone.now()
         otp_obj = AccountOTP.objects.filter(
@@ -619,7 +624,7 @@ class AdminClientsListView(APIView):
             if amt <= 0:
                 return 0.0
             cur = (currency or 'INR').upper()
-            if cur == 'USD':
+            if cur == 'USD' or amt <= 500:
                 return round(amt, 2)
             if exchange_rate and float(exchange_rate) > 0:
                 return round(amt / float(exchange_rate), 2)

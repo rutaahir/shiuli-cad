@@ -85,12 +85,15 @@ def process_stage_payment_success(payment_stage, transaction_id=None):
             if order.assigned_staff:
                 from .models import Settlement
                 from decimal import Decimal
-                payout = Decimal(str(order.total_price)) * Decimal('0.70')
-                Settlement.objects.get_or_create(
-                    order=order,
-                    staff=order.assigned_staff,
-                    defaults={'amount': payout, 'status': Settlement.Status.PENDING}
-                )
+                payout = Decimal(str(order.total_price or '0.00')) * Decimal('0.70')
+                existing_settle = Settlement.objects.filter(order=order, staff=order.assigned_staff).first()
+                if not existing_settle:
+                    Settlement.objects.create(
+                        order=order,
+                        staff=order.assigned_staff,
+                        amount=payout,
+                        status=Settlement.Status.PENDING
+                    )
         else:
             # Unlock next stage if it has no approval precondition or if precondition is met
             next_stage = all_stages.filter(order_index=stage.order_index + 1).first()
@@ -172,18 +175,25 @@ def process_full_order_payment_success(order, transaction_id=None, payment_metho
 
         OrderMilestone.objects.create(
             order=order_obj,
-            stage=f"100% Full Payment Settled (₹{order_obj.total_price} INR)"
+            stage=f"100% Full Payment Settled (₹{order_obj.total_price} INR)"[:50]
         )
 
-        Payment.objects.create(
-            order=order_obj,
-            payment_type=Payment.PaymentType.FULL,
-            amount=order_obj.total_price,
-            gateway_transaction_id=transaction_id or f"TXN-FULL-{order_obj.id}-{int(now.timestamp())}",
-            payment_method=payment_method or "upi",
-            payment_details=payment_details or "Full 100% Upfront Order Settlement",
-            status=Payment.Status.SUCCESS
-        )
+        # Only create payment record if not already recorded (e.g. online checkout inflow)
+        if transaction_id:
+            already_has_payment = Payment.objects.filter(order=order_obj, gateway_transaction_id=transaction_id).exists()
+        else:
+            already_has_payment = False
+
+        if not already_has_payment:
+            Payment.objects.create(
+                order=order_obj,
+                payment_type=Payment.PaymentType.FULL,
+                amount=order_obj.total_price,
+                gateway_transaction_id=transaction_id or f"TXN-FULL-{order_obj.id}-{int(now.timestamp())}",
+                payment_method=payment_method or "upi",
+                payment_details=payment_details or "Full 100% Upfront Order Settlement",
+                status=Payment.Status.SUCCESS
+            )
 
         create_notification(
             recipient=order_obj.client,
@@ -195,12 +205,15 @@ def process_full_order_payment_success(order, transaction_id=None, payment_metho
 
         if order_obj.assigned_staff:
             from .models import Settlement
-            payout = Decimal(str(order_obj.total_price)) * Decimal('0.70')
-            Settlement.objects.get_or_create(
-                order=order_obj,
-                staff=order_obj.assigned_staff,
-                defaults={'amount': payout, 'status': Settlement.Status.PENDING}
-            )
+            payout = Decimal(str(order_obj.total_price or '0.00')) * Decimal('0.70')
+            existing_settle = Settlement.objects.filter(order=order_obj, staff=order_obj.assigned_staff).first()
+            if not existing_settle:
+                Settlement.objects.create(
+                    order=order_obj,
+                    staff=order_obj.assigned_staff,
+                    amount=payout,
+                    status=Settlement.Status.PENDING
+                )
 
         return {
             "order": order_obj,

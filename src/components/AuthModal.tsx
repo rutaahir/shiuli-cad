@@ -221,8 +221,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleRequestPasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
     const targetEmail = fpEmail.trim();
-    if (!targetEmail || !validateEmail(targetEmail).isValid) {
-      setErrorMessage('Please enter a valid registered email address.');
+    if (!targetEmail) {
+      setErrorMessage('Please enter your registered email address or username.');
       return;
     }
     setIsLoading(true);
@@ -234,7 +234,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setFpStep('verify');
       setFpTimer(60);
       setFpOtpDigits(['', '', '', '', '', '']);
+      if (res?.email) setFpEmail(res.email);
       if (res?.debug_otp) setDebugOtp(res.debug_otp);
+      setSuccessMessage(res?.message || `Verification code sent to ${res?.email || targetEmail}.`);
       setTimeout(() => {
         fpOtpInputRefs.current[0]?.focus();
       }, 150);
@@ -523,8 +525,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           fpStep === 'request' ? (
             <form onSubmit={handleRequestPasswordReset} className="space-y-4">
               <FloatingLabelInput
-                label="Registered Email Address"
-                type="email"
+                label="Registered Email or Username"
+                type="text"
                 value={fpEmail}
                 onChange={(e) => setFpEmail(e.target.value)}
                 icon={<Mail className="w-4 h-4" />}
@@ -846,7 +848,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     onClick={() => {
                       setAuthMode('forgot_password');
                       setFpStep('request');
-                      setFpEmail(usernameOrEmail.includes('@') ? usernameOrEmail.trim() : '');
+                      setFpEmail(usernameOrEmail.trim());
                       setErrorMessage(null);
                       setSuccessMessage(null);
                     }}

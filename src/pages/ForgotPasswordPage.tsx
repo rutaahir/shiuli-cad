@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrandLogo } from '../components/BrandLogo';
 import { FloatingLabelInput } from '../components/FloatingLabelInput';
-import { Mail, Lock, KeyRound, ArrowRight, ArrowLeft, CheckCircle2, AlertCircle, RefreshCw, Check } from 'lucide-react';
+import { Mail, Lock, KeyRound, ArrowRight, ArrowLeft, CheckCircle2, AlertCircle, RefreshCw, Check, Sparkles } from 'lucide-react';
 import { PageId } from '../types';
 import { api } from '../services/api';
 
@@ -20,6 +20,7 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(0);
+  const [debugOtp, setDebugOtp] = useState<string | null>(null);
 
   useEffect(() => {
     let t: any = null;
@@ -33,8 +34,9 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
 
   const handleRequestOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!email.trim() || !email.includes('@')) {
-      setErrorMessage('Please enter a valid registered email address.');
+    const target = email.trim();
+    if (!target) {
+      setErrorMessage('Please enter your registered email address or username.');
       return;
     }
 
@@ -42,12 +44,17 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
     setErrorMessage(null);
 
     try {
-      await api.requestPasswordResetOtp(email.trim().toLowerCase());
+      const res = await api.requestPasswordResetOtp(target);
       setStep('otp');
       setCountdown(60);
-      setSuccessMessage(`A 6-digit verification code has been dispatched to ${email}.`);
+      const targetEmail = res?.email || target;
+      setEmail(targetEmail);
+      if (res?.debug_otp) {
+        setDebugOtp(res.debug_otp);
+      }
+      setSuccessMessage(`A 6-digit verification code has been dispatched to ${targetEmail}.`);
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Failed to dispatch verification code. Please check your email.');
+      setErrorMessage(err?.message || 'Failed to dispatch verification code. Please check your email or username.');
     } finally {
       setIsLoading(false);
     }
@@ -122,8 +129,8 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
 
             <form onSubmit={handleRequestOtp} className="space-y-5">
               <FloatingLabelInput
-                label="Registered Email Address"
-                type="email"
+                label="Registered Email or Username"
+                type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 icon={<Mail className="w-4 h-4 text-[#B88732]" />}
@@ -172,6 +179,24 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
             )}
 
             <form onSubmit={handleVerifyOtp} className="space-y-4">
+              {debugOtp && (
+                <div className="p-3 bg-[#FFF9F0] border border-[#E8D7B7] rounded-xl text-[#17345C] text-xs flex items-center justify-between gap-2 shadow-xs">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[#B88732] shrink-0" />
+                    <span>
+                      Dev Reset Code: <strong className="text-[#17345C] font-mono tracking-widest text-sm font-bold">{debugOtp}</strong>
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setOtpCode(debugOtp)}
+                    className="text-[11px] bg-[#17345C] hover:bg-[#1E4378] text-white px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer"
+                  >
+                    Auto-Fill
+                  </button>
+                </div>
+              )}
+
               <div>
                 <label className="text-xs text-[#17345C] font-semibold block mb-1">
                   6-Digit Verification Code (OTP)

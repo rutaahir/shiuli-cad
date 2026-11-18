@@ -440,10 +440,10 @@ export const AdminPaymentsModule: React.FC = () => {
     fetchAnalytics();
   }, []);
 
-  // 1. Gross Studio Revenue (Total Contract / Booking Value of all Client Inflows)
+  // 1. Gross Studio Revenue (Total Contract / Booking Value of all Client Inflows in USD)
   const grossStudioRevenue = React.useMemo(() => {
     if (clientPayments.length === 0 && analyticsSummary?.gross_revenue_inr) {
-      return analyticsSummary.gross_revenue_inr;
+      return Math.round((analyticsSummary.gross_revenue_inr / 86.85) * 100) / 100;
     }
     const computed = clientPayments.reduce((acc, p) => {
       // For Custom Orders: full total contract value
@@ -452,13 +452,13 @@ export const AdminPaymentsModule: React.FC = () => {
         : (p.amount_raw || 0);
       return acc + amt;
     }, 0);
-    return computed > 0 ? Math.round(computed) : (analyticsSummary?.gross_revenue_inr || 0);
+    return computed > 0 ? Math.round(computed * 100) / 100 : (analyticsSummary?.gross_revenue_inr ? Math.round((analyticsSummary.gross_revenue_inr / 86.85) * 100) / 100 : 0);
   }, [clientPayments, analyticsSummary]);
 
-  // 2. Verified Client Collections (Audited / Cleared Cash Inflow into Studio Account)
+  // 2. Verified Client Collections (Audited / Cleared Cash Inflow into Studio Account in USD)
   const verifiedClientCollections = React.useMemo(() => {
     if (clientPayments.length === 0 && analyticsSummary?.total_revenue_inr) {
-      return analyticsSummary.total_revenue_inr;
+      return Math.round((analyticsSummary.total_revenue_inr / 86.85) * 100) / 100;
     }
     const computed = clientPayments.reduce((acc, p) => {
       // Custom Orders: strictly verified paid amounts
@@ -486,7 +486,7 @@ export const AdminPaymentsModule: React.FC = () => {
       const isPaid = p.raw_status === 'paid' || p.status.toLowerCase().includes('paid') || p.status.toLowerCase().includes('agreed');
       return isPaid ? acc + (p.amount_raw || 0) : acc;
     }, 0);
-    return computed > 0 ? Math.round(computed) : (analyticsSummary?.total_revenue_inr || 0);
+    return computed > 0 ? Math.round(computed * 100) / 100 : (analyticsSummary?.total_revenue_inr ? Math.round((analyticsSummary.total_revenue_inr / 86.85) * 100) / 100 : 0);
   }, [clientPayments, analyticsSummary]);
 
   // Pending Collections Amount (Client payments submitted & awaiting admin verification)
@@ -506,7 +506,7 @@ export const AdminPaymentsModule: React.FC = () => {
       }
       return acc + pendingForThis;
     }, 0);
-    return Math.round(computed);
+    return Math.round(computed * 100) / 100;
   }, [clientPayments]);
 
   const pendingVerificationList = React.useMemo(() => {
@@ -524,7 +524,7 @@ export const AdminPaymentsModule: React.FC = () => {
 
   const totalRevenueUSD = React.useMemo(() => {
     const base = grossStudioRevenue > 0 ? grossStudioRevenue : verifiedClientCollections;
-    return base > 0 ? Math.round((base / 86.85) * 100) / 100 : 0;
+    return base > 0 ? Math.round(base * 100) / 100 : 0;
   }, [grossStudioRevenue, verifiedClientCollections]);
 
   // 3. Artisan Labor Committed (Modeller Labor)
@@ -553,20 +553,24 @@ export const AdminPaymentsModule: React.FC = () => {
     const customStaff = customOrders.reduce((acc, p) => acc + (p.staff_payout_val || 0), 0);
     const customAdmin = Math.max(0, customGross - customStaff);
 
-    // Ready CAD Catalog Purchases split (100% Studio)
+    // Ready CAD Catalog Purchases split (Admin 20% platform fee on staff products, 100% on atelier products)
     const storePurchases = clientPayments.filter((p) => p.entry_type === 'purchase' || p.purchase_id);
     const storeGross = storePurchases.reduce((acc, p) => acc + (p.amount_raw || 0), 0);
+    const storeStaff = storePurchases.reduce((acc, p) => acc + (p.staff_payout_val || 0), 0);
+    const storeAdmin = Math.max(0, storeGross - storeStaff);
 
     return {
-      totalGross: Math.round(totalGross),
-      totalStaffShare: Math.round(staffShare),
-      totalAdminShare: Math.round(adminShare),
+      totalGross: Math.round(totalGross * 100) / 100,
+      totalStaffShare: Math.round(staffShare * 100) / 100,
+      totalAdminShare: Math.round(adminShare * 100) / 100,
       staffPercent: staffPct,
       adminPercent: adminPct,
-      customGross: Math.round(customGross),
-      customStaff: Math.round(customStaff),
-      customAdmin: Math.round(customAdmin),
-      storeGross: Math.round(storeGross),
+      customGross: Math.round(customGross * 100) / 100,
+      customStaff: Math.round(customStaff * 100) / 100,
+      customAdmin: Math.round(customAdmin * 100) / 100,
+      storeGross: Math.round(storeGross * 100) / 100,
+      storeStaff: Math.round(storeStaff * 100) / 100,
+      storeAdmin: Math.round(storeAdmin * 100) / 100,
     };
   }, [grossStudioRevenue, clientPayments, totalCommitted]);
 
@@ -654,7 +658,7 @@ export const AdminPaymentsModule: React.FC = () => {
 
       setSettleModalItem(null);
       fetchSettlements();
-      alert(`Payout of $${((Number(settleAmount) / 86.85)).toFixed(2)} recorded successfully!`);
+      alert(`Payout of $${Number(settleAmount).toFixed(2)} recorded successfully!`);
     } catch (err: any) {
       alert(err?.message || 'Failed to process settlement.');
     } finally {
@@ -697,7 +701,7 @@ export const AdminPaymentsModule: React.FC = () => {
     const newRecord: GatewayLogRecord = {
       id: `MAN-${Date.now().toString().slice(-6)}`,
       client: clientPayClientName.trim() || 'Walk-in Client',
-      amount: `$${(Number(clientPayAmount) / 86.85).toFixed(2)}`,
+      amount: `$${Number(clientPayAmount).toFixed(2)}`,
       amount_raw: Number(clientPayAmount),
       type: clientPayType,
       ref: clientPayTxnRef.trim() || `OFFLINE-${Date.now().toString().slice(-4)}`,
@@ -720,11 +724,11 @@ export const AdminPaymentsModule: React.FC = () => {
   const handleExportCSV = () => {
     const csvContent =
       'data:text/csv;charset=utf-8,' +
-      'Settlement ID,Modeller Name,Order Number,Design Title,Total Due (INR),Amount Paid (INR),Balance Due (INR),Payment Method,Transaction Ref,Status,Settled Date\n' +
+      'Settlement ID,Modeller Name,Order Number,Design Title,Total Due (USD),Amount Paid (USD),Balance Due (USD),Payment Method,Transaction Ref,Status,Settled Date\n' +
       settlements
         .map(
           (s) =>
-            `${s.id},"${s.staffName}","${s.orderNumber}","${s.designTitle}",${(s.payoutAmount/86.85).toFixed(2)},${((s.amountPaid || 0)/86.85).toFixed(2)},${((s.balanceDue ?? s.payoutAmount)/86.85).toFixed(2)},"${s.paymentMethod || 'N/A'}","${s.transactionRef || 'N/A'}",${s.status},"${s.settledAt || 'N/A'}"`
+            `${s.id},"${s.staffName}","${s.orderNumber}","${s.designTitle}",${s.payoutAmount.toFixed(2)},${(s.amountPaid || 0).toFixed(2)},${((s.balanceDue ?? s.payoutAmount)).toFixed(2)},"${s.paymentMethod || 'N/A'}","${s.transactionRef || 'N/A'}",${s.status},"${s.settledAt || 'N/A'}"`
         )
         .join('\n');
 
@@ -839,14 +843,14 @@ export const AdminPaymentsModule: React.FC = () => {
               </span>
             </div>
             <div className="text-2xl font-bold font-mono text-white tracking-tight">
-              ${(financialDivision.totalGross / 86.85).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${financialDivision.totalGross.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div className="text-[11px] text-slate-300 font-mono">
               ≈ ${totalRevenueUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD • {clientPayments.length} Total Bookings
             </div>
             <div className="pt-1 border-t border-white/10 text-[10px] text-slate-300 flex items-center justify-between font-sans">
-              <span>Custom: <strong>${(financialDivision.customGross / 86.85).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
-              <span>Store: <strong>${(financialDivision.storeGross / 86.85).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
+              <span>Custom: <strong>${financialDivision.customGross.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
+              <span>Store: <strong>${financialDivision.storeGross.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
             </div>
           </div>
 
@@ -862,13 +866,13 @@ export const AdminPaymentsModule: React.FC = () => {
               </span>
             </div>
             <div className="text-2xl font-bold font-mono text-blue-950 tracking-tight">
-              ${(financialDivision.totalAdminShare / 86.85).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${financialDivision.totalAdminShare.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div className="text-[11px] text-blue-800 font-sans">
               Net retained studio profit margin
             </div>
             <div className="pt-1 border-t border-blue-200/80 text-[10px] text-blue-700 font-sans">
-              30% Custom CAD margin + 100% Ready CAD sales
+              30% Custom CAD margin + 20% Staff sales / 100% Atelier sales
             </div>
           </div>
 
@@ -884,14 +888,14 @@ export const AdminPaymentsModule: React.FC = () => {
               </span>
             </div>
             <div className="text-2xl font-bold font-mono text-amber-950 tracking-tight">
-              ${(financialDivision.totalStaffShare / 86.85).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${financialDivision.totalStaffShare.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div className="text-[11px] text-amber-800 font-sans">
-              Artisan modellers labor compensation
+              Artisan modellers labor compensation &amp; 80% staff product earnings
             </div>
             <div className="pt-1 border-t border-amber-200/80 text-[10px] text-amber-900 flex items-center justify-between font-mono">
-              <span>Settled: <strong>${(totalSettledAmount / 86.85).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
-              <span className="text-amber-700">Due: <strong>${((financialDivision.totalStaffShare - totalSettledAmount) / 86.85).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
+              <span>Settled: <strong>${totalSettledAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
+              <span className="text-amber-700">Due: <strong>${Math.max(0, financialDivision.totalStaffShare - totalSettledAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
             </div>
           </div>
         </div>
@@ -904,7 +908,7 @@ export const AdminPaymentsModule: React.FC = () => {
               <span>Revenue Division Ratio: Admin vs Artisan Modellers</span>
             </span>
             <span className="text-[11px] text-slate-500 font-sans">
-              Custom CAD Orders: <strong>70% Modeller / 30% Studio</strong> • Ready CAD Downloads: <strong>100% Studio</strong>
+              Custom CAD Orders: <strong>70% Modeller / 30% Studio</strong> • Staff Catalog Sales: <strong>80% Staff / 20% Studio</strong>
             </span>
           </div>
 
@@ -926,8 +930,8 @@ export const AdminPaymentsModule: React.FC = () => {
           </div>
 
           <div className="flex items-center justify-between text-[11px] font-mono text-[#6B7280]">
-            <span className="text-[#17345C] font-semibold">🏛️ Admin / Studio: ${(financialDivision.totalAdminShare / 86.85).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({financialDivision.adminPercent}%)</span>
-            <span className="text-amber-800 font-semibold">👤 Staff Modellers: ${(financialDivision.totalStaffShare / 86.85).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({financialDivision.staffPercent}%)</span>
+            <span className="text-[#17345C] font-semibold">🏛️ Admin / Studio: ${financialDivision.totalAdminShare.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({financialDivision.adminPercent}%)</span>
+            <span className="text-amber-800 font-semibold">👤 Staff Modellers: ${financialDivision.totalStaffShare.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({financialDivision.staffPercent}%)</span>
           </div>
         </div>
       </div>
@@ -1026,14 +1030,14 @@ export const AdminPaymentsModule: React.FC = () => {
                         </td>
 
                         <td className="p-3.5 font-mono font-bold text-[#17243B]">
-                          ${(set.payoutAmount / 86.85).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          ${set.payoutAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
 
                         <td className="p-3.5 font-mono">
-                          <span className="font-bold text-emerald-700">${((set.amountPaid || 0) / 86.85).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          <span className="font-bold text-emerald-700">${(set.amountPaid || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           {set.balanceDue !== undefined && set.balanceDue > 0 && (
                             <span className="text-[11px] text-amber-600 block">
-                              (${(set.balanceDue / 86.85).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} balance)
+                              (${set.balanceDue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} balance)
                             </span>
                           )}
                         </td>
@@ -1416,11 +1420,11 @@ export const AdminPaymentsModule: React.FC = () => {
                               Admin / Studio Gets
                             </span>
                             <strong className="text-sm font-extrabold text-blue-950 font-mono">
-                              {p.admin_margin_amount || `$${(((p.order_total_val || p.amount_raw) * 0.3) / 86.85).toFixed(2)}`}
+                              {p.admin_margin_amount || `$${(((p.order_total_val || p.amount_raw) * (p.admin_percent ? p.admin_percent / 100 : 0.20))).toFixed(2)}`}
                             </strong>
                           </div>
                           <span className="text-[9px] px-2 py-0.5 rounded-full font-bold uppercase bg-blue-100 text-blue-800 border border-blue-300 font-mono">
-                            {p.admin_percent ?? 30}% Margin
+                            {p.admin_percent ?? 20}% Margin
                           </span>
                         </div>
 
@@ -1432,12 +1436,12 @@ export const AdminPaymentsModule: React.FC = () => {
                               Staff ({p.assigned_staff_name || 'Modeller'})
                             </span>
                             <strong className="text-sm font-extrabold text-amber-950 font-mono">
-                              {p.staff_payout_amount || `$${(((p.order_total_val || p.amount_raw) * 0.7) / 86.85).toFixed(2)}`}
+                              {p.staff_payout_amount || `$${(((p.order_total_val || p.amount_raw) * (p.staff_percent ? p.staff_percent / 100 : 0.80))).toFixed(2)}`}
                             </strong>
                           </div>
                           <div className="flex flex-col items-end gap-1">
                             <span className="text-[9px] px-2 py-0.5 rounded-full font-bold uppercase bg-amber-100 text-amber-900 border border-amber-300 font-mono">
-                              {p.staff_percent ?? 70}% Share
+                              {p.staff_percent ?? 80}% Share
                             </span>
                             <span className={`text-[8.5px] px-1.5 py-0.2 rounded font-extrabold uppercase font-mono ${
                               p.staff_payout_status === 'processed' || p.staff_payout_status === 'settled'
@@ -1483,8 +1487,8 @@ export const AdminPaymentsModule: React.FC = () => {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
                               <div className="bg-amber-50/80 p-2.5 rounded-lg border border-amber-200 flex items-center justify-between">
                                 <div>
-                                  <span className="text-[10px] text-amber-900 font-bold uppercase block font-sans">👤 Modeller Payout ({p.staff_percent ?? 70}%)</span>
-                                  <strong className="text-sm font-extrabold text-amber-950">{p.staff_payout_amount || `$${(((p.order_total_val || p.amount_raw) * 0.7) / 86.85).toFixed(2)}`}</strong>
+                                  <span className="text-[10px] text-amber-900 font-bold uppercase block font-sans">👤 Modeller Payout ({p.staff_percent ?? 80}%)</span>
+                                  <strong className="text-sm font-extrabold text-amber-950">{p.staff_payout_amount || `$${(((p.order_total_val || p.amount_raw) * (p.staff_percent ? p.staff_percent / 100 : 0.80))).toFixed(2)}`}</strong>
                                 </div>
                                 <span className={`text-[9px] px-2 py-0.5 rounded font-extrabold uppercase ${
                                   p.staff_payout_status === 'processed' || p.staff_payout_status === 'settled'
@@ -1497,8 +1501,8 @@ export const AdminPaymentsModule: React.FC = () => {
 
                               <div className="bg-blue-50/80 p-2.5 rounded-lg border border-blue-200 flex items-center justify-between">
                                 <div>
-                                  <span className="text-[10px] text-blue-900 font-bold uppercase block font-sans">🏛️ Studio Retained ({p.admin_percent ?? 30}%)</span>
-                                  <strong className="text-sm font-extrabold text-blue-950">{p.admin_margin_amount || `$${(((p.order_total_val || p.amount_raw) * 0.3) / 86.85).toFixed(2)}`}</strong>
+                                  <span className="text-[10px] text-blue-900 font-bold uppercase block font-sans">🏛️ Studio Retained ({p.admin_percent ?? 20}%)</span>
+                                  <strong className="text-sm font-extrabold text-blue-950">{p.admin_margin_amount || `$${(((p.order_total_val || p.amount_raw) * (p.admin_percent ? p.admin_percent / 100 : 0.20))).toFixed(2)}`}</strong>
                                 </div>
                                 <span className="text-[9px] px-2 py-0.5 rounded font-extrabold uppercase bg-blue-100 text-blue-800">
                                   Studio Margin
@@ -1824,6 +1828,16 @@ export const AdminPaymentsModule: React.FC = () => {
                         <span className="bg-[#FFF9F0] border border-[#E8D7B7] text-[#17345C] px-2 py-0.5 rounded font-semibold">
                           {p.type}
                         </span>
+                        {p.assigned_staff_id ? (
+                          <span className="bg-amber-100 border border-amber-300 text-amber-900 px-2 py-0.5 rounded font-bold flex items-center gap-1 font-mono text-[9.5px]">
+                            <UserCheck className="w-3 h-3 text-amber-700" />
+                            Creator: {p.assigned_staff_name} (80% Staff / 20% Studio)
+                          </span>
+                        ) : (
+                          <span className="bg-slate-100 border border-slate-200 text-slate-700 px-2 py-0.5 rounded font-medium font-mono text-[9.5px]">
+                            In-House Atelier (100% Studio)
+                          </span>
+                        )}
                         <span>Txn Ref: <strong>{p.ref}</strong></span>
                         {p.payment_method && (
                           <span className={`px-2 py-0.5 rounded font-bold uppercase ${
@@ -2237,19 +2251,19 @@ export const AdminPaymentsModule: React.FC = () => {
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
                 <span className="text-[10px] font-mono text-slate-500 uppercase block">Total Due</span>
                 <span className="font-mono font-bold text-sm text-slate-800">
-                  ${(settleModalItem.payoutAmount / 86.85).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${settleModalItem.payoutAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
               <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200">
                 <span className="text-[10px] font-mono text-emerald-600 uppercase block">Already Paid</span>
                 <span className="font-mono font-bold text-sm text-emerald-800">
-                  ${((settleModalItem.amountPaid || 0) / 86.85).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${(settleModalItem.amountPaid || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
               <div className="p-3 rounded-xl bg-amber-50 border border-amber-200">
                 <span className="text-[10px] font-mono text-amber-600 uppercase block">Net Balance</span>
                 <span className="font-mono font-bold text-sm text-amber-800">
-                  ${((settleModalItem.balanceDue ?? settleModalItem.payoutAmount) / 86.85).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${(settleModalItem.balanceDue ?? settleModalItem.payoutAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
             </div>
@@ -2286,14 +2300,14 @@ export const AdminPaymentsModule: React.FC = () => {
                     onClick={() => setSettleAmount(settleModalItem.balanceDue ?? settleModalItem.payoutAmount)}
                     className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-semibold transition-colors"
                   >
-                    Full Balance (${(Number(settleModalItem.balanceDue ?? settleModalItem.payoutAmount) / 86.85).toFixed(2)})
+                    Full Balance (${Number(settleModalItem.balanceDue ?? settleModalItem.payoutAmount).toFixed(2)})
                   </button>
                   <button
                     type="button"
                     onClick={() => setSettleAmount(Math.round(((settleModalItem.balanceDue ?? settleModalItem.payoutAmount) * 0.5) * 100) / 100)}
                     className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-semibold transition-colors"
                   >
-                    50% Part (${((Number(settleModalItem.balanceDue ?? settleModalItem.payoutAmount) * 0.5) / 86.85).toFixed(2)})
+                    50% Part (${((Number(settleModalItem.balanceDue ?? settleModalItem.payoutAmount) * 0.5)).toFixed(2)})
                   </button>
                 </div>
               </div>
@@ -2391,7 +2405,7 @@ export const AdminPaymentsModule: React.FC = () => {
                   ) : (
                     <CheckCircle2 className="w-4 h-4 text-[#0B1330]" />
                   )}
-                  <span>Record &amp; Settle ${((Number(settleAmount || 0)) / 86.85).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span>Record &amp; Settle ${Number(settleAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </button>
               </div>
             </form>
@@ -2469,16 +2483,16 @@ export const AdminPaymentsModule: React.FC = () => {
                       <td className="p-2.5">Completed CAD Modeling Fee</td>
                       <td className="p-2.5 capitalize">{viewSlipItem.paymentMethod || 'Bank Transfer'}</td>
                       <td className="p-2.5 text-slate-500">{viewSlipItem.transactionRef || 'NEFT-AUTO'}</td>
-                      <td className="p-2.5 text-right font-bold text-slate-900">${(viewSlipItem.payoutAmount / 86.85).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td className="p-2.5 text-right font-bold text-slate-900">${viewSlipItem.payoutAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     </tr>
                     <tr>
                       <td colSpan={3} className="p-2.5 text-right font-bold text-slate-600">Settled to Date:</td>
-                      <td className="p-2.5 text-right font-bold text-emerald-700">${((viewSlipItem.amountPaid || 0) / 86.85).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td className="p-2.5 text-right font-bold text-emerald-700">${(viewSlipItem.amountPaid || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     </tr>
                     {viewSlipItem.balanceDue !== undefined && viewSlipItem.balanceDue > 0 && (
                       <tr>
                         <td colSpan={3} className="p-2.5 text-right font-bold text-amber-700">Remaining Due:</td>
-                        <td className="p-2.5 text-right font-bold text-amber-700">${(viewSlipItem.balanceDue / 86.85).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className="p-2.5 text-right font-bold text-amber-700">${viewSlipItem.balanceDue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                       </tr>
                     )}
                   </tbody>

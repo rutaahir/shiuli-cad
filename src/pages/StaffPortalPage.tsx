@@ -155,7 +155,11 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
           const fe = ord.file_edit_request;
           const req = ord.custom_request;
 
-          const rawPayout = Number(ord.staff_payout_price ?? ord.payout_price ?? (ord.total_price ? Math.round(Number(ord.total_price) * 0.8) : 0));
+          const rawPayout = (() => {
+            if (ord.staff_payout_price_usd != null) return Number(ord.staff_payout_price_usd);
+            const raw = Number(ord.staff_payout_price ?? ord.payout_price ?? (ord.total_price ? Number(ord.total_price) * 0.8 : 0));
+            return raw > 500 ? Math.round((raw / 86.85) * 100) / 100 : Math.round(raw * 100) / 100;
+          })();
 
           if (isFileEdit && fe) {
             const formatStr = (fe.original_file_format || '3dm').toUpperCase();
@@ -165,7 +169,7 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
               title: fe.original_file_name ? `CAD Modification: ${fe.original_file_name}` : `CAD File Modification #${ord.id} (${formatStr})`,
               category: `CAD File Modification (${formatStr})`,
               agreedPayout: rawPayout,
-              clientBudget: rawPayout > 0 ? `$${(rawPayout / 86.85).toFixed(2)}` : '',
+              clientBudget: rawPayout > 0 ? `$${rawPayout.toFixed(2)}` : '',
               deadlineHours: ord.deadline_hours || 48,
               dueAt: ord.due_at,
               neededByDate: fe?.needed_by_date,
@@ -217,7 +221,7 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
             title: category && category !== 'Custom Jewellery' ? `Bespoke ${category}` : `Bespoke CAD Design #${ord.id}`,
             category: category,
             agreedPayout: rawPayout,
-            clientBudget: rawPayout > 0 ? `$${(rawPayout / 86.85).toFixed(2)}` : '',
+            clientBudget: rawPayout > 0 ? `$${rawPayout.toFixed(2)}` : '',
             deadlineHours: ord.deadline_hours || 48,
             dueAt: ord.due_at,
             neededByDate: req?.needed_by_date,
@@ -383,7 +387,7 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
               deadlineHours: ord.deadline_hours || 48,
               deadline: deadlineText,
               hoursRemaining: dynamicRemainingHours,
-              payoutAmount: Number(ord.staff_payout_price_usd ?? (ord.staff_payout_price ? round2(Number(ord.staff_payout_price)/86.85) : (total ? round2(total * 0.8 / 86.85) : 0))),
+              payoutAmount: Number(ord.staff_payout_price_usd ?? (ord.staff_payout_price ? (Number(ord.staff_payout_price) > 500 ? round2(Number(ord.staff_payout_price)/86.85) : round2(Number(ord.staff_payout_price))) : (total ? (total > 500 ? round2(total * 0.8 / 86.85) : round2(total * 0.8)) : 0))),
               clientNotes: sanitizeOrderBriefForStaff(fe.description) || 'CAD File Modification',
               currentMilestone: currentMilestone,
               progressPercentage: progressPercentage,
@@ -413,7 +417,7 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
             deadlineHours: ord.deadline_hours || 48,
             deadline: deadlineText,
             hoursRemaining: dynamicRemainingHours,
-            payoutAmount: Number(ord.staff_payout_price_usd ?? (ord.staff_payout_price ? round2(Number(ord.staff_payout_price)/86.85) : (total ? round2(total * 0.8 / 86.85) : 0))),
+            payoutAmount: Number(ord.staff_payout_price_usd ?? (ord.staff_payout_price ? (Number(ord.staff_payout_price) > 500 ? round2(Number(ord.staff_payout_price)/86.85) : round2(Number(ord.staff_payout_price))) : (total ? (total > 500 ? round2(total * 0.8 / 86.85) : round2(total * 0.8)) : 0))),
             clientNotes: sanitizeOrderBriefForStaff(req?.description) || 'Watertight 3D CAD design request.',
             currentMilestone: currentMilestone,
             progressPercentage: progressPercentage,
@@ -446,7 +450,7 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
 
           const mappedEarnings: StaffEarningsRecord[] = completedOrders.map((cord: any) => {
             const total = parseFloat(cord.total_price || '200');
-            const payout = Number(cord.staff_payout_price ?? cord.payout_price ?? (total ? Math.round(total * 0.8) : 0));
+            const payout = Number(cord.staff_payout_price_usd ?? (cord.staff_payout_price ? (Number(cord.staff_payout_price) > 500 ? Number(cord.staff_payout_price) / 86.85 : Number(cord.staff_payout_price)) : (total ? (total > 500 ? (total * 0.8) / 86.85 : total * 0.8) : 0)));
             const req = cord.custom_request;
             const fe = cord.file_edit_request;
             const title = fe?.original_file_name ? `CAD Modification: ${fe.original_file_name}` : req?.category_name ? `Bespoke ${req.category_name}` : `Custom Design #${cord.id}`;
@@ -512,49 +516,84 @@ export const StaffPortalPage: React.FC<StaffPortalPageProps> = ({
   const fetchSettlements = async () => {
     setLoadingEarnings(true);
     try {
-      const res = await api.request<any>('/settlements/');
-      const ensureArray = (r: any) => {
-        if (Array.isArray(r)) return r;
-        if (r && Array.isArray(r.results)) return r.results;
-        return [];
-      };
-      const list = ensureArray(res);
-      const mapped: StaffEarningsRecord[] = list.map((st: any) => {
-        const totalAmt = typeof st.amount_usd === 'number' ? st.amount_usd : round2(parseFloat(st.amount || '0') / 86.85);
-        const paidAmt = typeof st.amount_paid_usd === 'number' ? st.amount_paid_usd : round2(parseFloat(st.amount_paid || '0') / 86.85);
-        const isSettled = st.status === 'processed' || (paidAmt >= totalAmt && totalAmt > 0);
-        const isPartial = st.status === 'partial' || (paidAmt > 0 && paidAmt < totalAmt);
-
-        let displayStatus: 'Settled' | 'Pending Settlement' | 'Partially Settled' = isSettled
-          ? 'Settled'
-          : isPartial
-          ? 'Partially Settled'
-          : 'Pending Settlement';
-
-        return {
-          id: `SET-${st.id}`,
-          orderNumber: st.order_number || (st.order_id ? `ORD-${st.order_id}` : `ORD-${st.id}`),
-          title: st.design_title || 'Bespoke Custom CAD Design',
-          completedDate: st.created_at || (st.processed_at ? new Date(st.processed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent'),
-          amount: totalAmt,
-          amountPaid: paidAmt,
-          balanceDue: typeof st.balance_due === 'number' ? st.balance_due : Math.max(0, totalAmt - paidAmt),
-          status: displayStatus,
-          settlementRef: st.transaction_ref || undefined,
-          paymentMethod: st.payment_method || 'bank_transfer',
-          notes: st.notes || '',
-          settledAt: st.processed_at ? new Date(st.processed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : undefined,
+      // 1. Fetch custom order settlements
+      let mappedCustomOrders: StaffEarningsRecord[] = [];
+      try {
+        const res = await api.request<any>('/settlements/');
+        const ensureArray = (r: any) => {
+          if (Array.isArray(r)) return r;
+          if (r && Array.isArray(r.results)) return r.results;
+          return [];
         };
-      });
+        const list = ensureArray(res);
+        mappedCustomOrders = list.map((st: any) => {
+          const totalAmt = typeof st.amount_usd === 'number' ? st.amount_usd : round2(parseFloat(st.amount || '0') / 86.85);
+          const paidAmt = typeof st.amount_paid_usd === 'number' ? st.amount_paid_usd : round2(parseFloat(st.amount_paid || '0') / 86.85);
+          const isSettled = st.status === 'processed' || (paidAmt >= totalAmt && totalAmt > 0);
+          const isPartial = st.status === 'partial' || (paidAmt > 0 && paidAmt < totalAmt);
 
-      setEarnings(mapped);
+          let displayStatus: 'Settled' | 'Pending Settlement' | 'Partially Settled' = isSettled
+            ? 'Settled'
+            : isPartial
+            ? 'Partially Settled'
+            : 'Pending Settlement';
+
+          return {
+            id: `SET-${st.id}`,
+            orderNumber: st.order_number || (st.order_id ? `ORD-${st.order_id}` : `ORD-${st.id}`),
+            title: st.design_title || 'Bespoke Custom CAD Design',
+            completedDate: st.created_at || (st.processed_at ? new Date(st.processed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent'),
+            amount: totalAmt,
+            amountPaid: paidAmt,
+            balanceDue: typeof st.balance_due === 'number' ? st.balance_due : Math.max(0, totalAmt - paidAmt),
+            status: displayStatus,
+            settlementRef: st.transaction_ref || undefined,
+            paymentMethod: st.payment_method || 'bank_transfer',
+            notes: st.notes || '',
+            settledAt: st.processed_at ? new Date(st.processed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : undefined,
+          };
+        });
+      } catch (err) {
+        console.warn('Failed to fetch custom order settlements:', err);
+      }
+
+      // 2. Fetch staff-uploaded Ready CAD Storefront sales (80% Staff Payout / 20% Admin Studio Fee)
+      let mappedStoreSales: StaffEarningsRecord[] = [];
+      try {
+        const catRes = await api.getStaffCatalogSales();
+        const salesList = Array.isArray(catRes?.sales) ? catRes.sales : [];
+        mappedStoreSales = salesList.map((s: any) => {
+          const earned = Number(s.staff_earned_usd || 0);
+          const gross = Number(s.gross_price_usd || 0);
+          const adminFee = Number(s.admin_fee_usd || 0);
+          return {
+            id: `CAT-${s.purchase_ref || s.purchase_id}`,
+            orderNumber: s.purchase_ref || `PUR-${s.purchase_id}`,
+            title: `Storefront CAD Sale: ${s.product_title} (${s.license_type})`,
+            completedDate: s.purchased_at || 'Recent',
+            amount: earned,
+            amountPaid: earned,
+            balanceDue: 0,
+            status: 'Settled' as const,
+            settlementRef: s.purchase_ref || `PUR-${s.purchase_id}`,
+            paymentMethod: s.payment_method || 'upi',
+            notes: `Storefront Sale: $${gross.toFixed(2)} total price • You received 80% ($${earned.toFixed(2)}) • Admin 20% platform fee ($${adminFee.toFixed(2)}) • Buyer: ${s.buyer_name}`,
+            settledAt: s.purchased_at,
+          };
+        });
+      } catch (catErr) {
+        console.warn('Failed to fetch staff storefront sales:', catErr);
+      }
+
+      const combinedEarnings = [...mappedCustomOrders, ...mappedStoreSales];
+      setEarnings(combinedEarnings);
 
       // Compute total lifetime earnings & update staff object dynamically!
-      const totalLifetime = mapped.reduce((acc, it) => acc + (it.amount || 0), 0);
+      const totalLifetime = combinedEarnings.reduce((acc, it) => acc + (it.amount || 0), 0);
       setStaff((prev) => ({
         ...prev,
-        totalEarnings: totalLifetime,
-        jobsCompleted: Math.max(prev.jobsCompleted, mapped.length),
+        totalEarnings: round2(totalLifetime),
+        jobsCompleted: Math.max(prev.jobsCompleted, combinedEarnings.length),
       }));
     } catch (e) {
       console.warn('Failed to fetch staff settlements/earnings:', e);

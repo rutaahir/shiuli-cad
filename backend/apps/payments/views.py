@@ -2,6 +2,7 @@ import json
 import hmac
 import hashlib
 import uuid
+import logging
 import razorpay
 from django.conf import settings
 from django.utils import timezone
@@ -12,16 +13,21 @@ from rest_framework.response import Response
 
 from apps.core.permissions import IsAdmin, IsStaff, IsStaffOrAdmin
 from apps.custom_orders.models import Order
-from .models import Payment, Settlement, PaymentPlanTemplate, OrderPaymentStage
+from .models import Payment, Settlement, PaymentPlanTemplate, OrderPaymentStage, Purchase
 from .serializers import PaymentSerializer, SettlementSerializer, PaymentPlanTemplateSerializer, OrderPaymentStageSerializer
-from .services import get_payment_gateway, process_stage_payment_success
+from .services import get_payment_gateway, process_stage_payment_success, process_full_order_payment_success
+
+logger = logging.getLogger(__name__)
 USD_TO_INR_RATE = 86.85
 
 def _to_usd_str(val):
     if not val:
         return "$0.00"
     try:
-        usd = round(float(val) / USD_TO_INR_RATE, 2)
+        f_val = float(val)
+        if f_val <= 500:
+            return f"${f_val:,.2f}"
+        usd = round(f_val / USD_TO_INR_RATE, 2)
         return f"${usd:,.2f}"
     except Exception:
         return "$0.00"
@@ -412,33 +418,39 @@ def admin_approve_custom_payment(request, payment_id):
     if payment.order and getattr(payment.order, 'is_deleted', False):
         return Response({"error": "Cannot approve payment for a deleted order."}, status=status.HTTP_400_BAD_REQUEST)
 
-    payment.status = Payment.Status.SUCCESS
-    payment.admin_verified_at = timezone.now()
-    payment.admin_verified_by = request.user
-    payment.save(update_fields=['status', 'admin_verified_at', 'admin_verified_by'])
+    try:
+        payment.status = Payment.Status.SUCCESS
+        payment.admin_verified_at = timezone.now()
+        payment.admin_verified_by = request.user
+        payment.save(update_fields=['status', 'admin_verified_at', 'admin_verified_by'])
 
-    order = payment.order
-    if payment.payment_stage:
-        process_stage_payment_success(payment.payment_stage, transaction_id=payment.gateway_transaction_id)
-    elif order:
-        if payment.payment_type == Payment.PaymentType.FULL:
-            process_full_order_payment_success(order, transaction_id=payment.gateway_transaction_id)
-        elif payment.payment_type in [Payment.PaymentType.ADVANCE, Payment.PaymentType.STAGE]:
-            first_stage = order.payment_stages.filter(order_index=0).first()
-            if first_stage:
-                process_stage_payment_success(first_stage, transaction_id=payment.gateway_transaction_id)
+        order = payment.order
+        if payment.payment_stage:
+            process_stage_payment_success(payment.payment_stage, transaction_id=payment.gateway_transaction_id)
+        elif order:
+            if payment.payment_type == Payment.PaymentType.FULL:
+                process_full_order_payment_success(order, transaction_id=payment.gateway_transaction_id)
+            elif payment.payment_type in [Payment.PaymentType.ADVANCE, Payment.PaymentType.STAGE]:
+                first_stage = order.payment_stages.filter(order_index=0).first()
+                if first_stage:
+                    process_stage_payment_success(first_stage, transaction_id=payment.gateway_transaction_id)
 
-    # Check if order is now 100% fully paid
-    is_fully_paid = False
-    if order:
-        stages = order.payment_stages.all()
-        is_fully_paid = bool(order.balance_paid or (stages.exists() and all(s.status == 'paid' for s in stages)))
+        # Check if order is now 100% fully paid
+        is_fully_paid = False
+        if order:
+            stages = order.payment_stages.all()
+            is_fully_paid = bool(order.balance_paid or (stages.exists() and all(s.status == 'paid' for s in stages)))
 
-    return Response({
-        "message": f"Payment #{payment.id} verified and approved successfully.",
-        "payment_id": payment.id,
-        "is_order_fully_paid": is_fully_paid
-    }, status=status.HTTP_200_OK)
+        return Response({
+            "message": f"Payment #{payment.id} verified and approved successfully.",
+            "payment_id": payment.id,
+            "is_order_fully_paid": is_fully_paid
+        }, status=status.HTTP_200_OK)
+    except Exception as exc:
+        logger.exception("Error during admin payment approval: %s", exc)
+        return Response({
+            "error": f"Failed to complete payment verification: {str(exc)}"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['POST'])
@@ -707,7 +719,7 @@ def incoming_gateway_logs(request):
         })
 
     # 2. Ready CAD Product Purchases
-    purchases = Purchase.objects.all().select_related('buyer', 'product').order_by('-purchased_at')
+    purchases = Purchase.objects.all().select_related('buyer', 'product', 'product__uploaded_by').order_by('-purchased_at')
     for pur in purchases:
         client_name = f"{pur.buyer.first_name} {pur.buyer.last_name}".strip() or pur.buyer.username if pur.buyer else "Client"
         client_email = pur.buyer.email if pur.buyer else ""
@@ -729,17 +741,67 @@ def incoming_gateway_logs(request):
 
         client_amt_disp = f"₹{int(round(price_paid)):,}" if currency == 'INR' and price_paid > 100 else None
 
+        uploader = pur.product.uploaded_by if (pur.product and pur.product.uploaded_by) else None
+        uploader_role = getattr(uploader, 'role', '') if uploader else ''
+        is_staff_product = bool(uploader and uploader_role == 'staff')
+
+        if is_staff_product:
+            uploader_name = f"{uploader.first_name} {uploader.last_name}".strip() or uploader.username
+            # Category or product commission rate (default 20% studio admin, 80% staff)
+            comm_rate = float(pur.product.commission_rate if (pur.product and pur.product.commission_rate is not None) else 20.0)
+            admin_percent = int(round(comm_rate))
+            if admin_percent <= 0 or admin_percent >= 100:
+                admin_percent = 20
+            staff_percent = 100 - admin_percent
+
+            staff_payout_val = round(usd_val * (staff_percent / 100.0), 2)
+            admin_margin_val = round(usd_val - staff_payout_val, 2)
+
+            assigned_staff_name = uploader_name
+            assigned_staff_role = f"Staff Modeller ({staff_percent}% Share)"
+            assigned_staff_id = uploader.id
+            staff_payout_amount = f"${staff_payout_val:,.2f}"
+            admin_margin_amount = f"${admin_margin_val:,.2f}"
+            staff_payout_paid = staff_payout_val if pur.status == 'paid' else 0.0
+            staff_payout_status = 'settled' if pur.status == 'paid' else 'pending'
+            type_label = f"Staff CAD Sale ({pur.get_license_type_display()})"
+        else:
+            assigned_staff_name = 'Ready CAD Catalog Asset'
+            assigned_staff_role = 'Atelier Asset'
+            assigned_staff_id = None
+            staff_payout_val = 0.0
+            staff_payout_amount = '$0.00'
+            staff_payout_paid = 0.0
+            staff_payout_status = 'settled'
+            admin_margin_val = usd_val
+            admin_margin_amount = f"${usd_val:,.2f}"
+            staff_percent = 0
+            admin_percent = 100
+            type_label = f"Store Purchase ({pur.get_license_type_display()})"
+
+        prod_slug = pur.product.slug if pur.product else ""
+        prod_image = None
+        if pur.product:
+            prim_img = pur.product.images.filter(is_primary=True).first() or pur.product.images.first()
+            if prim_img:
+                prod_image = request.build_absolute_uri(prim_img.image.url) if prim_img.image else prim_img.image_url
+
         logs.append({
             'id': f"PUR-{pur.id}",
             'purchase_id': pur.id,
             'entry_type': 'purchase',
+            'product_id': pur.product_id,
+            'product_slug': prod_slug,
+            'product_image': prod_image,
+            'license_type': pur.license_type,
+            'license_name': pur.get_license_type_display(),
             'client': client_name,
             'client_email': client_email,
             'item_title': item_title,
             'amount': f"${usd_val:,.2f}",
             'amount_raw': usd_val,
             'client_amount_disp': client_amt_disp,
-            'type': f"Store Purchase ({pur.get_license_type_display()})",
+            'type': type_label,
             'ref': pur.payment_transaction_id or f"pur_tx_{pur.id}",
             'payment_method': pur.payment_method or "upi",
             'payment_details': pur.payment_details or "",
@@ -756,17 +818,17 @@ def incoming_gateway_logs(request):
             'can_send_download': pur.status == 'pending',
             'date': pur.purchased_at.strftime('%b %d, %Y, %I:%M %p'),
             'created_at_iso': pur.purchased_at.isoformat(),
-            'assigned_staff_name': 'Ready CAD Catalog Asset',
-            'assigned_staff_role': 'Atelier Asset',
-            'assigned_staff_id': None,
-            'staff_payout_val': 0.0,
-            'staff_payout_amount': '$0.00',
-            'staff_payout_paid': 0.0,
-            'staff_payout_status': 'settled',
-            'admin_margin_val': usd_val,
-            'admin_margin_amount': f"${usd_val:,.2f}",
-            'staff_percent': 0,
-            'admin_percent': 100,
+            'assigned_staff_name': assigned_staff_name,
+            'assigned_staff_role': assigned_staff_role,
+            'assigned_staff_id': assigned_staff_id,
+            'staff_payout_val': staff_payout_val,
+            'staff_payout_amount': staff_payout_amount,
+            'staff_payout_paid': staff_payout_paid,
+            'staff_payout_status': staff_payout_status,
+            'admin_margin_val': admin_margin_val,
+            'admin_margin_amount': admin_margin_amount,
+            'staff_percent': staff_percent,
+            'admin_percent': admin_percent,
         })
 
     # 3. CAD File Edit Modifications
@@ -827,6 +889,104 @@ def incoming_gateway_logs(request):
     # Sort descending by creation date
     logs.sort(key=lambda x: x['created_at_iso'], reverse=True)
     return Response(logs, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def staff_catalog_sales(request):
+    """
+    List purchases for products uploaded by staff members.
+    Staff sees their own product sales with 80% creator payout and 20% studio fee division.
+    Admin can view all staff sales or filter by ?staff_id=<id>.
+    """
+    user = request.user
+    role = getattr(user, 'role', '')
+    is_admin = role == 'admin' or getattr(user, 'is_superuser', False)
+
+    purchases_qs = Purchase.objects.filter(
+        status=Purchase.Status.PAID,
+        product__uploaded_by__isnull=False
+    ).select_related('buyer', 'product', 'product__uploaded_by').order_by('-purchased_at')
+
+    staff_id = request.query_params.get('staff_id')
+    if is_admin and staff_id:
+        purchases_qs = purchases_qs.filter(product__uploaded_by_id=staff_id)
+    elif not is_admin or request.query_params.get('mine'):
+        purchases_qs = purchases_qs.filter(product__uploaded_by=user)
+
+    sales = []
+    total_gross_usd = 0.0
+    total_staff_net_usd = 0.0
+    total_admin_fee_usd = 0.0
+
+    for pur in purchases_qs:
+        price_paid = float(pur.price_paid or 0)
+        currency = (pur.currency or 'USD').upper()
+        rate = float(pur.exchange_rate or USD_TO_INR_RATE) if pur.exchange_rate else USD_TO_INR_RATE
+
+        if pur.original_price_usd and float(pur.original_price_usd) > 0:
+            usd_val = float(pur.original_price_usd)
+        elif currency == 'INR' or price_paid > 500:
+            usd_val = round(price_paid / rate, 2)
+        elif pur.product and pur.product.price:
+            usd_val = float(pur.product.price)
+        else:
+            usd_val = price_paid
+
+        comm_rate = float(pur.product.commission_rate if (pur.product and pur.product.commission_rate is not None) else 20.0)
+        admin_pct = int(round(comm_rate))
+        if admin_pct <= 0 or admin_pct >= 100:
+            admin_pct = 20
+        staff_pct = 100 - admin_pct
+
+        staff_earned = round(usd_val * (staff_pct / 100.0), 2)
+        admin_fee = round(usd_val - staff_earned, 2)
+
+        total_gross_usd += usd_val
+        total_staff_net_usd += staff_earned
+        total_admin_fee_usd += admin_fee
+
+        uploader = pur.product.uploaded_by
+        uploader_name = f"{uploader.first_name} {uploader.last_name}".strip() or uploader.username if uploader else "Staff Modeller"
+
+        buyer_name = f"{pur.buyer.first_name} {pur.buyer.last_name}".strip() or pur.buyer.username if pur.buyer else "Customer"
+
+        img_url = None
+        if pur.product:
+            prim_img = pur.product.images.filter(is_primary=True).first() or pur.product.images.first()
+            if prim_img:
+                img_url = request.build_absolute_uri(prim_img.image.url) if prim_img.image else prim_img.image_url
+
+        sales.append({
+            'purchase_id': pur.id,
+            'purchase_ref': f"PUR-{pur.id}",
+            'product_id': pur.product.id if pur.product else None,
+            'product_title': pur.product.title if pur.product else "Ready CAD Design",
+            'product_slug': pur.product.slug if pur.product else "",
+            'product_image': img_url,
+            'buyer_name': buyer_name,
+            'buyer_email': pur.buyer.email if pur.buyer else "",
+            'license_type': pur.get_license_type_display(),
+            'gross_price_usd': usd_val,
+            'admin_fee_pct': admin_pct,
+            'admin_fee_usd': admin_fee,
+            'staff_share_pct': staff_pct,
+            'staff_earned_usd': staff_earned,
+            'payment_method': pur.payment_method or "upi",
+            'status': pur.status,
+            'purchased_at': pur.purchased_at.strftime('%b %d, %Y, %I:%M %p'),
+            'purchased_at_iso': pur.purchased_at.isoformat(),
+            'staff_name': uploader_name,
+            'staff_id': uploader.id if uploader else None,
+        })
+
+    return Response({
+        'sales': sales,
+        'count': len(sales),
+        'total_gross_usd': round(total_gross_usd, 2),
+        'total_staff_net_usd': round(total_staff_net_usd, 2),
+        'total_admin_fee_usd': round(total_admin_fee_usd, 2),
+    }, status=status.HTTP_200_OK)
 
 
 class SettlementViewSet(viewsets.ReadOnlyModelViewSet):

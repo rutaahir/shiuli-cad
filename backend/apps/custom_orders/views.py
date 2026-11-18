@@ -255,6 +255,16 @@ class CustomRequestViewSet(viewsets.ModelViewSet):
         if not price:
             return Response({"error": "Price quote is required."}, status=status.HTTP_400_BAD_REQUEST)
 
+        f_price = float(price)
+        if f_price > 500:
+            usd_val = round(f_price / 86.85, 2)
+            inr_val = int(round(f_price))
+        else:
+            usd_val = round(f_price, 2)
+            inr_val = int(round(f_price * 86.85))
+
+        disp = f"${usd_val:.2f} USD (≈ ₹{inr_val:,})"
+
         custom_req.agreed_price = price
         custom_req.status = CustomRequest.Status.QUOTED
         custom_req.save()
@@ -262,14 +272,14 @@ class CustomRequestViewSet(viewsets.ModelViewSet):
         NegotiationMessage.objects.create(
             request=custom_req,
             sender_type=NegotiationMessage.SenderType.ADMIN,
-            message=message_text or f"Official Quote issued for ₹{price}",
+            message=message_text or f"Official Quote issued: {disp}",
             offered_price=price
         )
 
         create_notification(
             recipient=custom_req.client,
             title="Design Quote Ready!",
-            body=f"Studio sent an official quote of ₹{price} for Custom Request #{custom_req.id}.",
+            body=f"Studio sent an official quote of {disp} for Custom Request #{custom_req.id}.",
             notification_type="quote_received",
             related_order=None
         )
@@ -303,10 +313,17 @@ class CustomRequestViewSet(viewsets.ModelViewSet):
         # Notify other party
         recipient = custom_req.client if sender_type == NegotiationMessage.SenderType.ADMIN else None
         if recipient:
+            disp_counter = ""
+            if counter_price:
+                f_c = float(counter_price)
+                if f_c > 500:
+                    disp_counter = f"${round(f_c / 86.85, 2):.2f} USD (≈ ₹{int(round(f_c)):,})"
+                else:
+                    disp_counter = f"${round(f_c, 2):.2f} USD (≈ ₹{int(round(f_c * 86.85)):,})"
             create_notification(
                 recipient=recipient,
                 title="New Negotiation Counter-Offer",
-                body=f"New counter offer for Request #{custom_req.id}: ₹{counter_price or 'Note added'}",
+                body=f"New counter offer for Request #{custom_req.id}: {disp_counter or 'Note added'}",
                 notification_type="negotiation"
             )
 
@@ -365,6 +382,9 @@ class CustomRequestViewSet(viewsets.ModelViewSet):
         comm_pct = custom_req.admin_commission_percentage if custom_req.admin_commission_percentage is not None else 20.00
         payout_price = round(total_price * (100.0 - float(comm_pct)) / 100.0, 2)
         advance_amount = round(total_price * 0.10, 2)
+        is_usd = total_price <= 500
+        order_currency = "USD" if is_usd else "INR"
+        orig_price_usd = total_price if is_usd else round(total_price / 86.85, 2)
 
         if not hasattr(custom_req, 'order') or not custom_req.order:
             order = Order.objects.create(
@@ -372,6 +392,9 @@ class CustomRequestViewSet(viewsets.ModelViewSet):
                 order_type=Order.OrderType.CUSTOM,
                 custom_request=custom_req,
                 total_price=total_price,
+                currency=order_currency,
+                original_price_usd=orig_price_usd,
+                exchange_rate=86.85,
                 admin_commission_percentage=comm_pct,
                 staff_payout_price=payout_price,
                 advance_amount=advance_amount,
@@ -385,6 +408,9 @@ class CustomRequestViewSet(viewsets.ModelViewSet):
         else:
             order = custom_req.order
             order.total_price = total_price
+            order.currency = order_currency
+            order.original_price_usd = orig_price_usd
+            order.exchange_rate = 86.85
             order.admin_commission_percentage = comm_pct
             order.staff_payout_price = payout_price
             order.advance_amount = advance_amount
@@ -787,6 +813,20 @@ class OrderViewSet(viewsets.ModelViewSet):
             status=Order.Status.AWAITING_PAYMENT,
             is_deleted=False
         ).update(status=Order.Status.IN_DESIGN, unassigned_since=timezone.now())
+
+        # Ensure any pool orders with total_price <= 500 have currency='USD' and proper staff_payout_price ($20 total -> $16 payout after 20% commission)
+        for o in Order.objects.filter(status=Order.Status.IN_DESIGN, assigned_staff__isnull=True, is_deleted=False):
+            t_price = float(o.total_price or 0.0)
+            if 0 < t_price <= 500:
+                comm = float(o.admin_commission_percentage if o.admin_commission_percentage is not None else 20.00)
+                expected_payout = round(t_price * (100.0 - comm) / 100.0, 2)
+                curr_payout = float(o.staff_payout_price or 0.0)
+                if o.currency != 'USD' or curr_payout < 1.0 or abs(curr_payout - expected_payout) > 0.01:
+                    o.currency = 'USD'
+                    o.staff_payout_price = expected_payout
+                    o.original_price_usd = t_price
+                    o.exchange_rate = 86.85
+                    o.save(update_fields=['currency', 'staff_payout_price', 'original_price_usd', 'exchange_rate'])
 
         pool_orders = Order.objects.filter(
             status=Order.Status.IN_DESIGN,
